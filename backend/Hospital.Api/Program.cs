@@ -11,6 +11,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
 
+// We no longer need to configure UseUrls here. The ports are configured in launchSettings.json.
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -20,6 +21,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// Ensure HTTPS redirection is enabled
 app.UseHttpsRedirection();
 
 var summaries = new[]

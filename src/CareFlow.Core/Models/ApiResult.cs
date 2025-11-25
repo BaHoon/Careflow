@@ -4,8 +4,8 @@ namespace CareFlow.Core.Models
     {
         public bool Success { get; set; }
         public T? Data { get; set; }
-        public string Message { get; set; }
-        public string ErrorCode { get; set; }
+        public string Message { get; set; } = string.Empty;  // 初始化为空字符串
+        public string ErrorCode { get; set; } = string.Empty;  // 初始化为空字符串
 
         public static ApiResult<T> Ok(T data)
         {
