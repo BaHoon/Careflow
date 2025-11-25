@@ -1,0 +1,39 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {
+      "CareFlow.Application.Common/1.0.0": {
+        "dependencies": {
+          "CareFlow.Core": "1.0.0"
+        },
+        "runtime": {
+          "CareFlow.Application.Common.dll": {}
+        }
+      },
+      "CareFlow.Core/1.0.0": {
+        "runtime": {
+          "CareFlow.Core.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "CareFlow.Application.Common/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "CareFlow.Core/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

@@ -1,0 +1,16 @@
+D:\Careflow\src\CareFlow.Infrastructure\obj\Debug\net10.0\CareFlow.Infrastructure.csproj.AssemblyReference.cache
+D:\Careflow\src\CareFlow.Infrastructure\obj\Debug\net10.0\CareFlow.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+D:\Careflow\src\CareFlow.Infrastructure\obj\Debug\net10.0\CareFlow.Infrastructure.AssemblyInfoInputs.cache
+D:\Careflow\src\CareFlow.Infrastructure\obj\Debug\net10.0\CareFlow.Infrastructure.AssemblyInfo.cs
+D:\Careflow\src\CareFlow.Infrastructure\obj\Debug\net10.0\CareFlow.Infrastructure.csproj.CoreCompileInputs.cache
+D:\Careflow\src\CareFlow.Infrastructure\obj\Debug\net10.0\CareFlow.Infrastructure.sourcelink.json
+D:\Careflow\src\CareFlow.Infrastructure\bin\Debug\net10.0\CareFlow.Infrastructure.deps.json
+D:\Careflow\src\CareFlow.Infrastructure\bin\Debug\net10.0\CareFlow.Infrastructure.dll
+D:\Careflow\src\CareFlow.Infrastructure\bin\Debug\net10.0\CareFlow.Infrastructure.pdb
+D:\Careflow\src\CareFlow.Infrastructure\bin\Debug\net10.0\CareFlow.Core.dll
+D:\Careflow\src\CareFlow.Infrastructure\bin\Debug\net10.0\CareFlow.Core.pdb
+D:\Careflow\src\CareFlow.Infrastructure\obj\Debug\net10.0\CareFlow.6D866610.Up2Date
+D:\Careflow\src\CareFlow.Infrastructure\obj\Debug\net10.0\CareFlow.Infrastructure.dll
+D:\Careflow\src\CareFlow.Infrastructure\obj\Debug\net10.0\refint\CareFlow.Infrastructure.dll
+D:\Careflow\src\CareFlow.Infrastructure\obj\Debug\net10.0\CareFlow.Infrastructure.pdb
+D:\Careflow\src\CareFlow.Infrastructure\obj\Debug\net10.0\ref\CareFlow.Infrastructure.dll

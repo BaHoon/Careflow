@@ -1,0 +1,16 @@
+D:\Careflow\src\CareFlow.Application.Common\bin\Debug\net10.0\CareFlow.Application.Common.deps.json
+D:\Careflow\src\CareFlow.Application.Common\bin\Debug\net10.0\CareFlow.Application.Common.dll
+D:\Careflow\src\CareFlow.Application.Common\bin\Debug\net10.0\CareFlow.Application.Common.pdb
+D:\Careflow\src\CareFlow.Application.Common\bin\Debug\net10.0\CareFlow.Core.dll
+D:\Careflow\src\CareFlow.Application.Common\bin\Debug\net10.0\CareFlow.Core.pdb
+D:\Careflow\src\CareFlow.Application.Common\obj\Debug\net10.0\CareFlow.Application.Common.csproj.AssemblyReference.cache
+D:\Careflow\src\CareFlow.Application.Common\obj\Debug\net10.0\CareFlow.Application.Common.GeneratedMSBuildEditorConfig.editorconfig
+D:\Careflow\src\CareFlow.Application.Common\obj\Debug\net10.0\CareFlow.Application.Common.AssemblyInfoInputs.cache
+D:\Careflow\src\CareFlow.Application.Common\obj\Debug\net10.0\CareFlow.Application.Common.AssemblyInfo.cs
+D:\Careflow\src\CareFlow.Application.Common\obj\Debug\net10.0\CareFlow.Application.Common.csproj.CoreCompileInputs.cache
+D:\Careflow\src\CareFlow.Application.Common\obj\Debug\net10.0\CareFlow.Application.Common.sourcelink.json
+D:\Careflow\src\CareFlow.Application.Common\obj\Debug\net10.0\CareFlow.6497FCAF.Up2Date
+D:\Careflow\src\CareFlow.Application.Common\obj\Debug\net10.0\CareFlow.Application.Common.dll
+D:\Careflow\src\CareFlow.Application.Common\obj\Debug\net10.0\refint\CareFlow.Application.Common.dll
+D:\Careflow\src\CareFlow.Application.Common\obj\Debug\net10.0\CareFlow.Application.Common.pdb
+D:\Careflow\src\CareFlow.Application.Common\obj\Debug\net10.0\ref\CareFlow.Application.Common.dll
