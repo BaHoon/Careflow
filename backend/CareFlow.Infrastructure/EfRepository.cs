@@ -22,9 +22,19 @@ public class EfRepository<T, TKey> : IRepository<T, TKey> where T : EntityBase<T
         return await _dbSet.FindAsync(id);
     }
 
+    public async Task<T?> GetAsync(Expression<Func<T, bool>> predicate)
+    {
+        return await _dbSet.FirstOrDefaultAsync(predicate);
+    }
+
     public async Task<List<T>> ListAsync()
     {
         return await _dbSet.ToListAsync();
+    }
+
+    public async Task<List<T>> ListAsync(Expression<Func<T, bool>> predicate)
+    {
+        return await _dbSet.Where(predicate).ToListAsync();
     }
 
     public async Task<T> AddAsync(T entity)
