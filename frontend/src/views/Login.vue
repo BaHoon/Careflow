@@ -58,7 +58,7 @@ const handleLogin = async () => {
   try {
     // 假设后端运行在 localhost:5000 (根据你的 launchSettings.json 调整端口)
     // 注意：如果你配置了 axios baseURL，这里可以直接写 '/api/auth/login'
-    const res = await axios.post('http://localhost:5037/api/auth/login', form.value);
+    const res = await axios.post('http://localhost:5181/api/auth/login', form.value);
     
     const { token, fullName, role } = res.data;
 
