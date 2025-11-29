@@ -1,4 +1,8 @@
 using CareFlow.Infrastructure; // 引用基础设施层
+using CareFlow.Application.Services; // 引用应用层服务
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,6 +16,25 @@ builder.Services.AddControllers();
 // 添加 Swagger/OpenAPI (接口文档生成器)
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// 注册 AuthService
+builder.Services.AddScoped<AuthService>();
+
+// 配置 JWT 认证服务
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+        };
+    });
 
 // [关键] 注册基础设施层 (数据库、Repository等都在这里面)
 // 这行代码会调用我们在 Infrastructure 层写的 DependencyInjection 类
@@ -31,6 +54,7 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
 // ==============================================
 // 数据库初始化与数据预置 (Data Seeding)
 // ==============================================
@@ -73,6 +97,10 @@ app.UseHttpsRedirection();
 
 // 启用 CORS (必须放在 UseAuthorization 之前)
 app.UseCors("AllowAll");
+
+// 启用认证 (必须在 UseAuthorization 之前)
+app.UseAuthentication(); 
+app.UseAuthorization();
 
 // 启用权限验证 (虽然还没写逻辑，先放着)
 app.UseAuthorization();

@@ -187,3 +187,11 @@ D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.WebApi\obj\Debug\net10
 D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.WebApi\obj\Debug\net10.0\CareFlow.WebApi.pdb
 D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.WebApi\obj\Debug\net10.0\CareFlow.WebApi.genruntimeconfig.cache
 D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.WebApi\obj\Debug\net10.0\ref\CareFlow.WebApi.dll
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.WebApi\bin\Debug\net10.0\Microsoft.AspNetCore.Authentication.JwtBearer.dll
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.WebApi\bin\Debug\net10.0\Microsoft.IdentityModel.Abstractions.dll
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.WebApi\bin\Debug\net10.0\Microsoft.IdentityModel.JsonWebTokens.dll
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.WebApi\bin\Debug\net10.0\Microsoft.IdentityModel.Logging.dll
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.WebApi\bin\Debug\net10.0\Microsoft.IdentityModel.Protocols.dll
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.WebApi\bin\Debug\net10.0\Microsoft.IdentityModel.Protocols.OpenIdConnect.dll
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.WebApi\bin\Debug\net10.0\Microsoft.IdentityModel.Tokens.dll
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.WebApi\bin\Debug\net10.0\System.IdentityModel.Tokens.Jwt.dll
