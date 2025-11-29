@@ -31,6 +31,31 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+// ==============================================
+// 数据库初始化与数据预置 (Data Seeding)
+// ==============================================
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        // 1. 获取数据库上下文服务
+        var context = services.GetRequiredService<ApplicationDbContext>();
+        
+        // 2. 调用我们在 Infrastructure 层写的初始化器
+        // 确保你的 DbInitializer.cs 类名和命名空间正确
+        CareFlow.Infrastructure.Data.DbInitializer.Initialize(context);
+        
+        // 这是一个可选的日志输出，方便你看控制台知道发生了什么
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogInformation("数据库初始化已完成，测试数据已插入。");
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "数据库初始化期间发生错误。");
+    }
+}
 
 // ==============================================
 // 2. 配置 HTTP 请求管道 (Pipeline)

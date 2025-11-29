@@ -9,7 +9,7 @@ public class Room : SoftDeleteEntity<int>
     public string Building { get; set; } = string.Empty;
     public int Floor { get; set; }
     public string RoomNumber { get; set; } = string.Empty;
-    public Gender GenderConstraint { get; set; } // 性别限制
+    public RoomGenderType GenderConstraint { get; set; } // 性别限制
     public RoomType Type { get; set; }
     
     // 关系
