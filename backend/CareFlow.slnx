@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/backend/">
+    <Project Path="CareFlow.Application/CareFlow.Application.csproj" />
+    <Project Path="CareFlow.Core/CareFlow.Core.csproj" />
+    <Project Path="CareFlow.Infrastructure/CareFlow.Infrastructure.csproj" />
+    <Project Path="CareFlow.WebApi/CareFlow.WebApi.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,16 @@
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Infrastructure\bin\Debug\net10.0\CareFlow.Infrastructure.deps.json
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Infrastructure\bin\Debug\net10.0\CareFlow.Infrastructure.dll
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Infrastructure\bin\Debug\net10.0\CareFlow.Infrastructure.pdb
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Infrastructure\bin\Debug\net10.0\CareFlow.Core.dll
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Infrastructure\bin\Debug\net10.0\CareFlow.Core.pdb
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Infrastructure\obj\Debug\net10.0\CareFlow.Infrastructure.csproj.AssemblyReference.cache
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Infrastructure\obj\Debug\net10.0\CareFlow.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Infrastructure\obj\Debug\net10.0\CareFlow.Infrastructure.AssemblyInfoInputs.cache
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Infrastructure\obj\Debug\net10.0\CareFlow.Infrastructure.AssemblyInfo.cs
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Infrastructure\obj\Debug\net10.0\CareFlow.Infrastructure.csproj.CoreCompileInputs.cache
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Infrastructure\obj\Debug\net10.0\CareFlow.Infrastructure.sourcelink.json
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Infrastructure\obj\Debug\net10.0\CareFlow.6D866610.Up2Date
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Infrastructure\obj\Debug\net10.0\CareFlow.Infrastructure.dll
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Infrastructure\obj\Debug\net10.0\refint\CareFlow.Infrastructure.dll
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Infrastructure\obj\Debug\net10.0\CareFlow.Infrastructure.pdb
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Infrastructure\obj\Debug\net10.0\ref\CareFlow.Infrastructure.dll
