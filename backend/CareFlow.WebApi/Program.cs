@@ -20,6 +20,9 @@ builder.Services.AddSwaggerGen();
 // 注册 AuthService
 builder.Services.AddScoped<AuthService>();
 
+// 注册 StaffService
+builder.Services.AddScoped<StaffService>();
+
 // 配置 JWT 认证服务
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

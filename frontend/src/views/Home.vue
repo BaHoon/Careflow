@@ -19,7 +19,7 @@
           <h3>待办医嘱</h3>
           <p>今日待处理的医嘱任务</p>
         </div>
-        <div class="card" v-if="currentUser.role === 'Admin'">
+        <div class="card" v-if="currentUser.role === 'Admin'" @click="$router.push('/staff')" style="cursor: pointer">
           <h3>人员管理</h3>
           <p>导入与管理医护账号</p>
         </div>
