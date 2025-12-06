@@ -1,16 +1,12 @@
-using System.ComponentModel.DataAnnotations.Schema;
-using CareFlow.Core.Enums;
-
-namespace CareFlow.Core.Models;
-
-public class Bed : SoftDeleteEntity<int>
+using System.ComponentModel.DataAnnotations;
+namespace CareFlow.Core.Models.Space
 {
-    public int RoomId { get; set; }
-    public string BedLabel { get; set; } = string.Empty; // A床
-    public BedStatus Status { get; set; }
-    [Column(TypeName = "decimal(18,2)")]
-    public decimal PricePerDay { get; set; }
-
-    [ForeignKey("RoomId")]
-    public virtual Room Room { get; set; } = null!;
+    public class Bed
+    {
+        [Key]
+        public string BedId { get; set; } = null!;
+        public string WardId { get; set; } = null!;
+        public Ward Ward { get; set; } = null!;
+        public string Status { get; set; } = null!; // 占用/空闲
+    }
 }
