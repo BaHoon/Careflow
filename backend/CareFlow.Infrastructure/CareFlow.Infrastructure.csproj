@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CareFlow.Core\CareFlow.Core.csproj" />
+    <ProjectReference Include="..\CareFlow.Application\CareFlow.Application.csproj" />
   </ItemGroup>
 
   <ItemGroup>

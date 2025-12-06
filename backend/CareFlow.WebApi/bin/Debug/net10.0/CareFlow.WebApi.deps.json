@@ -799,6 +799,7 @@
       "CareFlow.Infrastructure/1.0.0": {
         "dependencies": {
           "Aspose.BarCode": "24.1.0",
+          "CareFlow.Application": "1.0.0",
           "CareFlow.Core": "1.0.0",
           "Microsoft.EntityFrameworkCore": "10.0.0",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "10.0.0"

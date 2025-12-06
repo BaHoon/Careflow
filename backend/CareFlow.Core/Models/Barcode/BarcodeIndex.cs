@@ -1,6 +1,6 @@
 namespace CareFlow.Core.Models;
 
-public class BarcodeIndex
+public class BarcodeIndex : EntityBase<string>
 {
     public string TableName { get; set; } = string.Empty;
     public string RecordId { get; set; } = string.Empty;

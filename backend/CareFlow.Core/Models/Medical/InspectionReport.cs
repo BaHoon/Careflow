@@ -1,15 +1,11 @@
-using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using CareFlow.Core.Models.Organization;
 
 namespace CareFlow.Core.Models.Medical
 {
     // 对应 INSPECTION_REPORT
-    public class InspectionReport
+    public class InspectionReport : EntityBase<long>
     {
-        [Key]
-        public long ReportId { get; set; }           // 报告ID
-
         // 关联检查医嘱
         public long OrderId { get; set; }
             [ForeignKey("OrderId")]
