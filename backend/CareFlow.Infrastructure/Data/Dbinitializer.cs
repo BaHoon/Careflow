@@ -58,6 +58,41 @@ namespace CareFlow.Infrastructure.Data
             context.Departments.AddRange(departments);
             context.SaveChanges(); // 保存科室
 
+            // --- 预置时间槽位数据 (HospitalTimeSlot) ---
+            // 使用2的幂次作为SlotId，便于位掩码操作和组合使用
+            var timeSlots = new HospitalTimeSlot[]
+            {
+                // 基础时间槽位 - 餐食相关
+                new HospitalTimeSlot { SlotId = 1, SlotCode = "PRE_BREAKFAST", SlotName = "早餐前", DefaultTime = new TimeSpan(7, 0, 0), OffsetMinutes = 15 },
+                new HospitalTimeSlot { SlotId = 2, SlotCode = "POST_BREAKFAST", SlotName = "早餐后", DefaultTime = new TimeSpan(8, 30, 0), OffsetMinutes = 30 },
+                new HospitalTimeSlot { SlotId = 4, SlotCode = "PRE_LUNCH", SlotName = "午餐前", DefaultTime = new TimeSpan(11, 30, 0), OffsetMinutes = 15 },
+                new HospitalTimeSlot { SlotId = 8, SlotCode = "POST_LUNCH", SlotName = "午餐后", DefaultTime = new TimeSpan(13, 0, 0), OffsetMinutes = 30 },
+                new HospitalTimeSlot { SlotId = 16, SlotCode = "PRE_DINNER", SlotName = "晚餐前", DefaultTime = new TimeSpan(17, 30, 0), OffsetMinutes = 15 },
+                new HospitalTimeSlot { SlotId = 32, SlotCode = "POST_DINNER", SlotName = "晚餐后", DefaultTime = new TimeSpan(19, 0, 0), OffsetMinutes = 30 },
+                new HospitalTimeSlot { SlotId = 64, SlotCode = "BEDTIME", SlotName = "睡前", DefaultTime = new TimeSpan(21, 0, 0), OffsetMinutes = 30 },
+                new HospitalTimeSlot { SlotId = 128, SlotCode = "MIDNIGHT", SlotName = "夜间", DefaultTime = new TimeSpan(0, 0, 0), OffsetMinutes = 60 },
+
+                // 扩展时间槽位 - 特殊用途
+                new HospitalTimeSlot { SlotId = 256, SlotCode = "EARLY_MORNING", SlotName = "清晨", DefaultTime = new TimeSpan(6, 0, 0), OffsetMinutes = 30 },
+                new HospitalTimeSlot { SlotId = 512, SlotCode = "MORNING", SlotName = "上午", DefaultTime = new TimeSpan(9, 0, 0), OffsetMinutes = 60 },
+                new HospitalTimeSlot { SlotId = 1024, SlotCode = "NOON", SlotName = "中午", DefaultTime = new TimeSpan(12, 0, 0), OffsetMinutes = 30 },
+                new HospitalTimeSlot { SlotId = 2048, SlotCode = "AFTERNOON", SlotName = "下午", DefaultTime = new TimeSpan(15, 0, 0), OffsetMinutes = 60 },
+                new HospitalTimeSlot { SlotId = 4096, SlotCode = "EVENING", SlotName = "傍晚", DefaultTime = new TimeSpan(18, 0, 0), OffsetMinutes = 30 },
+                new HospitalTimeSlot { SlotId = 8192, SlotCode = "NIGHT", SlotName = "夜晚", DefaultTime = new TimeSpan(22, 0, 0), OffsetMinutes = 60 },
+                new HospitalTimeSlot { SlotId = 16384, SlotCode = "LATE_NIGHT", SlotName = "深夜", DefaultTime = new TimeSpan(2, 0, 0), OffsetMinutes = 60 },
+                new HospitalTimeSlot { SlotId = 32768, SlotCode = "DAWN", SlotName = "黎明", DefaultTime = new TimeSpan(4, 0, 0), OffsetMinutes = 30 },
+
+                // 特殊医疗时段
+                new HospitalTimeSlot { SlotId = 65536, SlotCode = "EMERGENCY", SlotName = "紧急", DefaultTime = new TimeSpan(0, 0, 0), OffsetMinutes = 0 },
+                new HospitalTimeSlot { SlotId = 131072, SlotCode = "STAT", SlotName = "立即", DefaultTime = new TimeSpan(0, 0, 0), OffsetMinutes = 0 },
+                new HospitalTimeSlot { SlotId = 262144, SlotCode = "PRN", SlotName = "必要时", DefaultTime = new TimeSpan(0, 0, 0), OffsetMinutes = 0 },
+                
+                // 监护时段
+                new HospitalTimeSlot { SlotId = 524288, SlotCode = "CONTINUOUS", SlotName = "持续", DefaultTime = new TimeSpan(0, 0, 0), OffsetMinutes = 0 }
+            };
+            context.HospitalTimeSlots.AddRange(timeSlots);
+            context.SaveChanges(); // 保存时间槽位
+
             // --- 预置员工数据 (Staff/Doctor/Nurse) ---
             
             // 默认密码为 "123456"
@@ -284,7 +319,7 @@ namespace CareFlow.Infrastructure.Data
             // 1. 药品医嘱 (MedicationOrder) - 各种类型的用药医嘱
             var medicationOrders = new MedicationOrder[]
             {
-                // 口服药物 - 长期医嘱
+                // 口服药物 - 长期医嘱 (BID - 每日2次)
                 new MedicationOrder
                 {
                     PatientId = "P001",
@@ -301,12 +336,12 @@ namespace CareFlow.Infrastructure.Data
                     IsDynamicUsage = false,
                     FreqCode = "BID",
                     StartTime = currentTime.AddDays(-2),
-                    TimingStrategy = "CYCLIC",
-                    SmartSlotsMask = 0b00100100, // 上午8点和下午8点
+                    TimingStrategy = "SLOTS",
+                    SmartSlotsMask = 2 | 32, // 早餐后(2) + 晚餐后(32) = 34
                     IntervalDays = 1
                 },
                 
-                // 静脉滴注 - 临时医嘱
+                // 静脉滴注 - 立即执行
                 new MedicationOrder
                 {
                     PatientId = "P001",
@@ -324,11 +359,11 @@ namespace CareFlow.Infrastructure.Data
                     FreqCode = "ONCE",
                     StartTime = currentTime.AddHours(-3),
                     TimingStrategy = "IMMEDIATE",
-                    SmartSlotsMask = 0,
+                    SmartSlotsMask = 131072, // 立即(STAT)
                     IntervalDays = 0
                 },
                 
-                // 胰岛素 - 餐前注射
+                // 胰岛素 - 餐前注射 (TID - 每日3次)
                 new MedicationOrder
                 {
                     PatientId = "P002",
@@ -346,11 +381,11 @@ namespace CareFlow.Infrastructure.Data
                     FreqCode = "TID",
                     StartTime = currentTime.AddDays(-1),
                     TimingStrategy = "SLOTS",
-                    SmartSlotsMask = 0b01001001, // 餐前时段
+                    SmartSlotsMask = 1 | 4 | 16, // 早餐前(1) + 午餐前(4) + 晚餐前(16) = 21
                     IntervalDays = 1
                 },
                 
-                // 吸氧 - 不定量医嘱
+                // 吸氧 - 持续治疗
                 new MedicationOrder
                 {
                     PatientId = "P003",
@@ -368,11 +403,11 @@ namespace CareFlow.Infrastructure.Data
                     FreqCode = "CONT",
                     StartTime = currentTime.AddDays(-1),
                     TimingStrategy = "CYCLIC",
-                    SmartSlotsMask = 0b11111111, // 全天
+                    SmartSlotsMask = 524288, // 持续(CONTINUOUS)
                     IntervalDays = 1
                 },
                 
-                // 外用药膏
+                // 外用药膏 - 早晚使用
                 new MedicationOrder
                 {
                     PatientId = "P004",
@@ -389,8 +424,51 @@ namespace CareFlow.Infrastructure.Data
                     FreqCode = "BID",
                     StartTime = currentTime.AddDays(-1),
                     TimingStrategy = "SLOTS",
-                    SmartSlotsMask = 0b10000001, // 早晚
+                    SmartSlotsMask = 512 | 64, // 上午(512) + 睡前(64) = 576
                     IntervalDays = 1
+                },
+                
+                // 抗生素 - 每日4次 (QID)
+                new MedicationOrder
+                {
+                    PatientId = "P005",
+                    DoctorId = "D001",
+                    CreateTime = currentTime.AddDays(-1),
+                    PlantEndTime = currentTime.AddDays(7),
+                    OrderType = "MedicationOrder",
+                    Status = "Accepted",
+                    IsLongTerm = true,
+                    DrugId = "DRUG005",
+                    Dosage = "500mg",
+                    UsageRoute = "口服",
+                    IsDynamicUsage = false,
+                    FreqCode = "QID",
+                    StartTime = currentTime.AddDays(-1),
+                    TimingStrategy = "SLOTS",
+                    SmartSlotsMask = 256 | 1024 | 4096 | 8192, // 清晨(256) + 中午(1024) + 傍晚(4096) + 夜晚(8192) = 13568
+                    IntervalDays = 1
+                },
+                
+                // 镇痛药 - 必要时使用 (PRN)
+                new MedicationOrder
+                {
+                    PatientId = "P006",
+                    DoctorId = "D002",
+                    CreateTime = currentTime.AddDays(-1),
+                    PlantEndTime = currentTime.AddDays(3),
+                    OrderType = "MedicationOrder",
+                    Status = "Accepted",
+                    IsLongTerm = false,
+                    DrugId = "DRUG006",
+                    Dosage = "50mg",
+                    UsageRoute = "肌肉注射",
+                    IsDynamicUsage = true,
+                    FreqCode = "PRN",
+                    StartTime = currentTime.AddDays(-1),
+                    TimingStrategy = "SPECIFIC",
+                    SmartSlotsMask = 262144, // 必要时(PRN)
+                    IntervalDays = 0,
+                    SpecificExecutionTime = null // PRN类型不设定具体时间
                 }
             };
             context.MedicationOrders.AddRange(medicationOrders);
@@ -595,7 +673,7 @@ namespace CareFlow.Infrastructure.Data
             // 如果 EF Core 使用了 Table-Per-Type (TPT)，Doctors 和 Nurses 会有单独的表
             // 必须使用 CASCADE 来处理外键约束
             var sql = @"
-                TRUNCATE TABLE ""Departments"", ""Staffs"", ""Doctors"", ""Nurses"", ""Patients"", ""Wards"", ""Beds"", ""MedicalOrders"", ""MedicationOrders"", ""OperationOrders"", ""InspectionOrders"", ""SurgicalOrders"" RESTART IDENTITY CASCADE;
+                TRUNCATE TABLE ""Departments"", ""HospitalTimeSlots"", ""Staffs"", ""Doctors"", ""Nurses"", ""Patients"", ""Wards"", ""Beds"", ""MedicalOrders"", ""MedicationOrders"", ""OperationOrders"", ""InspectionOrders"", ""SurgicalOrders"" RESTART IDENTITY CASCADE;
             ";
 
             try 

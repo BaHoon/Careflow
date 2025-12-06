@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("CareFlow.WebApi")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a4c78e64223bd42b6e69b85bbe5cf8bc6e32bf60")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+11bac3c5d64cc412e88f8cecc68b0bf09986f01e")]
 [assembly: System.Reflection.AssemblyProductAttribute("CareFlow.WebApi")]
 [assembly: System.Reflection.AssemblyTitleAttribute("CareFlow.WebApi")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
