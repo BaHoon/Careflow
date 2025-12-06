@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("CareFlow.Infrastructure")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+05f2820e02b91e2ab122af29c91975fdd54d3880")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+991a4d91399d77d86dd0ceb0dbf59d3842f2d914")]
 [assembly: System.Reflection.AssemblyProductAttribute("CareFlow.Infrastructure")]
 [assembly: System.Reflection.AssemblyTitleAttribute("CareFlow.Infrastructure")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

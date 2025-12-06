@@ -27,7 +27,7 @@ public class AuthService
         // 1. 查找用户
         // 你的 Staff 类中，工号对应的字段是 StaffId
         // 前端传来的 dto.EmployeeNumber 对应数据库里的 StaffId
-        var user = await _staffRepo.GetAsync(u => u.Id == dto.EmployeeNumber);
+        var user = await _staffRepo.GetAsync(u => u.EmployeeNumber == dto.EmployeeNumber);
 
         if (user == null)
             throw new Exception("用户不存在");
