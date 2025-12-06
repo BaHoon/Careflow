@@ -24,10 +24,18 @@ namespace CareFlow.Infrastructure.Data
             }
         }
 
+        private static DateTime UtcDate(int year, int month, int day, int hour = 0, int minute = 0)
+        {
+            return new DateTime(year, month, day, hour, minute, 0, DateTimeKind.Utc);
+        }
+
         public static void Initialize(ApplicationDbContext context)
         {
             // 确保数据库已创建
             context.Database.EnsureCreated();
+
+            var nowUtc = DateTime.UtcNow;
+            var todayUtc = DateTime.SpecifyKind(nowUtc.Date, DateTimeKind.Utc);
 
             // 【开关】决定是否要强制清空数据
             // 注意：如果之前报错导致部分数据插入成功，建议保持 true 运行一次以清理脏数据
@@ -179,7 +187,7 @@ namespace CareFlow.Infrastructure.Data
                     Name = "陈术前",
                     Gender = "F",
                     IdCard = "110100200001010101",
-                    DateOfBirth = new DateTime(1990, 5, 12),
+                    DateOfBirth = UtcDate(1990, 5, 12),
                     Age = 35,
                     Weight = 60,
                     Status = "住院中",
@@ -196,7 +204,7 @@ namespace CareFlow.Infrastructure.Data
                     Name = "周术备",
                     Gender = "M",
                     IdCard = "110100200001010202",
-                    DateOfBirth = new DateTime(1985, 11, 23),
+                    DateOfBirth = UtcDate(1985, 11, 23),
                     Age = 40,
                     Weight = 72,
                     Status = "术前待命",
@@ -211,6 +219,167 @@ namespace CareFlow.Infrastructure.Data
             context.Patients.AddRange(patients);
             context.SaveChanges();
 
+            // --- 预置药品医嘱数据 (MedicationOrder) ---
+            var medicationOrders = new MedicationOrder[]
+            {
+                new MedicationOrder
+                {
+                    PatientId = patients[0].PatientId,
+                    Patient = patients[0],
+                    DoctorId = doctors[0].Id,
+                    Doctor = doctors[0],
+                    NurseId = nurses[0].Id,
+                    Nurse = nurses[0],
+                    CreateTime = nowUtc.AddHours(-8),
+                    PlantEndTime = nowUtc.AddHours(12),
+                    EndTime = null,
+                    OrderType = "药品",
+                    Status = "执行中",
+                    IsLongTerm = false,
+                    DrugId = "DRUG-CTX",
+                    Dosage = "1.0g",
+                    UsageRoute = "静脉滴注",
+                    IsDynamicUsage = false,
+                    FreqCode = "Q8H",
+                    StartTime = nowUtc.AddHours(-2),
+                    TimingStrategy = "SPECIFIC",
+                    SpecificExecutionTime = nowUtc.AddHours(2),
+                    SmartSlotsMask = 0b0001,
+                    IntervalDays = 1
+                },
+                new MedicationOrder
+                {
+                    PatientId = patients[1].PatientId,
+                    Patient = patients[1],
+                    DoctorId = doctors[1].Id,
+                    Doctor = doctors[1],
+                    NurseId = nurses[1].Id,
+                    Nurse = nurses[1],
+                    CreateTime = nowUtc.AddDays(-1),
+                    PlantEndTime = nowUtc.AddDays(3),
+                    EndTime = null,
+                    OrderType = "药品",
+                    Status = "待核对",
+                    IsLongTerm = true,
+                    DrugId = "DRUG-AMI",
+                    Dosage = "5mg",
+                    UsageRoute = "口服",
+                    IsDynamicUsage = false,
+                    FreqCode = "QD",
+                    StartTime = nowUtc,
+                    TimingStrategy = "CYCLIC",
+                    SpecificExecutionTime = null,
+                    SmartSlotsMask = 0b0010,
+                    IntervalDays = 1
+                }
+            };
+            context.MedicationOrders.AddRange(medicationOrders);
+            context.SaveChanges();
+
+            // --- 预置检查医嘱数据 (InspectionOrder) ---
+            var inspectionOrders = new InspectionOrder[]
+            {
+                new InspectionOrder
+                {
+                    PatientId = patients[0].PatientId,
+                    Patient = patients[0],
+                    DoctorId = doctors[0].Id,
+                    Doctor = doctors[0],
+                    NurseId = nurses[0].Id,
+                    Nurse = nurses[0],
+                    CreateTime = nowUtc.AddHours(-4),
+                    PlantEndTime = nowUtc.AddHours(4),
+                    EndTime = null,
+                    OrderType = "检查",
+                    Status = "已预约",
+                    IsLongTerm = false,
+                    ItemCode = "CT-ABD",
+                    RisLisId = "RIS20251206001",
+                    Location = "影像中心",
+                    AppointmentTime = nowUtc.AddHours(2),
+                    AppointmentPlace = "CT室2",
+                    Precautions = "检查前禁食4小时",
+                    CheckStartTime = null,
+                    CheckEndTime = null,
+                    BackToWardTime = null,
+                    ReportTime = null,
+                    ReportId = "REP-CT-001"
+                },
+                new InspectionOrder
+                {
+                    PatientId = patients[1].PatientId,
+                    Patient = patients[1],
+                    DoctorId = doctors[1].Id,
+                    Doctor = doctors[1],
+                    NurseId = nurses[1].Id,
+                    Nurse = nurses[1],
+                    CreateTime = nowUtc.AddDays(-2),
+                    PlantEndTime = nowUtc.AddDays(1),
+                    EndTime = null,
+                    OrderType = "检查",
+                    Status = "报告回传",
+                    IsLongTerm = false,
+                    ItemCode = "LAB-COAG",
+                    RisLisId = "LIS20251205011",
+                    Location = "检验科",
+                    AppointmentTime = nowUtc.AddHours(-6),
+                    AppointmentPlace = "采血室A",
+                    Precautions = "采血后压迫5分钟",
+                    CheckStartTime = nowUtc.AddHours(-5),
+                    CheckEndTime = nowUtc.AddHours(-4),
+                    BackToWardTime = nowUtc.AddHours(-3.5),
+                    ReportTime = nowUtc.AddHours(-1),
+                    ReportId = "REP-LAB-011"
+                }
+            };
+            context.InspectionOrders.AddRange(inspectionOrders);
+            context.SaveChanges();
+
+            // --- 预置操作/护理医嘱数据 (OperationOrder) ---
+            var operationOrders = new OperationOrder[]
+            {
+                new OperationOrder
+                {
+                    PatientId = patients[0].PatientId,
+                    Patient = patients[0],
+                    DoctorId = doctors[0].Id,
+                    Doctor = doctors[0],
+                    NurseId = nurses[0].Id,
+                    Nurse = nurses[0],
+                    CreateTime = nowUtc.AddHours(-10),
+                    PlantEndTime = nowUtc.AddHours(-2),
+                    EndTime = nowUtc.AddHours(-1),
+                    OrderType = "操作",
+                    Status = "已完成",
+                    IsLongTerm = false,
+                    OpId = "OP-BATH",
+                    Normal = true,
+                    FrequencyType = "单次",
+                    FrequencyValue = "1"
+                },
+                new OperationOrder
+                {
+                    PatientId = patients[1].PatientId,
+                    Patient = patients[1],
+                    DoctorId = doctors[1].Id,
+                    Doctor = doctors[1],
+                    NurseId = nurses[1].Id,
+                    Nurse = nurses[1],
+                    CreateTime = nowUtc.AddHours(-3),
+                    PlantEndTime = nowUtc.AddHours(5),
+                    EndTime = null,
+                    OrderType = "操作",
+                    Status = "执行中",
+                    IsLongTerm = true,
+                    OpId = "OP-TURN",
+                    Normal = true,
+                    FrequencyType = "每天",
+                    FrequencyValue = "Q6H"
+                }
+            };
+            context.OperationOrders.AddRange(operationOrders);
+            context.SaveChanges();
+
             // --- 预置手术医嘱数据 (SurgicalOrder，字段内容使用中文描述) ---
             var surgicalOrders = new SurgicalOrder[]
             {
@@ -222,14 +391,14 @@ namespace CareFlow.Infrastructure.Data
                     Doctor = doctors[0],
                     NurseId = nurses[0].Id,
                     Nurse = nurses[0],
-                    CreateTime = DateTime.Now.AddHours(-6),
-                    PlantEndTime = DateTime.Now.AddHours(6),
+                    CreateTime = nowUtc.AddHours(-6),
+                    PlantEndTime = nowUtc.AddHours(6),
                     EndTime = null,
                     OrderType = "手术",
                     Status = "待执行",
                     IsLongTerm = false,
                     SurgeryName = "腹腔镜胆囊切除术",
-                    ScheduleTime = DateTime.Today.AddHours(10),
+                    ScheduleTime = todayUtc.AddHours(10),
                     AnesthesiaType = "硬膜外联合麻醉",
                     IncisionSite = "右上腹肋缘",
                     RequiredMeds = "{\"items\":[{\"name\":\"术前碘伏\",\"qty\":\"2瓶\"},{\"name\":\"0.9%氯化钠\",\"qty\":\"500ml\"}]}",
@@ -246,14 +415,14 @@ namespace CareFlow.Infrastructure.Data
                     Doctor = doctors[1],
                     NurseId = nurses[1].Id,
                     Nurse = nurses[1],
-                    CreateTime = DateTime.Now.AddDays(-1),
-                    PlantEndTime = DateTime.Now.AddDays(1),
+                    CreateTime = nowUtc.AddDays(-1),
+                    PlantEndTime = nowUtc.AddDays(1),
                     EndTime = null,
                     OrderType = "手术",
                     Status = "已排程",
                     IsLongTerm = false,
                     SurgeryName = "经皮肾镜结石取出术",
-                    ScheduleTime = DateTime.Today.AddDays(1).AddHours(8),
+                    ScheduleTime = todayUtc.AddDays(1).AddHours(8),
                     AnesthesiaType = "全身麻醉",
                     IncisionSite = "左腰部穿刺点",
                     RequiredMeds = "{\"items\":[{\"name\":\"输尿管支架\",\"qty\":\"1套\"},{\"name\":\"止血纱布\",\"qty\":\"3包\"}]}",
