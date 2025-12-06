@@ -1,0 +1,12 @@
+F:\Project\Careflow\backend\CareFlow.Core\bin\Debug\net10.0\CareFlow.Core.deps.json
+F:\Project\Careflow\backend\CareFlow.Core\bin\Debug\net10.0\CareFlow.Core.dll
+F:\Project\Careflow\backend\CareFlow.Core\bin\Debug\net10.0\CareFlow.Core.pdb
+F:\Project\Careflow\backend\CareFlow.Core\obj\Debug\net10.0\CareFlow.Core.GeneratedMSBuildEditorConfig.editorconfig
+F:\Project\Careflow\backend\CareFlow.Core\obj\Debug\net10.0\CareFlow.Core.AssemblyInfoInputs.cache
+F:\Project\Careflow\backend\CareFlow.Core\obj\Debug\net10.0\CareFlow.Core.AssemblyInfo.cs
+F:\Project\Careflow\backend\CareFlow.Core\obj\Debug\net10.0\CareFlow.Core.csproj.CoreCompileInputs.cache
+F:\Project\Careflow\backend\CareFlow.Core\obj\Debug\net10.0\CareFlow.Core.sourcelink.json
+F:\Project\Careflow\backend\CareFlow.Core\obj\Debug\net10.0\CareFlow.Core.dll
+F:\Project\Careflow\backend\CareFlow.Core\obj\Debug\net10.0\refint\CareFlow.Core.dll
+F:\Project\Careflow\backend\CareFlow.Core\obj\Debug\net10.0\CareFlow.Core.pdb
+F:\Project\Careflow\backend\CareFlow.Core\obj\Debug\net10.0\ref\CareFlow.Core.dll
