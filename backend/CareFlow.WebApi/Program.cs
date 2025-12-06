@@ -22,6 +22,9 @@ builder.Services.AddSwaggerGen();
 // 注册 AuthService
 builder.Services.AddScoped<AuthService>();
 
+// // 注册药品医嘱任务服务
+// builder.Services.AddScoped<IMedicationOrderTaskService, MedicationOrderTaskService>();
+
 // 配置 JWT 认证服务
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

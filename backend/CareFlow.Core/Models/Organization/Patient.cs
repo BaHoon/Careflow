@@ -1,13 +1,12 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using CareFlow.Core.Models.Space;
+using CareFlow.Core.Models;
 
 namespace CareFlow.Core.Models.Organization
 {
-    public class Patient
+    public class Patient : EntityBase<string>
     {
-        [Key]
-        public string PatientId { get; set; } = string.Empty; // 住院号
         public string Name { get; set; } = string.Empty;
         public string Gender { get; set; } = string.Empty;
         public string IdCard { get; set; } = string.Empty;

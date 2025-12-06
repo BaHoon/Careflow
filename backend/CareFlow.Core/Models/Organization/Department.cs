@@ -1,11 +1,11 @@
 using System.ComponentModel.DataAnnotations;
 using CareFlow.Core.Models.Space;
+using CareFlow.Core.Models;
+
 namespace CareFlow.Core.Models.Organization
 {
-    public class Department
+    public class Department : EntityBase<string>
     {
-        [Key]
-        public string DeptId { get; set; }= null!;
         public string DeptName { get; set; } = null!;
         public string Location { get; set; } = null!;
         

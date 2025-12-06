@@ -79,7 +79,7 @@ namespace CareFlow.Infrastructure
 
             // 确保 HospitalTimeSlot 的 ID 是手动输入的 (不自增)
             modelBuilder.Entity<HospitalTimeSlot>()
-                .Property(h => h.SlotId)
+                .Property(h => h.Id)
                 .ValueGeneratedNever();
         }
     }

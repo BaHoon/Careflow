@@ -5,11 +5,8 @@ using CareFlow.Core.Models.Organization;
 namespace CareFlow.Core.Models.Medical
 {
     // 对应 MEDICAL_ORDER (基类)
-    public abstract class MedicalOrder
+    public abstract class MedicalOrder : EntityBase<long>
     {
-        [Key]
-        public long OrderId { get; set; } // 流水号
-        
         public string PatientId { get; set; } = null!;
         [ForeignKey("PatientId")]
         public Patient Patient { get; set; } = null!;
@@ -24,7 +21,6 @@ namespace CareFlow.Core.Models.Medical
         public Nurse? Nurse { get; set; }
         
         //基础字段
-        public DateTime CreateTime { get; set; }
         public DateTime PlantEndTime { get; set; } // 理论结束
         public DateTime? EndTime { get; set; } // 实际结束
         public string OrderType { get; set; } = null!; // 鉴别列

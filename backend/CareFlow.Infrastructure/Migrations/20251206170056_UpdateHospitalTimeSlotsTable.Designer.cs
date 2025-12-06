@@ -3,6 +3,7 @@ using System;
 using CareFlow.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CareFlow.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251206170056_UpdateHospitalTimeSlotsTable")]
+    partial class UpdateHospitalTimeSlotsTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -52,7 +55,7 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("HospitalTimeSlots", (string)null);
+                    b.ToTable("HospitalTimeSlots");
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Medical.InspectionReport", b =>
@@ -107,7 +110,7 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.HasIndex("PatientId");
 
-                    b.ToTable("InspectionReports", (string)null);
+                    b.ToTable("InspectionReports");
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Medical.MedicalOrder", b =>
@@ -160,7 +163,7 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.HasIndex("PatientId");
 
-                    b.ToTable("MedicalOrders", (string)null);
+                    b.ToTable("MedicalOrders");
 
                     b.UseTptMappingStrategy();
                 });
@@ -215,7 +218,7 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.HasIndex("PatientId");
 
-                    b.ToTable("ExecutionTasks", (string)null);
+                    b.ToTable("ExecutionTasks");
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Nursing.NurseRoster", b =>
@@ -256,7 +259,7 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.HasIndex("WardId");
 
-                    b.ToTable("NurseRosters", (string)null);
+                    b.ToTable("NurseRosters");
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Nursing.NursingCareNote", b =>
@@ -335,7 +338,7 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.HasIndex("RecorderNurseId");
 
-                    b.ToTable("NursingCareNotes", (string)null);
+                    b.ToTable("NursingCareNotes");
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Nursing.ShiftType", b =>
@@ -355,7 +358,7 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.HasKey("ShiftId");
 
-                    b.ToTable("ShiftTypes", (string)null);
+                    b.ToTable("ShiftTypes");
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Nursing.VitalSignsRecord", b =>
@@ -418,7 +421,7 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.HasIndex("RecorderNurseId");
 
-                    b.ToTable("VitalSignsRecords", (string)null);
+                    b.ToTable("VitalSignsRecords");
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Organization.Department", b =>
@@ -436,7 +439,7 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.HasKey("DeptId");
 
-                    b.ToTable("Departments", (string)null);
+                    b.ToTable("Departments");
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Organization.Patient", b =>
@@ -490,7 +493,7 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.HasIndex("BedId");
 
-                    b.ToTable("Patients", (string)null);
+                    b.ToTable("Patients");
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Organization.Staff", b =>
@@ -536,7 +539,7 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.HasIndex("DeptCode");
 
-                    b.ToTable("Staffs", (string)null);
+                    b.ToTable("Staffs");
 
                     b.UseTptMappingStrategy();
                 });
@@ -558,7 +561,7 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.HasIndex("WardId");
 
-                    b.ToTable("Beds", (string)null);
+                    b.ToTable("Beds");
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Space.Ward", b =>
@@ -577,7 +580,7 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.HasIndex("DepartmentDeptId");
 
-                    b.ToTable("Wards", (string)null);
+                    b.ToTable("Wards");
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Medical.InspectionOrder", b =>

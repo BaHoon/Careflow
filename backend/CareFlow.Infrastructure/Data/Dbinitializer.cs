@@ -26,19 +26,11 @@ namespace CareFlow.Infrastructure.Data
 
         public static void Initialize(ApplicationDbContext context)
         {
-            // 确保数据库已创建
+            // 删除现有数据库并重新创建（由于模型结构改变较大）
+            context.Database.EnsureDeleted();
             context.Database.EnsureCreated();
 
-            // 【开关】决定是否要强制清空数据
-            // 注意：如果之前报错导致部分数据插入成功，建议保持 true 运行一次以清理脏数据
-            bool forceReset = true; 
-
-            if (forceReset)
-            {
-                ClearAllData(context);
-            }
-
-            // 1. 检查是否已有数据 (如果 forceReset 为 true，这里通常是空的，除非 Clear 失败)
+            // 1. 检查是否已有数据（重新创建后应该是空的）
             if (context.Departments.Any())
             {
                 return;   // 数据库已播种，直接返回
@@ -50,10 +42,10 @@ namespace CareFlow.Infrastructure.Data
             // 【修正】添加了 Location 字段，解决 "null value in column Location" 错误
             var departments = new Department[]
             {
-                new Department { DeptId = "IM", DeptName = "内科", Location = "住院部A栋3楼" },
-                new Department { DeptId = "SUR", DeptName = "外科", Location = "住院部A栋4楼" },
-                new Department { DeptId = "PED", DeptName = "儿科", Location = "住院部B栋2楼" },
-                new Department { DeptId = "ADM", DeptName = "行政", Location = "行政楼101室" }
+                new Department { Id = "IM", DeptName = "内科", Location = "住院部A栋3楼" },
+                new Department { Id = "SUR", DeptName = "外科", Location = "住院部A栋4楼" },
+                new Department { Id = "PED", DeptName = "儿科", Location = "住院部B栋2楼" },
+                new Department { Id = "ADM", DeptName = "行政", Location = "行政楼101室" }
             };
             context.Departments.AddRange(departments);
             context.SaveChanges(); // 保存科室
@@ -63,32 +55,32 @@ namespace CareFlow.Infrastructure.Data
             var timeSlots = new HospitalTimeSlot[]
             {
                 // 基础时间槽位 - 餐食相关
-                new HospitalTimeSlot { SlotId = 1, SlotCode = "PRE_BREAKFAST", SlotName = "早餐前", DefaultTime = new TimeSpan(7, 0, 0), OffsetMinutes = 15 },
-                new HospitalTimeSlot { SlotId = 2, SlotCode = "POST_BREAKFAST", SlotName = "早餐后", DefaultTime = new TimeSpan(8, 30, 0), OffsetMinutes = 30 },
-                new HospitalTimeSlot { SlotId = 4, SlotCode = "PRE_LUNCH", SlotName = "午餐前", DefaultTime = new TimeSpan(11, 30, 0), OffsetMinutes = 15 },
-                new HospitalTimeSlot { SlotId = 8, SlotCode = "POST_LUNCH", SlotName = "午餐后", DefaultTime = new TimeSpan(13, 0, 0), OffsetMinutes = 30 },
-                new HospitalTimeSlot { SlotId = 16, SlotCode = "PRE_DINNER", SlotName = "晚餐前", DefaultTime = new TimeSpan(17, 30, 0), OffsetMinutes = 15 },
-                new HospitalTimeSlot { SlotId = 32, SlotCode = "POST_DINNER", SlotName = "晚餐后", DefaultTime = new TimeSpan(19, 0, 0), OffsetMinutes = 30 },
-                new HospitalTimeSlot { SlotId = 64, SlotCode = "BEDTIME", SlotName = "睡前", DefaultTime = new TimeSpan(21, 0, 0), OffsetMinutes = 30 },
-                new HospitalTimeSlot { SlotId = 128, SlotCode = "MIDNIGHT", SlotName = "夜间", DefaultTime = new TimeSpan(0, 0, 0), OffsetMinutes = 60 },
+                new HospitalTimeSlot { Id = 1, SlotCode = "PRE_BREAKFAST", SlotName = "早餐前", DefaultTime = new TimeSpan(7, 0, 0), OffsetMinutes = 15 },
+                new HospitalTimeSlot { Id = 2, SlotCode = "POST_BREAKFAST", SlotName = "早餐后", DefaultTime = new TimeSpan(8, 30, 0), OffsetMinutes = 30 },
+                new HospitalTimeSlot { Id = 4, SlotCode = "PRE_LUNCH", SlotName = "午餐前", DefaultTime = new TimeSpan(11, 30, 0), OffsetMinutes = 15 },
+                new HospitalTimeSlot { Id = 8, SlotCode = "POST_LUNCH", SlotName = "午餐后", DefaultTime = new TimeSpan(13, 0, 0), OffsetMinutes = 30 },
+                new HospitalTimeSlot { Id = 16, SlotCode = "PRE_DINNER", SlotName = "晚餐前", DefaultTime = new TimeSpan(17, 30, 0), OffsetMinutes = 15 },
+                new HospitalTimeSlot { Id = 32, SlotCode = "POST_DINNER", SlotName = "晚餐后", DefaultTime = new TimeSpan(19, 0, 0), OffsetMinutes = 30 },
+                new HospitalTimeSlot { Id = 64, SlotCode = "BEDTIME", SlotName = "睡前", DefaultTime = new TimeSpan(21, 0, 0), OffsetMinutes = 30 },
+                new HospitalTimeSlot { Id = 128, SlotCode = "MIDNIGHT", SlotName = "夜间", DefaultTime = new TimeSpan(0, 0, 0), OffsetMinutes = 60 },
 
                 // 扩展时间槽位 - 特殊用途
-                new HospitalTimeSlot { SlotId = 256, SlotCode = "EARLY_MORNING", SlotName = "清晨", DefaultTime = new TimeSpan(6, 0, 0), OffsetMinutes = 30 },
-                new HospitalTimeSlot { SlotId = 512, SlotCode = "MORNING", SlotName = "上午", DefaultTime = new TimeSpan(9, 0, 0), OffsetMinutes = 60 },
-                new HospitalTimeSlot { SlotId = 1024, SlotCode = "NOON", SlotName = "中午", DefaultTime = new TimeSpan(12, 0, 0), OffsetMinutes = 30 },
-                new HospitalTimeSlot { SlotId = 2048, SlotCode = "AFTERNOON", SlotName = "下午", DefaultTime = new TimeSpan(15, 0, 0), OffsetMinutes = 60 },
-                new HospitalTimeSlot { SlotId = 4096, SlotCode = "EVENING", SlotName = "傍晚", DefaultTime = new TimeSpan(18, 0, 0), OffsetMinutes = 30 },
-                new HospitalTimeSlot { SlotId = 8192, SlotCode = "NIGHT", SlotName = "夜晚", DefaultTime = new TimeSpan(22, 0, 0), OffsetMinutes = 60 },
-                new HospitalTimeSlot { SlotId = 16384, SlotCode = "LATE_NIGHT", SlotName = "深夜", DefaultTime = new TimeSpan(2, 0, 0), OffsetMinutes = 60 },
-                new HospitalTimeSlot { SlotId = 32768, SlotCode = "DAWN", SlotName = "黎明", DefaultTime = new TimeSpan(4, 0, 0), OffsetMinutes = 30 },
+                new HospitalTimeSlot { Id = 256, SlotCode = "EARLY_MORNING", SlotName = "清晨", DefaultTime = new TimeSpan(6, 0, 0), OffsetMinutes = 30 },
+                new HospitalTimeSlot { Id = 512, SlotCode = "MORNING", SlotName = "上午", DefaultTime = new TimeSpan(9, 0, 0), OffsetMinutes = 60 },
+                new HospitalTimeSlot { Id = 1024, SlotCode = "NOON", SlotName = "中午", DefaultTime = new TimeSpan(12, 0, 0), OffsetMinutes = 30 },
+                new HospitalTimeSlot { Id = 2048, SlotCode = "AFTERNOON", SlotName = "下午", DefaultTime = new TimeSpan(15, 0, 0), OffsetMinutes = 60 },
+                new HospitalTimeSlot { Id = 4096, SlotCode = "EVENING", SlotName = "傍晚", DefaultTime = new TimeSpan(18, 0, 0), OffsetMinutes = 30 },
+                new HospitalTimeSlot { Id = 8192, SlotCode = "NIGHT", SlotName = "夜晚", DefaultTime = new TimeSpan(22, 0, 0), OffsetMinutes = 60 },
+                new HospitalTimeSlot { Id = 16384, SlotCode = "LATE_NIGHT", SlotName = "深夜", DefaultTime = new TimeSpan(2, 0, 0), OffsetMinutes = 60 },
+                new HospitalTimeSlot { Id = 32768, SlotCode = "DAWN", SlotName = "黎明", DefaultTime = new TimeSpan(4, 0, 0), OffsetMinutes = 30 },
 
                 // 特殊医疗时段
-                new HospitalTimeSlot { SlotId = 65536, SlotCode = "EMERGENCY", SlotName = "紧急", DefaultTime = new TimeSpan(0, 0, 0), OffsetMinutes = 0 },
-                new HospitalTimeSlot { SlotId = 131072, SlotCode = "STAT", SlotName = "立即", DefaultTime = new TimeSpan(0, 0, 0), OffsetMinutes = 0 },
-                new HospitalTimeSlot { SlotId = 262144, SlotCode = "PRN", SlotName = "必要时", DefaultTime = new TimeSpan(0, 0, 0), OffsetMinutes = 0 },
+                new HospitalTimeSlot { Id = 65536, SlotCode = "EMERGENCY", SlotName = "紧急", DefaultTime = new TimeSpan(0, 0, 0), OffsetMinutes = 0 },
+                new HospitalTimeSlot { Id = 131072, SlotCode = "STAT", SlotName = "立即", DefaultTime = new TimeSpan(0, 0, 0), OffsetMinutes = 0 },
+                new HospitalTimeSlot { Id = 262144, SlotCode = "PRN", SlotName = "必要时", DefaultTime = new TimeSpan(0, 0, 0), OffsetMinutes = 0 },
                 
                 // 监护时段
-                new HospitalTimeSlot { SlotId = 524288, SlotCode = "CONTINUOUS", SlotName = "持续", DefaultTime = new TimeSpan(0, 0, 0), OffsetMinutes = 0 }
+                new HospitalTimeSlot { Id = 524288, SlotCode = "CONTINUOUS", SlotName = "持续", DefaultTime = new TimeSpan(0, 0, 0), OffsetMinutes = 0 }
             };
             context.HospitalTimeSlots.AddRange(timeSlots);
             context.SaveChanges(); // 保存时间槽位
@@ -190,10 +182,10 @@ namespace CareFlow.Infrastructure.Data
             // --- 预置病房和床位数据 ---
             var wards = new Ward[]
             {
-                new Ward { WardId = "IM-W01", DeptId = "IM" },  // 内科病房1
-                new Ward { WardId = "IM-W02", DeptId = "IM" },  // 内科病房2
-                new Ward { WardId = "SUR-W01", DeptId = "SUR" }, // 外科病房1
-                new Ward { WardId = "PED-W01", DeptId = "PED" }  // 儿科病房1
+                new Ward { Id = "IM-W01", DepartmentId = "IM" },  // 内科病房1
+                new Ward { Id = "IM-W02", DepartmentId = "IM" },  // 内科病房2
+                new Ward { Id = "SUR-W01", DepartmentId = "SUR" }, // 外科病房1
+                new Ward { Id = "PED-W01", DepartmentId = "PED" }  // 儿科病房1
             };
             context.Wards.AddRange(wards);
             context.SaveChanges();
@@ -201,17 +193,17 @@ namespace CareFlow.Infrastructure.Data
             var beds = new Bed[]
             {
                 // 内科床位
-                new Bed { BedId = "IM-W01-001", WardId = "IM-W01", Status = "占用" },
-                new Bed { BedId = "IM-W01-002", WardId = "IM-W01", Status = "占用" },
-                new Bed { BedId = "IM-W01-003", WardId = "IM-W01", Status = "空闲" },
-                new Bed { BedId = "IM-W02-001", WardId = "IM-W02", Status = "占用" },
+                new Bed { Id = "IM-W01-001", WardId = "IM-W01", Status = "占用" },
+                new Bed { Id = "IM-W01-002", WardId = "IM-W01", Status = "占用" },
+                new Bed { Id = "IM-W01-003", WardId = "IM-W01", Status = "空闲" },
+                new Bed { Id = "IM-W02-001", WardId = "IM-W02", Status = "占用" },
                 
                 // 外科床位
-                new Bed { BedId = "SUR-W01-001", WardId = "SUR-W01", Status = "占用" },
-                new Bed { BedId = "SUR-W01-002", WardId = "SUR-W01", Status = "占用" },
+                new Bed { Id = "SUR-W01-001", WardId = "SUR-W01", Status = "占用" },
+                new Bed { Id = "SUR-W01-002", WardId = "SUR-W01", Status = "占用" },
                 
                 // 儿科床位
-                new Bed { BedId = "PED-W01-001", WardId = "PED-W01", Status = "占用" }
+                new Bed { Id = "PED-W01-001", WardId = "PED-W01", Status = "占用" }
             };
             context.Beds.AddRange(beds);
             context.SaveChanges();
@@ -221,7 +213,7 @@ namespace CareFlow.Infrastructure.Data
             {
                 new Patient
                 {
-                    PatientId = "P001",
+                    Id = "P001",
                     Name = "张三",
                     Gender = "男",
                     IdCard = "110100199001010001",
@@ -236,7 +228,7 @@ namespace CareFlow.Infrastructure.Data
                 },
                 new Patient
                 {
-                    PatientId = "P002",
+                    Id = "P002",
                     Name = "李四",
                     Gender = "女",
                     IdCard = "110100198505050002",
@@ -251,7 +243,7 @@ namespace CareFlow.Infrastructure.Data
                 },
                 new Patient
                 {
-                    PatientId = "P003",
+                    Id = "P003",
                     Name = "王五",
                     Gender = "男",
                     IdCard = "110100197803030003",
@@ -266,7 +258,7 @@ namespace CareFlow.Infrastructure.Data
                 },
                 new Patient
                 {
-                    PatientId = "P004",
+                    Id = "P004",
                     Name = "赵六",
                     Gender = "女",
                     IdCard = "110100199212120004",
@@ -281,7 +273,7 @@ namespace CareFlow.Infrastructure.Data
                 },
                 new Patient
                 {
-                    PatientId = "P005",
+                    Id = "P005",
                     Name = "钱七",
                     Gender = "男",
                     IdCard = "110100201501010005",
@@ -296,7 +288,7 @@ namespace CareFlow.Infrastructure.Data
                 },
                 new Patient
                 {
-                    PatientId = "P006",
+                    Id = "P006",
                     Name = "孙八",
                     Gender = "男",
                     IdCard = "110100196802020006",
@@ -665,26 +657,6 @@ namespace CareFlow.Infrastructure.Data
             context.SurgicalOrders.AddRange(surgicalOrders);
             
             context.SaveChanges();
-        }
-
-        private static void ClearAllData(ApplicationDbContext context)
-        {
-            // 注意：表名需要与数据库实际生成的表名一致
-            // 如果 EF Core 使用了 Table-Per-Type (TPT)，Doctors 和 Nurses 会有单独的表
-            // 必须使用 CASCADE 来处理外键约束
-            var sql = @"
-                TRUNCATE TABLE ""Departments"", ""HospitalTimeSlots"", ""Staffs"", ""Doctors"", ""Nurses"", ""Patients"", ""Wards"", ""Beds"", ""MedicalOrders"", ""MedicationOrders"", ""OperationOrders"", ""InspectionOrders"", ""SurgicalOrders"" RESTART IDENTITY CASCADE;
-            ";
-
-            try 
-            {
-                context.Database.ExecuteSqlRaw(sql);
-            }
-            catch (Exception ex)
-            {
-                // 如果是第一次运行，表可能还不存在，忽略此错误或仅记录警告
-                // Console.WriteLine("清空数据提示 (如果是首次运行可忽略): " + ex.Message);
-            }
         }
     }
 }
