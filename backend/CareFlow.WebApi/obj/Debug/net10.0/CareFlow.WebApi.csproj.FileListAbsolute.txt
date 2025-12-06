@@ -407,3 +407,5 @@ D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.WebApi\obj\Debug\net10
 D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.WebApi\obj\Debug\net10.0\CareFlow.WebApi.pdb
 D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.WebApi\obj\Debug\net10.0\CareFlow.WebApi.genruntimeconfig.cache
 D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.WebApi\obj\Debug\net10.0\ref\CareFlow.WebApi.dll
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.WebApi\bin\Debug\net10.0\Aspose.BarCode.dll
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.WebApi\bin\Debug\net10.0\Aspose.Drawing.Common.dll

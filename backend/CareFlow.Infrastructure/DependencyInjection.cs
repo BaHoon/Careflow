@@ -1,4 +1,5 @@
 using CareFlow.Core.Interfaces;
+using CareFlow.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,6 +21,9 @@ public static class DependencyInjection
         // 这里的写法意思是：只要有人要 IRepository<User, Guid>，我就给他 EfRepository<User, Guid>
         // 这是一个比较高级的通用注入写法，或者你可以写死：
         services.AddScoped(typeof(IRepository<,>), typeof(EfRepository<,>));
+
+        // 注册条形码服务
+        services.AddScoped<IBarcodeService, AsposeBarcodeService>();
 
         return services;
     }

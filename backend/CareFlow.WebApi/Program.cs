@@ -1,3 +1,5 @@
+using CareFlow.Core.Interfaces;
+using CareFlow.Infrastructure.Services;
 using CareFlow.Infrastructure; // 引用基础设施层
 using CareFlow.Application.Services; // 引用应用层服务
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -52,6 +54,8 @@ builder.Services.AddCors(options =>
                   .AllowAnyHeader();  // 允许任何 Header
         });
 });
+
+builder.Services.AddScoped<IBarcodeService, AsposeBarcodeService>();
 
 var app = builder.Build();
 

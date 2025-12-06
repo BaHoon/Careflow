@@ -1,9 +1,11 @@
 {
   "version": 2,
-  "dgSpecHash": "60tEHOFAigg=",
+  "dgSpecHash": "dNyq0Mz9W4U=",
   "success": true,
   "projectFilePath": "D:\\Users\\18707\\Documents\\GitHub\\Careflow\\backend\\CareFlow.Infrastructure\\CareFlow.Infrastructure.csproj",
   "expectedPackageFiles": [
+    "C:\\Users\\18707\\.nuget\\packages\\aspose.barcode\\24.1.0\\aspose.barcode.24.1.0.nupkg.sha512",
+    "C:\\Users\\18707\\.nuget\\packages\\aspose.drawing.common\\23.7.0\\aspose.drawing.common.23.7.0.nupkg.sha512",
     "C:\\Users\\18707\\.nuget\\packages\\microsoft.entityframeworkcore\\10.0.0\\microsoft.entityframeworkcore.10.0.0.nupkg.sha512",
     "C:\\Users\\18707\\.nuget\\packages\\microsoft.entityframeworkcore.abstractions\\10.0.0\\microsoft.entityframeworkcore.abstractions.10.0.0.nupkg.sha512",
     "C:\\Users\\18707\\.nuget\\packages\\microsoft.entityframeworkcore.analyzers\\10.0.0\\microsoft.entityframeworkcore.analyzers.10.0.0.nupkg.sha512",
