@@ -1,6 +1,8 @@
-using CareFlow.Core.Models;
-using CareFlow.Core.Models.Organization;
 using CareFlow.Core.Enums;
+using CareFlow.Core.Models;
+using CareFlow.Core.Models.Medical;
+using CareFlow.Core.Models.Organization;
+using CareFlow.Core.Models.Space;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
@@ -55,6 +57,24 @@ namespace CareFlow.Infrastructure.Data
             };
             context.Departments.AddRange(departments);
             context.SaveChanges(); // 保存科室
+
+            // --- 预置病区/床位 (Ward/Bed) ---
+            var wards = new Ward[]
+            {
+                new Ward { WardId = "WARD_SURG_A", DeptId = "SUR", Department = departments.First(d => d.DeptId == "SUR") },
+                new Ward { WardId = "WARD_IM_A", DeptId = "IM", Department = departments.First(d => d.DeptId == "IM") }
+            };
+            context.Wards.AddRange(wards);
+            context.SaveChanges();
+
+            var beds = new Bed[]
+            {
+                new Bed { BedId = "SUR-401-A", WardId = "WARD_SURG_A", Ward = wards.First(w => w.WardId == "WARD_SURG_A"), Status = "已占用" },
+                new Bed { BedId = "SUR-401-B", WardId = "WARD_SURG_A", Ward = wards.First(w => w.WardId == "WARD_SURG_A"), Status = "空床" },
+                new Bed { BedId = "IM-301-A", WardId = "WARD_IM_A", Ward = wards.First(w => w.WardId == "WARD_IM_A"), Status = "已占用" }
+            };
+            context.Beds.AddRange(beds);
+            context.SaveChanges();
 
             // --- 预置员工数据 (Staff/Doctor/Nurse) ---
             
@@ -149,6 +169,102 @@ namespace CareFlow.Infrastructure.Data
             context.Staffs.AddRange(adminStaffs);
             
             context.SaveChanges();
+
+            // --- 预置患者数据 (Patient) ---
+            var patients = new Patient[]
+            {
+                new Patient
+                {
+                    PatientId = "P001",
+                    Name = "陈术前",
+                    Gender = "F",
+                    IdCard = "110100200001010101",
+                    DateOfBirth = new DateTime(1990, 5, 12),
+                    Age = 35,
+                    Weight = 60,
+                    Status = "住院中",
+                    PhoneNumber = "13800000001",
+                    NursingGrade = 2,
+                    BedId = beds.First(b => b.BedId == "SUR-401-A").BedId,
+                    Bed = beds.First(b => b.BedId == "SUR-401-A"),
+                    AttendingDoctorId = doctors.First().Id,
+                    AttendingDoctor = doctors.First()
+                },
+                new Patient
+                {
+                    PatientId = "P002",
+                    Name = "周术备",
+                    Gender = "M",
+                    IdCard = "110100200001010202",
+                    DateOfBirth = new DateTime(1985, 11, 23),
+                    Age = 40,
+                    Weight = 72,
+                    Status = "术前待命",
+                    PhoneNumber = "13800000002",
+                    NursingGrade = 3,
+                    BedId = beds.First(b => b.BedId == "IM-301-A").BedId,
+                    Bed = beds.First(b => b.BedId == "IM-301-A"),
+                    AttendingDoctorId = doctors.Last().Id,
+                    AttendingDoctor = doctors.Last()
+                }
+            };
+            context.Patients.AddRange(patients);
+            context.SaveChanges();
+
+            // --- 预置手术医嘱数据 (SurgicalOrder，字段内容使用中文描述) ---
+            var surgicalOrders = new SurgicalOrder[]
+            {
+                new SurgicalOrder
+                {
+                    PatientId = patients[0].PatientId,
+                    Patient = patients[0],
+                    DoctorId = doctors[0].Id,
+                    Doctor = doctors[0],
+                    NurseId = nurses[0].Id,
+                    Nurse = nurses[0],
+                    CreateTime = DateTime.Now.AddHours(-6),
+                    PlantEndTime = DateTime.Now.AddHours(6),
+                    EndTime = null,
+                    OrderType = "手术",
+                    Status = "待执行",
+                    IsLongTerm = false,
+                    SurgeryName = "腹腔镜胆囊切除术",
+                    ScheduleTime = DateTime.Today.AddHours(10),
+                    AnesthesiaType = "硬膜外联合麻醉",
+                    IncisionSite = "右上腹肋缘",
+                    RequiredMeds = "{\"items\":[{\"name\":\"术前碘伏\",\"qty\":\"2瓶\"},{\"name\":\"0.9%氯化钠\",\"qty\":\"500ml\"}]}",
+                    NeedBloodPrep = true,
+                    HasImplants = false,
+                    PrepProgress = 0.35f,
+                    PrepStatus = "器械核对中"
+                },
+                new SurgicalOrder
+                {
+                    PatientId = patients[1].PatientId,
+                    Patient = patients[1],
+                    DoctorId = doctors[1].Id,
+                    Doctor = doctors[1],
+                    NurseId = nurses[1].Id,
+                    Nurse = nurses[1],
+                    CreateTime = DateTime.Now.AddDays(-1),
+                    PlantEndTime = DateTime.Now.AddDays(1),
+                    EndTime = null,
+                    OrderType = "手术",
+                    Status = "已排程",
+                    IsLongTerm = false,
+                    SurgeryName = "经皮肾镜结石取出术",
+                    ScheduleTime = DateTime.Today.AddDays(1).AddHours(8),
+                    AnesthesiaType = "全身麻醉",
+                    IncisionSite = "左腰部穿刺点",
+                    RequiredMeds = "{\"items\":[{\"name\":\"输尿管支架\",\"qty\":\"1套\"},{\"name\":\"止血纱布\",\"qty\":\"3包\"}]}",
+                    NeedBloodPrep = false,
+                    HasImplants = true,
+                    PrepProgress = 0.6f,
+                    PrepStatus = "材料确认完成"
+                }
+            };
+            context.SurgicalOrders.AddRange(surgicalOrders);
+            context.SaveChanges();
         }
 
         private static void ClearAllData(ApplicationDbContext context)
@@ -157,7 +273,7 @@ namespace CareFlow.Infrastructure.Data
             // 如果 EF Core 使用了 Table-Per-Type (TPT)，Doctors 和 Nurses 会有单独的表
             // 必须使用 CASCADE 来处理外键约束
             var sql = @"
-                TRUNCATE TABLE ""Departments"", ""Staffs"", ""Doctors"", ""Nurses"", ""Patients"", ""MedicalOrders"" RESTART IDENTITY CASCADE;
+                TRUNCATE TABLE ""Departments"", ""Staffs"", ""Doctors"", ""Nurses"", ""Patients"", ""Wards"", ""Beds"", ""MedicalOrders"" RESTART IDENTITY CASCADE;
             ";
 
             try 
