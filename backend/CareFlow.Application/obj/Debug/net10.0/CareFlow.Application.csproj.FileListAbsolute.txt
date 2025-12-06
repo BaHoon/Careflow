@@ -1,0 +1,16 @@
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Application\bin\Debug\net10.0\CareFlow.Application.deps.json
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Application\bin\Debug\net10.0\CareFlow.Application.dll
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Application\bin\Debug\net10.0\CareFlow.Application.pdb
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Application\bin\Debug\net10.0\CareFlow.Core.dll
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Application\bin\Debug\net10.0\CareFlow.Core.pdb
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Application\obj\Debug\net10.0\CareFlow.Application.csproj.AssemblyReference.cache
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Application\obj\Debug\net10.0\CareFlow.Application.GeneratedMSBuildEditorConfig.editorconfig
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Application\obj\Debug\net10.0\CareFlow.Application.AssemblyInfoInputs.cache
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Application\obj\Debug\net10.0\CareFlow.Application.AssemblyInfo.cs
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Application\obj\Debug\net10.0\CareFlow.Application.csproj.CoreCompileInputs.cache
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Application\obj\Debug\net10.0\CareFlow.Application.sourcelink.json
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Application\obj\Debug\net10.0\CareFlow.D2AC75DF.Up2Date
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Application\obj\Debug\net10.0\CareFlow.Application.dll
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Application\obj\Debug\net10.0\refint\CareFlow.Application.dll
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Application\obj\Debug\net10.0\CareFlow.Application.pdb
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Application\obj\Debug\net10.0\ref\CareFlow.Application.dll

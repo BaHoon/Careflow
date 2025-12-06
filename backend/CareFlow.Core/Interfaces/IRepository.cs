@@ -10,8 +10,14 @@ public interface IRepository<T, TKey> where T : EntityBase<TKey>
     // 根据ID查找
     Task<T?> GetByIdAsync(TKey id);
 
+    // 根据条件查找单个实体
+    Task<T?> GetAsync(Expression<Func<T, bool>> predicate);
+
     // 获取列表 (最基础版，后面我们会教你分页)
     Task<List<T>> ListAsync();
+
+    // 获取列表，根据条件
+    Task<List<T>> ListAsync(Expression<Func<T, bool>> predicate);
 
     // 添加实体
     Task<T> AddAsync(T entity);
