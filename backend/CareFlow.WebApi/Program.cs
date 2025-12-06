@@ -1,5 +1,6 @@
 using CareFlow.Infrastructure; // 引用基础设施层
 using CareFlow.Application.Services; // 引用应用层服务
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -19,6 +20,7 @@ builder.Services.AddSwaggerGen();
 
 // 注册 AuthService
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<IExecutionTaskFactory, SurgicalExecutionTaskFactory>();
 
 // 配置 JWT 认证服务
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -69,10 +71,13 @@ using (var scope = app.Services.CreateScope())
         // 2. 调用我们在 Infrastructure 层写的初始化器
         // 确保你的 DbInitializer.cs 类名和命名空间正确
         CareFlow.Infrastructure.Data.DbInitializer.Initialize(context);
+
+        var taskFactory = services.GetRequiredService<IExecutionTaskFactory>();
+        var createdTasks = EnsureSurgicalExecutionTasks(context, taskFactory);
         
         // 这是一个可选的日志输出，方便你看控制台知道发生了什么
         var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogInformation("数据库初始化已完成，测试数据已插入。");
+        logger.LogInformation("数据库初始化已完成，测试数据已插入。同步任务：{TaskCount}", createdTasks);
     }
     catch (Exception ex)
     {
@@ -110,3 +115,30 @@ app.MapControllers();
 
 // 启动程序！
 app.Run();
+
+static int EnsureSurgicalExecutionTasks(ApplicationDbContext context, IExecutionTaskFactory factory)
+{
+    var surgicalOrders = context.SurgicalOrders
+        .Include(o => o.Patient)
+        .ToList();
+
+    var created = 0;
+    foreach (var order in surgicalOrders)
+    {
+        if (context.ExecutionTasks.Any(t => t.OrderId == order.OrderId))
+        {
+            continue;
+        }
+
+        var tasks = factory.CreateTasks(order);
+        context.ExecutionTasks.AddRange(tasks);
+        created += tasks.Count;
+    }
+
+    if (created > 0)
+    {
+        context.SaveChanges();
+    }
+
+    return created;
+}
