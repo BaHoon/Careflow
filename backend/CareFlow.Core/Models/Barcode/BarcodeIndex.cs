@@ -1,23 +1,23 @@
 namespace CareFlow.Core.Models;
 
-/// <summary>
-/// 索引引用模型：用于在条形码和数据库记录之间建立映射
-/// </summary>
 public class BarcodeIndex
 {
-    public string TableName { get; set; } = string.Empty; // 真实表名
-    public string RecordId { get; set; } = string.Empty;  // 主码ID (使用String以兼容Int或Guid)
+    public string TableName { get; set; } = string.Empty;
+    public string RecordId { get; set; } = string.Empty;
 
-    // 辅助方法：生成编码字符串 (格式: "TableName:RecordId")
-    public override string ToString() => $"{TableName}:{RecordId}";
+    // 修改点 1: 分隔符改为 '-' (因为 Code39Standard 不支持冒号)
+    public override string ToString() => $"{TableName}-{RecordId}";
 
-    // 辅助方法：从字符串解析
     public static BarcodeIndex Parse(string codeText)
     {
-        var parts = codeText.Split(':');
-        if (parts.Length != 2)
-            throw new ArgumentException("无效的条形码数据格式");
-            
+        // 修改点 2: 按 '-' 分割
+        // 注意：如果你的 TableName 或 RecordId 本身包含 '-'，这里需要更复杂的处理
+        // 简单起见，假设 TableName 不含 '-'
+        var parts = codeText.Split('-'); 
+        
+        if (parts.Length < 2) // 防止数组越界
+             throw new ArgumentException($"无效的数据格式: {codeText}");
+
         return new BarcodeIndex { TableName = parts[0], RecordId = parts[1] };
     }
 }
