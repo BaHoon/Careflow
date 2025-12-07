@@ -65,11 +65,4 @@ public interface IInspectionService
     /// 更新报告状态
     /// </summary>
     Task UpdateReportStatusAsync(UpdateReportStatusDto dto);
-    
-    // ===== 测试数据生成 =====
-    
-    /// <summary>
-    /// 生成模拟检查医嘱数据
-    /// </summary>
-    Task GenerateMockInspectionOrdersAsync();
 }
