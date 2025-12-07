@@ -21,45 +21,9 @@ public sealed class SurgicalExecutionTaskFactory : IExecutionTaskFactory
 {
     private static readonly IReadOnlyList<PreOpStepDescriptor> Steps = new List<PreOpStepDescriptor>
     {
-        new(
-            "PRE_EDU",
-            "术前宣教确认",
-            TimeSpan.FromHours(-16),
-            order => new
-            {
-                instructions = new[]
-                {
-                    "提醒患者按医嘱禁食禁饮",
-                    "取下假牙、首饰，并录入交接记录",
-                    "若患者配合度差需记录异常备注"
-                },
-                allowExceptionNote = true
-            }),
-        new(
-            "PRE_NURSING",
-            "护理操作和管路准备",
-            TimeSpan.FromHours(-12),
-            order => new
-            {
-                checklist = new[]
-                {
-                    "备皮/皮肤清洁",
-                    "留置针安置与通路冲洗",
-                    "采血/标本贴签并扫码",
-                    "生命体征复测与不良事件上报"
-                },
-                requiresScan = true
-            }),
-        new(
-            "PRE_SUPPLY",
-            "手术带入物品核对",
-            TimeSpan.FromHours(-6),
-            order => new
-            {
-                requiredItems = ParseRequiredMeds(order as SurgicalOrder),
-                scanMode = "PerItem",
-                autoCompleteWhenAllScanned = true
-            })
+        new("PRE_EDU", "术前宣教确认", TimeSpan.FromHours(-16), BuildEducationPayload),
+        new("PRE_NURSING", "护理操作和管路准备", TimeSpan.FromHours(-12), BuildNursingPayload),
+        new("PRE_SUPPLY", "手术带入物品核对", TimeSpan.FromHours(-6), BuildSupplyPayload)
     };
 
     public IReadOnlyList<ExecutionTask> CreateTasks(MedicalOrder medicalOrder)
@@ -74,7 +38,7 @@ public sealed class SurgicalExecutionTaskFactory : IExecutionTaskFactory
         {
             result.Add(new ExecutionTask
             {
-                Id = surgicalOrder.Id,
+                MedicalOrderId = surgicalOrder.Id,
                 MedicalOrder = surgicalOrder,
                 PatientId = surgicalOrder.PatientId,
                 Patient = surgicalOrder.Patient,
@@ -92,27 +56,114 @@ public sealed class SurgicalExecutionTaskFactory : IExecutionTaskFactory
         return result;
     }
 
-    private static IReadOnlyList<object> ParseRequiredMeds(SurgicalOrder? surgicalOrder)
+    private static object BuildEducationPayload(SurgicalOrder order)
     {
-        if (surgicalOrder == null || string.IsNullOrWhiteSpace(surgicalOrder.RequiredMeds))
+        var instructions = new List<string>
         {
-            return Array.Empty<object>();
+            $"向患者说明手术：{order.SurgeryName}",
+            "提醒患者按医嘱禁食禁饮",
+            "核对假牙/首饰取下情况并记录"
+        };
+
+        if (order.NeedBloodPrep)
+        {
+            instructions.Add("告知已安排备血，需配合抽血与交叉配血");
+        }
+
+        if (order.HasImplants)
+        {
+            instructions.Add("再次确认植入物/饰品的处理方案");
+        }
+
+        instructions.Add($"麻醉方式：{order.AnesthesiaType}，确认禁食/禁饮时长");
+
+        return new
+        {
+            instructions,
+            allowExceptionNote = true
+        };
+    }
+
+    private static object BuildNursingPayload(SurgicalOrder order)
+    {
+        var checklist = new List<string>
+        {
+            "备皮/皮肤清洁",
+            "留置针安置与通路冲洗",
+            "采血/标本贴签并扫码",
+            "生命体征复测并记录"
+        };
+
+        if (order.NeedBloodPrep)
+        {
+            checklist.Add("交叉配血、血制品温控核对");
+        }
+
+        checklist.Add($"准备{order.AnesthesiaType}所需管路与设备");
+
+        return new
+        {
+            checklist,
+            requiresScan = true,
+            allowIncidentRecord = true
+        };
+    }
+
+    private static object BuildSupplyPayload(SurgicalOrder order)
+    {
+        var items = BuildSupplyItems(order)
+            .Select(i => new { i.Name, i.Quantity, scanned = false })
+            .ToList();
+
+        return new
+        {
+            requiredItems = items,
+            scanMode = "PerItem",
+            autoCompleteWhenAllScanned = items.Count > 0
+        };
+    }
+
+    private static IReadOnlyList<SupplyItem> BuildSupplyItems(SurgicalOrder order)
+    {
+        var items = new List<SupplyItem>();
+
+        items.AddRange(ParseRequiredMeds(order));
+
+        items.Add(new SupplyItem($"{order.SurgeryName} 器械包", "1套"));
+
+        if (order.NeedBloodPrep)
+        {
+            items.Add(new SupplyItem("血制品/备血单", "按需求"));
+        }
+
+        if (order.HasImplants)
+        {
+            items.Add(new SupplyItem("植入物确认表", "1份"));
+        }
+
+        return items
+            .GroupBy(i => i.Name)
+            .Select(g => g.First())
+            .ToList();
+    }
+
+    private static IReadOnlyList<SupplyItem> ParseRequiredMeds(SurgicalOrder? order)
+    {
+        if (order == null || string.IsNullOrWhiteSpace(order.RequiredMeds))
+        {
+            return Array.Empty<SupplyItem>();
         }
 
         try
         {
-            using var doc = JsonDocument.Parse(surgicalOrder.RequiredMeds);
+            using var doc = JsonDocument.Parse(order.RequiredMeds);
             if (doc.RootElement.TryGetProperty("items", out var items) && items.ValueKind == JsonValueKind.Array)
             {
                 return items
                     .EnumerateArray()
-                    .Select(item => new
-                    {
-                        name = item.GetProperty("name").GetString() ?? string.Empty,
-                        qty = item.TryGetProperty("qty", out var qtyProp) ? qtyProp.GetString() : null,
-                        scanned = false
-                    })
-                    .Cast<object>()
+                    .Select(item => new SupplyItem(
+                        item.GetProperty("name").GetString() ?? string.Empty,
+                        item.TryGetProperty("qty", out var qtyProp) ? qtyProp.GetString() : null))
                     .ToList();
             }
         }
@@ -121,7 +172,7 @@ public sealed class SurgicalExecutionTaskFactory : IExecutionTaskFactory
             // ignore malformed json, nurses仍可手录
         }
 
-        return Array.Empty<object>();
+        return Array.Empty<SupplyItem>();
     }
 
     private sealed record PreOpStepDescriptor(
@@ -129,4 +180,6 @@ public sealed class SurgicalExecutionTaskFactory : IExecutionTaskFactory
         string StepName,
         TimeSpan PlannedOffset,
         Func<SurgicalOrder, object> PayloadBuilder);
+
+    private sealed record SupplyItem(string Name, string? Quantity);
 }

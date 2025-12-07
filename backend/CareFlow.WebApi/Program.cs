@@ -80,10 +80,10 @@ using (var scope = app.Services.CreateScope())
         
         // 2. 调用我们在 Infrastructure 层写的初始化器
         // 确保你的 DbInitializer.cs 类名和命名空间正确
-        CareFlow.Infrastructure.Data.DbInitializer.Initialize(context);
+        CareFlow.Infrastructure.Data.DbInitializer.Initialize(context); // 1) 播种所有虚拟基础数据
 
         var taskFactory = services.GetRequiredService<IExecutionTaskFactory>();
-        var createdTasks = EnsureSurgicalExecutionTasks(context, taskFactory);
+        var createdTasks = EnsureSurgicalExecutionTasks(context, taskFactory); // 2) 手术医嘱 -> 术前任务拆分
         
         // 这是一个可选的日志输出，方便你看控制台知道发生了什么
         var logger = services.GetRequiredService<ILogger<Program>>();
@@ -135,7 +135,7 @@ static int EnsureSurgicalExecutionTasks(ApplicationDbContext context, IExecution
     var created = 0;
     foreach (var order in surgicalOrders)
     {
-        if (context.ExecutionTasks.Any(t => t.Id == order.Id))
+        if (context.ExecutionTasks.Any(t => t.MedicalOrderId == order.Id))
         {
             continue;
         }
