@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using CareFlow.Core.Models.Organization;
+using CareFlow.Core.Enums;
 
 namespace CareFlow.Core.Models.Medical
 {
@@ -68,17 +69,23 @@ namespace CareFlow.Core.Models.Medical
         public string ItemCode { get; set; } = null!;         // 检查项目代码
         public string RisLisId { get; set; } = null!;         // 申请单号
         public string Location { get; set; } = null!;         // 检查科室位置
+        public InspectionSource Source { get; set; }          // 检查来源 (RIS/LIS)
         
-        public DateTime? AppointmentTime { get; set; } // 预约时间
-        public string AppointmentPlace { get; set; } = null!;   // 预约地点
-        public string Precautions { get; set; } = null!;        // 注意事项
+        public DateTime? AppointmentTime { get; set; }        // 预约时间
+        public string? AppointmentPlace { get; set; }         // 预约地点
+        public string? Precautions { get; set; }              // 注意事项（如空腹、憋尿等）
         
         // --- 闭环时间节点 ---
-        public DateTime? CheckStartTime { get; set; }
-        public DateTime? CheckEndTime { get; set; }
-        public DateTime? BackToWardTime { get; set; }
-        public DateTime? ReportTime { get; set; }
-        public string ReportId { get; set; } = null!;          // 报告编号(冗余或关联)
+        public DateTime? CheckStartTime { get; set; }         // 检查开始时间
+        public DateTime? CheckEndTime { get; set; }           // 检查结束时间
+        public DateTime? BackToWardTime { get; set; }         // 返回病房时间
+        public DateTime? ReportTime { get; set; }             // 报告完成时间
+        public string? ReportId { get; set; }                 // 报告编号(冗余或关联)
+        
+        public InspectionOrderStatus InspectionStatus { get; set; } = InspectionOrderStatus.Pending; // 检查状态
+        
+        // 导航属性
+        public ICollection<InspectionReport> Reports { get; set; } = new List<InspectionReport>();
     }
 
     // 3. 手术医嘱 (SURGICAL_ORDER)

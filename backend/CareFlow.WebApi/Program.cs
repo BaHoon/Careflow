@@ -22,6 +22,9 @@ builder.Services.AddSwaggerGen();
 // 注册 AuthService
 builder.Services.AddScoped<AuthService>();
 
+// 注册检查类医嘱服务
+builder.Services.AddScoped<CareFlow.Application.Interfaces.IInspectionService, CareFlow.Application.Services.InspectionService>();
+
 // // 注册药品医嘱任务服务
 // builder.Services.AddScoped<IMedicationOrderTaskService, MedicationOrderTaskService>();
 
