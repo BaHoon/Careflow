@@ -1,4 +1,3 @@
-using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using CareFlow.Core.Models.Organization;
 using CareFlow.Core.Models.Space;
@@ -6,10 +5,8 @@ using CareFlow.Core.Models.Space;
 namespace CareFlow.Core.Models.Nursing;
 
 // 班次定义 (白班、夜班)
-public class ShiftType
+public class ShiftType : EntityBase<string>
 {
-    [Key]
-    public string ShiftId { get; set; } = null!; // D, N, E
     public string ShiftName { get; set; } = null!;
     public TimeSpan StartTime { get; set; }
     public TimeSpan EndTime { get; set; }

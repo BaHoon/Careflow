@@ -30,3 +30,5 @@ D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Infrastructure\obj\Deb
 D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Infrastructure\obj\Debug\net10.0\refint\CareFlow.Infrastructure.dll
 D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Infrastructure\obj\Debug\net10.0\CareFlow.Infrastructure.pdb
 D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Infrastructure\obj\Debug\net10.0\ref\CareFlow.Infrastructure.dll
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Infrastructure\bin\Debug\net10.0\CareFlow.Application.dll
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.Infrastructure\bin\Debug\net10.0\CareFlow.Application.pdb

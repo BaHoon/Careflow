@@ -1,3 +1,5 @@
+using CareFlow.Core.Interfaces;
+using CareFlow.Infrastructure.Services;
 using CareFlow.Infrastructure; // 引用基础设施层
 using CareFlow.Application.Services; // 引用应用层服务
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -19,6 +21,9 @@ builder.Services.AddSwaggerGen();
 
 // 注册 AuthService
 builder.Services.AddScoped<AuthService>();
+
+// // 注册药品医嘱任务服务
+// builder.Services.AddScoped<IMedicationOrderTaskService, MedicationOrderTaskService>();
 
 // 配置 JWT 认证服务
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -52,6 +57,8 @@ builder.Services.AddCors(options =>
                   .AllowAnyHeader();  // 允许任何 Header
         });
 });
+
+builder.Services.AddScoped<IBarcodeService, AsposeBarcodeService>();
 
 var app = builder.Build();
 

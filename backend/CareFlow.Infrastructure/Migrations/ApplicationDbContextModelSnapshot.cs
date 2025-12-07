@@ -24,8 +24,14 @@ namespace CareFlow.Infrastructure.Migrations
 
             modelBuilder.Entity("CareFlow.Core.Models.Medical.HospitalTimeSlot", b =>
                 {
-                    b.Property<int>("SlotId")
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreateTime")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<TimeSpan>("DefaultTime")
                         .HasColumnType("interval");
@@ -37,13 +43,16 @@ namespace CareFlow.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int>("SlotId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("SlotName")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.HasKey("SlotId");
+                    b.HasKey("Id");
 
-                    b.ToTable("HospitalTimeSlots");
+                    b.ToTable("HospitalTimeSlots", (string)null);
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Medical.InspectionReport", b =>
@@ -98,16 +107,16 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.HasIndex("PatientId");
 
-                    b.ToTable("InspectionReports");
+                    b.ToTable("InspectionReports", (string)null);
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Medical.MedicalOrder", b =>
                 {
-                    b.Property<long>("OrderId")
+                    b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("OrderId"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("CreateTime")
                         .HasColumnType("timestamp with time zone");
@@ -125,6 +134,9 @@ namespace CareFlow.Infrastructure.Migrations
                     b.Property<string>("NurseId")
                         .HasColumnType("text");
 
+                    b.Property<long>("OrderId")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("OrderType")
                         .IsRequired()
                         .HasColumnType("text");
@@ -140,7 +152,7 @@ namespace CareFlow.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.HasKey("OrderId");
+                    b.HasKey("Id");
 
                     b.HasIndex("DoctorId");
 
@@ -148,7 +160,7 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.HasIndex("PatientId");
 
-                    b.ToTable("MedicalOrders");
+                    b.ToTable("MedicalOrders", (string)null);
 
                     b.UseTptMappingStrategy();
                 });
@@ -203,7 +215,7 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.HasIndex("PatientId");
 
-                    b.ToTable("ExecutionTasks");
+                    b.ToTable("ExecutionTasks", (string)null);
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Nursing.NurseRoster", b =>
@@ -244,7 +256,7 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.HasIndex("WardId");
 
-                    b.ToTable("NurseRosters");
+                    b.ToTable("NurseRosters", (string)null);
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Nursing.NursingCareNote", b =>
@@ -323,7 +335,7 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.HasIndex("RecorderNurseId");
 
-                    b.ToTable("NursingCareNotes");
+                    b.ToTable("NursingCareNotes", (string)null);
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Nursing.ShiftType", b =>
@@ -343,7 +355,7 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.HasKey("ShiftId");
 
-                    b.ToTable("ShiftTypes");
+                    b.ToTable("ShiftTypes", (string)null);
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Nursing.VitalSignsRecord", b =>
@@ -406,7 +418,7 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.HasIndex("RecorderNurseId");
 
-                    b.ToTable("VitalSignsRecords");
+                    b.ToTable("VitalSignsRecords", (string)null);
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Organization.Department", b =>
@@ -424,7 +436,7 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.HasKey("DeptId");
 
-                    b.ToTable("Departments");
+                    b.ToTable("Departments", (string)null);
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Organization.Patient", b =>
@@ -478,7 +490,7 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.HasIndex("BedId");
 
-                    b.ToTable("Patients");
+                    b.ToTable("Patients", (string)null);
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Organization.Staff", b =>
@@ -524,7 +536,7 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.HasIndex("DeptCode");
 
-                    b.ToTable("Staffs");
+                    b.ToTable("Staffs", (string)null);
 
                     b.UseTptMappingStrategy();
                 });
@@ -546,7 +558,7 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.HasIndex("WardId");
 
-                    b.ToTable("Beds");
+                    b.ToTable("Beds", (string)null);
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Space.Ward", b =>
@@ -565,7 +577,7 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.HasIndex("DepartmentDeptId");
 
-                    b.ToTable("Wards");
+                    b.ToTable("Wards", (string)null);
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Medical.InspectionOrder", b =>
@@ -931,7 +943,7 @@ namespace CareFlow.Infrastructure.Migrations
                 {
                     b.HasOne("CareFlow.Core.Models.Medical.MedicalOrder", null)
                         .WithOne()
-                        .HasForeignKey("CareFlow.Core.Models.Medical.InspectionOrder", "OrderId")
+                        .HasForeignKey("CareFlow.Core.Models.Medical.InspectionOrder", "Id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -940,7 +952,7 @@ namespace CareFlow.Infrastructure.Migrations
                 {
                     b.HasOne("CareFlow.Core.Models.Medical.MedicalOrder", null)
                         .WithOne()
-                        .HasForeignKey("CareFlow.Core.Models.Medical.MedicationOrder", "OrderId")
+                        .HasForeignKey("CareFlow.Core.Models.Medical.MedicationOrder", "Id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -949,7 +961,7 @@ namespace CareFlow.Infrastructure.Migrations
                 {
                     b.HasOne("CareFlow.Core.Models.Medical.MedicalOrder", null)
                         .WithOne()
-                        .HasForeignKey("CareFlow.Core.Models.Medical.OperationOrder", "OrderId")
+                        .HasForeignKey("CareFlow.Core.Models.Medical.OperationOrder", "Id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -958,7 +970,7 @@ namespace CareFlow.Infrastructure.Migrations
                 {
                     b.HasOne("CareFlow.Core.Models.Medical.MedicalOrder", null)
                         .WithOne()
-                        .HasForeignKey("CareFlow.Core.Models.Medical.SurgicalOrder", "OrderId")
+                        .HasForeignKey("CareFlow.Core.Models.Medical.SurgicalOrder", "Id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
