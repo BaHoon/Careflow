@@ -1,8 +1,7 @@
-using CareFlow.Core.Models;
-using CareFlow.Core.Models.Organization;
-using CareFlow.Core.Models.Medical;
-using CareFlow.Core.Models.Space;
 using CareFlow.Core.Enums;
+using CareFlow.Core.Models.Medical;
+using CareFlow.Core.Models.Organization;
+using CareFlow.Core.Models.Space;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
@@ -24,22 +23,28 @@ namespace CareFlow.Infrastructure.Data
             }
         }
 
+        private static DateTime UtcDate(int year, int month, int day, int hour = 0, int minute = 0)
+        {
+            return new DateTime(year, month, day, hour, minute, 0, DateTimeKind.Utc);
+        }
+
         public static void Initialize(ApplicationDbContext context)
         {
-            // 删除现有数据库并重新创建（由于模型结构改变较大）
+            // 删除现有数据库并重新创建（由于模型结构改变较大，这是最彻底的清理方式）
             context.Database.EnsureDeleted();
             context.Database.EnsureCreated();
 
-            // 1. 检查是否已有数据（重新创建后应该是空的）
+            // 1. 检查是否已有数据（重新创建后应该是空的，这里做双重保险）
             if (context.Departments.Any())
             {
                 return;   // 数据库已播种，直接返回
             }
 
-            // 2. 预置数据
-            
+            // ==========================================
+            // 第一部分：基础数据（科室、时段、员工、床位）
+            // ==========================================
+
             // --- 预置科室数据 (Department) ---
-            // 【修正】添加了 Location 字段，解决 "null value in column Location" 错误
             var departments = new Department[]
             {
                 new Department { Id = "IM", DeptName = "内科", Location = "住院部A栋3楼" },
@@ -51,7 +56,6 @@ namespace CareFlow.Infrastructure.Data
             context.SaveChanges(); // 保存科室
 
             // --- 预置时间槽位数据 (HospitalTimeSlot) ---
-            // 使用2的幂次作为SlotId，便于位掩码操作和组合使用
             var timeSlots = new HospitalTimeSlot[]
             {
                 // 基础时间槽位 - 餐食相关
@@ -86,10 +90,7 @@ namespace CareFlow.Infrastructure.Data
             context.SaveChanges(); // 保存时间槽位
 
             // --- 预置员工数据 (Staff/Doctor/Nurse) ---
-            
-            // 默认密码为 "123456"
             string defaultHashedPassword = HashPassword("123456");
-            // string defaultHashedPassword = "123456";
 
             // 医生数据
             var doctors = new Doctor[]
@@ -105,7 +106,7 @@ namespace CareFlow.Infrastructure.Data
                     RoleType = "Doctor",
                     IsActive = true,
                     DeptCode = "IM",
-                    Title = DoctorTitle.Chief.ToString(), // 主任
+                    Title = DoctorTitle.Chief.ToString(),
                     PrescriptionAuthLevel = "High"
                 },
                 new Doctor
@@ -119,7 +120,7 @@ namespace CareFlow.Infrastructure.Data
                     RoleType = "Doctor",
                     IsActive = true,
                     DeptCode = "IM",
-                    Title = DoctorTitle.Attending.ToString(), // 主治
+                    Title = DoctorTitle.Attending.ToString(),
                     PrescriptionAuthLevel = "Medium"
                 }
             };
@@ -138,7 +139,7 @@ namespace CareFlow.Infrastructure.Data
                     RoleType = "Nurse",
                     IsActive = true,
                     DeptCode = "SUR",
-                    NurseRank = NurseRank.HeadNurse.ToString() // 护士长
+                    NurseRank = NurseRank.HeadNurse.ToString()
                 },
                 new Nurse
                 {
@@ -151,11 +152,11 @@ namespace CareFlow.Infrastructure.Data
                     RoleType = "Nurse",
                     IsActive = true,
                     DeptCode = "SUR",
-                    NurseRank = NurseRank.RegularNurse.ToString() // 普通护士
+                    NurseRank = NurseRank.RegularNurse.ToString()
                 }
             };
 
-            // 行政人员数据 (Staff)
+            // 行政人员数据
             var adminStaffs = new Staff[]
             {
                 new Staff
@@ -172,134 +173,83 @@ namespace CareFlow.Infrastructure.Data
                 }
             };
             
-            // 将所有员工添加到数据库
             context.Doctors.AddRange(doctors);
             context.Nurses.AddRange(nurses);
             context.Staffs.AddRange(adminStaffs);
-            
             context.SaveChanges();
 
             // --- 预置病房和床位数据 ---
             var wards = new Ward[]
             {
-                new Ward { Id = "IM-W01", DepartmentId = "IM" },  // 内科病房1
-                new Ward { Id = "IM-W02", DepartmentId = "IM" },  // 内科病房2
-                new Ward { Id = "SUR-W01", DepartmentId = "SUR" }, // 外科病房1
-                new Ward { Id = "PED-W01", DepartmentId = "PED" }  // 儿科病房1
+                new Ward { Id = "IM-W01", DepartmentId = "IM" },
+                new Ward { Id = "IM-W02", DepartmentId = "IM" },
+                new Ward { Id = "SUR-W01", DepartmentId = "SUR" },
+                new Ward { Id = "PED-W01", DepartmentId = "PED" }
             };
             context.Wards.AddRange(wards);
             context.SaveChanges();
 
             var beds = new Bed[]
             {
-                // 内科床位
                 new Bed { Id = "IM-W01-001", WardId = "IM-W01", Status = "占用" },
                 new Bed { Id = "IM-W01-002", WardId = "IM-W01", Status = "占用" },
                 new Bed { Id = "IM-W01-003", WardId = "IM-W01", Status = "空闲" },
                 new Bed { Id = "IM-W02-001", WardId = "IM-W02", Status = "占用" },
-                
-                // 外科床位
                 new Bed { Id = "SUR-W01-001", WardId = "SUR-W01", Status = "占用" },
                 new Bed { Id = "SUR-W01-002", WardId = "SUR-W01", Status = "占用" },
-                
-                // 儿科床位
                 new Bed { Id = "PED-W01-001", WardId = "PED-W01", Status = "占用" }
             };
             context.Beds.AddRange(beds);
             context.SaveChanges();
+
+            // ==========================================
+            // 第二部分：业务数据（患者、医嘱）- 原来被隔绝的部分
+            // ==========================================
 
             // --- 预置患者数据 ---
             var patients = new Patient[]
             {
                 new Patient
                 {
-                    Id = "P001",
-                    Name = "张三",
-                    Gender = "男",
-                    IdCard = "110100199001010001",
+                    Id = "P001", Name = "张三", Gender = "男", IdCard = "110100199001010001",
                     DateOfBirth = new DateTime(1990, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-                    Age = 34,
-                    Weight = 70.5f,
-                    Status = "在院",
-                    PhoneNumber = "13800138001",
-                    NursingGrade = 2,
-                    BedId = "IM-W01-001",
-                    AttendingDoctorId = "D001"
+                    Age = 34, Weight = 70.5f, Status = "在院", PhoneNumber = "13800138001",
+                    NursingGrade = 2, BedId = "IM-W01-001", AttendingDoctorId = "D001"
                 },
                 new Patient
                 {
-                    Id = "P002",
-                    Name = "李四",
-                    Gender = "女",
-                    IdCard = "110100198505050002",
+                    Id = "P002", Name = "李四", Gender = "女", IdCard = "110100198505050002",
                     DateOfBirth = new DateTime(1985, 5, 5, 0, 0, 0, DateTimeKind.Utc),
-                    Age = 39,
-                    Weight = 58.0f,
-                    Status = "在院",
-                    PhoneNumber = "13800138002",
-                    NursingGrade = 1,
-                    BedId = "IM-W01-002",
-                    AttendingDoctorId = "D001"
+                    Age = 39, Weight = 58.0f, Status = "在院", PhoneNumber = "13800138002",
+                    NursingGrade = 1, BedId = "IM-W01-002", AttendingDoctorId = "D001"
                 },
                 new Patient
                 {
-                    Id = "P003",
-                    Name = "王五",
-                    Gender = "男",
-                    IdCard = "110100197803030003",
+                    Id = "P003", Name = "王五", Gender = "男", IdCard = "110100197803030003",
                     DateOfBirth = new DateTime(1978, 3, 3, 0, 0, 0, DateTimeKind.Utc),
-                    Age = 46,
-                    Weight = 75.2f,
-                    Status = "在院",
-                    PhoneNumber = "13800138003",
-                    NursingGrade = 3,
-                    BedId = "SUR-W01-001",
-                    AttendingDoctorId = "D002"
+                    Age = 46, Weight = 75.2f, Status = "在院", PhoneNumber = "13800138003",
+                    NursingGrade = 3, BedId = "SUR-W01-001", AttendingDoctorId = "D002"
                 },
                 new Patient
                 {
-                    Id = "P004",
-                    Name = "赵六",
-                    Gender = "女",
-                    IdCard = "110100199212120004",
+                    Id = "P004", Name = "赵六", Gender = "女", IdCard = "110100199212120004",
                     DateOfBirth = new DateTime(1992, 12, 12, 0, 0, 0, DateTimeKind.Utc),
-                    Age = 32,
-                    Weight = 62.8f,
-                    Status = "在院",
-                    PhoneNumber = "13800138004",
-                    NursingGrade = 2,
-                    BedId = "SUR-W01-002",
-                    AttendingDoctorId = "D002"
+                    Age = 32, Weight = 62.8f, Status = "在院", PhoneNumber = "13800138004",
+                    NursingGrade = 2, BedId = "SUR-W01-002", AttendingDoctorId = "D002"
                 },
                 new Patient
                 {
-                    Id = "P005",
-                    Name = "钱七",
-                    Gender = "男",
-                    IdCard = "110100201501010005",
+                    Id = "P005", Name = "钱七", Gender = "男", IdCard = "110100201501010005",
                     DateOfBirth = new DateTime(2015, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-                    Age = 9,
-                    Weight = 28.5f,
-                    Status = "在院",
-                    PhoneNumber = "13800138005",
-                    NursingGrade = 1,
-                    BedId = "PED-W01-001",
-                    AttendingDoctorId = "D001"
+                    Age = 9, Weight = 28.5f, Status = "在院", PhoneNumber = "13800138005",
+                    NursingGrade = 1, BedId = "PED-W01-001", AttendingDoctorId = "D001"
                 },
                 new Patient
                 {
-                    Id = "P006",
-                    Name = "孙八",
-                    Gender = "男",
-                    IdCard = "110100196802020006",
+                    Id = "P006", Name = "孙八", Gender = "男", IdCard = "110100196802020006",
                     DateOfBirth = new DateTime(1968, 2, 2, 0, 0, 0, DateTimeKind.Utc),
-                    Age = 56,
-                    Weight = 80.1f,
-                    Status = "在院",
-                    PhoneNumber = "13800138006",
-                    NursingGrade = 3,
-                    BedId = "IM-W02-001",
-                    AttendingDoctorId = "D002"
+                    Age = 56, Weight = 80.1f, Status = "在院", PhoneNumber = "13800138006",
+                    NursingGrade = 3, BedId = "IM-W02-001", AttendingDoctorId = "D002"
                 }
             };
             context.Patients.AddRange(patients);
@@ -308,159 +258,79 @@ namespace CareFlow.Infrastructure.Data
             // --- 预置各种类型的医疗医嘱 ---
             var currentTime = DateTime.UtcNow;
 
-            // 1. 药品医嘱 (MedicationOrder) - 各种类型的用药医嘱
+            // 1. 药品医嘱 (MedicationOrder)
             var medicationOrders = new MedicationOrder[]
             {
-                // 口服药物 - 长期医嘱 (BID - 每日2次)
+                // 口服药物 - 长期医嘱 (BID)
                 new MedicationOrder
                 {
-                    PatientId = "P001",
-                    DoctorId = "D001",
-                    NurseId = "N001",
-                    CreateTime = currentTime.AddDays(-2),
-                    PlantEndTime = currentTime.AddDays(5),
-                    OrderType = "MedicationOrder",
-                    Status = "Accepted",
-                    IsLongTerm = true,
-                    DrugId = "DRUG001",
-                    Dosage = "100mg",
-                    UsageRoute = "口服",
-                    IsDynamicUsage = false,
-                    FreqCode = "BID",
-                    StartTime = currentTime.AddDays(-2),
-                    TimingStrategy = "SLOTS",
-                    SmartSlotsMask = 2 | 32, // 早餐后(2) + 晚餐后(32) = 34
-                    IntervalDays = 1
+                    PatientId = "P001", DoctorId = "D001", NurseId = "N001",
+                    CreateTime = currentTime.AddDays(-2), PlantEndTime = currentTime.AddDays(5),
+                    OrderType = "MedicationOrder", Status = "Accepted", IsLongTerm = true,
+                    DrugId = "DRUG001", Dosage = "100mg", UsageRoute = "口服",
+                    IsDynamicUsage = false, FreqCode = "BID", StartTime = currentTime.AddDays(-2),
+                    TimingStrategy = "SLOTS", SmartSlotsMask = 2 | 32, IntervalDays = 1
                 },
-                
                 // 静脉滴注 - 立即执行
                 new MedicationOrder
                 {
-                    PatientId = "P001",
-                    DoctorId = "D001",
-                    NurseId = "N002",
-                    CreateTime = currentTime.AddHours(-3),
-                    PlantEndTime = currentTime.AddHours(2),
-                    OrderType = "MedicationOrder",
-                    Status = "InProgress",
-                    IsLongTerm = false,
-                    DrugId = "DRUG002",
-                    Dosage = "250ml",
-                    UsageRoute = "静脉滴注",
-                    IsDynamicUsage = false,
-                    FreqCode = "ONCE",
-                    StartTime = currentTime.AddHours(-3),
-                    TimingStrategy = "IMMEDIATE",
-                    SmartSlotsMask = 131072, // 立即(STAT)
-                    IntervalDays = 0
+                    PatientId = "P001", DoctorId = "D001", NurseId = "N002",
+                    CreateTime = currentTime.AddHours(-3), PlantEndTime = currentTime.AddHours(2),
+                    OrderType = "MedicationOrder", Status = "InProgress", IsLongTerm = false,
+                    DrugId = "DRUG002", Dosage = "250ml", UsageRoute = "静脉滴注",
+                    IsDynamicUsage = false, FreqCode = "ONCE", StartTime = currentTime.AddHours(-3),
+                    TimingStrategy = "IMMEDIATE", SmartSlotsMask = 131072, IntervalDays = 0
                 },
-                
-                // 胰岛素 - 餐前注射 (TID - 每日3次)
+                // 胰岛素 - 餐前注射 (TID)
                 new MedicationOrder
                 {
-                    PatientId = "P002",
-                    DoctorId = "D001",
-                    NurseId = "N001",
-                    CreateTime = currentTime.AddDays(-1),
-                    PlantEndTime = currentTime.AddDays(7),
-                    OrderType = "MedicationOrder",
-                    Status = "Accepted",
-                    IsLongTerm = true,
-                    DrugId = "DRUG003",
-                    Dosage = "8单位",
-                    UsageRoute = "皮下注射",
-                    IsDynamicUsage = false,
-                    FreqCode = "TID",
-                    StartTime = currentTime.AddDays(-1),
-                    TimingStrategy = "SLOTS",
-                    SmartSlotsMask = 1 | 4 | 16, // 早餐前(1) + 午餐前(4) + 晚餐前(16) = 21
-                    IntervalDays = 1
+                    PatientId = "P002", DoctorId = "D001", NurseId = "N001",
+                    CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(7),
+                    OrderType = "MedicationOrder", Status = "Accepted", IsLongTerm = true,
+                    DrugId = "DRUG003", Dosage = "8单位", UsageRoute = "皮下注射",
+                    IsDynamicUsage = false, FreqCode = "TID", StartTime = currentTime.AddDays(-1),
+                    TimingStrategy = "SLOTS", SmartSlotsMask = 1 | 4 | 16, IntervalDays = 1
                 },
-                
                 // 吸氧 - 持续治疗
                 new MedicationOrder
                 {
-                    PatientId = "P003",
-                    DoctorId = "D002",
-                    NurseId = "N002",
-                    CreateTime = currentTime.AddDays(-1),
-                    PlantEndTime = currentTime.AddDays(3),
-                    OrderType = "MedicationOrder",
-                    Status = "Accepted",
-                    IsLongTerm = true,
-                    DrugId = "OXYGEN001",
-                    Dosage = "2L/min",
-                    UsageRoute = "鼻导管吸氧",
-                    IsDynamicUsage = true,
-                    FreqCode = "CONT",
-                    StartTime = currentTime.AddDays(-1),
-                    TimingStrategy = "CYCLIC",
-                    SmartSlotsMask = 524288, // 持续(CONTINUOUS)
-                    IntervalDays = 1
+                    PatientId = "P003", DoctorId = "D002", NurseId = "N002",
+                    CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(3),
+                    OrderType = "MedicationOrder", Status = "Accepted", IsLongTerm = true,
+                    DrugId = "OXYGEN001", Dosage = "2L/min", UsageRoute = "鼻导管吸氧",
+                    IsDynamicUsage = true, FreqCode = "CONT", StartTime = currentTime.AddDays(-1),
+                    TimingStrategy = "CYCLIC", SmartSlotsMask = 524288, IntervalDays = 1
                 },
-                
                 // 外用药膏 - 早晚使用
                 new MedicationOrder
                 {
-                    PatientId = "P004",
-                    DoctorId = "D002",
-                    CreateTime = currentTime.AddDays(-1),
-                    PlantEndTime = currentTime.AddDays(5),
-                    OrderType = "MedicationOrder", 
-                    Status = "Accepted",
-                    IsLongTerm = true,
-                    DrugId = "DRUG004",
-                    Dosage = "适量",
-                    UsageRoute = "外用涂抹",
-                    IsDynamicUsage = false,
-                    FreqCode = "BID",
-                    StartTime = currentTime.AddDays(-1),
-                    TimingStrategy = "SLOTS",
-                    SmartSlotsMask = 512 | 64, // 上午(512) + 睡前(64) = 576
-                    IntervalDays = 1
+                    PatientId = "P004", DoctorId = "D002",
+                    CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(5),
+                    OrderType = "MedicationOrder", Status = "Accepted", IsLongTerm = true,
+                    DrugId = "DRUG004", Dosage = "适量", UsageRoute = "外用涂抹",
+                    IsDynamicUsage = false, FreqCode = "BID", StartTime = currentTime.AddDays(-1),
+                    TimingStrategy = "SLOTS", SmartSlotsMask = 512 | 64, IntervalDays = 1
                 },
-                
                 // 抗生素 - 每日4次 (QID)
                 new MedicationOrder
                 {
-                    PatientId = "P005",
-                    DoctorId = "D001",
-                    CreateTime = currentTime.AddDays(-1),
-                    PlantEndTime = currentTime.AddDays(7),
-                    OrderType = "MedicationOrder",
-                    Status = "Accepted",
-                    IsLongTerm = true,
-                    DrugId = "DRUG005",
-                    Dosage = "500mg",
-                    UsageRoute = "口服",
-                    IsDynamicUsage = false,
-                    FreqCode = "QID",
-                    StartTime = currentTime.AddDays(-1),
-                    TimingStrategy = "SLOTS",
-                    SmartSlotsMask = 256 | 1024 | 4096 | 8192, // 清晨(256) + 中午(1024) + 傍晚(4096) + 夜晚(8192) = 13568
-                    IntervalDays = 1
+                    PatientId = "P005", DoctorId = "D001",
+                    CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(7),
+                    OrderType = "MedicationOrder", Status = "Accepted", IsLongTerm = true,
+                    DrugId = "DRUG005", Dosage = "500mg", UsageRoute = "口服",
+                    IsDynamicUsage = false, FreqCode = "QID", StartTime = currentTime.AddDays(-1),
+                    TimingStrategy = "SLOTS", SmartSlotsMask = 256 | 1024 | 4096 | 8192, IntervalDays = 1
                 },
-                
                 // 镇痛药 - 必要时使用 (PRN)
                 new MedicationOrder
                 {
-                    PatientId = "P006",
-                    DoctorId = "D002",
-                    CreateTime = currentTime.AddDays(-1),
-                    PlantEndTime = currentTime.AddDays(3),
-                    OrderType = "MedicationOrder",
-                    Status = "Accepted",
-                    IsLongTerm = false,
-                    DrugId = "DRUG006",
-                    Dosage = "50mg",
-                    UsageRoute = "肌肉注射",
-                    IsDynamicUsage = true,
-                    FreqCode = "PRN",
-                    StartTime = currentTime.AddDays(-1),
-                    TimingStrategy = "SPECIFIC",
-                    SmartSlotsMask = 262144, // 必要时(PRN)
-                    IntervalDays = 0,
-                    SpecificExecutionTime = null // PRN类型不设定具体时间
+                    PatientId = "P006", DoctorId = "D002",
+                    CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(3),
+                    OrderType = "MedicationOrder", Status = "Accepted", IsLongTerm = false,
+                    DrugId = "DRUG006", Dosage = "50mg", UsageRoute = "肌肉注射",
+                    IsDynamicUsage = true, FreqCode = "PRN", StartTime = currentTime.AddDays(-1),
+                    TimingStrategy = "SPECIFIC", SmartSlotsMask = 262144, IntervalDays = 0,
+                    SpecificExecutionTime = null
                 }
             };
             context.MedicationOrders.AddRange(medicationOrders);
@@ -468,55 +338,26 @@ namespace CareFlow.Infrastructure.Data
             // 2. 操作医嘱 (OperationOrder)
             var operationOrders = new OperationOrder[]
             {
-                // 测量血压
                 new OperationOrder
                 {
-                    PatientId = "P001",
-                    DoctorId = "D001",
-                    NurseId = "N001",
-                    CreateTime = currentTime.AddDays(-1),
-                    PlantEndTime = currentTime.AddDays(3),
-                    OrderType = "OperationOrder",
-                    Status = "Accepted",
-                    IsLongTerm = true,
-                    OpId = "OP001",
-                    Normal = true,
-                    FrequencyType = "每天",
-                    FrequencyValue = "3次"
+                    PatientId = "P001", DoctorId = "D001", NurseId = "N001",
+                    CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(3),
+                    OrderType = "OperationOrder", Status = "Accepted", IsLongTerm = true,
+                    OpId = "OP001", Normal = true, FrequencyType = "每天", FrequencyValue = "3次"
                 },
-                
-                // 心电监护
                 new OperationOrder
                 {
-                    PatientId = "P003",
-                    DoctorId = "D002",
-                    NurseId = "N002",
-                    CreateTime = currentTime.AddDays(-1),
-                    PlantEndTime = currentTime.AddDays(2),
-                    OrderType = "OperationOrder",
-                    Status = "Accepted",
-                    IsLongTerm = true,
-                    OpId = "OP002",
-                    Normal = true,
-                    FrequencyType = "持续",
-                    FrequencyValue = "24小时"
+                    PatientId = "P003", DoctorId = "D002", NurseId = "N002",
+                    CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(2),
+                    OrderType = "OperationOrder", Status = "Accepted", IsLongTerm = true,
+                    OpId = "OP002", Normal = true, FrequencyType = "持续", FrequencyValue = "24小时"
                 },
-                
-                // 换药处理
                 new OperationOrder
                 {
-                    PatientId = "P004",
-                    DoctorId = "D002",
-                    NurseId = "N001",
-                    CreateTime = currentTime.AddHours(-2),
-                    PlantEndTime = currentTime.AddHours(1),
-                    OrderType = "OperationOrder",
-                    Status = "InProgress",
-                    IsLongTerm = false,
-                    OpId = "OP003",
-                    Normal = true,
-                    FrequencyType = "一次性",
-                    FrequencyValue = "1次"
+                    PatientId = "P004", DoctorId = "D002", NurseId = "N001",
+                    CreateTime = currentTime.AddHours(-2), PlantEndTime = currentTime.AddHours(1),
+                    OrderType = "OperationOrder", Status = "InProgress", IsLongTerm = false,
+                    OpId = "OP003", Normal = true, FrequencyType = "一次性", FrequencyValue = "1次"
                 }
             };
             context.OperationOrders.AddRange(operationOrders);
@@ -524,66 +365,35 @@ namespace CareFlow.Infrastructure.Data
             // 3. 检查医嘱 (InspectionOrder)
             var inspectionOrders = new InspectionOrder[]
             {
-                // CT检查
                 new InspectionOrder
                 {
-                    PatientId = "P002",
-                    DoctorId = "D001",
-                    CreateTime = currentTime.AddHours(-4),
-                    PlantEndTime = currentTime.AddHours(8),
-                    OrderType = "InspectionOrder",
-                    Status = "PendingReview",
-                    IsLongTerm = false,
-                    ItemCode = "CT001",
-                    RisLisId = "RIS202412060001",
-                    Location = "影像科",
-                    AppointmentTime = currentTime.AddHours(4),
-                    AppointmentPlace = "CT室1",
-                    Precautions = "检查前4小时禁食",
-                    ReportId = ""
+                    PatientId = "P002", DoctorId = "D001",
+                    CreateTime = currentTime.AddHours(-4), PlantEndTime = currentTime.AddHours(8),
+                    OrderType = "InspectionOrder", Status = "PendingReview", IsLongTerm = false,
+                    ItemCode = "CT001", RisLisId = "RIS202412060001", Location = "影像科",
+                    AppointmentTime = currentTime.AddHours(4), AppointmentPlace = "CT室1",
+                    Precautions = "检查前4小时禁食", ReportId = ""
                 },
-                
-                // 血常规检查
                 new InspectionOrder
                 {
-                    PatientId = "P005",
-                    DoctorId = "D001",
-                    CreateTime = currentTime.AddHours(-1),
-                    PlantEndTime = currentTime.AddHours(6),
-                    OrderType = "InspectionOrder",
-                    Status = "Accepted",
-                    IsLongTerm = false,
-                    ItemCode = "LAB001",
-                    RisLisId = "LIS202412060001",
-                    Location = "检验科",
-                    AppointmentTime = currentTime.AddHours(2),
-                    AppointmentPlace = "采血室",
-                    Precautions = "空腹采血",
-                    ReportId = ""
+                    PatientId = "P005", DoctorId = "D001",
+                    CreateTime = currentTime.AddHours(-1), PlantEndTime = currentTime.AddHours(6),
+                    OrderType = "InspectionOrder", Status = "Accepted", IsLongTerm = false,
+                    ItemCode = "LAB001", RisLisId = "LIS202412060001", Location = "检验科",
+                    AppointmentTime = currentTime.AddHours(2), AppointmentPlace = "采血室",
+                    Precautions = "空腹采血", ReportId = ""
                 },
-                
-                // 心电图检查 - 已完成
                 new InspectionOrder
                 {
-                    PatientId = "P006",
-                    DoctorId = "D002",
-                    CreateTime = currentTime.AddDays(-1),
-                    PlantEndTime = currentTime.AddHours(-2),
+                    PatientId = "P006", DoctorId = "D002",
+                    CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddHours(-2),
                     EndTime = currentTime.AddHours(-2),
-                    OrderType = "InspectionOrder",
-                    Status = "Completed",
-                    IsLongTerm = false,
-                    ItemCode = "ECG001",
-                    RisLisId = "RIS202412050001",
-                    Location = "心电图室",
-                    AppointmentTime = currentTime.AddHours(-4),
-                    AppointmentPlace = "心电图室1",
-                    Precautions = "检查时保持安静",
-                    CheckStartTime = currentTime.AddHours(-4),
-                    CheckEndTime = currentTime.AddHours(-3.5),
-                    BackToWardTime = currentTime.AddHours(-3),
-                    ReportTime = currentTime.AddHours(-2),
-                    ReportId = "ECG202412050001"
+                    OrderType = "InspectionOrder", Status = "Completed", IsLongTerm = false,
+                    ItemCode = "ECG001", RisLisId = "RIS202412050001", Location = "心电图室",
+                    AppointmentTime = currentTime.AddHours(-4), AppointmentPlace = "心电图室1",
+                    Precautions = "检查时保持安静", CheckStartTime = currentTime.AddHours(-4),
+                    CheckEndTime = currentTime.AddHours(-3.5), BackToWardTime = currentTime.AddHours(-3),
+                    ReportTime = currentTime.AddHours(-2), ReportId = "ECG202412050001"
                 }
             };
             context.InspectionOrders.AddRange(inspectionOrders);
@@ -591,71 +401,43 @@ namespace CareFlow.Infrastructure.Data
             // 4. 手术医嘱 (SurgicalOrder)
             var surgicalOrders = new SurgicalOrder[]
             {
-                // 阑尾切除术 - 准备中
                 new SurgicalOrder
                 {
-                    PatientId = "P003",
-                    DoctorId = "D002",
-                    CreateTime = currentTime.AddHours(-6),
-                    PlantEndTime = currentTime.AddHours(8),
-                    OrderType = "SurgicalOrder",
-                    Status = "Accepted",
-                    IsLongTerm = false,
-                    SurgeryName = "腹腔镜阑尾切除术",
-                    ScheduleTime = currentTime.AddHours(6),
-                    AnesthesiaType = "全身麻醉",
-                    IncisionSite = "脐部及右下腹",
+                    PatientId = "P003", DoctorId = "D002",
+                    CreateTime = currentTime.AddHours(-6), PlantEndTime = currentTime.AddHours(8),
+                    OrderType = "SurgicalOrder", Status = "Accepted", IsLongTerm = false,
+                    SurgeryName = "腹腔镜阑尾切除术", ScheduleTime = currentTime.AddHours(6),
+                    AnesthesiaType = "全身麻醉", IncisionSite = "脐部及右下腹",
                     RequiredMeds = "[\"头孢曲松\", \"丙泊酚\", \"瑞芬太尼\"]",
-                    NeedBloodPrep = false,
-                    HasImplants = false,
-                    PrepProgress = 0.6f,
-                    PrepStatus = "术前准备中"
+                    NeedBloodPrep = false, HasImplants = false,
+                    PrepProgress = 0.6f, PrepStatus = "术前准备中"
                 },
-                
-                // 胆囊切除术 - 已排期
                 new SurgicalOrder
                 {
-                    PatientId = "P004",
-                    DoctorId = "D002",
-                    CreateTime = currentTime.AddDays(-1),
-                    PlantEndTime = currentTime.AddDays(1),
-                    OrderType = "SurgicalOrder",
-                    Status = "PendingReview",
-                    IsLongTerm = false,
-                    SurgeryName = "腹腔镜胆囊切除术",
-                    ScheduleTime = currentTime.AddDays(1).AddHours(2),
-                    AnesthesiaType = "全身麻醉",
-                    IncisionSite = "脐部及上腹部",
+                    PatientId = "P004", DoctorId = "D002",
+                    CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(1),
+                    OrderType = "SurgicalOrder", Status = "PendingReview", IsLongTerm = false,
+                    SurgeryName = "腹腔镜胆囊切除术", ScheduleTime = currentTime.AddDays(1).AddHours(2),
+                    AnesthesiaType = "全身麻醉", IncisionSite = "脐部及上腹部",
                     RequiredMeds = "[\"头孢西丁\", \"丙泊酚\", \"舒芬太尼\"]",
-                    NeedBloodPrep = true,
-                    HasImplants = false,
-                    PrepProgress = 0.2f,
-                    PrepStatus = "等待术前评估"
+                    NeedBloodPrep = true, HasImplants = false,
+                    PrepProgress = 0.2f, PrepStatus = "等待术前评估"
                 },
-                
-                // 骨折内固定术 - 紧急手术
                 new SurgicalOrder
                 {
-                    PatientId = "P006",
-                    DoctorId = "D002",
-                    CreateTime = currentTime.AddHours(-2),
-                    PlantEndTime = currentTime.AddHours(4),
-                    OrderType = "SurgicalOrder",
-                    Status = "Accepted",
-                    IsLongTerm = false,
-                    SurgeryName = "左股骨干骨折切开复位内固定术",
-                    ScheduleTime = currentTime.AddHours(2),
-                    AnesthesiaType = "腰硬联合麻醉",
-                    IncisionSite = "左大腿外侧",
+                    PatientId = "P006", DoctorId = "D002",
+                    CreateTime = currentTime.AddHours(-2), PlantEndTime = currentTime.AddHours(4),
+                    OrderType = "SurgicalOrder", Status = "Accepted", IsLongTerm = false,
+                    SurgeryName = "左股骨干骨折切开复位内固定术", ScheduleTime = currentTime.AddHours(2),
+                    AnesthesiaType = "腰硬联合麻醉", IncisionSite = "左大腿外侧",
                     RequiredMeds = "[\"头孢唑林\", \"罗哌卡因\", \"吗啡\"]",
-                    NeedBloodPrep = true,
-                    HasImplants = true,
-                    PrepProgress = 0.8f,
-                    PrepStatus = "急诊准备中"
+                    NeedBloodPrep = true, HasImplants = true,
+                    PrepProgress = 0.8f, PrepStatus = "急诊准备中"
                 }
             };
             context.SurgicalOrders.AddRange(surgicalOrders);
             
+            // 最后的保存
             context.SaveChanges();
         }
     }
