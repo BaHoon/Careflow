@@ -109,22 +109,26 @@ namespace CareFlow.Infrastructure.Migrations
                 nullable: true,
                 oldClrType: typeof(string),
                 oldType: "text");
+    // 手动处理 text 到 integer 的转换
+            migrationBuilder.Sql(@"
+                ALTER TABLE ""InspectionReports"" 
+                ALTER COLUMN ""ReportStatus"" TYPE integer 
+                USING (CASE 
+                    WHEN ""ReportStatus"" = '1' OR ""ReportStatus"" = 'Pending' THEN 1
+                    WHEN ""ReportStatus"" = '2' OR ""ReportStatus"" = 'Completed' THEN 2
+                    ELSE 1
+                END)::integer;
+            ");
 
-            migrationBuilder.AlterColumn<int>(
-                name: "ReportStatus",
-                table: "InspectionReports",
-                type: "integer",
-                nullable: false,
-                oldClrType: typeof(string),
-                oldType: "text");
-
-            migrationBuilder.AlterColumn<int>(
-                name: "ReportSource",
-                table: "InspectionReports",
-                type: "integer",
-                nullable: false,
-                oldClrType: typeof(string),
-                oldType: "text");
+          migrationBuilder.Sql(@"
+                ALTER TABLE ""InspectionReports"" 
+                ALTER COLUMN ""ReportSource"" TYPE integer 
+                USING (CASE 
+                    WHEN ""ReportSource"" = '1' OR ""ReportSource"" = 'RIS' THEN 1
+                    WHEN ""ReportSource"" = '2' OR ""ReportSource"" = 'LIS' THEN 2
+                    ELSE 1
+                END)::integer;
+            ");
 
             migrationBuilder.AlterColumn<string>(
                 name: "Impression",
