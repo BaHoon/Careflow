@@ -1,5 +1,5 @@
 using CareFlow.Core.Enums;
-
+/// inspection下的这两个文件就是前后端数据交互的预期接口，根据实际情况还可以做出修改
 namespace CareFlow.Application.DTOs.Inspection;
 
 /// <summary>

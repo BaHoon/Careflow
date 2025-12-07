@@ -201,21 +201,4 @@ public class InspectionController : ControllerBase
             return BadRequest(new { message = ex.Message });
         }
     }
-
-    /// <summary>
-    /// 生成模拟检查医嘱数据
-    /// </summary>
-    [HttpPost("mock-data")]
-    public async Task<IActionResult> GenerateMockData()
-    {
-        try
-        {
-            await _inspectionService.GenerateMockInspectionOrdersAsync();
-            return Ok(new { message = "模拟数据生成成功" });
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-    }
 }
