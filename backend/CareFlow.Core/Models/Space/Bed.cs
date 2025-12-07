@@ -1,12 +1,16 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using CareFlow.Core.Models;
+
 namespace CareFlow.Core.Models.Space
 {
-    public class Bed
+    public class Bed : EntityBase<string>
     {
-        [Key]
-        public string BedId { get; set; } = null!;
         public string WardId { get; set; } = null!;
+        
+        [ForeignKey("WardId")]
         public Ward Ward { get; set; } = null!;
+        
         public string Status { get; set; } = null!; // 占用/空闲
     }
 }

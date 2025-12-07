@@ -1,9 +1,11 @@
 {
   "version": 2,
-  "dgSpecHash": "jJ00+eqLr1g=",
+  "dgSpecHash": "A+AoHNxfilI=",
   "success": true,
   "projectFilePath": "D:\\Users\\18707\\Documents\\GitHub\\Careflow\\backend\\CareFlow.WebApi\\CareFlow.WebApi.csproj",
   "expectedPackageFiles": [
+    "C:\\Users\\18707\\.nuget\\packages\\aspose.barcode\\24.1.0\\aspose.barcode.24.1.0.nupkg.sha512",
+    "C:\\Users\\18707\\.nuget\\packages\\aspose.drawing.common\\23.7.0\\aspose.drawing.common.23.7.0.nupkg.sha512",
     "C:\\Users\\18707\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
     "C:\\Users\\18707\\.nuget\\packages\\microsoft.aspnetcore.authentication.jwtbearer\\10.0.0\\microsoft.aspnetcore.authentication.jwtbearer.10.0.0.nupkg.sha512",
     "C:\\Users\\18707\\.nuget\\packages\\microsoft.aspnetcore.openapi\\10.0.0\\microsoft.aspnetcore.openapi.10.0.0.nupkg.sha512",

@@ -1,14 +1,17 @@
 using CareFlow.Core.Models.Organization;
 using System.ComponentModel.DataAnnotations;
-namespace CareFlow.Core.Models.Space
+using System.ComponentModel.DataAnnotations.Schema;
+using CareFlow.Core.Models;
 
+namespace CareFlow.Core.Models.Space
 {
-    public class Ward
+    public class Ward : EntityBase<string>
     {
-        [Key]
-        public string WardId { get; set; } = null!;
-        public string DeptId { get; set; } = null!;
+        public string DepartmentId { get; set; } = null!;
+        
+        [ForeignKey("DepartmentId")]
         public Department Department { get; set; } = null!;
+        
         public ICollection<Bed> Beds { get; set; } = null!;
     }
 }

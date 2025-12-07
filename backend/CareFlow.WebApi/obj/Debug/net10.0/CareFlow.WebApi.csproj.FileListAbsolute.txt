@@ -264,6 +264,8 @@ D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.WebApi\bin\Debug\net10
 D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.WebApi\bin\Debug\net10.0\CareFlow.WebApi.runtimeconfig.json
 D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.WebApi\bin\Debug\net10.0\CareFlow.WebApi.dll
 D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.WebApi\bin\Debug\net10.0\CareFlow.WebApi.pdb
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.WebApi\bin\Debug\net10.0\Aspose.BarCode.dll
+D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.WebApi\bin\Debug\net10.0\Aspose.Drawing.Common.dll
 D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.WebApi\bin\Debug\net10.0\Humanizer.dll
 D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.WebApi\bin\Debug\net10.0\Microsoft.AspNetCore.Authentication.JwtBearer.dll
 D:\Users\18707\Documents\GitHub\Careflow\backend\CareFlow.WebApi\bin\Debug\net10.0\Microsoft.AspNetCore.OpenApi.dll
