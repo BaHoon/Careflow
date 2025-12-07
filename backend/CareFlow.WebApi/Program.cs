@@ -1,5 +1,8 @@
+using CareFlow.Core.Interfaces;
+using CareFlow.Infrastructure.Services;
 using CareFlow.Infrastructure; // 引用基础设施层
 using CareFlow.Application.Services; // 引用应用层服务
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -19,6 +22,13 @@ builder.Services.AddSwaggerGen();
 
 // 注册 AuthService
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<IExecutionTaskFactory, SurgicalExecutionTaskFactory>();
+
+// 注册检查类医嘱服务
+builder.Services.AddScoped<CareFlow.Application.Interfaces.IInspectionService, CareFlow.Application.Services.InspectionService>();
+
+// // 注册药品医嘱任务服务
+// builder.Services.AddScoped<IMedicationOrderTaskService, MedicationOrderTaskService>();
 
 // 配置 JWT 认证服务
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -53,6 +63,8 @@ builder.Services.AddCors(options =>
         });
 });
 
+builder.Services.AddScoped<IBarcodeService, AsposeBarcodeService>();
+
 var app = builder.Build();
 
 // ==============================================
@@ -68,11 +80,14 @@ using (var scope = app.Services.CreateScope())
         
         // 2. 调用我们在 Infrastructure 层写的初始化器
         // 确保你的 DbInitializer.cs 类名和命名空间正确
-        CareFlow.Infrastructure.Data.DbInitializer.Initialize(context);
+        CareFlow.Infrastructure.Data.DbInitializer.Initialize(context); // 1) 播种所有虚拟基础数据
+
+        var taskFactory = services.GetRequiredService<IExecutionTaskFactory>();
+        var createdTasks = EnsureSurgicalExecutionTasks(context, taskFactory); // 2) 手术医嘱 -> 术前任务拆分
         
         // 这是一个可选的日志输出，方便你看控制台知道发生了什么
         var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogInformation("数据库初始化已完成，测试数据已插入。");
+        logger.LogInformation("数据库初始化已完成，测试数据已插入。同步任务：{TaskCount}", createdTasks);
     }
     catch (Exception ex)
     {
@@ -110,3 +125,30 @@ app.MapControllers();
 
 // 启动程序！
 app.Run();
+
+static int EnsureSurgicalExecutionTasks(ApplicationDbContext context, IExecutionTaskFactory factory)
+{
+    var surgicalOrders = context.SurgicalOrders
+        .Include(o => o.Patient)
+        .ToList();
+
+    var created = 0;
+    foreach (var order in surgicalOrders)
+    {
+        if (context.ExecutionTasks.Any(t => t.MedicalOrderId == order.Id))
+        {
+            continue;
+        }
+
+        var tasks = factory.CreateTasks(order);
+        context.ExecutionTasks.AddRange(tasks);
+        created += tasks.Count;
+    }
+
+    if (created > 0)
+    {
+        context.SaveChanges();
+    }
+
+    return created;
+}

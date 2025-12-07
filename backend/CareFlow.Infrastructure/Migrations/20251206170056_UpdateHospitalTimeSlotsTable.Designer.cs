@@ -3,6 +3,7 @@ using System;
 using CareFlow.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CareFlow.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251206170056_UpdateHospitalTimeSlotsTable")]
+    partial class UpdateHospitalTimeSlotsTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -25,7 +28,10 @@ namespace CareFlow.Infrastructure.Migrations
             modelBuilder.Entity("CareFlow.Core.Models.Medical.HospitalTimeSlot", b =>
                 {
                     b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreateTime")
                         .HasColumnType("timestamp with time zone");
@@ -40,6 +46,9 @@ namespace CareFlow.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int>("SlotId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("SlotName")
                         .IsRequired()
                         .HasColumnType("text");
@@ -51,22 +60,22 @@ namespace CareFlow.Infrastructure.Migrations
 
             modelBuilder.Entity("CareFlow.Core.Models.Medical.InspectionReport", b =>
                 {
-                    b.Property<long>("Id")
+                    b.Property<long>("ReportId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("ReportId"));
 
                     b.Property<string>("AttachmentUrl")
+                        .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreateTime")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<string>("Findings")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("Impression")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<long>("OrderId")
@@ -76,29 +85,30 @@ namespace CareFlow.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("ReportSource")
-                        .HasColumnType("integer");
+                    b.Property<string>("ReportSource")
+                        .IsRequired()
+                        .HasColumnType("text");
 
-                    b.Property<int>("ReportStatus")
-                        .HasColumnType("integer");
+                    b.Property<string>("ReportStatus")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("ReportTime")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("ReviewerId")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("RisLisId")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.HasKey("Id");
+                    b.HasKey("ReportId");
 
                     b.HasIndex("OrderId");
 
                     b.HasIndex("PatientId");
-
-                    b.HasIndex("ReviewerId");
 
                     b.ToTable("InspectionReports");
                 });
@@ -126,6 +136,9 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.Property<string>("NurseId")
                         .HasColumnType("text");
+
+                    b.Property<long>("OrderId")
+                        .HasColumnType("bigint");
 
                     b.Property<string>("OrderType")
                         .IsRequired()
@@ -183,10 +196,7 @@ namespace CareFlow.Infrastructure.Migrations
                     b.Property<string>("ExecutorStaffId")
                         .HasColumnType("text");
 
-                    b.Property<bool>("IsRolledBack")
-                        .HasColumnType("boolean");
-
-                    b.Property<long>("MedicalOrderId")
+                    b.Property<long>("OrderId")
                         .HasColumnType("bigint");
 
                     b.Property<string>("PatientId")
@@ -204,7 +214,7 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.HasIndex("ExecutorStaffId");
 
-                    b.HasIndex("MedicalOrderId");
+                    b.HasIndex("OrderId");
 
                     b.HasIndex("PatientId");
 
@@ -333,11 +343,8 @@ namespace CareFlow.Infrastructure.Migrations
 
             modelBuilder.Entity("CareFlow.Core.Models.Nursing.ShiftType", b =>
                 {
-                    b.Property<string>("Id")
+                    b.Property<string>("ShiftId")
                         .HasColumnType("text");
-
-                    b.Property<DateTime>("CreateTime")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<TimeSpan>("EndTime")
                         .HasColumnType("interval");
@@ -349,7 +356,7 @@ namespace CareFlow.Infrastructure.Migrations
                     b.Property<TimeSpan>("StartTime")
                         .HasColumnType("interval");
 
-                    b.HasKey("Id");
+                    b.HasKey("ShiftId");
 
                     b.ToTable("ShiftTypes");
                 });
@@ -419,11 +426,8 @@ namespace CareFlow.Infrastructure.Migrations
 
             modelBuilder.Entity("CareFlow.Core.Models.Organization.Department", b =>
                 {
-                    b.Property<string>("Id")
+                    b.Property<string>("DeptId")
                         .HasColumnType("text");
-
-                    b.Property<DateTime>("CreateTime")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("DeptName")
                         .IsRequired()
@@ -433,14 +437,14 @@ namespace CareFlow.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.HasKey("Id");
+                    b.HasKey("DeptId");
 
                     b.ToTable("Departments");
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Organization.Patient", b =>
                 {
-                    b.Property<string>("Id")
+                    b.Property<string>("PatientId")
                         .HasColumnType("text");
 
                     b.Property<int>("Age")
@@ -453,9 +457,6 @@ namespace CareFlow.Infrastructure.Migrations
                     b.Property<string>("BedId")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<DateTime>("CreateTime")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("DateOfBirth")
                         .HasColumnType("timestamp with time zone");
@@ -486,7 +487,7 @@ namespace CareFlow.Infrastructure.Migrations
                     b.Property<float>("Weight")
                         .HasColumnType("real");
 
-                    b.HasKey("Id");
+                    b.HasKey("PatientId");
 
                     b.HasIndex("AttendingDoctorId");
 
@@ -545,11 +546,8 @@ namespace CareFlow.Infrastructure.Migrations
 
             modelBuilder.Entity("CareFlow.Core.Models.Space.Bed", b =>
                 {
-                    b.Property<string>("Id")
+                    b.Property<string>("BedId")
                         .HasColumnType("text");
-
-                    b.Property<DateTime>("CreateTime")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -559,7 +557,7 @@ namespace CareFlow.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.HasKey("Id");
+                    b.HasKey("BedId");
 
                     b.HasIndex("WardId");
 
@@ -568,19 +566,19 @@ namespace CareFlow.Infrastructure.Migrations
 
             modelBuilder.Entity("CareFlow.Core.Models.Space.Ward", b =>
                 {
-                    b.Property<string>("Id")
+                    b.Property<string>("WardId")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreateTime")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<string>("DepartmentDeptId")
+                        .HasColumnType("text");
 
-                    b.Property<string>("DepartmentId")
+                    b.Property<string>("DeptId")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.HasKey("Id");
+                    b.HasKey("WardId");
 
-                    b.HasIndex("DepartmentId");
+                    b.HasIndex("DepartmentDeptId");
 
                     b.ToTable("Wards");
                 });
@@ -590,6 +588,7 @@ namespace CareFlow.Infrastructure.Migrations
                     b.HasBaseType("CareFlow.Core.Models.Medical.MedicalOrder");
 
                     b.Property<string>("AppointmentPlace")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<DateTime?>("AppointmentTime")
@@ -604,9 +603,6 @@ namespace CareFlow.Infrastructure.Migrations
                     b.Property<DateTime?>("CheckStartTime")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("InspectionStatus")
-                        .HasColumnType("integer");
-
                     b.Property<string>("ItemCode")
                         .IsRequired()
                         .HasColumnType("text");
@@ -616,9 +612,11 @@ namespace CareFlow.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("Precautions")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("ReportId")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<DateTime?>("ReportTime")
@@ -627,9 +625,6 @@ namespace CareFlow.Infrastructure.Migrations
                     b.Property<string>("RisLisId")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<int>("Source")
-                        .HasColumnType("integer");
 
                     b.ToTable("InspectionOrders", (string)null);
                 });
@@ -766,7 +761,7 @@ namespace CareFlow.Infrastructure.Migrations
             modelBuilder.Entity("CareFlow.Core.Models.Medical.InspectionReport", b =>
                 {
                     b.HasOne("CareFlow.Core.Models.Medical.InspectionOrder", "InspectionOrder")
-                        .WithMany("Reports")
+                        .WithMany()
                         .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -777,15 +772,9 @@ namespace CareFlow.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("CareFlow.Core.Models.Organization.Doctor", "Reviewer")
-                        .WithMany()
-                        .HasForeignKey("ReviewerId");
-
                     b.Navigation("InspectionOrder");
 
                     b.Navigation("Patient");
-
-                    b.Navigation("Reviewer");
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Medical.MedicalOrder", b =>
@@ -821,7 +810,7 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.HasOne("CareFlow.Core.Models.Medical.MedicalOrder", "MedicalOrder")
                         .WithMany()
-                        .HasForeignKey("MedicalOrderId")
+                        .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -948,9 +937,7 @@ namespace CareFlow.Infrastructure.Migrations
                 {
                     b.HasOne("CareFlow.Core.Models.Organization.Department", "Department")
                         .WithMany("Wards")
-                        .HasForeignKey("DepartmentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("DepartmentDeptId");
 
                     b.Navigation("Department");
                 });
@@ -1019,11 +1006,6 @@ namespace CareFlow.Infrastructure.Migrations
             modelBuilder.Entity("CareFlow.Core.Models.Space.Ward", b =>
                 {
                     b.Navigation("Beds");
-                });
-
-            modelBuilder.Entity("CareFlow.Core.Models.Medical.InspectionOrder", b =>
-                {
-                    b.Navigation("Reports");
                 });
 #pragma warning restore 612, 618
         }

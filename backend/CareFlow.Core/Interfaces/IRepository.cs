@@ -27,4 +27,7 @@ public interface IRepository<T, TKey> where T : EntityBase<TKey>
 
     // 删除实体
     Task DeleteAsync(T entity);
+
+    // 获取可查询对象，用于复杂查询
+    IQueryable<T> GetQueryable();
 }

@@ -6,8 +6,8 @@ namespace CareFlow.Core.Models.Nursing;
 
 public class ExecutionTask : EntityBase<long>
 {
-    public long OrderId { get; set; } // 来源医嘱
-    [ForeignKey("OrderId")]
+    public long MedicalOrderId { get; set; } // 来源医嘱
+    [ForeignKey("MedicalOrderId")]
     public MedicalOrder MedicalOrder { get; set; }= null!;
 
     public string PatientId { get; set; } = null!; // 冗余方便查询
@@ -25,6 +25,7 @@ public class ExecutionTask : EntityBase<long>
 
     // 状态
     public string Status { get; set; } = "Pending"; // Pending, Running, Completed, Skipped
+    public bool IsRolledBack { get; set; } = false; // 是否已回滚
     
     // 动态数据 (比如皮试结果)
     public string DataPayload { get; set; } = string.Empty;
