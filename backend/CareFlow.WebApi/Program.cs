@@ -137,7 +137,7 @@ static int EnsureSurgicalExecutionTasks(ApplicationDbContext context, IExecution
     var created = 0;
     foreach (var order in surgicalOrders)
     {
-        if (context.ExecutionTasks.Any(t => t.OrderId == order.OrderId))
+        if (context.ExecutionTasks.Any(t => t.MedicalOrderId == order.Id))
         {
             continue;
         }

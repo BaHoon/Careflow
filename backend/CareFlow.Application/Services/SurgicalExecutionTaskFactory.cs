@@ -74,7 +74,7 @@ public sealed class SurgicalExecutionTaskFactory : IExecutionTaskFactory
         {
             result.Add(new ExecutionTask
             {
-                OrderId = surgicalOrder.OrderId,
+                MedicalOrderId = surgicalOrder.Id,
                 MedicalOrder = surgicalOrder,
                 PatientId = surgicalOrder.PatientId,
                 Patient = surgicalOrder.Patient,
