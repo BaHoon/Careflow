@@ -41,6 +41,7 @@ namespace CareFlow.Infrastructure
         // 医嘱附属表
         public DbSet<InspectionReport> InspectionReports { get; set; } // 检查报告
         public DbSet<HospitalTimeSlot> HospitalTimeSlots { get; set; } // 时段字典
+        public DbSet<Drug> Drugs { get; set; } // 药品字典
         #endregion
 
         //护理执行
