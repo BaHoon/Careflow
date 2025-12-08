@@ -1,5 +1,6 @@
 using CareFlow.Core.Enums;
 using CareFlow.Core.Models.Medical;
+using CareFlow.Core.Models.Nursing;
 using CareFlow.Core.Models.Organization;
 using CareFlow.Core.Models.Space;
 using System.Security.Cryptography;
@@ -125,7 +126,7 @@ namespace CareFlow.Infrastructure.Data
                 }
             };
             
-            // 护士数据
+            // 护士数据 - 扩展更多护士以支持排班表
             var nurses = new Nurse[]
             {
                 new Nurse
@@ -149,6 +150,84 @@ namespace CareFlow.Infrastructure.Data
                     Name = "赵护士",
                     IdCard = "110100200001010004",
                     Phone = "13912340004",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "SUR",
+                    NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N003",
+                    EmployeeNumber = "nurse003",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "李护士",
+                    IdCard = "110100200001010006",
+                    Phone = "13912340006",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "IM",
+                    NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N004",
+                    EmployeeNumber = "nurse004",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "张护士",
+                    IdCard = "110100200001010007",
+                    Phone = "13912340007",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "IM",
+                    NurseRank = NurseRank.TeamLeader.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N005",
+                    EmployeeNumber = "nurse005",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "陈护士",
+                    IdCard = "110100200001010008",
+                    Phone = "13912340008",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "PED",
+                    NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N006",
+                    EmployeeNumber = "nurse006",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "刘护士",
+                    IdCard = "110100200001010009",
+                    Phone = "13912340009",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "PED",
+                    NurseRank = NurseRank.TeamLeader.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N007",
+                    EmployeeNumber = "nurse007",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "吴护士",
+                    IdCard = "110100200001010010",
+                    Phone = "13912340010",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "IM",
+                    NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N008",
+                    EmployeeNumber = "nurse008",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "周护士",
+                    IdCard = "110100200001010011",
+                    Phone = "13912340011",
                     RoleType = "Nurse",
                     IsActive = true,
                     DeptCode = "SUR",
@@ -706,6 +785,144 @@ namespace CareFlow.Infrastructure.Data
                 }
             };
             context.SurgicalOrders.AddRange(surgicalOrders);
+            
+            // --- 护士排班相关数据 ---
+            // 班次类型数据
+            var shiftTypes = new CareFlow.Core.Models.Nursing.ShiftType[]
+            {
+                new CareFlow.Core.Models.Nursing.ShiftType
+                {
+                    Id = "DAY",
+                    ShiftName = "白班",
+                    StartTime = new TimeSpan(8, 0, 0),   // 08:00
+                    EndTime = new TimeSpan(16, 0, 0)     // 16:00
+                },
+                new CareFlow.Core.Models.Nursing.ShiftType
+                {
+                    Id = "EVENING",
+                    ShiftName = "晚班",
+                    StartTime = new TimeSpan(16, 0, 0),  // 16:00
+                    EndTime = new TimeSpan(0, 0, 0)      // 00:00 (24:00)
+                },
+                new CareFlow.Core.Models.Nursing.ShiftType
+                {
+                    Id = "NIGHT",
+                    ShiftName = "夜班",
+                    StartTime = new TimeSpan(0, 0, 0),   // 00:00
+                    EndTime = new TimeSpan(8, 0, 0)      // 08:00
+                }
+            };
+            context.ShiftTypes.AddRange(shiftTypes);
+            context.SaveChanges(); // 保存班次类型
+            
+            // 护士排班表数据 - 安排不同科室护士的排班
+            var nurseRosters = new NurseRoster[]
+            {
+                // 外科护士排班 (SUR - Ward SUR-W01)
+                new NurseRoster
+                {
+                    StaffId = "N001", // 王护士 (护士长)
+                    WardId = "SUR-W01",  // 外科病区
+                    ShiftId = "DAY",
+                    WorkDate = DateOnly.FromDateTime(DateTime.Today),
+                    Status = "Assigned"
+                },
+                new NurseRoster
+                {
+                    StaffId = "N002", // 赵护士
+                    WardId = "SUR-W01",  // 外科病区
+                    ShiftId = "EVENING",
+                    WorkDate = DateOnly.FromDateTime(DateTime.Today),
+                    Status = "Assigned"
+                },
+                new NurseRoster
+                {
+                    StaffId = "N008", // 周护士
+                    WardId = "SUR-W01",  // 外科病区
+                    ShiftId = "NIGHT",
+                    WorkDate = DateOnly.FromDateTime(DateTime.Today),
+                    Status = "Assigned"
+                },
+                
+                // 内科护士排班 (IM - Ward IM-W01)
+                new NurseRoster
+                {
+                    StaffId = "N004", // 张护士 (责任组长)
+                    WardId = "IM-W01",  // 内科一病区
+                    ShiftId = "DAY",
+                    WorkDate = DateOnly.FromDateTime(DateTime.Today),
+                    Status = "Assigned"
+                },
+                new NurseRoster
+                {
+                    StaffId = "N003", // 李护士
+                    WardId = "IM-W01",  // 内科一病区
+                    ShiftId = "EVENING",
+                    WorkDate = DateOnly.FromDateTime(DateTime.Today),
+                    Status = "Assigned"
+                },
+                new NurseRoster
+                {
+                    StaffId = "N007", // 吴护士
+                    WardId = "IM-W02",  // 内科二病区
+                    ShiftId = "NIGHT",
+                    WorkDate = DateOnly.FromDateTime(DateTime.Today),
+                    Status = "Assigned"
+                },
+                
+                // 儿科护士排班 (PED - Ward PED-W01)
+                new NurseRoster
+                {
+                    StaffId = "N006", // 刘护士 (责任组长)
+                    WardId = "PED-W01",  // 儿科病区
+                    ShiftId = "DAY",
+                    WorkDate = DateOnly.FromDateTime(DateTime.Today),
+                    Status = "Assigned"
+                },
+                new NurseRoster
+                {
+                    StaffId = "N005", // 陈护士
+                    WardId = "PED-W01",  // 儿科病区
+                    ShiftId = "EVENING",
+                    WorkDate = DateOnly.FromDateTime(DateTime.Today),
+                    Status = "Assigned"
+                },
+                
+                // 明天的排班安排 (部分轮换)
+                new NurseRoster
+                {
+                    StaffId = "N002", // 赵护士
+                    WardId = "SUR-W01",  // 外科病区
+                    ShiftId = "DAY",
+                    WorkDate = DateOnly.FromDateTime(DateTime.Today.AddDays(1)),
+                    Status = "Assigned"
+                },
+                new NurseRoster
+                {
+                    StaffId = "N001", // 王护士 (护士长)
+                    WardId = "SUR-W01",  // 外科病区
+                    ShiftId = "EVENING",
+                    WorkDate = DateOnly.FromDateTime(DateTime.Today.AddDays(1)),
+                    Status = "Assigned"
+                },
+                new NurseRoster
+                {
+                    StaffId = "N003", // 李护士
+                    WardId = "IM-W02",  // 内科二病区
+                    ShiftId = "DAY",
+                    WorkDate = DateOnly.FromDateTime(DateTime.Today.AddDays(1)),
+                    Status = "Assigned"
+                },
+                new NurseRoster
+                {
+                    StaffId = "N005", // 陈护士
+                    WardId = "PED-W01",  // 儿科病区
+                    ShiftId = "DAY",
+                    WorkDate = DateOnly.FromDateTime(DateTime.Today.AddDays(1)),
+                    Status = "Assigned"
+                }
+            };
+            context.NurseRosters.AddRange(nurseRosters);
             
             // 最后的保存
             context.SaveChanges();
