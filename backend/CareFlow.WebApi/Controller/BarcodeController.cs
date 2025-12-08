@@ -9,19 +9,21 @@ namespace CareFlow.WebApi.Controllers;
 public class BarcodeController : ControllerBase
 {
     private readonly IBarcodeService _barcodeService;
+    private readonly IRecordValidationService _recordValidationService;
 
-    public BarcodeController(IBarcodeService barcodeService)
+    public BarcodeController(IBarcodeService barcodeService, IRecordValidationService recordValidationService)
     {
         _barcodeService = barcodeService;
+        _recordValidationService = recordValidationService;
     }
 
     // 1. 生成接口：传入 { "tableName": "MedicalOrder", "recordId": "1001" }
     [HttpPost("generate")]
-    public IActionResult Generate([FromBody] BarcodeIndex request)
+    public async Task<IActionResult> Generate([FromBody] BarcodeIndex request)
     {
         try 
         {
-            var imageBytes = _barcodeService.GenerateBarcode(request);
+            var imageBytes = await _barcodeService.GenerateBarcodeAsync(request);
             return File(imageBytes, "image/png");
         }
         catch (Exception ex)
@@ -48,6 +50,36 @@ public class BarcodeController : ControllerBase
         catch (Exception ex)
         {
             return BadRequest(new { message = "识别失败: " + ex.Message });
+        }
+    }
+
+    // 3. 获取支持的表名列表
+    [HttpGet("supported-tables")]
+    public IActionResult GetSupportedTables()
+    {
+        try
+        {
+            var tables = _recordValidationService.GetSupportedTables();
+            return Ok(new { tables = tables.ToList() });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    // 4. 验证记录是否存在（可选的调试接口）
+    [HttpPost("validate")]
+    public async Task<IActionResult> ValidateRecord([FromBody] BarcodeIndex request)
+    {
+        try
+        {
+            bool exists = await _recordValidationService.RecordExistsAsync(request.TableName, request.RecordId);
+            return Ok(new { tableName = request.TableName, recordId = request.RecordId, exists });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
         }
     }
 }

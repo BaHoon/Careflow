@@ -34,6 +34,9 @@ namespace CareFlow.Core.Models.Medical
     public class MedicationOrder : MedicalOrder
     {
         public string DrugId { get; set; } = null!;           // 药品ID
+        [ForeignKey("DrugId")]
+        public Drug Drug { get; set; } = null!;               // 药品信息
+        
         public string Dosage { get; set; } = null!;           // 剂量
         public string UsageRoute { get; set; } = null!;       // 途径(口服/静滴/涂抹)
         public bool IsDynamicUsage { get; set; }     // 是否不定量(如吸氧)
