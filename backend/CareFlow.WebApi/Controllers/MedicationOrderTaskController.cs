@@ -164,12 +164,12 @@ public class MedicationOrderTaskController : ControllerBase
             // 2. 创建条形码索引对象
             var barcodeIndex = new BarcodeIndex
             {
-                TableName = "ExecutionTask",
+                TableName = "ExecutionTasks",
                 RecordId = taskId.ToString()
             };
 
             // 3. 生成条形码图片
-            var imageBytes = _barcodeService.GenerateBarcode(barcodeIndex);
+            var imageBytes = await _barcodeService.GenerateBarcodeAsync(barcodeIndex);
 
             _logger.LogInformation("成功生成ExecutionTask {TaskId} 的条形码", taskId);
             return File(imageBytes, "image/png", $"ExecutionTask-{taskId}-barcode.png");
