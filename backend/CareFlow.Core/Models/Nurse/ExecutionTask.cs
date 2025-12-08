@@ -24,10 +24,14 @@ public class ExecutionTask : EntityBase<long>
     public Nurse? Executor { get; set; }
 
     // 状态
-    public string Status { get; set; } = "Pending"; // Pending, Running, Completed, Skipped
+    public string Status { get; set; } = "Pending"; // Pending, Running, Completed, Skipped, Cancelled
     public bool IsRolledBack { get; set; } = false; // 是否已回滚
     
     // 动态数据 (比如皮试结果)
     public string DataPayload { get; set; } = string.Empty;
     public string ExceptionReason { get; set; } = string.Empty;
+    
+    // 审计字段
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? LastModifiedAt { get; set; }
 }
