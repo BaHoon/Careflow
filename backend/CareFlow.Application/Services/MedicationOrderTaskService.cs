@@ -1,6 +1,7 @@
 using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models.Medical;
 using CareFlow.Core.Models.Nursing;
+using CareFlow.Core.Models;
 using Microsoft.Extensions.Logging;
 
 namespace CareFlow.Application.Services;
@@ -9,15 +10,21 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
 {
     private readonly IRepository<ExecutionTask, long> _taskRepository;
     private readonly IRepository<HospitalTimeSlot, int> _timeSlotRepository;
+    private readonly IRepository<BarcodeIndex, string> _barcodeRepository;
+    private readonly IBarcodeService _barcodeService;
     private readonly ILogger<MedicationOrderTaskService> _logger;
 
     public MedicationOrderTaskService(
         IRepository<ExecutionTask, long> taskRepository,
         IRepository<HospitalTimeSlot, int> timeSlotRepository,
+        IRepository<BarcodeIndex, string> barcodeRepository,
+        IBarcodeService barcodeService,
         ILogger<MedicationOrderTaskService> logger)
     {
         _taskRepository = taskRepository;
         _timeSlotRepository = timeSlotRepository;
+        _barcodeRepository = barcodeRepository;
+        _barcodeService = barcodeService;
         _logger = logger;
     }
 
@@ -52,7 +59,11 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
             {
                 foreach (var task in tasks)
                 {
+                    // 先保存任务以获得ID
                     await _taskRepository.AddAsync(task);
+                    
+                    // 为任务生成条形码索引
+                    await GenerateBarcodeForTask(task);
                 }
                 _logger.LogInformation("已为医嘱 {OrderId} 生成 {TaskCount} 个执行任务", order.Id, tasks.Count);
             }
@@ -303,6 +314,36 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
         
         // 按默认时间排序
         return matchedSlots.OrderBy(s => s.DefaultTime).ToList();
+    }
+
+    /// <summary>
+    /// 为执行任务生成条形码索引
+    /// </summary>
+    private async Task GenerateBarcodeForTask(ExecutionTask task)
+    {
+        try
+        {
+            var barcodeIndex = new BarcodeIndex
+            {
+                Id = $"ExecutionTask-{task.Id}", // 使用表名和ID作为唯一标识
+                TableName = "ExecutionTask",
+                RecordId = task.Id.ToString()
+            };
+
+            // 保存条形码索引到数据库
+            await _barcodeRepository.AddAsync(barcodeIndex);
+            
+            // 生成条形码图片（可选，如果需要立即生成图片的话）
+            // var barcodeBytes = _barcodeService.GenerateBarcode(barcodeIndex);
+            // 这里可以选择保存到文件系统或其他地方
+            
+            _logger.LogDebug("已为ExecutionTask {TaskId} 生成条形码索引", task.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "为ExecutionTask {TaskId} 生成条形码时发生错误", task.Id);
+            // 条形码生成失败不应该影响任务的正常创建，所以这里只记录错误
+        }
     }
 
     #endregion
