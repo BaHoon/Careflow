@@ -24,6 +24,9 @@ public static class DependencyInjection
 
         // 注册条形码服务
         services.AddScoped<IBarcodeService, AsposeBarcodeService>();
+        
+        // 注册记录验证服务
+        services.AddScoped<IRecordValidationService, RecordValidationService>();
 
         return services;
     }
