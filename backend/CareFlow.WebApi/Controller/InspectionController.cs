@@ -2,6 +2,7 @@ using CareFlow.Application.DTOs.Inspection;
 using CareFlow.Application.Interfaces;
 using CareFlow.Core.Enums;
 using CareFlow.Core.Interfaces;
+using CareFlow.Core.Models;
 using CareFlow.Core.Models.Nursing;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,13 +15,19 @@ public class InspectionController : ControllerBase
 {
     private readonly IInspectionService _inspectionService;
     private readonly IRepository<ExecutionTask, long> _taskRepo;
+    private readonly IBarcodeService _barcodeService;
+    private readonly ILogger<InspectionController> _logger;
 
     public InspectionController(
         IInspectionService inspectionService,
-        IRepository<ExecutionTask, long> taskRepo)
+        IRepository<ExecutionTask, long> taskRepo,
+        IBarcodeService barcodeService,
+        ILogger<InspectionController> logger)
     {
         _inspectionService = inspectionService;
         _taskRepo = taskRepo;
+        _barcodeService = barcodeService;
+        _logger = logger;
     }
 
     /// <summary>
@@ -315,6 +322,43 @@ public class InspectionController : ControllerBase
             return BadRequest(new { message = $"完成确认失败：{ex.Message}" });
         }
     }
+
+    /// <summary>
+    /// 获取检查任务的条形码图片
+    /// </summary>
+    [HttpGet("task/{taskId}/barcode")]
+    public async Task<IActionResult> GetTaskBarcode(long taskId)
+    {
+        try
+        {
+            _logger.LogInformation("开始获取检查任务 {TaskId} 的条形码", taskId);
+
+            // 1. 验证任务是否存在
+            var task = await _taskRepo.GetByIdAsync(taskId);
+            if (task == null)
+            {
+                return NotFound(new { Success = false, Message = $"未找到ID为 {taskId} 的执行任务" });
+            }
+
+            // 2. 创建条形码索引对象
+            var barcodeIndex = new BarcodeIndex
+            {
+                TableName = "ExecutionTasks",
+                RecordId = taskId.ToString()
+            };
+
+            // 3. 生成条形码图片
+            var imageBytes = await _barcodeService.GenerateBarcodeAsync(barcodeIndex);
+
+            _logger.LogInformation("成功生成检查任务 {TaskId} 的条形码", taskId);
+            return File(imageBytes, "image/png", $"InspectionTask-{taskId}-barcode.png");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "获取检查任务 {TaskId} 的条形码时发生错误", taskId);
+            return BadRequest(new { Success = false, Message = $"获取条形码失败: {ex.Message}" });
+        }
+    }
 }
 
 /// <summary>
@@ -339,12 +383,12 @@ public class DualScanDto
 }
 
 /// <summary>
-/// 完成扫描 DTO（用于检查完成）
+/// 完成扫描 DTO(用于检查完成)
 /// </summary>
 public class CompleteScanDto
 {
     /// <summary>
-    /// 患者ID（从患者手环二维码解析）
+    /// 患者ID(从患者手环二维码解析)
     /// </summary>
     public string PatientId { get; set; } = string.Empty;
     
