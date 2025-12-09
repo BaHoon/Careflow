@@ -233,6 +233,32 @@ namespace CareFlow.Infrastructure.Data
                     IsActive = true,
                     DeptCode = "SUR",
                     NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N009",
+                    EmployeeNumber = "nurse009",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "孙护士",
+                    IdCard = "110100200001010012",
+                    Phone = "13912340012",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "CHK",
+                    NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N010",
+                    EmployeeNumber = "nurse010",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "郑护士",
+                    IdCard = "110100200001010013",
+                    Phone = "13912340013",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "CHK",
+                    NurseRank = NurseRank.TeamLeader.ToString()
                 }
             };
 
