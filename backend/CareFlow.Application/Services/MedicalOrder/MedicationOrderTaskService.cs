@@ -584,14 +584,20 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
                 RecordId = task.Id.ToString()
             };
 
+            // 生成条形码并保存到文件系统
+            var barcodeResult = await _barcodeService.GenerateAndSaveBarcodeAsync(barcodeIndex, saveToFile: true);
+            
+            // 更新条形码索引信息
+            barcodeIndex.ImagePath = barcodeResult.FilePath;
+            barcodeIndex.ImageSize = barcodeResult.FileSize;
+            barcodeIndex.ImageMimeType = barcodeResult.MimeType;
+            barcodeIndex.ImageGeneratedAt = barcodeResult.GeneratedAt;
+
             // 保存条形码索引到数据库
             await _barcodeRepository.AddAsync(barcodeIndex);
             
-            // 生成条形码图片（可选，如果需要立即生成图片的话）
-            // var barcodeBytes = _barcodeService.GenerateBarcode(barcodeIndex);
-            // 这里可以选择保存到文件系统或其他地方
-            
-            _logger.LogDebug("已为ExecutionTask {TaskId} 生成条形码索引", task.Id);
+            _logger.LogDebug("已为ExecutionTask {TaskId} 生成条形码索引和图片文件 {FilePath}", 
+                task.Id, barcodeResult.FilePath ?? "内存中");
         }
         catch (Exception ex)
         {

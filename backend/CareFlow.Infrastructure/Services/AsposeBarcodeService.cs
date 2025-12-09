@@ -2,6 +2,9 @@ using Aspose.BarCode.Generation;
 using Aspose.BarCode.BarCodeRecognition;
 using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models;
+using CareFlow.Core.Models.Barcode;
+using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 using System.IO;
 
 namespace CareFlow.Infrastructure.Services;
@@ -9,10 +12,17 @@ namespace CareFlow.Infrastructure.Services;
 public class AsposeBarcodeService : IBarcodeService
 {
     private readonly IRecordValidationService _recordValidationService;
+    private readonly CareFlow.Core.Models.Barcode.BarcodeSettings _barcodeSettings;
+    private readonly ILogger<AsposeBarcodeService> _logger;
 
-    public AsposeBarcodeService(IRecordValidationService recordValidationService)
+    public AsposeBarcodeService(
+        IRecordValidationService recordValidationService, 
+        IOptions<CareFlow.Core.Models.Barcode.BarcodeSettings> barcodeSettings,
+        ILogger<AsposeBarcodeService> logger)
     {
         _recordValidationService = recordValidationService;
+        _barcodeSettings = barcodeSettings.Value;
+        _logger = logger;
     }
 
     public async Task<byte[]> GenerateBarcodeAsync(BarcodeIndex indexData)
@@ -56,6 +66,91 @@ public class AsposeBarcodeService : IBarcodeService
         return result;
     }
 
+    public async Task<BarcodeGenerationResult> GenerateAndSaveBarcodeAsync(BarcodeIndex indexData, bool saveToFile = true)
+    {
+        // 生成条形码图片字节流
+        var imageData = await GenerateBarcodeAsync(indexData);
+        var result = new BarcodeGenerationResult
+        {
+            ImageData = imageData,
+            FileSize = imageData.Length,
+            MimeType = "image/png",
+            GeneratedAt = DateTime.UtcNow
+        };
+
+        if (saveToFile)
+        {
+            try
+            {
+                // 生成文件路径: barcodes/TableName/YYYY/MM/ID.png
+                var fileName = GenerateFileName(indexData);
+                var relativePath = GenerateRelativePath(indexData.TableName, fileName);
+                var fullPath = Path.Combine(_barcodeSettings.StoragePath, relativePath);
+
+                // 确保目录存在
+                var directory = Path.GetDirectoryName(fullPath);
+                if (directory != null && !Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                // 保存文件
+                await File.WriteAllBytesAsync(fullPath, imageData);
+                result.FilePath = relativePath;
+
+                _logger.LogInformation("条形码图片已保存: {FilePath}", fullPath);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "保存条形码图片失败: {TableName}-{RecordId}", 
+                    indexData.TableName, indexData.RecordId);
+                // 即使保存失败，也返回图片数据
+            }
+        }
+
+        return result;
+    }
+
+    public async Task<byte[]?> GetBarcodeImageAsync(string imagePath)
+    {
+        try
+        {
+            var fullPath = Path.Combine(_barcodeSettings.StoragePath, imagePath);
+            
+            if (!File.Exists(fullPath))
+            {
+                _logger.LogWarning("条形码图片文件不存在: {FilePath}", fullPath);
+                return null;
+            }
+
+            return await File.ReadAllBytesAsync(fullPath);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "读取条形码图片失败: {ImagePath}", imagePath);
+            return null;
+        }
+    }
+
+    public async Task DeleteBarcodeImageAsync(string imagePath)
+    {
+        try
+        {
+            var fullPath = Path.Combine(_barcodeSettings.StoragePath, imagePath);
+            
+            if (File.Exists(fullPath))
+            {
+                File.Delete(fullPath);
+                _logger.LogInformation("已删除条形码图片: {FilePath}", fullPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "删除条形码图片失败: {ImagePath}", imagePath);
+            throw;
+        }
+    }
+
     public BarcodeIndex RecognizeBarcode(Stream imageStream)
     {
         if (imageStream.CanSeek && imageStream.Position != 0)
@@ -91,4 +186,39 @@ public class AsposeBarcodeService : IBarcodeService
             throw new Exception($"条形码格式解析失败 - 识别到的文本: '{codeText}', 错误: {ex.Message}");
         }
     }
+
+    #region 私有辅助方法
+
+    /// <summary>
+    /// 生成文件名
+    /// </summary>
+    private string GenerateFileName(BarcodeIndex indexData)
+    {
+        // 使用表名和ID生成文件名，确保文件名安全
+        var safeTableName = SanitizeFileName(indexData.TableName);
+        var safeRecordId = SanitizeFileName(indexData.RecordId);
+        return $"{safeTableName}-{safeRecordId}.png";
+    }
+
+    /// <summary>
+    /// 生成相对路径
+    /// </summary>
+    private string GenerateRelativePath(string tableName, string fileName)
+    {
+        var now = DateTime.UtcNow;
+        var yearMonth = $"{now.Year:D4}/{now.Month:D2}";
+        return Path.Combine(tableName, yearMonth, fileName).Replace('\\', '/');
+    }
+
+    /// <summary>
+    /// 清理文件名中的非法字符
+    /// </summary>
+    private string SanitizeFileName(string input)
+    {
+        var invalidChars = Path.GetInvalidFileNameChars();
+        var sanitized = string.Concat(input.Split(invalidChars, StringSplitOptions.RemoveEmptyEntries));
+        return sanitized.Length > 100 ? sanitized[..100] : sanitized; // 限制长度
+    }
+
+    #endregion
 }

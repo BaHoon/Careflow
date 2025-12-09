@@ -4,6 +4,28 @@ public class BarcodeIndex : EntityBase<string>
 {
     public string TableName { get; set; } = string.Empty;
     public string RecordId { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// 条形码图片的文件路径（相对路径）
+    /// 例如：barcodes/ExecutionTasks/2024/12/ET-123.png
+    /// </summary>
+    public string? ImagePath { get; set; }
+    
+    /// <summary>
+    /// 条形码图片的文件大小（字节）
+    /// </summary>
+    public long? ImageSize { get; set; }
+    
+    /// <summary>
+    /// 条形码图片的MIME类型
+    /// 例如：image/png, image/jpeg
+    /// </summary>
+    public string? ImageMimeType { get; set; }
+    
+    /// <summary>
+    /// 图片生成时间
+    /// </summary>
+    public DateTime? ImageGeneratedAt { get; set; }
 
     /// <summary>
     /// 表名对照字典：将大写表名映射到正确的表名
