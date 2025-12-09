@@ -3,6 +3,7 @@ using System.Text.Json;
 using CareFlow.Core.Enums;
 using CareFlow.Core.Models.Medical;
 using CareFlow.Core.Models.Nursing;
+using MedicalOrderEntity = CareFlow.Core.Models.Medical.MedicalOrder;
 
 namespace CareFlow.Application.Services;
 
@@ -11,11 +12,11 @@ namespace CareFlow.Application.Services;
 /// </summary>
 public interface IExecutionTaskFactory
 {
-    IReadOnlyList<ExecutionTask> CreateTasks(MedicalOrder medicalOrder);
+    IReadOnlyList<ExecutionTask> CreateTasks(MedicalOrderEntity medicalOrder);
 }
 
 /// <summary>
-/// 当前实现仅支持手术类医嘱，将“术前准备”拆成可逐项勾选的任务。
+/// 当前实现仅支持手术类医嘱，将"术前准备"拆成可逐项勾选的任务。
 /// </summary>
 public sealed class SurgicalExecutionTaskFactory : IExecutionTaskFactory
 {
@@ -26,7 +27,7 @@ public sealed class SurgicalExecutionTaskFactory : IExecutionTaskFactory
         new("PRE_SUPPLY", "手术带入物品核对", TimeSpan.FromHours(-6), BuildSupplyPayload)
     };
 
-    public IReadOnlyList<ExecutionTask> CreateTasks(MedicalOrder medicalOrder)
+    public IReadOnlyList<ExecutionTask> CreateTasks(MedicalOrderEntity medicalOrder)
     {
         if (medicalOrder is not SurgicalOrder surgicalOrder)
         {
