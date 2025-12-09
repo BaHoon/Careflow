@@ -77,10 +77,12 @@ public class AsposeBarcodeService : IBarcodeService
         
         try
         {
+            // Parse方法会自动将大写表名转换为正确的表名
+            // 例如：EXECUTIONTASKS -> ExecutionTasks
             var barcodeIndex = BarcodeIndex.Parse(codeText);
             
-            // 记录解析结果用于调试
-            Console.WriteLine($"[条形码解析] 原始文本: '{codeText}' -> 表名: '{barcodeIndex.TableName}', 记录ID: '{barcodeIndex.RecordId}'");
+            // 记录解析结果用于调试（现在显示转换后的正确表名）
+            Console.WriteLine($"[条形码解析] 原始文本: '{codeText}' -> 正确表名: '{barcodeIndex.TableName}', 记录ID: '{barcodeIndex.RecordId}'");
             
             return barcodeIndex;
         }

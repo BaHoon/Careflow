@@ -126,5 +126,85 @@ namespace CareFlow.Tests
             Assert.Equal("MedicationOrders", parsed.TableName);
             Assert.Equal("4", parsed.RecordId);
         }
+
+        [Fact]
+        public void TestTableNameMappingConversion()
+        {
+            // Arrange: 测试大写表名到正确表名的转换
+            string uppercaseBarcode = "EXECUTIONTASKS-123";
+
+            // Act
+            var parsed = BarcodeIndex.Parse(uppercaseBarcode);
+
+            // Assert: 应该转换为正确的表名
+            Assert.Equal("ExecutionTasks", parsed.TableName);
+            Assert.Equal("123", parsed.RecordId);
+        }
+
+        [Theory]
+        [InlineData("DEPARTMENTS", "Departments")]
+        [InlineData("STAFFS", "Staffs")]
+        [InlineData("DOCTORS", "Doctors")]
+        [InlineData("NURSES", "Nurses")]
+        [InlineData("WARDS", "Wards")]
+        [InlineData("BEDS", "Beds")]
+        [InlineData("PATIENTS", "Patients")]
+        [InlineData("MEDICALORDERS", "MedicalOrders")]
+        [InlineData("MEDICATIONORDERS", "MedicationOrders")]
+        [InlineData("INSPECTIONORDERS", "InspectionOrders")]
+        [InlineData("SURGICALORDERS", "SurgicalOrders")]
+        [InlineData("OPERATIONORDERS", "OperationOrders")]
+        [InlineData("EXECUTIONTASKS", "ExecutionTasks")]
+        [InlineData("HOSPITALTIMESLOTS", "HospitalTimeSlots")]
+        [InlineData("VITALSIGNSRECORDS", "VitalSignsRecords")]
+        [InlineData("NURSINGCARENOTES", "NursingCareNotes")]
+        public void TestTableNameMapping_AllKnownTables(string uppercaseTableName, string expectedTableName)
+        {
+            // Arrange
+            string barcode = $"{uppercaseTableName}-TEST001";
+
+            // Act
+            var parsed = BarcodeIndex.Parse(barcode);
+
+            // Assert
+            Assert.Equal(expectedTableName, parsed.TableName);
+            Assert.Equal("TEST001", parsed.RecordId);
+        }
+
+        [Fact]
+        public void TestTableNameMapping_UnknownTable()
+        {
+            // Arrange: 测试未知表名的处理
+            string unknownBarcode = "UNKNOWNTABLE-456";
+
+            // Act
+            var parsed = BarcodeIndex.Parse(unknownBarcode);
+
+            // Assert: 未知表名应该保持原样
+            Assert.Equal("UNKNOWNTABLE", parsed.TableName);
+            Assert.Equal("456", parsed.RecordId);
+        }
+
+        [Fact]
+        public void TestGenerationAndParsingWithTableNameMapping()
+        {
+            // Arrange: 测试完整的生成和解析流程
+            var originalIndex = new BarcodeIndex
+            {
+                TableName = "ExecutionTasks",
+                RecordId = "ET001"
+            };
+
+            // Act: 生成条形码（应该转为大写）
+            string barcode = originalIndex.ToString();
+            
+            // Act: 解析条形码（应该转换回正确的表名）
+            var parsed = BarcodeIndex.Parse(barcode);
+
+            // Assert
+            Assert.Equal("EXECUTIONTASKS-ET001", barcode);
+            Assert.Equal("ExecutionTasks", parsed.TableName);
+            Assert.Equal("ET001", parsed.RecordId);
+        }
     }
 }
