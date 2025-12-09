@@ -3,6 +3,7 @@ using CareFlow.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using CareFlow.Infrastructure.Repositories;
 
 namespace CareFlow.Infrastructure;
 
@@ -27,6 +28,9 @@ public static class DependencyInjection
         
         // 注册记录验证服务
         services.AddScoped<IRecordValidationService, RecordValidationService>();
+
+        // 注册护士排班专用仓储
+        services.AddScoped<INurseScheduleRepository, NurseScheduleRepository>();
 
         return services;
     }

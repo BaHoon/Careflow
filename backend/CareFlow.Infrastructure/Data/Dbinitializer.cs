@@ -51,7 +51,8 @@ namespace CareFlow.Infrastructure.Data
                 new Department { Id = "IM", DeptName = "内科", Location = "住院部A栋3楼" },
                 new Department { Id = "SUR", DeptName = "外科", Location = "住院部A栋4楼" },
                 new Department { Id = "PED", DeptName = "儿科", Location = "住院部B栋2楼" },
-                new Department { Id = "ADM", DeptName = "行政", Location = "行政楼101室" }
+                new Department { Id = "ADM", DeptName = "行政", Location = "行政楼101室" },
+                new Department { Id = "CHK", DeptName = "检查站", Location = "住院楼A栋1楼" }
             };
             context.Departments.AddRange(departments);
             context.SaveChanges(); // 保存科室
@@ -828,7 +829,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "SUR-W01",  // 外科病区
                     ShiftId = "DAY",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 },
                 new NurseRoster
                 {
@@ -836,7 +837,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "SUR-W01",  // 外科病区
                     ShiftId = "EVENING",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 },
                 new NurseRoster
                 {
@@ -844,7 +845,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "SUR-W01",  // 外科病区
                     ShiftId = "NIGHT",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 },
                 
                 // 内科护士排班 (IM - Ward IM-W01)
@@ -854,7 +855,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "IM-W01",  // 内科一病区
                     ShiftId = "DAY",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 },
                 new NurseRoster
                 {
@@ -862,7 +863,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "IM-W01",  // 内科一病区
                     ShiftId = "EVENING",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 },
                 new NurseRoster
                 {
@@ -870,7 +871,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "IM-W02",  // 内科二病区
                     ShiftId = "NIGHT",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 },
                 
                 // 儿科护士排班 (PED - Ward PED-W01)
@@ -880,7 +881,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "PED-W01",  // 儿科病区
                     ShiftId = "DAY",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 },
                 new NurseRoster
                 {
@@ -888,7 +889,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "PED-W01",  // 儿科病区
                     ShiftId = "EVENING",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 },
                 
                 // 明天的排班安排 (部分轮换)
@@ -898,7 +899,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "SUR-W01",  // 外科病区
                     ShiftId = "DAY",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today.AddDays(1)),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 },
                 new NurseRoster
                 {
@@ -906,7 +907,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "SUR-W01",  // 外科病区
                     ShiftId = "EVENING",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today.AddDays(1)),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 },
                 new NurseRoster
                 {
@@ -914,7 +915,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "IM-W02",  // 内科二病区
                     ShiftId = "DAY",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today.AddDays(1)),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 },
                 new NurseRoster
                 {
@@ -922,7 +923,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "PED-W01",  // 儿科病区
                     ShiftId = "DAY",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today.AddDays(1)),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 }
             };
             context.NurseRosters.AddRange(nurseRosters);

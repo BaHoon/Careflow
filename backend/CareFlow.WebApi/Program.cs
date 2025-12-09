@@ -35,6 +35,12 @@ builder.Services.AddScoped<CareFlow.Application.Interfaces.IInspectionService, C
 // // 注册药品医嘱任务服务
 // builder.Services.AddScoped<IMedicationOrderTaskService, MedicationOrderTaskService>();
 
+// 注册护士分配计算服务
+builder.Services.AddScoped<CareFlow.Application.Interfaces.INurseAssignmentService, CareFlow.Application.Services.NurseAssignmentService>();
+
+// 注册医嘱管理服务
+builder.Services.AddScoped<CareFlow.Application.Services.IMedicalOrderManager, CareFlow.Application.Services.MedicalOrderManager>();
+
 // 配置 JWT 认证服务
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
