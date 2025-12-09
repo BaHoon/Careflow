@@ -91,20 +91,20 @@ namespace CareFlow.Core.Models.Medical
         public ICollection<InspectionReport> Reports { get; set; } = new List<InspectionReport>();
     }
 
-    // 3. 手术医嘱 (SURGICAL_ORDER)
+    // 手术医嘱 (SURGICAL_ORDER)
     [Table("SurgicalOrders")]
     public class SurgicalOrder : MedicalOrder
     {
         public string SurgeryName { get; set; } = null!;      // 手术名称
-        public DateTime ScheduleTime { get; set; }   // 排期时间
+        public DateTime ScheduleTime { get; set; }            // 排期时间
         public string AnesthesiaType { get; set; } = null!;   // 麻醉方式
         public string IncisionSite { get; set; } = null!;     // 切口部位
         
         // 建议在DbContext中配置为 jsonb 类型
-        public string RequiredMeds { get; set; } = null!;        // 需带入药品JSON
-        
-        public bool NeedBloodPrep { get; set; }      // 是否备血
-        public bool HasImplants { get; set; }        // 有无假体/饰品
+
+        public string? RequiredTalk { get; set; }             // "需进行的宣讲JSON"
+        public string? RequiredOperation { get; set; }        // "需进行的操作JSON"
+        public string? RequiredMeds { get; set; } = null!;        // 需带入药品JSON
         
         public float PrepProgress { get; set; }      // 术前准备进度(0.0-1.0)
         public string PrepStatus { get; set; } = null!;       // 准备状态
