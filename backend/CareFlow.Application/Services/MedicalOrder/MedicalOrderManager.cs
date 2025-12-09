@@ -27,23 +27,32 @@ namespace CareFlow.Application.Services
             _medicationRepo = medicationRepo;
         }
 
-        // 2. 实现泛型方法：一招鲜吃遍天
+        // 实现泛型方法
         public async Task<T> CreateOrderAsync<T>(T order) where T : MedicalOrder
         {
-            // ==========================================
-            // A. 公共逻辑：计算护士 (只需写这一次！)
-            // ==========================================
+            // 用时间+patientId来计算护士
             if (string.IsNullOrEmpty(order.NurseId))
             {
-                // 注意：这里可能需要处理 CalculateResponsibleNurseAsync 返回 null 的情况
-                // 现在的代码假设一定能算出来，如果算不出来是 null，也会赋值进去
+                // 确定我们要用哪个时间去查排班
+                DateTime targetTime = DateTime.UtcNow; // 默认用当前时间
+
+                // 如果是手术医嘱，用排期时间
+                if (order is SurgicalOrder sOrder && sOrder.ScheduleTime != default)
+                {
+                    targetTime = sOrder.ScheduleTime;
+                }
+                // 如果是药品医嘱，且有开始时间，用开始时间
+                else if (order is MedicationOrder mOrder && mOrder.StartTime.HasValue)
+                {
+                    targetTime = mOrder.StartTime.Value;
+                }
+        
+                // 2. 使用确定的目标时间去计算
                 order.NurseId = await _nurseAssignmentService
-                    .CalculateResponsibleNurseAsync(order.PatientId, DateTime.UtcNow);
+                    .CalculateResponsibleNurseAsync(order.PatientId, targetTime);
             }
 
-            // ==========================================
-            // B. 分发逻辑：根据具体类型保存到不同表
-            // ==========================================
+            // B. 根据具体类型保存到不同表
             if (order is SurgicalOrder surgicalOrder)
             {
                 // 存入手术表
