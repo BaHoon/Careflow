@@ -3,6 +3,7 @@ using System;
 using CareFlow.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CareFlow.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251209090946_AddBarcodeIndexTable")]
+    partial class AddBarcodeIndexTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -29,18 +32,6 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.Property<DateTime>("CreateTime")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("ImageGeneratedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ImageMimeType")
-                        .HasColumnType("text");
-
-                    b.Property<string>("ImagePath")
-                        .HasColumnType("text");
-
-                    b.Property<long?>("ImageSize")
-                        .HasColumnType("bigint");
 
                     b.Property<string>("RecordId")
                         .IsRequired()
@@ -863,9 +854,15 @@ namespace CareFlow.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<bool>("HasImplants")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("IncisionSite")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<bool>("NeedBloodPrep")
+                        .HasColumnType("boolean");
 
                     b.Property<float>("PrepProgress")
                         .HasColumnType("real");
@@ -875,13 +872,8 @@ namespace CareFlow.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("RequiredMeds")
+                        .IsRequired()
                         .HasColumnType("jsonb");
-
-                    b.Property<string>("RequiredOperation")
-                        .HasColumnType("text");
-
-                    b.Property<string>("RequiredTalk")
-                        .HasColumnType("text");
 
                     b.Property<DateTime>("ScheduleTime")
                         .HasColumnType("timestamp with time zone");
