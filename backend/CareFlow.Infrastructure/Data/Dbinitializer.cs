@@ -51,7 +51,8 @@ namespace CareFlow.Infrastructure.Data
                 new Department { Id = "IM", DeptName = "内科", Location = "住院部A栋3楼" },
                 new Department { Id = "SUR", DeptName = "外科", Location = "住院部A栋4楼" },
                 new Department { Id = "PED", DeptName = "儿科", Location = "住院部B栋2楼" },
-                new Department { Id = "ADM", DeptName = "行政", Location = "行政楼101室" }
+                new Department { Id = "ADM", DeptName = "行政", Location = "行政楼101室" },
+                new Department { Id = "CHK", DeptName = "检查站", Location = "检查站1楼" }
             };
             context.Departments.AddRange(departments);
             context.SaveChanges(); // 保存科室
@@ -721,7 +722,9 @@ namespace CareFlow.Infrastructure.Data
                     OrderType = "InspectionOrder", Status = "PendingReview", IsLongTerm = false,
                     ItemCode = "CT001", RisLisId = "RIS202412060001", Location = "影像科",
                     AppointmentTime = currentTime.AddHours(4), AppointmentPlace = "CT室1",
-                    Precautions = "检查前4小时禁食", ReportId = ""
+                    Precautions = "检查前4小时禁食", ReportId = "",
+                    InspectionStatus = InspectionOrderStatus.Pending,
+                    Source = InspectionSource.RIS
                 },
                 new InspectionOrder
                 {
@@ -730,7 +733,9 @@ namespace CareFlow.Infrastructure.Data
                     OrderType = "InspectionOrder", Status = "Accepted", IsLongTerm = false,
                     ItemCode = "LAB001", RisLisId = "LIS202412060001", Location = "检验科",
                     AppointmentTime = currentTime.AddHours(2), AppointmentPlace = "采血室",
-                    Precautions = "空腹采血", ReportId = ""
+                    Precautions = "空腹采血", ReportId = "",
+                    InspectionStatus = InspectionOrderStatus.Pending,
+                    Source = InspectionSource.LIS
                 },
                 new InspectionOrder
                 {
@@ -742,7 +747,9 @@ namespace CareFlow.Infrastructure.Data
                     AppointmentTime = currentTime.AddHours(-4), AppointmentPlace = "心电图室1",
                     Precautions = "检查时保持安静", CheckStartTime = currentTime.AddHours(-4),
                     CheckEndTime = currentTime.AddHours(-3.5), BackToWardTime = currentTime.AddHours(-3),
-                    ReportTime = currentTime.AddHours(-2), ReportId = "ECG202412050001"
+                    ReportTime = currentTime.AddHours(-2), ReportId = "ECG202412050001",
+                    InspectionStatus = InspectionOrderStatus.ReportCompleted,
+                    Source = InspectionSource.RIS
                 }
             };
             context.InspectionOrders.AddRange(inspectionOrders);
