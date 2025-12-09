@@ -3,7 +3,6 @@ using CareFlow.Infrastructure.Services;
 using CareFlow.Infrastructure; // 引用基础设施层
 using CareFlow.Application; // 引用应用层
 using CareFlow.Application.Services; // 引用应用层服务
-using CareFlow.Application.Extensions;// 引用应用层扩展方法
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -30,7 +29,7 @@ builder.Services.AddScoped<IExecutionTaskFactory, SurgicalExecutionTaskFactory>(
 builder.Services.AddScoped<CareFlow.Application.Interfaces.IInspectionService, CareFlow.Application.Services.InspectionService>();
 
 // // 注册药品医嘱任务服务
-// builder.Services.AddScoped<IMedicationOrderTaskService, MedicationOrderTaskService>();
+builder.Services.AddScoped<IMedicationOrderTaskService, MedicationOrderTaskService>();
 
 // 配置 JWT 认证服务
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -51,9 +50,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 // [关键] 注册基础设施层 (数据库、Repository等都在这里面)
 // 这行代码会调用我们在 Infrastructure 层写的 DependencyInjection 类
 builder.Services.AddInfrastructure(builder.Configuration);
-
-// [关键] 注册应用层服务 (业务逻辑服务等都在这里面)
-builder.Services.AddApplication();
 
 // [关键] 配置 CORS (跨域资源共享)
 // 允许你的前端 (Vue) 访问这个后端
