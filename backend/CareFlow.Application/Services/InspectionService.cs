@@ -3,6 +3,7 @@ using CareFlow.Application.Interfaces;
 using CareFlow.Application.Services.MedicalOrder;
 using CareFlow.Core.Enums;
 using CareFlow.Core.Interfaces;
+using CareFlow.Core.Models;
 using CareFlow.Core.Models.Medical;
 using CareFlow.Core.Models.Nursing;
 using CareFlow.Core.Models.Organization;
@@ -18,6 +19,8 @@ public class InspectionService : IInspectionService
     private readonly IRepository<Doctor, string> _doctorRepo;
     private readonly IRepository<Nurse, string> _nurseRepo;
     private readonly IRepository<ExecutionTask, long> _taskRepo;
+    private readonly IRepository<BarcodeIndex, string> _barcodeRepo;
+    private readonly IBarcodeService _barcodeService;
 
     public InspectionService(
         IRepository<InspectionOrder, long> orderRepo,
@@ -25,7 +28,9 @@ public class InspectionService : IInspectionService
         IRepository<Patient, string> patientRepo,
         IRepository<Doctor, string> doctorRepo,
         IRepository<Nurse, string> nurseRepo,
-        IRepository<ExecutionTask, long> taskRepo)
+        IRepository<ExecutionTask, long> taskRepo,
+        IRepository<BarcodeIndex, string> barcodeRepo,
+        IBarcodeService barcodeService)
     {
         _orderRepo = orderRepo;
         _reportRepo = reportRepo;
@@ -33,6 +38,8 @@ public class InspectionService : IInspectionService
         _doctorRepo = doctorRepo;
         _nurseRepo = nurseRepo;
         _taskRepo = taskRepo;
+        _barcodeRepo = barcodeRepo;
+        _barcodeService = barcodeService;
     }
 
     // ===== 检查医嘱相关 =====
@@ -82,14 +89,9 @@ public class InspectionService : IInspectionService
 
         await _orderRepo.UpdateAsync(order);
 
-        // ✅ 步骤3完成后：检查站护士打印预约单，自动生成后续护士任务
-        var taskService = new InspectionOrderTaskService();
-        var tasks = taskService.CreateTasks(order);
-        
-        foreach (var task in tasks)
-        {
-            await _taskRepo.AddAsync(task);
-        }
+        // ✅ 步骤3完成后:检查站护士打印预约单,自动生成后续护士任务
+        var taskService = new InspectionOrderTaskService(_taskRepo, _barcodeRepo, _barcodeService);
+        await taskService.CreateTasks(order);
     }
 
     public async Task UpdateInspectionStatusAsync(UpdateInspectionStatusDto dto)
@@ -262,10 +264,9 @@ public class InspectionService : IInspectionService
         order.ReportId = report.Id.ToString();
         await _orderRepo.UpdateAsync(order);
 
-        // ✅ 步骤7完成后：检查站护士发送报告，自动生成"查看报告"任务
-        var taskService = new InspectionOrderTaskService();
-        var reviewTask = taskService.CreateReportReviewTask(order, report.Id);
-        await _taskRepo.AddAsync(reviewTask);
+        // ✅ 步骤7完成后:检查站护士发送报告,自动生成"查看报告"任务
+        var taskService = new InspectionOrderTaskService(_taskRepo, _barcodeRepo, _barcodeService);
+        await taskService.CreateReportReviewTask(order, report.Id);
 
         return report.Id;
     }
