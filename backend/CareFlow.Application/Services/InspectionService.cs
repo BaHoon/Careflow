@@ -1,8 +1,10 @@
 using CareFlow.Application.DTOs.Inspection;
 using CareFlow.Application.Interfaces;
+using CareFlow.Application.Services.MedicalOrder;
 using CareFlow.Core.Enums;
 using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models.Medical;
+using CareFlow.Core.Models.Nursing;
 using CareFlow.Core.Models.Organization;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,19 +17,22 @@ public class InspectionService : IInspectionService
     private readonly IRepository<Patient, string> _patientRepo;
     private readonly IRepository<Doctor, string> _doctorRepo;
     private readonly IRepository<Nurse, string> _nurseRepo;
+    private readonly IRepository<ExecutionTask, long> _taskRepo;
 
     public InspectionService(
         IRepository<InspectionOrder, long> orderRepo,
         IRepository<InspectionReport, long> reportRepo,
         IRepository<Patient, string> patientRepo,
         IRepository<Doctor, string> doctorRepo,
-        IRepository<Nurse, string> nurseRepo)
+        IRepository<Nurse, string> nurseRepo,
+        IRepository<ExecutionTask, long> taskRepo)
     {
         _orderRepo = orderRepo;
         _reportRepo = reportRepo;
         _patientRepo = patientRepo;
         _doctorRepo = doctorRepo;
         _nurseRepo = nurseRepo;
+        _taskRepo = taskRepo;
     }
 
     // ===== 检查医嘱相关 =====
@@ -63,7 +68,11 @@ public class InspectionService : IInspectionService
 
     public async Task UpdateAppointmentAsync(UpdateAppointmentDto dto)
     {
-        var order = await _orderRepo.GetByIdAsync(dto.OrderId);
+        // 查询医嘱并包含Patient，用于任务生成
+        var order = await _orderRepo.GetQueryable()
+            .Include(o => o.Patient)
+            .FirstOrDefaultAsync(o => o.Id == dto.OrderId);
+            
         if (order == null) throw new Exception("检查医嘱不存在");
 
         order.AppointmentTime = dto.AppointmentTime;
@@ -72,6 +81,15 @@ public class InspectionService : IInspectionService
         // 预约信息更新后，状态仍为 Pending，等待患者前往
 
         await _orderRepo.UpdateAsync(order);
+
+        // ✅ 步骤3完成后：检查站护士打印预约单，自动生成后续护士任务
+        var taskService = new InspectionOrderTaskService();
+        var tasks = taskService.CreateTasks(order);
+        
+        foreach (var task in tasks)
+        {
+            await _taskRepo.AddAsync(task);
+        }
     }
 
     public async Task UpdateInspectionStatusAsync(UpdateInspectionStatusDto dto)
@@ -243,6 +261,11 @@ public class InspectionService : IInspectionService
         order.ReportTime = DateTime.UtcNow;
         order.ReportId = report.Id.ToString();
         await _orderRepo.UpdateAsync(order);
+
+        // ✅ 步骤7完成后：检查站护士发送报告，自动生成"查看报告"任务
+        var taskService = new InspectionOrderTaskService();
+        var reviewTask = taskService.CreateReportReviewTask(order, report.Id);
+        await _taskRepo.AddAsync(reviewTask);
 
         return report.Id;
     }
