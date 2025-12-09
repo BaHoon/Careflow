@@ -3,6 +3,7 @@ using CareFlow.Core.Models.Medical;
 using CareFlow.Core.Models.Nursing;
 using CareFlow.Core.Models;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
 
 namespace CareFlow.Application.Services;
 
@@ -243,13 +244,15 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
         if (order == null)
             throw new ArgumentNullException(nameof(order));
 
+        var executionTime = DateTime.UtcNow;
         var task = new ExecutionTask
         {
             MedicalOrderId = order.Id,
             PatientId = order.PatientId,
-            PlannedStartTime = DateTime.UtcNow,
+            PlannedStartTime = executionTime,
             Status = "Pending",
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            DataPayload = GenerateTaskDataPayload(order, executionTime)
         };
 
         return new List<ExecutionTask> { task };
@@ -276,13 +279,15 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
             return new List<ExecutionTask>();
         }
 
+        var executionTime = order.SpecificExecutionTime.Value;
         var task = new ExecutionTask
         {
             MedicalOrderId = order.Id,
             PatientId = order.PatientId,
-            PlannedStartTime = order.SpecificExecutionTime.Value,
+            PlannedStartTime = executionTime,
             Status = "Pending",
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            DataPayload = GenerateTaskDataPayload(order, executionTime)
         };
 
         return new List<ExecutionTask> { task };
@@ -327,7 +332,8 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
                         PatientId = order.PatientId,
                         PlannedStartTime = executionTime,
                         Status = "Pending",
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = DateTime.UtcNow,
+                        DataPayload = GenerateTaskDataPayload(order, executionTime)
                     });
                 }
             }
@@ -384,7 +390,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
                         PlannedStartTime = executionTime,
                         Status = "Pending",
                         CreatedAt = DateTime.UtcNow,
-                        DataPayload = $"{{\"slotCode\":\"{slot.SlotCode}\",\"slotName\":\"{slot.SlotName}\"}}"
+                        DataPayload = GenerateTaskDataPayload(order, executionTime, slot.SlotName)
                     });
                 }
             }
@@ -508,6 +514,165 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
     #endregion
 
     #region 辅助方法
+
+    /// <summary>
+    /// 生成执行任务的标准化DataPayload
+    /// </summary>
+    private string GenerateTaskDataPayload(MedicationOrder order, DateTime executionTime, string? slotName = null)
+    {
+        try
+        {
+            // 构建药品描述
+            var drugDescription = BuildDrugDescription(order);
+            
+            // 构建使用时间描述
+            var timingDescription = BuildTimingDescription(order, executionTime, slotName);
+            
+            // 创建任务项列表
+            var items = new List<object>
+            {
+                new
+                {
+                    id = 1,
+                    text = $"核对给药剂量：{order.Dosage}",
+                    isChecked = false,
+                    required = true
+                },
+                new
+                {
+                    id = 2,
+                    text = $"核对给药途径：{order.UsageRoute}",
+                    isChecked = false,
+                    required = true
+                }
+            };
+
+            // 构建完整的描述
+            var fullDescription = $"{drugDescription} - {order.UsageRoute} - {timingDescription}";
+
+            var dataPayload = new
+            {
+                TaskType = "MEDICATION_ADMINISTRATION",
+                Title = "药品给药核对",
+                Description = fullDescription,
+                IsChecklist = true,
+                Items = items,
+                MedicationInfo = new
+                {
+                    DrugId = order.DrugId,
+                    Dosage = order.Dosage,
+                    UsageRoute = order.UsageRoute,
+                    FreqCode = order.FreqCode,
+                    ExecutionTime = executionTime.ToString("yyyy-MM-dd HH:mm:ss"),
+                    SlotName = slotName
+                }
+            };
+
+            return JsonSerializer.Serialize(dataPayload, new JsonSerializerOptions 
+            { 
+                WriteIndented = false,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "生成DataPayload时发生错误，医嘱ID: {OrderId}", order.Id);
+            // 返回简化版本，确保不会因为DataPayload生成失败而影响任务创建
+            return JsonSerializer.Serialize(new
+            {
+                TaskType = "MEDICATION_ADMINISTRATION",
+                Title = "药品给药核对",
+                Description = $"药品给药 - {order.DrugId} - {order.Dosage} - {order.UsageRoute}",
+                IsChecklist = true,
+                Items = new[] { new { id = 1, text = "执行给药任务", isChecked = false, required = true } }
+            });
+        }
+    }
+
+    /// <summary>
+    /// 构建药品描述信息
+    /// </summary>
+    private string BuildDrugDescription(MedicationOrder order)
+    {
+        // 这里可以通过order.Drug导航属性获取更详细的药品信息
+        // 如果Drug信息已加载，可以使用更详细的描述
+        if (order.Drug != null)
+        {
+            return $"{order.Drug.GenericName}({order.Drug.TradeName ?? order.Drug.GenericName}) {order.Drug.Specification}";
+        }
+        else
+        {
+            // 如果没有加载Drug导航属性，使用DrugId
+            return order.DrugId;
+        }
+    }
+
+    /// <summary>
+    /// 构建时间描述信息
+    /// </summary>
+    private string BuildTimingDescription(MedicationOrder order, DateTime executionTime, string? slotName = null)
+    {
+        var timingParts = new List<string>();
+
+        // 添加频次信息
+        var freqDescription = GetFrequencyDescription(order.FreqCode);
+        if (!string.IsNullOrEmpty(freqDescription))
+        {
+            timingParts.Add(freqDescription);
+        }
+
+        // 添加时段信息
+        if (!string.IsNullOrEmpty(slotName))
+        {
+            timingParts.Add($"{slotName}给药");
+        }
+
+        // 添加具体执行时间
+        timingParts.Add($"执行时间：{executionTime:yyyy-MM-dd HH:mm}");
+
+        // 添加策略类型描述
+        switch (order.TimingStrategy.ToUpper())
+        {
+            case "IMMEDIATE":
+                timingParts.Add("立即执行");
+                break;
+            case "SPECIFIC":
+                timingParts.Add("指定时间执行");
+                break;
+            case "CYCLIC":
+                if (order.IntervalDays == 1)
+                    timingParts.Add("每日执行");
+                else
+                    timingParts.Add($"每{order.IntervalDays}天执行");
+                break;
+            case "SLOTS":
+                timingParts.Add("按时段执行");
+                break;
+        }
+
+        return string.Join("，", timingParts);
+    }
+
+    /// <summary>
+    /// 获取频次代码的中文描述
+    /// </summary>
+    private string GetFrequencyDescription(string freqCode)
+    {
+        return freqCode.ToUpper() switch
+        {
+            "ONCE" => "单次给药",
+            "QD" => "每日一次",
+            "BID" => "每日两次", 
+            "TID" => "每日三次",
+            "QID" => "每日四次",
+            "Q6H" => "每6小时一次",
+            "Q8H" => "每8小时一次", 
+            "Q12H" => "每12小时一次",
+            "PRN" => "需要时给药",
+            "CONT" => "持续给药",
+            _ => freqCode
+        };
+    }
 
     /// <summary>
     /// 根据频次代码获取每日执行次数
