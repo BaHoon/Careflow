@@ -1,7 +1,9 @@
 using CareFlow.Core.Interfaces;
 using CareFlow.Infrastructure.Services;
 using CareFlow.Infrastructure; // 引用基础设施层
+using CareFlow.Application; // 引用应用层
 using CareFlow.Application.Services; // 引用应用层服务
+using CareFlow.Application.Extensions;// 引用应用层扩展方法
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -50,6 +52,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 // 这行代码会调用我们在 Infrastructure 层写的 DependencyInjection 类
 builder.Services.AddInfrastructure(builder.Configuration);
 
+// [关键] 注册应用层服务 (业务逻辑服务等都在这里面)
+builder.Services.AddApplication();
+
 // [关键] 配置 CORS (跨域资源共享)
 // 允许你的前端 (Vue) 访问这个后端
 builder.Services.AddCors(options =>
@@ -80,10 +85,10 @@ using (var scope = app.Services.CreateScope())
         
         // 2. 调用我们在 Infrastructure 层写的初始化器
         // 确保你的 DbInitializer.cs 类名和命名空间正确
-        CareFlow.Infrastructure.Data.DbInitializer.Initialize(context);
+        CareFlow.Infrastructure.Data.DbInitializer.Initialize(context); // 1) 播种所有虚拟基础数据
 
         var taskFactory = services.GetRequiredService<IExecutionTaskFactory>();
-        var createdTasks = EnsureSurgicalExecutionTasks(context, taskFactory);
+        var createdTasks = EnsureSurgicalExecutionTasks(context, taskFactory); // 2) 手术医嘱 -> 术前任务拆分
         
         // 这是一个可选的日志输出，方便你看控制台知道发生了什么
         var logger = services.GetRequiredService<ILogger<Program>>();
@@ -135,7 +140,7 @@ static int EnsureSurgicalExecutionTasks(ApplicationDbContext context, IExecution
     var created = 0;
     foreach (var order in surgicalOrders)
     {
-        if (context.ExecutionTasks.Any(t => t.Id == order.Id))
+        if (context.ExecutionTasks.Any(t => t.MedicalOrderId == order.Id))
         {
             continue;
         }

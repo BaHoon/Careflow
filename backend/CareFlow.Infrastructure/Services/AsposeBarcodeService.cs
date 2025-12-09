@@ -8,8 +8,23 @@ namespace CareFlow.Infrastructure.Services;
 
 public class AsposeBarcodeService : IBarcodeService
 {
-    public byte[] GenerateBarcode(BarcodeIndex indexData)
+    private readonly IRecordValidationService _recordValidationService;
+
+    public AsposeBarcodeService(IRecordValidationService recordValidationService)
     {
+        _recordValidationService = recordValidationService;
+    }
+
+    public async Task<byte[]> GenerateBarcodeAsync(BarcodeIndex indexData)
+    {
+        // 验证记录是否存在
+        bool recordExists = await _recordValidationService.RecordExistsAsync(indexData.TableName, indexData.RecordId);
+        
+        if (!recordExists)
+        {
+            throw new InvalidOperationException($"记录不存在：表 '{indexData.TableName}' 中没有找到ID为 '{indexData.RecordId}' 的记录，无法生成条形码。");
+        }
+
         // 这里的 ToString() 现在会使用 '-' 分隔符
         string codeText = indexData.ToString();
 
