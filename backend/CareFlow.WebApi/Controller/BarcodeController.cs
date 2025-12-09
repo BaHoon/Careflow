@@ -45,11 +45,20 @@ public class BarcodeController : ControllerBase
             var result = _barcodeService.RecognizeBarcode(stream);
             
             // 返回解析出的表名和ID，前端据此跳转到详情页
-            return Ok(result);
+            return Ok(new 
+            { 
+                tableName = result.TableName, 
+                recordId = result.RecordId,
+                message = $"成功识别条形码: {result.TableName}-{result.RecordId}"
+            });
         }
         catch (Exception ex)
         {
-            return BadRequest(new { message = "识别失败: " + ex.Message });
+            return BadRequest(new { 
+                message = "识别失败: " + ex.Message,
+                error = "BARCODE_RECOGNITION_FAILED",
+                details = $"上传的文件: {file.FileName}, 大小: {file.Length} bytes"
+            });
         }
     }
 
