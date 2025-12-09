@@ -23,13 +23,22 @@ builder.Services.AddSwaggerGen();
 
 // 注册 AuthService
 builder.Services.AddScoped<AuthService>();
+
+// 注册手术医嘱任务服务及工厂
 builder.Services.AddScoped<IExecutionTaskFactory, SurgicalExecutionTaskFactory>();
+builder.Services.AddScoped<ISurgicalOrderTaskService, SurgicalOrderTaskService>();
 
 // 注册检查类医嘱服务
 builder.Services.AddScoped<CareFlow.Application.Interfaces.IInspectionService, CareFlow.Application.Services.InspectionService>();
 
 // // 注册药品医嘱任务服务
 builder.Services.AddScoped<IMedicationOrderTaskService, MedicationOrderTaskService>();
+
+// 注册护士分配计算服务
+builder.Services.AddScoped<CareFlow.Application.Interfaces.INurseAssignmentService, CareFlow.Application.Services.NurseAssignmentService>();
+
+// 注册医嘱管理服务
+builder.Services.AddScoped<CareFlow.Application.Services.IMedicalOrderManager, CareFlow.Application.Services.MedicalOrderManager>();
 
 // 配置 JWT 认证服务
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -84,11 +93,9 @@ using (var scope = app.Services.CreateScope())
         CareFlow.Infrastructure.Data.DbInitializer.Initialize(context); // 1) 播种所有虚拟基础数据
 
         var taskFactory = services.GetRequiredService<IExecutionTaskFactory>();
-        var createdTasks = EnsureSurgicalExecutionTasks(context, taskFactory); // 2) 手术医嘱 -> 术前任务拆分
         
         // 这是一个可选的日志输出，方便你看控制台知道发生了什么
         var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogInformation("数据库初始化已完成，测试数据已插入。同步任务：{TaskCount}", createdTasks);
     }
     catch (Exception ex)
     {
@@ -126,30 +133,3 @@ app.MapControllers();
 
 // 启动程序！
 app.Run();
-
-static int EnsureSurgicalExecutionTasks(ApplicationDbContext context, IExecutionTaskFactory factory)
-{
-    var surgicalOrders = context.SurgicalOrders
-        .Include(o => o.Patient)
-        .ToList();
-
-    var created = 0;
-    foreach (var order in surgicalOrders)
-    {
-        if (context.ExecutionTasks.Any(t => t.MedicalOrderId == order.Id))
-        {
-            continue;
-        }
-
-        var tasks = factory.CreateTasks(order);
-        context.ExecutionTasks.AddRange(tasks);
-        created += tasks.Count;
-    }
-
-    if (created > 0)
-    {
-        context.SaveChanges();
-    }
-
-    return created;
-}

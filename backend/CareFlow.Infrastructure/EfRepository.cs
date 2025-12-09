@@ -8,7 +8,7 @@ namespace CareFlow.Infrastructure;
 // 这是一个泛型仓储，T 必须是继承自 EntityBase 的类
 public class EfRepository<T, TKey> : IRepository<T, TKey> where T : EntityBase<TKey>
 {
-    private readonly ApplicationDbContext _context;
+    protected readonly ApplicationDbContext _context;
     private readonly DbSet<T> _dbSet;
 
     public EfRepository(ApplicationDbContext context)

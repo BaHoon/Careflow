@@ -790,8 +790,9 @@ namespace CareFlow.Infrastructure.Data
                     OrderType = "SurgicalOrder", Status = "Accepted", IsLongTerm = false,
                     SurgeryName = "腹腔镜阑尾切除术", ScheduleTime = currentTime.AddHours(6),
                     AnesthesiaType = "全身麻醉", IncisionSite = "脐部及右下腹",
-                    RequiredMeds = "[\"头孢曲松\", \"丙泊酚\", \"瑞芬太尼\"]",
-                    NeedBloodPrep = false, HasImplants = false,
+                    RequiredMeds = "[{\"DrugId\":\"DRUG_001\", \"Count\":2}, {\"DrugId\":\"DRUG_002\", \"Count\":5}, {\"DrugId\":\"DRUG_003\", \"Count\":1}]",
+                    RequiredTalk = "[\"术前禁食水宣教\", \"术前饰品摘取\", \"更换病号服\"]",
+                    RequiredOperation = "[\"手术区域备皮\", \"留置导尿管\", \"建立静脉通路\"]",
                     PrepProgress = 0.6f, PrepStatus = "术前准备中"
                 },
                 new SurgicalOrder
@@ -801,8 +802,9 @@ namespace CareFlow.Infrastructure.Data
                     OrderType = "SurgicalOrder", Status = "PendingReview", IsLongTerm = false,
                     SurgeryName = "腹腔镜胆囊切除术", ScheduleTime = currentTime.AddDays(1).AddHours(2),
                     AnesthesiaType = "全身麻醉", IncisionSite = "脐部及上腹部",
-                    RequiredMeds = "[\"头孢西丁\", \"丙泊酚\", \"舒芬太尼\"]",
-                    NeedBloodPrep = true, HasImplants = false,
+                    RequiredMeds = "[{\"DrugId\":\"DRUG_005\", \"Count\":3}, {\"DrugId\":\"DRUG_002\", \"Count\":10}]",
+                    RequiredTalk = "[\"术前禁食水宣教\"]",
+                    RequiredOperation = "[\"交叉配血\",\"手术区域备皮\", \"建立静脉通路\"]",
                     PrepProgress = 0.2f, PrepStatus = "等待术前评估"
                 },
                 new SurgicalOrder
@@ -812,8 +814,9 @@ namespace CareFlow.Infrastructure.Data
                     OrderType = "SurgicalOrder", Status = "Accepted", IsLongTerm = false,
                     SurgeryName = "左股骨干骨折切开复位内固定术", ScheduleTime = currentTime.AddHours(2),
                     AnesthesiaType = "腰硬联合麻醉", IncisionSite = "左大腿外侧",
-                    RequiredMeds = "[\"头孢唑林\", \"罗哌卡因\", \"吗啡\"]",
-                    NeedBloodPrep = true, HasImplants = true,
+                    RequiredMeds = "[{\"DrugId\":\"DRUG_008\", \"Count\":2}, {\"DrugId\":\"DRUG_009\", \"Count\":1}, {\"DrugId\":\"DRUG_004\", \"Count\":500}]",
+                    RequiredTalk = "[\"术前禁食水宣教\", \"术前体位指导\"]",
+                    RequiredOperation = "[\"手术区域备皮\", \"留置导尿管\", \"术前抗生素皮试\"]",
                     PrepProgress = 0.8f, PrepStatus = "急诊准备中"
                 }
             };
@@ -858,7 +861,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "SUR-W01",  // 外科病区
                     ShiftId = "DAY",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 },
                 new NurseRoster
                 {
@@ -866,7 +869,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "SUR-W01",  // 外科病区
                     ShiftId = "EVENING",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 },
                 new NurseRoster
                 {
@@ -874,7 +877,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "SUR-W01",  // 外科病区
                     ShiftId = "NIGHT",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 },
                 
                 // 内科护士排班 (IM - Ward IM-W01)
@@ -884,7 +887,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "IM-W01",  // 内科一病区
                     ShiftId = "DAY",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 },
                 new NurseRoster
                 {
@@ -892,7 +895,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "IM-W01",  // 内科一病区
                     ShiftId = "EVENING",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 },
                 new NurseRoster
                 {
@@ -900,7 +903,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "IM-W02",  // 内科二病区
                     ShiftId = "NIGHT",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 },
                 
                 // 儿科护士排班 (PED - Ward PED-W01)
@@ -910,7 +913,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "PED-W01",  // 儿科病区
                     ShiftId = "DAY",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 },
                 new NurseRoster
                 {
@@ -918,7 +921,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "PED-W01",  // 儿科病区
                     ShiftId = "EVENING",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 },
                 
                 // 明天的排班安排 (部分轮换)
@@ -928,7 +931,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "SUR-W01",  // 外科病区
                     ShiftId = "DAY",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today.AddDays(1)),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 },
                 new NurseRoster
                 {
@@ -936,7 +939,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "SUR-W01",  // 外科病区
                     ShiftId = "EVENING",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today.AddDays(1)),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 },
                 new NurseRoster
                 {
@@ -944,7 +947,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "IM-W02",  // 内科二病区
                     ShiftId = "DAY",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today.AddDays(1)),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 },
                 new NurseRoster
                 {
@@ -952,7 +955,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "PED-W01",  // 儿科病区
                     ShiftId = "DAY",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today.AddDays(1)),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 }
             };
             context.NurseRosters.AddRange(nurseRosters);
