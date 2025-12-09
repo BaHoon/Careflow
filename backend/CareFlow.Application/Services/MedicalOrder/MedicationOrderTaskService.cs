@@ -33,6 +33,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
 
     public async Task<List<ExecutionTask>> GenerateExecutionTasksAsync(MedicationOrder order)
     {
+        // 生成任务拆分逻辑
         // 1. 输入参数验证
         if (order == null)
         {
@@ -141,6 +142,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
 
     public async Task RollbackPendingTasksAsync(long orderId, string reason)
     {
+        // 医嘱回滚
         // 输入验证
         if (orderId <= 0)
         {
@@ -191,6 +193,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
 
     public async Task RefreshExecutionTasksAsync(MedicationOrder order)
     {
+        // 医嘱更新后刷新任务
         // 输入验证
         if (order == null)
         {
