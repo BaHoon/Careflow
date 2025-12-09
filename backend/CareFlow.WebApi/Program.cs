@@ -24,7 +24,10 @@ builder.Services.AddSwaggerGen();
 
 // 注册 AuthService
 builder.Services.AddScoped<AuthService>();
+
+// 注册手术医嘱任务服务及工厂
 builder.Services.AddScoped<IExecutionTaskFactory, SurgicalExecutionTaskFactory>();
+builder.Services.AddScoped<ISurgicalOrderTaskService, SurgicalOrderTaskService>();
 
 // 注册检查类医嘱服务
 builder.Services.AddScoped<CareFlow.Application.Interfaces.IInspectionService, CareFlow.Application.Services.InspectionService>();
