@@ -7,7 +7,7 @@ namespace CareFlow.Application.Services
     // 接口泛型：不管你传什么医嘱，只要是 MedicalOrder 的子类就行
     public interface IMedicalOrderManager
     {
-        Task<T> CreateOrderAsync<T>(T order) where T : MedicalOrder;
+        Task<T> CreateOrderAsync<T>(T order) where T : CareFlow.Core.Models.Medical.MedicalOrder;
     }
 
     public class MedicalOrderManager : IMedicalOrderManager
@@ -28,7 +28,7 @@ namespace CareFlow.Application.Services
         }
 
         // 实现泛型方法
-        public async Task<T> CreateOrderAsync<T>(T order) where T : MedicalOrder
+        public async Task<T> CreateOrderAsync<T>(T order) where T : CareFlow.Core.Models.Medical.MedicalOrder
         {
             // 用时间+patientId来计算护士
             if (string.IsNullOrEmpty(order.NurseId))

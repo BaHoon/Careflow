@@ -22,7 +22,7 @@ namespace CareFlow.Application.Services
         private static readonly TimeSpan OpOffset = TimeSpan.FromHours(-2);     // 术前操作：前2小时
         private static readonly TimeSpan SupplyOffset = TimeSpan.FromHours(-1); // 物品核对：前1小时
 
-        public List<ExecutionTask> CreateTasks(MedicalOrder medicalOrder)
+        public List<ExecutionTask> CreateTasks(CareFlow.Core.Models.Medical.MedicalOrder medicalOrder)
         {
             // 1. 类型安全检查
             if (medicalOrder is not SurgicalOrder surgicalOrder)

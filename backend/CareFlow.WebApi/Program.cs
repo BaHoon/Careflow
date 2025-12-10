@@ -3,6 +3,7 @@ using CareFlow.Infrastructure.Services;
 using CareFlow.Infrastructure; // 引用基础设施层
 using CareFlow.Application; // 引用应用层
 using CareFlow.Application.Services; // 引用应用层服务
+using CareFlow.Infrastructure; // 添加这个using来引用ApplicationDbContext
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -93,9 +94,11 @@ using (var scope = app.Services.CreateScope())
         CareFlow.Infrastructure.Data.DbInitializer.Initialize(context); // 1) 播种所有虚拟基础数据
 
         var taskFactory = services.GetRequiredService<IExecutionTaskFactory>();
+        // var createdTasks = EnsureSurgicalExecutionTasks(context, taskFactory); // 2) 手术医嘱 -> 术前任务拆分
         
         // 这是一个可选的日志输出，方便你看控制台知道发生了什么
         var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogInformation("数据库初始化已完成，测试数据已插入。");
     }
     catch (Exception ex)
     {
