@@ -59,6 +59,7 @@ namespace CareFlow.Application.Services
                     {
                         MedicalOrderId = order.Id,
                         PatientId = order.PatientId,
+                        Category = TaskCategory.Immediate, // 术前宣教为即刻执行类
                         // 导航属性通常在Save时由EF自动处理，这里主要保证ID正确
                         
                         PlannedStartTime = order.ScheduleTime.Add(TalkOffset),
@@ -96,6 +97,7 @@ namespace CareFlow.Application.Services
                     {
                         MedicalOrderId = order.Id,
                         PatientId = order.PatientId,
+                        Category = TaskCategory.Duration, // 术前操作通常需要持续时间
                         PlannedStartTime = order.ScheduleTime.Add(OpOffset),
                         Status = "Pending",
                         CreatedAt = DateTime.UtcNow,
@@ -146,6 +148,7 @@ namespace CareFlow.Application.Services
             {
                 MedicalOrderId = order.Id,
                 PatientId = order.PatientId,
+                Category = TaskCategory.Verification, // 物品核对为核对类
                 PlannedStartTime = order.ScheduleTime.Add(SupplyOffset),
                 Status = "Pending",
                 CreatedAt = DateTime.UtcNow,

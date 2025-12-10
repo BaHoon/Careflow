@@ -106,6 +106,7 @@ public class InspectionOrderTaskService
             MedicalOrder = order,
             PatientId = order.PatientId,
             Patient = order.Patient,
+            Category = TaskCategory.Immediate, // 打印导引单为即刻执行
             PlannedStartTime = plannedTime,
             Status = ExecutionTaskStatus.Pending.ToString(),
             DataPayload = JsonSerializer.Serialize(new
@@ -131,6 +132,7 @@ public class InspectionOrderTaskService
             MedicalOrder = order,
             PatientId = order.PatientId,
             Patient = order.Patient,
+            Category = TaskCategory.Immediate, // 检查站签到为即刻执行
             PlannedStartTime = plannedTime,
             Status = ExecutionTaskStatus.Pending.ToString(),
             DataPayload = JsonSerializer.Serialize(new
@@ -164,6 +166,7 @@ public class InspectionOrderTaskService
             MedicalOrder = order,
             PatientId = order.PatientId,
             Patient = order.Patient,
+            Category = TaskCategory.Immediate, // 检查完成确认为即刻执行
             PlannedStartTime = plannedTime,
             Status = ExecutionTaskStatus.Pending.ToString(),
             DataPayload = JsonSerializer.Serialize(new
@@ -197,6 +200,7 @@ public class InspectionOrderTaskService
             MedicalOrder = order,
             PatientId = order.PatientId,
             Patient = order.Patient,
+            Category = TaskCategory.DataCollection, // 查看报告为数据收集类
             PlannedStartTime = DateTime.UtcNow, // 报告到达后立即处理
             Status = ExecutionTaskStatus.Pending.ToString(),
             DataPayload = JsonSerializer.Serialize(new

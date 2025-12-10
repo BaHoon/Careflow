@@ -2,6 +2,7 @@ using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models.Medical;
 using CareFlow.Core.Models.Nursing;
 using CareFlow.Core.Models;
+using CareFlow.Core.Enums;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
@@ -249,6 +250,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
         {
             MedicalOrderId = order.Id,
             PatientId = order.PatientId,
+            Category = TaskCategory.Immediate, // 药品给药通常为即刻执行
             PlannedStartTime = executionTime,
             Status = "Pending",
             CreatedAt = DateTime.UtcNow,
@@ -284,6 +286,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
         {
             MedicalOrderId = order.Id,
             PatientId = order.PatientId,
+            Category = TaskCategory.Immediate, // 药品给药通常为即刻执行
             PlannedStartTime = executionTime,
             Status = "Pending",
             CreatedAt = DateTime.UtcNow,
@@ -330,6 +333,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
                     {
                         MedicalOrderId = order.Id,
                         PatientId = order.PatientId,
+                        Category = TaskCategory.Immediate, // 周期性药品给药通常为即刻执行
                         PlannedStartTime = executionTime,
                         Status = "Pending",
                         CreatedAt = DateTime.UtcNow,
@@ -387,6 +391,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
                     {
                         MedicalOrderId = order.Id,
                         PatientId = order.PatientId,
+                        Category = TaskCategory.Immediate, // 时段药品给药通常为即刻执行
                         PlannedStartTime = executionTime,
                         Status = "Pending",
                         CreatedAt = DateTime.UtcNow,

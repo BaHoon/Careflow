@@ -191,13 +191,16 @@ public class SurgicalOrderTaskController : ControllerBase
             Id = t.Id,
             MedicalOrderId = t.MedicalOrderId,
             PatientId = t.PatientId,
+            Category = t.Category,
             PlannedStartTime = t.PlannedStartTime,
             ActualStartTime = t.ActualStartTime,
             ActualEndTime = t.ActualEndTime,
             ExecutorStaffId = t.ExecutorStaffId,
+            CompleterNurseId = t.CompleterNurseId,
             Status = t.Status,
             IsRolledBack = t.IsRolledBack,
             DataPayload = t.DataPayload, // 核心字段：包含具体的 JSON 内容
+            ResultPayload = t.ResultPayload,
             ExceptionReason = t.ExceptionReason,
             CreatedAt = t.CreatedAt
         }).OrderBy(t => t.PlannedStartTime).ToList();
