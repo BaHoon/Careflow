@@ -492,7 +492,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
             validationErrors.Add("医生ID不能为空");
 
         if (order.Items == null || !order.Items.Any())
-            throw new ArgumentException("药品医嘱必须包含至少一种药品");
+            throw new ArgumentException($"药品医嘱必须包含至少一种药品（{order.Items?.Count() ?? 0}");
 
         if (!Enum.IsDefined(typeof(UsageRoute), order.UsageRoute))
             throw new ArgumentException("给药途径不能为空或无效");

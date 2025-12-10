@@ -164,8 +164,8 @@ namespace CareFlow.Core.Models.Medical
 
         // 导航属性
         /// <summary>
-        /// 该药品的所有药品医嘱
+        /// 该药品的所有药品医嘱明细
         /// </summary>
-        public ICollection<MedicationOrder> MedicationOrders { get; set; } = new List<MedicationOrder>();
+        public ICollection<MedicationOrderItem> MedicationOrderItems { get; set; } = new List<MedicationOrderItem>();
     }
 }

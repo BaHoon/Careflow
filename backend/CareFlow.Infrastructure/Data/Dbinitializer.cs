@@ -635,19 +635,27 @@ namespace CareFlow.Infrastructure.Data
             var currentTime = DateTime.UtcNow;
 
             // 1. 药品医嘱 (MedicationOrder)
-            var medicationOrders = new MedicationOrder[]
+            // 1. 药品医嘱 (MedicationOrder)
+            // 提示：EF Core 会自动将 Items 列表中的子项插入 MedicationOrderItems 表，并自动关联 ID
+            var medicationOrders = new List<MedicationOrder>
             {
-                // 口服药物 - 长期医嘱 (BID)
+                // P001: 阿司匹林 - 长期口服 (单一药品)
                 new MedicationOrder
                 {
                     PatientId = "P001", DoctorId = "D001", NurseId = "N001",
                     CreateTime = currentTime.AddDays(-2), PlantEndTime = currentTime.AddDays(5),
                     OrderType = "MedicationOrder", Status = "Accepted", IsLongTerm = true,
-                    UsageRoute = UsageRoute.PO,
+                    UsageRoute = UsageRoute.PO, // 确保引用了 CareFlow.Core.Enums
                     IsDynamicUsage = false, FreqCode = "BID", StartTime = currentTime.AddDays(-2),
-                    TimingStrategy = "SLOTS", SmartSlotsMask = 2 | 32, IntervalDays = 1
+                    TimingStrategy = "SLOTS", SmartSlotsMask = 2 | 32, IntervalDays = 1,
+                    // 直接初始化子项集合
+                    Items = new List<MedicationOrderItem>
+                    {
+                        new MedicationOrderItem { DrugId = "DRUG001", Dosage = "100mg", Note = "餐后服用" }
+                    }
                 },
-                // 静脉滴注 - 立即执行
+
+                // P001: 生理盐水 - 临时静脉滴注 (单一药品)
                 new MedicationOrder
                 {
                     PatientId = "P001", DoctorId = "D001", NurseId = "N002",
@@ -655,9 +663,14 @@ namespace CareFlow.Infrastructure.Data
                     OrderType = "MedicationOrder", Status = "InProgress", IsLongTerm = false,
                     UsageRoute = UsageRoute.IVGTT,
                     IsDynamicUsage = false, FreqCode = "ONCE", StartTime = currentTime.AddHours(-3),
-                    TimingStrategy = "IMMEDIATE", SmartSlotsMask = 131072, IntervalDays = 0
+                    TimingStrategy = "IMMEDIATE", SmartSlotsMask = 131072, IntervalDays = 0,
+                    Items = new List<MedicationOrderItem>
+                    {
+                        new MedicationOrderItem { DrugId = "DRUG002", Dosage = "250ml", Note = "缓慢滴注" }
+                    }
                 },
-                // 胰岛素 - 餐前注射 (TID)
+
+                // P002: 胰岛素 - 长期皮下注射 (单一药品)
                 new MedicationOrder
                 {
                     PatientId = "P002", DoctorId = "D001", NurseId = "N001",
@@ -665,9 +678,14 @@ namespace CareFlow.Infrastructure.Data
                     OrderType = "MedicationOrder", Status = "Accepted", IsLongTerm = true,
                     UsageRoute = UsageRoute.SC,
                     IsDynamicUsage = false, FreqCode = "TID", StartTime = currentTime.AddDays(-1),
-                    TimingStrategy = "SLOTS", SmartSlotsMask = 1 | 4 | 16, IntervalDays = 1
+                    TimingStrategy = "SLOTS", SmartSlotsMask = 1 | 4 | 16, IntervalDays = 1,
+                    Items = new List<MedicationOrderItem>
+                    {
+                        new MedicationOrderItem { DrugId = "DRUG003", Dosage = "8单位", Note = "餐前15分钟" }
+                    }
                 },
-                // 吸氧 - 持续治疗
+
+                // P003: 吸氧 - 长期吸入 (非药品资源)
                 new MedicationOrder
                 {
                     PatientId = "P003", DoctorId = "D002", NurseId = "N002",
@@ -675,9 +693,14 @@ namespace CareFlow.Infrastructure.Data
                     OrderType = "MedicationOrder", Status = "Accepted", IsLongTerm = true,
                     UsageRoute = UsageRoute.Inhalation,
                     IsDynamicUsage = true, FreqCode = "CONT", StartTime = currentTime.AddDays(-1),
-                    TimingStrategy = "CYCLIC", SmartSlotsMask = 524288, IntervalDays = 1
+                    TimingStrategy = "CYCLIC", SmartSlotsMask = 524288, IntervalDays = 1,
+                    Items = new List<MedicationOrderItem>
+                    {
+                        new MedicationOrderItem { DrugId = "OXYGEN001", Dosage = "2L/min", Note = "持续吸氧" }
+                    }
                 },
-                // 外用药膏 - 早晚使用
+
+                // P004: 红霉素眼膏 - 外用 (单一药品)
                 new MedicationOrder
                 {
                     PatientId = "P004", DoctorId = "D002",
@@ -685,19 +708,33 @@ namespace CareFlow.Infrastructure.Data
                     OrderType = "MedicationOrder", Status = "Accepted", IsLongTerm = true,
                     UsageRoute = UsageRoute.Topical,
                     IsDynamicUsage = false, FreqCode = "BID", StartTime = currentTime.AddDays(-1),
-                    TimingStrategy = "SLOTS", SmartSlotsMask = 512 | 64, IntervalDays = 1
+                    TimingStrategy = "SLOTS", SmartSlotsMask = 512 | 64, IntervalDays = 1,
+                    Items = new List<MedicationOrderItem>
+                    {
+                        new MedicationOrderItem { DrugId = "DRUG004", Dosage = "适量", Note = "薄层涂抹" }
+                    }
                 },
-                // 抗生素 - 每日4次 (QID)
+
+                // *** 重点演示：P005: 混合静脉滴注 (多药混合：盐水 + 头孢) ***
+                // 这就是改成一对多结构的意义所在
                 new MedicationOrder
                 {
                     PatientId = "P005", DoctorId = "D001",
                     CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(7),
                     OrderType = "MedicationOrder", Status = "Accepted", IsLongTerm = true,
-                    UsageRoute = UsageRoute.PO,
-                    IsDynamicUsage = false, FreqCode = "QID", StartTime = currentTime.AddDays(-1),
-                    TimingStrategy = "SLOTS", SmartSlotsMask = 256 | 1024 | 4096 | 8192, IntervalDays = 1
+                    UsageRoute = UsageRoute.IVGTT,
+                    IsDynamicUsage = false, FreqCode = "QD", StartTime = currentTime.AddDays(-1),
+                    TimingStrategy = "SLOTS", SmartSlotsMask = 512, IntervalDays = 1,
+                    Items = new List<MedicationOrderItem>
+                    {
+                        // 第一味药：溶媒（生理盐水）
+                        new MedicationOrderItem { DrugId = "DRUG002", Dosage = "100ml", Note = "溶媒" },
+                        // 第二味药：主药（头孢曲松钠）
+                        new MedicationOrderItem { DrugId = "DRUG008", Dosage = "2.0g", Note = "皮试阴性" }
+                    }
                 },
-                // 镇痛药 - 必要时使用 (PRN)
+
+                // P006: 杜冷丁 - 肌肉注射 (PRN 临时)
                 new MedicationOrder
                 {
                     PatientId = "P006", DoctorId = "D002",
@@ -706,94 +743,18 @@ namespace CareFlow.Infrastructure.Data
                     UsageRoute = UsageRoute.IM,
                     IsDynamicUsage = true, FreqCode = "PRN", StartTime = currentTime.AddDays(-1),
                     TimingStrategy = "SPECIFIC", SmartSlotsMask = 262144, IntervalDays = 0,
-                    SpecificExecutionTime = null
+                    SpecificExecutionTime = null,
+                    Items = new List<MedicationOrderItem>
+                    {
+                        new MedicationOrderItem { DrugId = "DRUG006", Dosage = "50mg", Note = "剧烈疼痛时使用" }
+                    }
                 }
             };
-            context.MedicationOrders.AddRange(medicationOrders);
-            context.SaveChanges(); // 先保存MedicationOrders以获得ID
 
-            // 为每个MedicationOrder添加对应的MedicationOrderItem
-            var medicationOrderItems = new List<MedicationOrderItem>();
-            
-            // 获取已保存的医嘱ID
-            var savedMedOrders = context.MedicationOrders.Where(m => m.PatientId.StartsWith("P00")).ToList();
-            
-            foreach (var order in savedMedOrders)
-            {
-                switch (order.PatientId)
-                {
-                    case "P001":
-                        if (order.UsageRoute == UsageRoute.PO) // 口服药物
-                        {
-                            medicationOrderItems.Add(new MedicationOrderItem
-                            {
-                                MedicationOrderId = order.Id,
-                                DrugId = "DRUG001",
-                                Dosage = "100mg",
-                                Note = "餐后服用"
-                            });
-                        }
-                        else if (order.UsageRoute == UsageRoute.IVGTT) // 静脉滴注
-                        {
-                            medicationOrderItems.Add(new MedicationOrderItem
-                            {
-                                MedicationOrderId = order.Id,
-                                DrugId = "DRUG002",
-                                Dosage = "250ml",
-                                Note = "缓慢滴注"
-                            });
-                        }
-                        break;
-                    case "P002": // 胰岛素
-                        medicationOrderItems.Add(new MedicationOrderItem
-                        {
-                            MedicationOrderId = order.Id,
-                            DrugId = "DRUG003",
-                            Dosage = "8单位",
-                            Note = "餐前15分钟注射"
-                        });
-                        break;
-                    case "P003": // 吸氧
-                        medicationOrderItems.Add(new MedicationOrderItem
-                        {
-                            MedicationOrderId = order.Id,
-                            DrugId = "OXYGEN001",
-                            Dosage = "2L/min",
-                            Note = "持续吸氧"
-                        });
-                        break;
-                    case "P004": // 外用药膏
-                        medicationOrderItems.Add(new MedicationOrderItem
-                        {
-                            MedicationOrderId = order.Id,
-                            DrugId = "DRUG004",
-                            Dosage = "适量",
-                            Note = "薄层涂抹"
-                        });
-                        break;
-                    case "P005": // 抗生素
-                        medicationOrderItems.Add(new MedicationOrderItem
-                        {
-                            MedicationOrderId = order.Id,
-                            DrugId = "DRUG005",
-                            Dosage = "500mg",
-                            Note = "空腹服用"
-                        });
-                        break;
-                    case "P006": // 镇痛药
-                        medicationOrderItems.Add(new MedicationOrderItem
-                        {
-                            MedicationOrderId = order.Id,
-                            DrugId = "DRUG006",
-                            Dosage = "50mg",
-                            Note = "疼痛时使用"
-                        });
-                        break;
-                }
-            }
-            
-            context.MedicationOrderItems.AddRange(medicationOrderItems);
-            
+            // 注意：这里不需要再分别保存 Items，EF Core 会一次性保存整个对象图
+            context.MedicationOrders.AddRange(medicationOrders);
+            context.SaveChanges();
+
             // 2. 操作医嘱 (OperationOrder)
             var operationOrders = new OperationOrder[]
             {

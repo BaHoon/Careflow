@@ -57,7 +57,7 @@ namespace CareFlow.Core.Models.Medical
         
         // public string Dosage { get; set; } = null!;           // 剂量
 
-        // [新增] 包含的药品列表 (例如：500ml盐水 + 1支青霉素)
+        // [新增] 包含的药品列表 (例如：500ml盐水 + 0.5mg青霉素)
         public ICollection<MedicationOrderItem> Items { get; set; } = new List<MedicationOrderItem>();
         public UsageRoute UsageRoute { get; set; }               // 用法途径
         public bool IsDynamicUsage { get; set; }     // 是否不定量(如吸氧)
