@@ -10,13 +10,11 @@ public interface IBarcodeMatchingService
     /// </summary>
     /// <param name="executionTaskBarcodeImage">执行任务条形码图片流</param>
     /// <param name="patientBarcodeImage">患者条形码图片流</param>
-    /// <param name="currentNurseId">当前操作护士ID</param>
     /// <param name="toleranceMinutes">执行时间允许的偏差分钟数（默认30分钟）</param>
     /// <returns>匹配结果</returns>
     Task<BarcodeMatchingResult> ValidateBarcodeMatchAsync(
         Stream executionTaskBarcodeImage, 
-        Stream patientBarcodeImage,
-        string currentNurseId,
+        Stream patientBarcodeImage, 
         int toleranceMinutes = 30);
 }
 
@@ -49,16 +47,6 @@ public class BarcodeMatchingResult
     /// 当前扫码时间
     /// </summary>
     public DateTime ScanTime { get; set; } = DateTime.UtcNow;
-    
-    /// <summary>
-    /// 执行护士ID
-    /// </summary>
-    public string ExecutorNurseId { get; set; } = string.Empty;
-    
-    /// <summary>
-    /// 实际开始时间（匹配成功时设置）
-    /// </summary>
-    public DateTime? ActualStartTime { get; set; }
     
     /// <summary>
     /// 时间差异（分钟）

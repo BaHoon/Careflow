@@ -15,27 +15,23 @@ public class BarcodeMatchingService : IBarcodeMatchingService
     private readonly IBarcodeService _barcodeService;
     private readonly IRepository<ExecutionTask, long> _executionTaskRepository;
     private readonly IRepository<Patient, string> _patientRepository;
-    private readonly IRepository<Nurse, string> _nurseRepository;
     private readonly ILogger<BarcodeMatchingService> _logger;
 
     public BarcodeMatchingService(
         IBarcodeService barcodeService,
         IRepository<ExecutionTask, long> executionTaskRepository,
         IRepository<Patient, string> patientRepository,
-        IRepository<Nurse, string> nurseRepository,
         ILogger<BarcodeMatchingService> logger)
     {
         _barcodeService = barcodeService;
         _executionTaskRepository = executionTaskRepository;
         _patientRepository = patientRepository;
-        _nurseRepository = nurseRepository;
         _logger = logger;
     }
 
     public async Task<BarcodeMatchingResult> ValidateBarcodeMatchAsync(
         Stream executionTaskBarcodeImage, 
-        Stream patientBarcodeImage,
-        string currentNurseId,
+        Stream patientBarcodeImage, 
         int toleranceMinutes = 30)
     {
         var result = new BarcodeMatchingResult
@@ -45,51 +41,38 @@ public class BarcodeMatchingService : IBarcodeMatchingService
 
         try
         {
-            _logger.LogInformation("开始验证条形码匹配，护士ID: {NurseId}, 允许时间偏差: {ToleranceMinutes} 分钟", currentNurseId, toleranceMinutes);
+            _logger.LogInformation("开始验证条形码匹配，允许时间偏差: {ToleranceMinutes} 分钟", toleranceMinutes);
 
-            // 第一步：验证护士是否存在
-            var nurse = await ValidateNurseAsync(currentNurseId, result);
-            if (nurse == null)
-            {
-                return result;
-            }
-
-            // 第二步：解码执行任务条形码
+            // 第一步：解码执行任务条形码
             var executionTaskBarcode = await DecodeExecutionTaskBarcodeAsync(executionTaskBarcodeImage, result);
             if (executionTaskBarcode == null)
             {
                 return result;
             }
 
-            // 第三步：解码患者条形码
+            // 第二步：解码患者条形码
             var patientBarcode = await DecodePatientBarcodeAsync(patientBarcodeImage, result);
             if (patientBarcode == null)
             {
                 return result;
             }
 
-            // 第四步：获取执行任务详情
+            // 第三步：获取执行任务详情
             var executionTask = await GetExecutionTaskAsync(executionTaskBarcode.RecordId, result);
             if (executionTask == null)
             {
                 return result;
             }
 
-            // 第五步：验证患者是否存在
+            // 第四步：验证患者是否存在
             var patient = await GetPatientAsync(patientBarcode.RecordId, result);
             if (patient == null)
             {
                 return result;
             }
 
-            // 第六步：执行所有验证逻辑
+            // 第五步：执行所有验证逻辑
             await PerformValidationAsync(executionTask, patient, result, toleranceMinutes);
-            
-            // 第七步：如果验证成功，更新ExecutionTask
-            if (result.IsMatched)
-            {
-                await UpdateExecutionTaskAsync(executionTask, nurse.Id, result);
-            }
 
             _logger.LogInformation("条形码匹配验证完成，结果: {IsMatched}", result.IsMatched);
 
@@ -315,86 +298,6 @@ public class BarcodeMatchingService : IBarcodeMatchingService
         {
             _logger.LogInformation("条形码匹配验证成功: 执行任务ID={TaskId}, 患者ID={PatientId}", 
                 executionTask.Id, patient.Id);
-        }
-    }
-
-    /// <summary>
-    /// 验证护士是否存在并有效
-    /// </summary>
-    private async Task<Nurse?> ValidateNurseAsync(string nurseId, BarcodeMatchingResult result)
-    {
-        try
-        {
-            if (string.IsNullOrWhiteSpace(nurseId))
-            {
-                result.ErrorMessage = "护士ID不能为空";
-                _logger.LogWarning("护士ID为空");
-                return null;
-            }
-
-            // 首先查找Nurse表中是否存在该ID
-            var nurse = await _nurseRepository.GetByIdAsync(nurseId);
-            if (nurse == null)
-            {
-                result.ErrorMessage = $"护士不存在: {nurseId}";
-                _logger.LogWarning("护士不存在: {NurseId}", nurseId);
-                return null;
-            }
-
-            // 验证护士账号是否激活
-            if (!nurse.IsActive)
-            {
-                result.ErrorMessage = $"护士账号已被禁用: {nurseId}";
-                _logger.LogWarning("护士账号已被禁用: {NurseId}", nurseId);
-                return null;
-            }
-
-            result.ExecutorNurseId = nurse.Id;
-            _logger.LogDebug("成功验证护士: ID={NurseId}, 姓名={NurseName}, 护士级别={NurseRank}", 
-                nurse.Id, nurse.Name, nurse.NurseRank);
-            return nurse;
-        }
-        catch (Exception ex)
-        {
-            result.ErrorMessage = $"验证护士信息时发生错误: {ex.Message}";
-            _logger.LogError(ex, "验证护士信息时发生错误: {NurseId}", nurseId);
-            return null;
-        }
-    }
-
-    /// <summary>
-    /// 更新执行任务的开始时间和执行护士
-    /// </summary>
-    private async Task UpdateExecutionTaskAsync(ExecutionTask executionTask, string nurseId, BarcodeMatchingResult result)
-    {
-        try
-        {
-            var startTime = DateTime.UtcNow;
-            
-            // 更新执行任务信息
-            executionTask.ActualStartTime = startTime;
-            executionTask.ExecutorStaffId = nurseId;
-            executionTask.Status = "Running";
-            executionTask.LastModifiedAt = startTime;
-
-            // 保存到数据库
-            await _executionTaskRepository.UpdateAsync(executionTask);
-
-            // 更新结果对象
-            result.ActualStartTime = startTime;
-            result.ExecutorNurseId = nurseId;
-
-            _logger.LogInformation("成功更新执行任务: 任务ID={TaskId}, 护士ID={NurseId}, 开始时间={StartTime}", 
-                executionTask.Id, nurseId, startTime);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "更新执行任务时发生错误: 任务ID={TaskId}, 护士ID={NurseId}", 
-                executionTask.Id, nurseId);
-            
-            // 这里不设置IsMatched为false，因为验证已经成功，只是更新失败
-            // 可以考虑添加一个警告字段或者在日志中记录
-            result.ErrorMessage = result.ErrorMessage + $"; 警告: 更新任务状态失败 - {ex.Message}";
         }
     }
 }

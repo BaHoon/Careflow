@@ -1,8 +1,6 @@
 using CareFlow.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authorization;
 using System.ComponentModel.DataAnnotations;
-using System.Security.Claims;
 
 namespace CareFlow.WebApi.Controllers;
 
@@ -29,7 +27,6 @@ public class BarcodeMatchingController : ControllerBase
     /// <param name="toleranceMinutes">允许的时间偏差分钟数（默认30分钟）</param>
     /// <returns>匹配验证结果</returns>
     [HttpPost("validate")]
-    [Authorize] // 需要身份验证
     public async Task<ActionResult<BarcodeMatchingResult>> ValidateBarcodeMatch(
         [Required] IFormFile executionTaskBarcode,
         [Required] IFormFile patientBarcode,
@@ -37,20 +34,6 @@ public class BarcodeMatchingController : ControllerBase
     {
         try
         {
-            // 获取当前用户信息
-            var currentUserId = User.FindFirst("id")?.Value;
-            var currentUserRole = User.FindFirst("role")?.Value;
-
-            if (string.IsNullOrWhiteSpace(currentUserId))
-            {
-                return Unauthorized("无法获取当前用户信息，请重新登录");
-            }
-
-            // 验证当前用户是否为护士
-            if (!string.Equals(currentUserRole, "Nurse", StringComparison.OrdinalIgnoreCase))
-            {
-                return Forbid($"只有护士可以执行此操作，当前用户角色: {currentUserRole}");
-            }
             // 输入验证
             if (executionTaskBarcode == null || executionTaskBarcode.Length == 0)
             {
@@ -94,8 +77,8 @@ public class BarcodeMatchingController : ControllerBase
                 return BadRequest($"患者条形码图片文件过大: {patientBarcode.Length / 1024 / 1024}MB，最大允许10MB");
             }
 
-            _logger.LogInformation("开始处理条形码匹配验证请求: 护士ID={NurseId}, 执行任务条形码={TaskBarcodeFile}, 患者条形码={PatientBarcodeFile}, 时间偏差={ToleranceMinutes}分钟",
-                currentUserId, executionTaskBarcode.FileName, patientBarcode.FileName, toleranceMinutes);
+            _logger.LogInformation("开始处理条形码匹配验证请求: 执行任务条形码={TaskBarcodeFile}, 患者条形码={PatientBarcodeFile}, 时间偏差={ToleranceMinutes}分钟",
+                executionTaskBarcode.FileName, patientBarcode.FileName, toleranceMinutes);
 
             // 调用服务进行验证
             using var taskBarcodeStream = executionTaskBarcode.OpenReadStream();
@@ -103,12 +86,11 @@ public class BarcodeMatchingController : ControllerBase
 
             var result = await _barcodeMatchingService.ValidateBarcodeMatchAsync(
                 taskBarcodeStream, 
-                patientBarcodeStream,
-                currentUserId, // 传入当前护士ID
+                patientBarcodeStream, 
                 toleranceMinutes);
 
-            _logger.LogInformation("条形码匹配验证完成: 结果={IsMatched}, 执行任务ID={TaskId}, 患者ID={PatientId}, 护士ID={NurseId}",
-                result.IsMatched, result.ExecutionTaskId, result.PatientId, result.ExecutorNurseId);
+            _logger.LogInformation("条形码匹配验证完成: 结果={IsMatched}, 执行任务ID={TaskId}, 患者ID={PatientId}",
+                result.IsMatched, result.ExecutionTaskId, result.PatientId);
 
             // 根据匹配结果返回相应的HTTP状态码
             if (result.IsMatched)
@@ -153,18 +135,15 @@ public class BarcodeMatchingController : ControllerBase
                     {
                         executionTaskBarcode = "执行任务条形码图片文件（支持png、jpg、jpeg、bmp、gif格式，最大10MB）",
                         patientBarcode = "患者条形码图片文件（支持png、jpg、jpeg、bmp、gif格式，最大10MB）",
-                        toleranceMinutes = "允许的时间偏差分钟数（可选，默认30分钟，范围0-1440分钟）",
-                        Authorization = "需要Bearer Token认证，且用户必须是护士角色"
+                        toleranceMinutes = "允许的时间偏差分钟数（可选，默认30分钟，范围0-1440分钟）"
                     },
                     Response = new
                     {
                         IsMatched = "bool - 是否匹配成功",
                         ExecutionTaskId = "long - 执行任务ID",
                         PatientId = "string - 患者ID",
-                        ExecutorNurseId = "string - 执行护士ID",
                         PlannedStartTime = "DateTime - 计划执行时间",
                         ScanTime = "DateTime - 扫码时间",
-                        ActualStartTime = "DateTime? - 实际开始时间（匹配成功时设置）",
                         TimeDifferenceMinutes = "double - 时间差异（分钟）",
                         ValidationDetails = "object - 详细验证信息",
                         ErrorMessage = "string - 错误消息（如果匹配失败）"
@@ -173,8 +152,7 @@ public class BarcodeMatchingController : ControllerBase
             },
             ExampleUsage = new
             {
-                CurlCommand = "curl -X POST \"/api/barcodematching/validate\" -H \"Content-Type: multipart/form-data\" -H \"Authorization: Bearer YOUR_JWT_TOKEN\" -F \"executionTaskBarcode=@task_barcode.png\" -F \"patientBarcode=@patient_barcode.png\" -F \"toleranceMinutes=30\"",
-                Note = "需要先登录获取JWT Token，且登录用户必须是护士角色"
+                CurlCommand = "curl -X POST \"/api/barcodematching/validate\" -H \"Content-Type: multipart/form-data\" -F \"executionTaskBarcode=@task_barcode.png\" -F \"patientBarcode=@patient_barcode.png\" -F \"toleranceMinutes=30\""
             }
         });
     }
