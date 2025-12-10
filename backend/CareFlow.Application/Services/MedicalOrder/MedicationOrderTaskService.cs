@@ -4,6 +4,7 @@ using CareFlow.Core.Models.Nursing;
 using CareFlow.Core.Models;
 using CareFlow.Core.Enums;
 using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using System.Linq;
 
@@ -45,8 +46,11 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
 
         _logger.LogInformation("开始为医嘱 {OrderId} 生成执行任务", order.Id);
 
-        // 2. 验证医嘱是否真实存在于数据库中
-        var existingOrder = await _medicationOrderRepository.GetByIdAsync(order.Id);
+        // 2. 验证医嘱是否真实存在于数据库中，并加载Items和Drug信息
+        var existingOrder = await _medicationOrderRepository.GetQueryable()
+            .Include(m => m.Items)
+                .ThenInclude(item => item.Drug)
+            .FirstOrDefaultAsync(m => m.Id == order.Id);
         if (existingOrder == null)
         {
             var errorMsg = $"医嘱 {order.Id} 在数据库中不存在，无法生成执行任务";
@@ -492,7 +496,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
             validationErrors.Add("医生ID不能为空");
 
         if (order.Items == null || !order.Items.Any())
-            throw new ArgumentException($"药品医嘱必须包含至少一种药品（{order.Items?.Count() ?? 0}");
+            throw new ArgumentException($"药品医嘱必须包含至少一种药品（{order.Items?.Count() ?? 0}）");
 
         if (!Enum.IsDefined(typeof(UsageRoute), order.UsageRoute))
             throw new ArgumentException("给药途径不能为空或无效");
@@ -614,10 +618,13 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
             {
                 foreach (var item in order.Items)
                 {
+                    var drugName = item.Drug?.GenericName ?? 
+                                  item.Drug?.TradeName ?? 
+                                  $"药品({item.DrugId})";
                     items.Add(new
                     {
                         id = itemId++,
-                        text = $"核对药品：{item.Drug?.GenericName ?? item.DrugId} {item.Dosage}",
+                        text = $"核对药品：{drugName} {item.Dosage}",
                         isChecked = false,
                         required = true
                     });
@@ -679,7 +686,9 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
             _logger.LogError(ex, "生成DataPayload时发生错误，医嘱ID: {OrderId}", order.Id);
             // 返回简化版本，确保不会因为DataPayload生成失败而影响任务创建
             var firstDrugInfo = order.Items?.FirstOrDefault();
-            var drugName = firstDrugInfo?.Drug?.GenericName ?? firstDrugInfo?.DrugId ?? "未知药品";
+            var drugName = firstDrugInfo?.Drug?.GenericName ?? 
+                          firstDrugInfo?.Drug?.TradeName ?? 
+                          (firstDrugInfo != null ? $"药品({firstDrugInfo.DrugId})" : "未知药品");
             
             return JsonSerializer.Serialize(new
             {
@@ -706,28 +715,31 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
         {
             // 单个药品
             var item = order.Items.First();
-            if (item.Drug != null)
+            var drugName = item.Drug?.GenericName ?? item.Drug?.TradeName ?? $"药品({item.DrugId})";
+            var tradeName = item.Drug?.TradeName;
+            var specification = item.Drug?.Specification;
+            
+            var fullName = drugName;
+            if (!string.IsNullOrEmpty(tradeName) && tradeName != drugName)
             {
-                return $"{item.Drug.GenericName}({item.Drug.TradeName ?? item.Drug.GenericName}) {item.Drug.Specification} {item.Dosage}";
+                fullName += $"({tradeName})";
             }
-            else
+            if (!string.IsNullOrEmpty(specification))
             {
-                return $"{item.DrugId} {item.Dosage}";
+                fullName += $" {specification}";
             }
+            
+            return $"{fullName} {item.Dosage}";
         }
         else
         {
             // 多个药品 - 组合药品
             var descriptions = order.Items.Select(item =>
             {
-                if (item.Drug != null)
-                {
-                    return $"{item.Drug.GenericName} {item.Dosage}";
-                }
-                else
-                {
-                    return $"{item.DrugId} {item.Dosage}";
-                }
+                var drugName = item.Drug?.GenericName ?? 
+                              item.Drug?.TradeName ?? 
+                              $"药品({item.DrugId})";
+                return $"{drugName} {item.Dosage}";
             });
             
             return $"组合用药：{string.Join(" + ", descriptions)}";
