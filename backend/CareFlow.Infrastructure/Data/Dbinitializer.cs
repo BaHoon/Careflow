@@ -742,8 +742,11 @@ namespace CareFlow.Infrastructure.Data
                     OrderType = "MedicationOrder", Status = "Accepted", IsLongTerm = false,
                     UsageRoute = UsageRoute.IM,
                     IsDynamicUsage = true, FreqCode = "PRN", StartTime = currentTime.AddDays(-1),
-                    TimingStrategy = "SPECIFIC", SmartSlotsMask = 262144, IntervalDays = 0,
-                    SpecificExecutionTime = null,
+                    TimingStrategy = "SPECIFIC", 
+                    SmartSlotsMask = 262144, 
+                    IntervalDays = 0,
+                    // 【修改处】给一个具体的未来时间，比如当前时间之后 2 小时
+                    SpecificExecutionTime = currentTime.AddHours(2), 
                     Items = new List<MedicationOrderItem>
                     {
                         new MedicationOrderItem { DrugId = "DRUG006", Dosage = "50mg", Note = "剧烈疼痛时使用" }
