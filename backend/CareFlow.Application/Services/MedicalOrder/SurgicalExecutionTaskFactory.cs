@@ -22,7 +22,7 @@ namespace CareFlow.Application.Services
         private static readonly TimeSpan OpOffset = TimeSpan.FromHours(-2);     // 术前操作：前2小时
         private static readonly TimeSpan SupplyOffset = TimeSpan.FromHours(-1); // 物品核对：前1小时
 
-        public List<ExecutionTask> CreateTasks(MedicalOrder medicalOrder)
+        public List<ExecutionTask> CreateTasks(CareFlow.Core.Models.Medical.MedicalOrder medicalOrder)
         {
             // 1. 类型安全检查
             if (medicalOrder is not SurgicalOrder surgicalOrder)
@@ -59,6 +59,7 @@ namespace CareFlow.Application.Services
                     {
                         MedicalOrderId = order.Id,
                         PatientId = order.PatientId,
+                        Category = TaskCategory.Immediate, // 术前宣教为即刻执行类
                         // 导航属性通常在Save时由EF自动处理，这里主要保证ID正确
                         
                         PlannedStartTime = order.ScheduleTime.Add(TalkOffset),
@@ -96,6 +97,7 @@ namespace CareFlow.Application.Services
                     {
                         MedicalOrderId = order.Id,
                         PatientId = order.PatientId,
+                        Category = TaskCategory.Duration, // 术前操作通常需要持续时间
                         PlannedStartTime = order.ScheduleTime.Add(OpOffset),
                         Status = "Pending",
                         CreatedAt = DateTime.UtcNow,
@@ -146,6 +148,7 @@ namespace CareFlow.Application.Services
             {
                 MedicalOrderId = order.Id,
                 PatientId = order.PatientId,
+                Category = TaskCategory.Verification, // 物品核对为核对类
                 PlannedStartTime = order.ScheduleTime.Add(SupplyOffset),
                 Status = "Pending",
                 CreatedAt = DateTime.UtcNow,

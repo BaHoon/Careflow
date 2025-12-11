@@ -14,6 +14,6 @@ namespace CareFlow.Core.Interfaces
         /// </summary>
         /// <param name="medicalOrder">医嘱基类或具体子类</param>
         /// <returns>准备好保存的执行任务列表</returns>
-        List<ExecutionTask> CreateTasks(MedicalOrder medicalOrder);
+        List<ExecutionTask> CreateTasks(CareFlow.Core.Models.Medical.MedicalOrder medicalOrder);
     }
 }
