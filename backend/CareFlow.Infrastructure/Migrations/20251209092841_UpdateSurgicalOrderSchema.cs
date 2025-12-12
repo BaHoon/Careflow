@@ -39,18 +39,15 @@ namespace CareFlow.Infrastructure.Migrations
                 type: "text",
                 nullable: true);
 
-            migrationBuilder.AlterColumn<string>(
-                name: "DrugId",
-                table: "MedicationOrders",
-                type: "character varying(50)",
-                nullable: false,
-                oldClrType: typeof(string),
-                oldType: "text");
+            // DrugId type and Drugs table already handled by AddBarcodeIndexTable migration
+
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            // DrugId type and Drugs table rollback handled by AddBarcodeIndexTable migration
+
             migrationBuilder.DropColumn(
                 name: "RequiredOperation",
                 table: "SurgicalOrders");
@@ -82,14 +79,6 @@ namespace CareFlow.Infrastructure.Migrations
                 type: "boolean",
                 nullable: false,
                 defaultValue: false);
-
-            migrationBuilder.AlterColumn<string>(
-                name: "DrugId",
-                table: "MedicationOrders",
-                type: "text",
-                nullable: false,
-                oldClrType: typeof(string),
-                oldType: "character varying(50)");
         }
     }
 }
