@@ -40,6 +40,7 @@ namespace CareFlow.Infrastructure.Migrations
                 nullable: true);
 
             // DrugId type and Drugs table already handled by AddBarcodeIndexTable migration
+
         }
 
         /// <inheritdoc />

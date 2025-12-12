@@ -35,6 +35,7 @@ namespace CareFlow.Infrastructure
         
         // 四种具体的医嘱类型
         public DbSet<MedicationOrder> MedicationOrders { get; set; } // 药品
+        public DbSet<MedicationOrderItem> MedicationOrderItems { get; set; } // 药品医嘱明细
         public DbSet<InspectionOrder> InspectionOrders { get; set; } // 检查
         public DbSet<SurgicalOrder> SurgicalOrders { get; set; }     // 手术
         public DbSet<OperationOrder> OperationOrders { get; set; }   // 操作 (护理/治疗)

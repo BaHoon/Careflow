@@ -3,6 +3,7 @@ using System;
 using CareFlow.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CareFlow.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251210104232_UpdateMedicationOrderStructure")]
+    partial class UpdateMedicationOrderStructure
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -839,6 +842,9 @@ namespace CareFlow.Infrastructure.Migrations
                 {
                     b.HasBaseType("CareFlow.Core.Models.Medical.MedicalOrder");
 
+                    b.Property<string>("DrugId")
+                        .HasColumnType("character varying(50)");
+
                     b.Property<string>("FreqCode")
                         .IsRequired()
                         .HasColumnType("text");
@@ -864,6 +870,8 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.Property<int>("UsageRoute")
                         .HasColumnType("integer");
+
+                    b.HasIndex("DrugId");
 
                     b.ToTable("MedicationOrders", (string)null);
                 });
@@ -1007,7 +1015,7 @@ namespace CareFlow.Infrastructure.Migrations
             modelBuilder.Entity("CareFlow.Core.Models.Medical.MedicationOrderItem", b =>
                 {
                     b.HasOne("CareFlow.Core.Models.Medical.Drug", "Drug")
-                        .WithMany("MedicationOrderItems")
+                        .WithMany()
                         .HasForeignKey("DrugId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1182,6 +1190,10 @@ namespace CareFlow.Infrastructure.Migrations
 
             modelBuilder.Entity("CareFlow.Core.Models.Medical.MedicationOrder", b =>
                 {
+                    b.HasOne("CareFlow.Core.Models.Medical.Drug", null)
+                        .WithMany("MedicationOrders")
+                        .HasForeignKey("DrugId");
+
                     b.HasOne("CareFlow.Core.Models.Medical.MedicalOrder", null)
                         .WithOne()
                         .HasForeignKey("CareFlow.Core.Models.Medical.MedicationOrder", "Id")
@@ -1227,7 +1239,7 @@ namespace CareFlow.Infrastructure.Migrations
 
             modelBuilder.Entity("CareFlow.Core.Models.Medical.Drug", b =>
                 {
-                    b.Navigation("MedicationOrderItems");
+                    b.Navigation("MedicationOrders");
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Organization.Department", b =>
