@@ -635,82 +635,129 @@ namespace CareFlow.Infrastructure.Data
             var currentTime = DateTime.UtcNow;
 
             // 1. 药品医嘱 (MedicationOrder)
-            var medicationOrders = new MedicationOrder[]
+            // 1. 药品医嘱 (MedicationOrder)
+            // 提示：EF Core 会自动将 Items 列表中的子项插入 MedicationOrderItems 表，并自动关联 ID
+            var medicationOrders = new List<MedicationOrder>
             {
-                // 口服药物 - 长期医嘱 (BID)
+                // P001: 阿司匹林 - 长期口服 (单一药品)
                 new MedicationOrder
                 {
                     PatientId = "P001", DoctorId = "D001", NurseId = "N001",
                     CreateTime = currentTime.AddDays(-2), PlantEndTime = currentTime.AddDays(5),
                     OrderType = "MedicationOrder", Status = "Accepted", IsLongTerm = true,
-                    DrugId = "DRUG001", Dosage = "100mg", UsageRoute = "口服",
+                    UsageRoute = UsageRoute.PO, // 确保引用了 CareFlow.Core.Enums
                     IsDynamicUsage = false, FreqCode = "BID", StartTime = currentTime.AddDays(-2),
-                    TimingStrategy = "SLOTS", SmartSlotsMask = 2 | 32, IntervalDays = 1
+                    TimingStrategy = "SLOTS", SmartSlotsMask = 2 | 32, IntervalDays = 1,
+                    // 直接初始化子项集合
+                    Items = new List<MedicationOrderItem>
+                    {
+                        new MedicationOrderItem { DrugId = "DRUG001", Dosage = "100mg", Note = "餐后服用" }
+                    }
                 },
-                // 静脉滴注 - 立即执行
+
+                // P001: 生理盐水 - 临时静脉滴注 (单一药品)
                 new MedicationOrder
                 {
                     PatientId = "P001", DoctorId = "D001", NurseId = "N002",
                     CreateTime = currentTime.AddHours(-3), PlantEndTime = currentTime.AddHours(2),
                     OrderType = "MedicationOrder", Status = "InProgress", IsLongTerm = false,
-                    DrugId = "DRUG002", Dosage = "250ml", UsageRoute = "静脉滴注",
+                    UsageRoute = UsageRoute.IVGTT,
                     IsDynamicUsage = false, FreqCode = "ONCE", StartTime = currentTime.AddHours(-3),
-                    TimingStrategy = "IMMEDIATE", SmartSlotsMask = 131072, IntervalDays = 0
+                    TimingStrategy = "IMMEDIATE", SmartSlotsMask = 131072, IntervalDays = 0,
+                    Items = new List<MedicationOrderItem>
+                    {
+                        new MedicationOrderItem { DrugId = "DRUG002", Dosage = "250ml", Note = "缓慢滴注" }
+                    }
                 },
-                // 胰岛素 - 餐前注射 (TID)
+
+                // P002: 胰岛素 - 长期皮下注射 (单一药品)
                 new MedicationOrder
                 {
                     PatientId = "P002", DoctorId = "D001", NurseId = "N001",
                     CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(7),
                     OrderType = "MedicationOrder", Status = "Accepted", IsLongTerm = true,
-                    DrugId = "DRUG003", Dosage = "8单位", UsageRoute = "皮下注射",
+                    UsageRoute = UsageRoute.SC,
                     IsDynamicUsage = false, FreqCode = "TID", StartTime = currentTime.AddDays(-1),
-                    TimingStrategy = "SLOTS", SmartSlotsMask = 1 | 4 | 16, IntervalDays = 1
+                    TimingStrategy = "SLOTS", SmartSlotsMask = 1 | 4 | 16, IntervalDays = 1,
+                    Items = new List<MedicationOrderItem>
+                    {
+                        new MedicationOrderItem { DrugId = "DRUG003", Dosage = "8单位", Note = "餐前15分钟" }
+                    }
                 },
-                // 吸氧 - 持续治疗
+
+                // P003: 吸氧 - 长期吸入 (非药品资源)
                 new MedicationOrder
                 {
                     PatientId = "P003", DoctorId = "D002", NurseId = "N002",
                     CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(3),
                     OrderType = "MedicationOrder", Status = "Accepted", IsLongTerm = true,
-                    DrugId = "OXYGEN001", Dosage = "2L/min", UsageRoute = "鼻导管吸氧",
+                    UsageRoute = UsageRoute.Inhalation,
                     IsDynamicUsage = true, FreqCode = "CONT", StartTime = currentTime.AddDays(-1),
-                    TimingStrategy = "CYCLIC", SmartSlotsMask = 524288, IntervalDays = 1
+                    TimingStrategy = "CYCLIC", SmartSlotsMask = 524288, IntervalDays = 1,
+                    Items = new List<MedicationOrderItem>
+                    {
+                        new MedicationOrderItem { DrugId = "OXYGEN001", Dosage = "2L/min", Note = "持续吸氧" }
+                    }
                 },
-                // 外用药膏 - 早晚使用
+
+                // P004: 红霉素眼膏 - 外用 (单一药品)
                 new MedicationOrder
                 {
                     PatientId = "P004", DoctorId = "D002",
                     CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(5),
                     OrderType = "MedicationOrder", Status = "Accepted", IsLongTerm = true,
-                    DrugId = "DRUG004", Dosage = "适量", UsageRoute = "外用涂抹",
+                    UsageRoute = UsageRoute.Topical,
                     IsDynamicUsage = false, FreqCode = "BID", StartTime = currentTime.AddDays(-1),
-                    TimingStrategy = "SLOTS", SmartSlotsMask = 512 | 64, IntervalDays = 1
+                    TimingStrategy = "SLOTS", SmartSlotsMask = 512 | 64, IntervalDays = 1,
+                    Items = new List<MedicationOrderItem>
+                    {
+                        new MedicationOrderItem { DrugId = "DRUG004", Dosage = "适量", Note = "薄层涂抹" }
+                    }
                 },
-                // 抗生素 - 每日4次 (QID)
+
+                // *** 重点演示：P005: 混合静脉滴注 (多药混合：盐水 + 头孢) ***
+                // 这就是改成一对多结构的意义所在
                 new MedicationOrder
                 {
                     PatientId = "P005", DoctorId = "D001",
                     CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(7),
                     OrderType = "MedicationOrder", Status = "Accepted", IsLongTerm = true,
-                    DrugId = "DRUG005", Dosage = "500mg", UsageRoute = "口服",
-                    IsDynamicUsage = false, FreqCode = "QID", StartTime = currentTime.AddDays(-1),
-                    TimingStrategy = "SLOTS", SmartSlotsMask = 256 | 1024 | 4096 | 8192, IntervalDays = 1
+                    UsageRoute = UsageRoute.IVGTT,
+                    IsDynamicUsage = false, FreqCode = "QD", StartTime = currentTime.AddDays(-1),
+                    TimingStrategy = "SLOTS", SmartSlotsMask = 512, IntervalDays = 1,
+                    Items = new List<MedicationOrderItem>
+                    {
+                        // 第一味药：溶媒（生理盐水）
+                        new MedicationOrderItem { DrugId = "DRUG002", Dosage = "100ml", Note = "溶媒" },
+                        // 第二味药：主药（头孢曲松钠）
+                        new MedicationOrderItem { DrugId = "DRUG008", Dosage = "2.0g", Note = "皮试阴性" }
+                    }
                 },
-                // 镇痛药 - 必要时使用 (PRN)
+
+                // P006: 杜冷丁 - 肌肉注射 (PRN 临时)
                 new MedicationOrder
                 {
                     PatientId = "P006", DoctorId = "D002",
                     CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(3),
                     OrderType = "MedicationOrder", Status = "Accepted", IsLongTerm = false,
-                    DrugId = "DRUG006", Dosage = "50mg", UsageRoute = "肌肉注射",
+                    UsageRoute = UsageRoute.IM,
                     IsDynamicUsage = true, FreqCode = "PRN", StartTime = currentTime.AddDays(-1),
-                    TimingStrategy = "SPECIFIC", SmartSlotsMask = 262144, IntervalDays = 0,
-                    SpecificExecutionTime = null
+                    TimingStrategy = "SPECIFIC", 
+                    SmartSlotsMask = 262144, 
+                    IntervalDays = 0,
+                    // 【修改处】给一个具体的未来时间，比如当前时间之后 2 小时
+                    SpecificExecutionTime = currentTime.AddHours(2), 
+                    Items = new List<MedicationOrderItem>
+                    {
+                        new MedicationOrderItem { DrugId = "DRUG006", Dosage = "50mg", Note = "剧烈疼痛时使用" }
+                    }
                 }
             };
+
+            // 注意：这里不需要再分别保存 Items，EF Core 会一次性保存整个对象图
             context.MedicationOrders.AddRange(medicationOrders);
-            
+            context.SaveChanges();
+
             // 2. 操作医嘱 (OperationOrder)
             var operationOrders = new OperationOrder[]
             {
@@ -790,8 +837,9 @@ namespace CareFlow.Infrastructure.Data
                     OrderType = "SurgicalOrder", Status = "Accepted", IsLongTerm = false,
                     SurgeryName = "腹腔镜阑尾切除术", ScheduleTime = currentTime.AddHours(6),
                     AnesthesiaType = "全身麻醉", IncisionSite = "脐部及右下腹",
-                    RequiredMeds = "[\"头孢曲松\", \"丙泊酚\", \"瑞芬太尼\"]",
-                    NeedBloodPrep = false, HasImplants = false,
+                    RequiredMeds = "[{\"DrugId\":\"DRUG_001\", \"Count\":2}, {\"DrugId\":\"DRUG_002\", \"Count\":5}, {\"DrugId\":\"DRUG_003\", \"Count\":1}]",
+                    RequiredTalk = "[\"术前禁食水宣教\", \"术前饰品摘取\", \"更换病号服\"]",
+                    RequiredOperation = "[\"手术区域备皮\", \"留置导尿管\", \"建立静脉通路\"]",
                     PrepProgress = 0.6f, PrepStatus = "术前准备中"
                 },
                 new SurgicalOrder
@@ -801,8 +849,9 @@ namespace CareFlow.Infrastructure.Data
                     OrderType = "SurgicalOrder", Status = "PendingReview", IsLongTerm = false,
                     SurgeryName = "腹腔镜胆囊切除术", ScheduleTime = currentTime.AddDays(1).AddHours(2),
                     AnesthesiaType = "全身麻醉", IncisionSite = "脐部及上腹部",
-                    RequiredMeds = "[\"头孢西丁\", \"丙泊酚\", \"舒芬太尼\"]",
-                    NeedBloodPrep = true, HasImplants = false,
+                    RequiredMeds = "[{\"DrugId\":\"DRUG_005\", \"Count\":3}, {\"DrugId\":\"DRUG_002\", \"Count\":10}]",
+                    RequiredTalk = "[\"术前禁食水宣教\"]",
+                    RequiredOperation = "[\"交叉配血\",\"手术区域备皮\", \"建立静脉通路\"]",
                     PrepProgress = 0.2f, PrepStatus = "等待术前评估"
                 },
                 new SurgicalOrder
@@ -812,8 +861,9 @@ namespace CareFlow.Infrastructure.Data
                     OrderType = "SurgicalOrder", Status = "Accepted", IsLongTerm = false,
                     SurgeryName = "左股骨干骨折切开复位内固定术", ScheduleTime = currentTime.AddHours(2),
                     AnesthesiaType = "腰硬联合麻醉", IncisionSite = "左大腿外侧",
-                    RequiredMeds = "[\"头孢唑林\", \"罗哌卡因\", \"吗啡\"]",
-                    NeedBloodPrep = true, HasImplants = true,
+                    RequiredMeds = "[{\"DrugId\":\"DRUG_008\", \"Count\":2}, {\"DrugId\":\"DRUG_009\", \"Count\":1}, {\"DrugId\":\"DRUG_004\", \"Count\":500}]",
+                    RequiredTalk = "[\"术前禁食水宣教\", \"术前体位指导\"]",
+                    RequiredOperation = "[\"手术区域备皮\", \"留置导尿管\", \"术前抗生素皮试\"]",
                     PrepProgress = 0.8f, PrepStatus = "急诊准备中"
                 }
             };
@@ -858,7 +908,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "SUR-W01",  // 外科病区
                     ShiftId = "DAY",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 },
                 new NurseRoster
                 {
@@ -866,7 +916,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "SUR-W01",  // 外科病区
                     ShiftId = "EVENING",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 },
                 new NurseRoster
                 {
@@ -874,7 +924,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "SUR-W01",  // 外科病区
                     ShiftId = "NIGHT",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 },
                 
                 // 内科护士排班 (IM - Ward IM-W01)
@@ -884,7 +934,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "IM-W01",  // 内科一病区
                     ShiftId = "DAY",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 },
                 new NurseRoster
                 {
@@ -892,7 +942,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "IM-W01",  // 内科一病区
                     ShiftId = "EVENING",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 },
                 new NurseRoster
                 {
@@ -900,7 +950,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "IM-W02",  // 内科二病区
                     ShiftId = "NIGHT",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 },
                 
                 // 儿科护士排班 (PED - Ward PED-W01)
@@ -910,7 +960,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "PED-W01",  // 儿科病区
                     ShiftId = "DAY",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 },
                 new NurseRoster
                 {
@@ -918,7 +968,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "PED-W01",  // 儿科病区
                     ShiftId = "EVENING",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 },
                 
                 // 明天的排班安排 (部分轮换)
@@ -928,7 +978,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "SUR-W01",  // 外科病区
                     ShiftId = "DAY",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today.AddDays(1)),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 },
                 new NurseRoster
                 {
@@ -936,7 +986,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "SUR-W01",  // 外科病区
                     ShiftId = "EVENING",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today.AddDays(1)),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 },
                 new NurseRoster
                 {
@@ -944,7 +994,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "IM-W02",  // 内科二病区
                     ShiftId = "DAY",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today.AddDays(1)),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 },
                 new NurseRoster
                 {
@@ -952,7 +1002,7 @@ namespace CareFlow.Infrastructure.Data
                     WardId = "PED-W01",  // 儿科病区
                     ShiftId = "DAY",
                     WorkDate = DateOnly.FromDateTime(DateTime.Today.AddDays(1)),
-                    Status = "Assigned"
+                    Status = "Scheduled"
                 }
             };
             context.NurseRosters.AddRange(nurseRosters);

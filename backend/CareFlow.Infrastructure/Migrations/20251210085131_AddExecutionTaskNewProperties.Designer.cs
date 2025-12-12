@@ -3,6 +3,7 @@ using System;
 using CareFlow.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CareFlow.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251210085131_AddExecutionTaskNewProperties")]
+    partial class AddExecutionTaskNewProperties
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -302,41 +305,6 @@ namespace CareFlow.Infrastructure.Migrations
                     b.ToTable("MedicalOrders");
 
                     b.UseTptMappingStrategy();
-                });
-
-            modelBuilder.Entity("CareFlow.Core.Models.Medical.MedicationOrderItem", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("CreateTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Dosage")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("DrugId")
-                        .IsRequired()
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<long>("MedicationOrderId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("Note")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DrugId");
-
-                    b.HasIndex("MedicationOrderId");
-
-                    b.ToTable("MedicationOrderItems");
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Nursing.ExecutionTask", b =>
@@ -839,6 +807,14 @@ namespace CareFlow.Infrastructure.Migrations
                 {
                     b.HasBaseType("CareFlow.Core.Models.Medical.MedicalOrder");
 
+                    b.Property<string>("Dosage")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("DrugId")
+                        .IsRequired()
+                        .HasColumnType("character varying(50)");
+
                     b.Property<string>("FreqCode")
                         .IsRequired()
                         .HasColumnType("text");
@@ -862,8 +838,11 @@ namespace CareFlow.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("UsageRoute")
-                        .HasColumnType("integer");
+                    b.Property<string>("UsageRoute")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasIndex("DrugId");
 
                     b.ToTable("MedicationOrders", (string)null);
                 });
@@ -1002,25 +981,6 @@ namespace CareFlow.Infrastructure.Migrations
                     b.Navigation("Nurse");
 
                     b.Navigation("Patient");
-                });
-
-            modelBuilder.Entity("CareFlow.Core.Models.Medical.MedicationOrderItem", b =>
-                {
-                    b.HasOne("CareFlow.Core.Models.Medical.Drug", "Drug")
-                        .WithMany("MedicationOrderItems")
-                        .HasForeignKey("DrugId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CareFlow.Core.Models.Medical.MedicationOrder", "MedicationOrder")
-                        .WithMany("Items")
-                        .HasForeignKey("MedicationOrderId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Drug");
-
-                    b.Navigation("MedicationOrder");
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Nursing.ExecutionTask", b =>
@@ -1182,11 +1142,19 @@ namespace CareFlow.Infrastructure.Migrations
 
             modelBuilder.Entity("CareFlow.Core.Models.Medical.MedicationOrder", b =>
                 {
+                    b.HasOne("CareFlow.Core.Models.Medical.Drug", "Drug")
+                        .WithMany("MedicationOrders")
+                        .HasForeignKey("DrugId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("CareFlow.Core.Models.Medical.MedicalOrder", null)
                         .WithOne()
                         .HasForeignKey("CareFlow.Core.Models.Medical.MedicationOrder", "Id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Drug");
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Medical.OperationOrder", b =>
@@ -1227,7 +1195,7 @@ namespace CareFlow.Infrastructure.Migrations
 
             modelBuilder.Entity("CareFlow.Core.Models.Medical.Drug", b =>
                 {
-                    b.Navigation("MedicationOrderItems");
+                    b.Navigation("MedicationOrders");
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Organization.Department", b =>
@@ -1245,11 +1213,6 @@ namespace CareFlow.Infrastructure.Migrations
             modelBuilder.Entity("CareFlow.Core.Models.Medical.InspectionOrder", b =>
                 {
                     b.Navigation("Reports");
-                });
-
-            modelBuilder.Entity("CareFlow.Core.Models.Medical.MedicationOrder", b =>
-                {
-                    b.Navigation("Items");
                 });
 #pragma warning restore 612, 618
         }

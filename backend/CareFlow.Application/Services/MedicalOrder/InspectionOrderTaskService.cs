@@ -1,5 +1,7 @@
 using System.Text.Json;
 using CareFlow.Core.Enums;
+using CareFlow.Core.Interfaces;
+using CareFlow.Core.Models;
 using CareFlow.Core.Models.Medical;
 using CareFlow.Core.Models.Nursing;
 
@@ -16,31 +18,50 @@ namespace CareFlow.Application.Services.MedicalOrder;
 /// </summary>
 public class InspectionOrderTaskService
 {
-    /// <summary>
-    /// 根据检查医嘱生成护士执行任务列表
-    /// </summary>
-    public IReadOnlyList<ExecutionTask> CreateTasks(InspectionOrder order)
+    private readonly IRepository<ExecutionTask, long> _taskRepo;
+    private readonly IRepository<BarcodeIndex, string> _barcodeRepo;
+    private readonly IBarcodeService _barcodeService;
+
+    public InspectionOrderTaskService(
+        IRepository<ExecutionTask, long> taskRepo,
+        IRepository<BarcodeIndex, string> barcodeRepo,
+        IBarcodeService barcodeService)
     {
-        var tasks = new List<ExecutionTask>();
-        
+        _taskRepo = taskRepo;
+        _barcodeRepo = barcodeRepo;
+        _barcodeService = barcodeService;
+    }
+    /// <summary>
+    /// 根据检查医嘱生成护士执行任务列表（异步方法）
+    /// </summary>
+    public async Task CreateTasks(InspectionOrder order)
+    {
         // 如果没有预约时间，暂不生成任务
         if (!order.AppointmentTime.HasValue)
         {
-            return tasks;
+            return;
         }
         
         var appointmentTime = order.AppointmentTime.Value;
         
-        // 任务1: 打印导引单（病房护士，预约完成后立即执行）
-        tasks.Add(CreatePrintGuideTask(order, appointmentTime.AddMinutes(-60)));
+        var tasks = new List<ExecutionTask>
+        {
+            // 任务1: 打印导引单（病房护士，预约完成后立即执行）
+            CreatePrintGuideTask(order, appointmentTime.AddMinutes(-60)),
+            
+            // 任务2: 检查站签到（检查站护士，扫码后自动完成）
+            CreateCheckInTask(order, appointmentTime),
+            
+            // 任务3: 检查完成确认（检查站护士，扫码后自动完成）
+            CreateCheckCompleteTask(order, appointmentTime.AddMinutes(30))
+        };
         
-        // 任务2: 检查站签到（检查站护士，扫码后自动完成）
-        tasks.Add(CreateCheckInTask(order, appointmentTime));
-        
-        // 任务3: 检查完成确认（检查站护士，扫码后自动完成）
-        tasks.Add(CreateCheckCompleteTask(order, appointmentTime.AddMinutes(30)));
-        
-        return tasks;
+        // 保存任务到数据库并为每个任务生成条形码
+        foreach (var task in tasks)
+        {
+            await _taskRepo.AddAsync(task);
+            await GenerateBarcodeForTask(task);
+        }
     }
     
     /// <summary>
@@ -85,6 +106,7 @@ public class InspectionOrderTaskService
             MedicalOrder = order,
             PatientId = order.PatientId,
             Patient = order.Patient,
+            Category = TaskCategory.Immediate, // 打印导引单为即刻执行
             PlannedStartTime = plannedTime,
             Status = ExecutionTaskStatus.Pending.ToString(),
             DataPayload = JsonSerializer.Serialize(new
@@ -110,6 +132,7 @@ public class InspectionOrderTaskService
             MedicalOrder = order,
             PatientId = order.PatientId,
             Patient = order.Patient,
+            Category = TaskCategory.Immediate, // 检查站签到为即刻执行
             PlannedStartTime = plannedTime,
             Status = ExecutionTaskStatus.Pending.ToString(),
             DataPayload = JsonSerializer.Serialize(new
@@ -143,6 +166,7 @@ public class InspectionOrderTaskService
             MedicalOrder = order,
             PatientId = order.PatientId,
             Patient = order.Patient,
+            Category = TaskCategory.Immediate, // 检查完成确认为即刻执行
             PlannedStartTime = plannedTime,
             Status = ExecutionTaskStatus.Pending.ToString(),
             DataPayload = JsonSerializer.Serialize(new
@@ -168,14 +192,15 @@ public class InspectionOrderTaskService
     /// 动态创建任务：查看检查报告（病房护士）
     /// 此方法在报告推送时调用，应在 InspectionService.CreateInspectionReportAsync 中调用
     /// </summary>
-    public ExecutionTask CreateReportReviewTask(InspectionOrder order, long reportId)
+    public async Task<ExecutionTask> CreateReportReviewTask(InspectionOrder order, long reportId)
     {
-        return new ExecutionTask
+        var task = new ExecutionTask
         {
             MedicalOrderId = order.Id,
             MedicalOrder = order,
             PatientId = order.PatientId,
             Patient = order.Patient,
+            Category = TaskCategory.DataCollection, // 查看报告为数据收集类
             PlannedStartTime = DateTime.UtcNow, // 报告到达后立即处理
             Status = ExecutionTaskStatus.Pending.ToString(),
             DataPayload = JsonSerializer.Serialize(new
@@ -193,5 +218,41 @@ public class InspectionOrderTaskService
                 }
             })
         };
+        
+        // 保存任务到数据库
+        await _taskRepo.AddAsync(task);
+        
+        // 生成条形码
+        await GenerateBarcodeForTask(task);
+        
+        return task;
+    }
+    
+    /// <summary>
+    /// 为执行任务生成条形码索引
+    /// </summary>
+    private async Task GenerateBarcodeForTask(ExecutionTask task)
+    {
+        try
+        {
+            var barcodeIndex = new BarcodeIndex
+            {
+                Id = $"ExecutionTasks-{task.Id}", // 使用表名和ID作为唯一标识
+                TableName = "ExecutionTasks",
+                RecordId = task.Id.ToString()
+            };
+
+            // 保存条形码索引到数据库
+            await _barcodeRepo.AddAsync(barcodeIndex);
+            
+            // 生成条形码图片（可选，如果需要立即生成图片的话）
+            // var barcodeBytes = await _barcodeService.GenerateBarcodeAsync(barcodeIndex);
+            // 这里可以选择保存到文件系统或其他地方
+        }
+        catch (Exception)
+        {
+            // 条形码生成失败不应该影响任务的正常创建，所以这里只记录错误
+            // 如果有日志系统，可以记录: LogError(ex, "为ExecutionTask {TaskId} 生成条形码时发生错误", task.Id);
+        }
     }
 }

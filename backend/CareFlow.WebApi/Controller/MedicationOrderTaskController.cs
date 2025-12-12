@@ -59,13 +59,16 @@ public class MedicationOrderTaskController : ControllerBase
                 Id = t.Id,
                 MedicalOrderId = t.MedicalOrderId,
                 PatientId = t.PatientId,
+                Category = t.Category,
                 PlannedStartTime = t.PlannedStartTime,
                 ActualStartTime = t.ActualStartTime,
                 ActualEndTime = t.ActualEndTime,
                 ExecutorStaffId = t.ExecutorStaffId,
+                CompleterNurseId = t.CompleterNurseId,
                 Status = t.Status,
                 IsRolledBack = t.IsRolledBack,
                 DataPayload = t.DataPayload,
+                ResultPayload = t.ResultPayload,
                 ExceptionReason = t.ExceptionReason,
                 CreatedAt = t.CreatedAt
             }).ToList();
@@ -207,13 +210,16 @@ public class MedicationOrderTaskController : ControllerBase
                 Id = t.Id,
                 MedicalOrderId = t.MedicalOrderId,
                 PatientId = t.PatientId,
+                Category = t.Category,
                 PlannedStartTime = t.PlannedStartTime,
                 ActualStartTime = t.ActualStartTime,
                 ActualEndTime = t.ActualEndTime,
                 ExecutorStaffId = t.ExecutorStaffId,
+                CompleterNurseId = t.CompleterNurseId,
                 Status = t.Status,
                 IsRolledBack = t.IsRolledBack,
                 DataPayload = t.DataPayload,
+                ResultPayload = t.ResultPayload,
                 ExceptionReason = t.ExceptionReason,
                 CreatedAt = t.CreatedAt
             }).OrderBy(t => t.PlannedStartTime).ToList();

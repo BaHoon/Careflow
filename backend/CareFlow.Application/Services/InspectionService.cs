@@ -3,6 +3,7 @@ using CareFlow.Application.Interfaces;
 using CareFlow.Application.Services.MedicalOrder;
 using CareFlow.Core.Enums;
 using CareFlow.Core.Interfaces;
+using CareFlow.Core.Models;
 using CareFlow.Core.Models.Medical;
 using CareFlow.Core.Models.Nursing;
 using CareFlow.Core.Models.Organization;
@@ -18,6 +19,8 @@ public class InspectionService : IInspectionService
     private readonly IRepository<Doctor, string> _doctorRepo;
     private readonly IRepository<Nurse, string> _nurseRepo;
     private readonly IRepository<ExecutionTask, long> _taskRepo;
+    private readonly IRepository<BarcodeIndex, string> _barcodeRepo;
+    private readonly IBarcodeService _barcodeService;
 
     public InspectionService(
         IRepository<InspectionOrder, long> orderRepo,
@@ -25,7 +28,9 @@ public class InspectionService : IInspectionService
         IRepository<Patient, string> patientRepo,
         IRepository<Doctor, string> doctorRepo,
         IRepository<Nurse, string> nurseRepo,
-        IRepository<ExecutionTask, long> taskRepo)
+        IRepository<ExecutionTask, long> taskRepo,
+        IRepository<BarcodeIndex, string> barcodeRepo,
+        IBarcodeService barcodeService)
     {
         _orderRepo = orderRepo;
         _reportRepo = reportRepo;
@@ -33,64 +38,11 @@ public class InspectionService : IInspectionService
         _doctorRepo = doctorRepo;
         _nurseRepo = nurseRepo;
         _taskRepo = taskRepo;
+        _barcodeRepo = barcodeRepo;
+        _barcodeService = barcodeService;
     }
 
-    // ===== 检查医嘱相关 =====
-
-    public async Task<long> CreateInspectionOrderAsync(CreateInspectionOrderDto dto)
-    {
-        // 验证患者和医生是否存在
-        var patient = await _patientRepo.GetByIdAsync(dto.PatientId);
-        if (patient == null) throw new Exception("患者不存在");
-
-        var doctor = await _doctorRepo.GetByIdAsync(dto.DoctorId);
-        if (doctor == null) throw new Exception("医生不存在");
-
-        var order = new InspectionOrder
-        {
-            PatientId = dto.PatientId,
-            DoctorId = dto.DoctorId,
-            ItemCode = dto.ItemCode,
-            Location = dto.Location,
-            Source = dto.Source,
-            IsLongTerm = dto.IsLongTerm,
-            PlantEndTime = dto.PlantEndTime,
-            RisLisId = GenerateRisLisId(dto.Source),
-            Status = "Active",  // 基类的通用状态
-            OrderType = "Inspection",
-            InspectionStatus = InspectionOrderStatus.Pending,
-            CreateTime = DateTime.UtcNow
-        };
-
-        await _orderRepo.AddAsync(order);
-        return order.Id;
-    }
-
-    public async Task UpdateAppointmentAsync(UpdateAppointmentDto dto)
-    {
-        // 查询医嘱并包含Patient，用于任务生成
-        var order = await _orderRepo.GetQueryable()
-            .Include(o => o.Patient)
-            .FirstOrDefaultAsync(o => o.Id == dto.OrderId);
-            
-        if (order == null) throw new Exception("检查医嘱不存在");
-
-        order.AppointmentTime = dto.AppointmentTime;
-        order.AppointmentPlace = dto.AppointmentPlace;
-        order.Precautions = dto.Precautions;
-        // 预约信息更新后，状态仍为 Pending，等待患者前往
-
-        await _orderRepo.UpdateAsync(order);
-
-        // ✅ 步骤3完成后：检查站护士打印预约单，自动生成后续护士任务
-        var taskService = new InspectionOrderTaskService();
-        var tasks = taskService.CreateTasks(order);
-        
-        foreach (var task in tasks)
-        {
-            await _taskRepo.AddAsync(task);
-        }
-    }
+    // ===== 检查医嘱状态管理(内部使用) =====
 
     public async Task UpdateInspectionStatusAsync(UpdateInspectionStatusDto dto)
     {
@@ -152,83 +104,6 @@ public class InspectionService : IInspectionService
         };
     }
 
-    public async Task<InspectionGuideDto> GenerateInspectionGuideAsync(long orderId)
-    {
-        var order = await _orderRepo.GetQueryable()
-            .Include(o => o.Patient)
-            .FirstOrDefaultAsync(o => o.Id == orderId);
-
-        if (order == null) throw new Exception("检查医嘱不存在");
-
-        return new InspectionGuideDto
-        {
-            OrderId = order.Id,
-            PatientName = order.Patient.Name,
-            PatientId = order.PatientId,
-            ItemCode = order.ItemCode,
-            AppointmentTime = order.AppointmentTime,
-            AppointmentPlace = order.AppointmentPlace,
-            Precautions = order.Precautions,
-            Location = order.Location
-        };
-    }
-
-    public async Task<List<InspectionOrderDetailDto>> GetPatientInspectionOrdersAsync(string patientId)
-    {
-        var orders = await _orderRepo.GetQueryable()
-            .Include(o => o.Patient)
-            .Include(o => o.Doctor)
-            .Where(o => o.PatientId == patientId)
-            .OrderByDescending(o => o.CreateTime)
-            .ToListAsync();
-
-        return orders.Select(order => new InspectionOrderDetailDto
-        {
-            Id = order.Id,
-            PatientId = order.PatientId,
-            PatientName = order.Patient.Name,
-            DoctorId = order.DoctorId,
-            DoctorName = order.Doctor.Name,
-            ItemCode = order.ItemCode,
-            RisLisId = order.RisLisId,
-            Location = order.Location,
-            Source = order.Source,
-            InspectionStatus = order.InspectionStatus,
-            AppointmentTime = order.AppointmentTime,
-            AppointmentPlace = order.AppointmentPlace,
-            Precautions = order.Precautions,
-            CheckStartTime = order.CheckStartTime,
-            CheckEndTime = order.CheckEndTime,
-            BackToWardTime = order.BackToWardTime,
-            ReportTime = order.ReportTime,
-            CreateTime = order.CreateTime,
-            IsLongTerm = order.IsLongTerm
-        }).ToList();
-    }
-
-    public async Task<List<NurseInspectionBoardDto>> GetNurseBoardDataAsync(string wardId)
-    {
-        var orders = await _orderRepo.GetQueryable()
-            .Include(o => o.Patient)
-            .ThenInclude(p => p.Bed)
-            .Where(o => o.Patient.Bed != null && o.Patient.Bed.WardId == wardId)
-            .Where(o => o.InspectionStatus != InspectionOrderStatus.Cancelled && 
-                       o.InspectionStatus != InspectionOrderStatus.ReportCompleted)
-            .OrderBy(o => o.AppointmentTime)
-            .ToListAsync();
-
-        return orders.Select(order => new NurseInspectionBoardDto
-        {
-            OrderId = order.Id,
-            PatientName = order.Patient.Name,
-            BedNumber = order.Patient.Bed?.Id ?? "未分配",
-            ItemCode = order.ItemCode,
-            AppointmentTime = order.AppointmentTime,
-            Status = order.InspectionStatus,
-            StatusDisplay = GetStatusDisplayText(order.InspectionStatus)
-        }).ToList();
-    }
-
     // ===== 检查报告相关 =====
 
     public async Task<long> CreateInspectionReportAsync(CreateInspectionReportDto dto)
@@ -262,10 +137,9 @@ public class InspectionService : IInspectionService
         order.ReportId = report.Id.ToString();
         await _orderRepo.UpdateAsync(order);
 
-        // ✅ 步骤7完成后：检查站护士发送报告，自动生成"查看报告"任务
-        var taskService = new InspectionOrderTaskService();
-        var reviewTask = taskService.CreateReportReviewTask(order, report.Id);
-        await _taskRepo.AddAsync(reviewTask);
+        // ✅ 步骤7完成后:检查站护士发送报告,自动生成"查看报告"任务
+        var taskService = new InspectionOrderTaskService(_taskRepo, _barcodeRepo, _barcodeService);
+        await taskService.CreateReportReviewTask(order, report.Id);
 
         return report.Id;
     }
@@ -300,45 +174,6 @@ public class InspectionService : IInspectionService
         };
     }
 
-    public async Task<List<InspectionReportDetailDto>> GetReportsByOrderIdAsync(long orderId)
-    {
-        var reports = await _reportRepo.GetQueryable()
-            .Include(r => r.Patient)
-            .Include(r => r.InspectionOrder)
-            .Include(r => r.Reviewer)
-            .Where(r => r.OrderId == orderId)
-            .OrderByDescending(r => r.CreateTime)
-            .ToListAsync();
-
-        return reports.Select(report => new InspectionReportDetailDto
-        {
-            Id = report.Id,
-            OrderId = report.OrderId,
-            PatientId = report.PatientId,
-            PatientName = report.Patient.Name,
-            ItemCode = report.InspectionOrder.ItemCode,
-            RisLisId = report.RisLisId,
-            ReportTime = report.ReportTime,
-            ReportStatus = report.ReportStatus,
-            Findings = report.Findings,
-            Impression = report.Impression,
-            AttachmentUrl = report.AttachmentUrl,
-            ReviewerId = report.ReviewerId,
-            ReviewerName = report.Reviewer?.Name,
-            ReportSource = report.ReportSource,
-            CreateTime = report.CreateTime
-        }).ToList();
-    }
-
-    public async Task UpdateReportStatusAsync(UpdateReportStatusDto dto)
-    {
-        var report = await _reportRepo.GetByIdAsync(dto.ReportId);
-        if (report == null) throw new Exception("检查报告不存在");
-
-        report.ReportStatus = dto.Status;
-        await _reportRepo.UpdateAsync(report);
-    }
-
     // ===== 辅助方法 =====
 
     private string GenerateRisLisId(InspectionSource source)
@@ -359,6 +194,164 @@ public class InspectionService : IInspectionService
             InspectionOrderStatus.ReportCompleted => "报告已出",
             InspectionOrderStatus.Cancelled => "已取消",
             _ => "未知状态"
+        };
+    }
+
+    // ===== 新的工作流方法 =====
+
+    /// <summary>
+    /// 病房护士发送检查申请到检查站
+    /// </summary>
+    public async Task SendInspectionRequestAsync(SendInspectionRequestDto dto)
+    {
+        var order = await _orderRepo.GetByIdAsync(dto.OrderId);
+
+        if (order == null)
+            throw new Exception($"未找到检查医嘱 {dto.OrderId}");
+
+        if (order.InspectionStatus != InspectionOrderStatus.Pending)
+            throw new Exception($"检查医嘱状态异常: {order.InspectionStatus}");
+
+        // 更新医嘱状态并记录检查站ID
+        order.Location = dto.InspectionStationId;
+        await _orderRepo.UpdateAsync(order);
+    }
+
+    /// <summary>
+    /// 检查站护士查看待处理的检查申请列表
+    /// </summary>
+    public async Task<List<InspectionRequestDto>> GetPendingRequestsAsync(string inspectionStationId)
+    {
+        var orders = await _orderRepo.GetQueryable()
+            .Include(o => o.Patient)
+                .ThenInclude(p => p.Bed)
+            .Where(o => o.Location == inspectionStationId)
+            .Where(o => o.InspectionStatus == InspectionOrderStatus.Pending)
+            .Where(o => o.AppointmentTime == null)
+            .OrderBy(o => o.CreateTime)
+            .ToListAsync();
+
+        return orders.Select(o => new InspectionRequestDto
+        {
+            OrderId = o.Id,
+            PatientId = o.PatientId,
+            PatientName = o.Patient.Name,
+            BedNumber = o.Patient.Bed.Id,
+            ItemCode = o.ItemCode,
+            ItemName = GetInspectionItemName(o.ItemCode),
+            CreateTime = o.CreateTime,
+            Status = o.InspectionStatus
+        }).ToList();
+    }
+
+    /// <summary>
+    /// 检查站护士创建预约(自动调用 InspectionOrderTaskService 生成3个执行任务)
+    /// </summary>
+    public async Task CreateAppointmentAsync(CreateAppointmentDto dto)
+    {
+        // 查询医嘱并包含Patient，用于任务生成
+        var order = await _orderRepo.GetQueryable()
+            .Include(o => o.Patient)
+            .FirstOrDefaultAsync(o => o.Id == dto.OrderId);
+
+        if (order == null)
+            throw new Exception($"未找到检查医嘱 {dto.OrderId}");
+
+        // 更新预约信息
+        order.AppointmentTime = dto.AppointmentTime;
+        order.AppointmentPlace = dto.AppointmentPlace;
+        order.Precautions = dto.Precautions;
+        await _orderRepo.UpdateAsync(order);
+
+        // 步骤3完成后:检查站护士创建预约,自动生成3个执行任务
+        var taskService = new InspectionOrderTaskService(_taskRepo, _barcodeRepo, _barcodeService);
+        await taskService.CreateTasks(order);
+    }
+
+    /// <summary>
+    /// 统一扫码处理(根据任务类型自动处理)
+    /// </summary>
+    public async Task<object> ProcessScanAsync(SingleScanDto dto)
+    {
+        var task = await _taskRepo.GetByIdAsync(dto.TaskId);
+
+        if (task == null)
+            throw new Exception($"未找到任务 {dto.TaskId}");
+
+        if (task.PatientId != dto.PatientId)
+            throw new Exception("患者信息不匹配");
+
+        if (task.Status != ExecutionTaskStatus.Pending.ToString())
+            throw new Exception($"任务状态异常: {task.Status}");
+
+        // 根据 DataPayload 中的任务类型判断
+        string payload = task.DataPayload;
+
+        if (payload.Contains("INSP_PRINT"))
+        {
+            // 打印导引单任务
+            task.Status = ExecutionTaskStatus.Completed.ToString();
+            task.ActualStartTime = DateTime.UtcNow;
+            task.ActualEndTime = DateTime.UtcNow;
+            task.ExecutorStaffId = dto.NurseId;
+            await _taskRepo.UpdateAsync(task);
+
+            return new { message = "✅ 导引单已打印", taskType = "print" };
+        }
+        else if (payload.Contains("INSP_CHECKIN"))
+        {
+            // 签到任务
+            var order = await _orderRepo.GetByIdAsync(task.MedicalOrderId);
+            if (order != null)
+            {
+                order.InspectionStatus = InspectionOrderStatus.InProgress;
+                order.CheckStartTime = DateTime.UtcNow;
+                await _orderRepo.UpdateAsync(order);
+            }
+
+            task.Status = ExecutionTaskStatus.Completed.ToString();
+            task.ActualStartTime = DateTime.UtcNow;
+            task.ActualEndTime = DateTime.UtcNow;
+            task.ExecutorStaffId = dto.NurseId;
+            await _taskRepo.UpdateAsync(task);
+
+            return new { message = "✅ 签到成功,患者已开始检查", taskType = "checkin" };
+        }
+        else if (payload.Contains("INSP_COMPLETE"))
+        {
+            // 检查完成任务
+            var order = await _orderRepo.GetByIdAsync(task.MedicalOrderId);
+            if (order != null)
+            {
+                order.InspectionStatus = InspectionOrderStatus.BackToWard;
+                order.CheckEndTime = DateTime.UtcNow;
+                order.BackToWardTime = DateTime.UtcNow;
+                await _orderRepo.UpdateAsync(order);
+            }
+
+            task.Status = ExecutionTaskStatus.Completed.ToString();
+            task.ActualStartTime = DateTime.UtcNow;
+            task.ActualEndTime = DateTime.UtcNow;
+            task.ExecutorStaffId = dto.NurseId;
+            await _taskRepo.UpdateAsync(task);
+
+            return new { message = "✅ 检查完成,患者可返回病房", taskType = "complete" };
+        }
+
+        throw new Exception("未知的任务类型");
+    }
+
+    private string GetInspectionItemName(string itemCode)
+    {
+        // 简单映射,实际应该从数据字典获取
+        return itemCode switch
+        {
+            "CT001" => "头部CT",
+            "MRI001" => "腰椎MRI",
+            "XR001" => "胸部X光",
+            "US001" => "腹部B超",
+            "BLOOD001" => "血常规",
+            _ => itemCode
         };
     }
 }

@@ -94,3 +94,81 @@ public class NurseInspectionBoardDto
     public InspectionOrderStatus Status { get; set; }
     public string StatusDisplay { get; set; } = null!;  // 状态的中文显示
 }
+
+/// <summary>
+/// 病房护士发送检查申请 DTO
+/// </summary>
+public class SendInspectionRequestDto
+{
+    /// <summary>
+    /// 检查医嘱ID
+    /// </summary>
+    public long OrderId { get; set; }
+    
+    /// <summary>
+    /// 目标检查站ID(如放射科、检验科等)
+    /// </summary>
+    public string InspectionStationId { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// 检查站护士创建预约 DTO
+/// </summary>
+public class CreateAppointmentDto
+{
+    /// <summary>
+    /// 检查医嘱ID
+    /// </summary>
+    public long OrderId { get; set; }
+    
+    /// <summary>
+    /// 预约时间
+    /// </summary>
+    public DateTime AppointmentTime { get; set; }
+    
+    /// <summary>
+    /// 预约地点
+    /// </summary>
+    public string AppointmentPlace { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// 注意事项
+    /// </summary>
+    public string? Precautions { get; set; }
+}
+
+/// <summary>
+/// 检查申请记录 DTO(检查站查看用)
+/// </summary>
+public class InspectionRequestDto
+{
+    public long OrderId { get; set; }
+    public string PatientId { get; set; } = string.Empty;
+    public string PatientName { get; set; } = string.Empty;
+    public string BedNumber { get; set; } = string.Empty;
+    public string ItemCode { get; set; } = string.Empty;
+    public string ItemName { get; set; } = string.Empty;
+    public DateTime CreateTime { get; set; }
+    public InspectionOrderStatus Status { get; set; }
+}
+
+/// <summary>
+/// 统一扫码 DTO(用于所有扫码场景)
+/// </summary>
+public class SingleScanDto
+{
+    /// <summary>
+    /// 任务ID(从条形码/二维码解析)
+    /// </summary>
+    public long TaskId { get; set; }
+    
+    /// <summary>
+    /// 患者ID(从手环扫描或任务关联)
+    /// </summary>
+    public string PatientId { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// 扫码护士ID
+    /// </summary>
+    public string NurseId { get; set; } = string.Empty;
+}

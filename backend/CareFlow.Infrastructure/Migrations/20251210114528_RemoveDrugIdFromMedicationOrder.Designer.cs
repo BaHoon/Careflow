@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CareFlow.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251209132559_AddInspectionOrderTaskSupport")]
-    partial class AddInspectionOrderTaskSupport
+    [Migration("20251210114528_RemoveDrugIdFromMedicationOrder")]
+    partial class RemoveDrugIdFromMedicationOrder
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -24,6 +24,39 @@ namespace CareFlow.Infrastructure.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("CareFlow.Core.Models.BarcodeIndex", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ImageGeneratedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ImageMimeType")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ImagePath")
+                        .HasColumnType("text");
+
+                    b.Property<long?>("ImageSize")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("RecordId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("TableName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("BarcodeIndexes");
+                });
 
             modelBuilder.Entity("CareFlow.Core.Models.Medical.Drug", b =>
                 {
@@ -274,6 +307,41 @@ namespace CareFlow.Infrastructure.Migrations
                     b.UseTptMappingStrategy();
                 });
 
+            modelBuilder.Entity("CareFlow.Core.Models.Medical.MedicationOrderItem", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Dosage")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("DrugId")
+                        .IsRequired()
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<long>("MedicationOrderId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Note")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DrugId");
+
+                    b.HasIndex("MedicationOrderId");
+
+                    b.ToTable("MedicationOrderItems");
+                });
+
             modelBuilder.Entity("CareFlow.Core.Models.Nursing.ExecutionTask", b =>
                 {
                     b.Property<long>("Id")
@@ -287,6 +355,12 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.Property<DateTime?>("ActualStartTime")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Category")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("CompleterNurseId")
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreateTime")
                         .HasColumnType("timestamp with time zone");
@@ -321,11 +395,16 @@ namespace CareFlow.Infrastructure.Migrations
                     b.Property<DateTime>("PlannedStartTime")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("ResultPayload")
+                        .HasColumnType("text");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CompleterNurseId");
 
                     b.HasIndex("ExecutorStaffId");
 
@@ -763,14 +842,6 @@ namespace CareFlow.Infrastructure.Migrations
                 {
                     b.HasBaseType("CareFlow.Core.Models.Medical.MedicalOrder");
 
-                    b.Property<string>("Dosage")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("DrugId")
-                        .IsRequired()
-                        .HasColumnType("character varying(50)");
-
                     b.Property<string>("FreqCode")
                         .IsRequired()
                         .HasColumnType("text");
@@ -794,11 +865,8 @@ namespace CareFlow.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("UsageRoute")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasIndex("DrugId");
+                    b.Property<int>("UsageRoute")
+                        .HasColumnType("integer");
 
                     b.ToTable("MedicationOrders", (string)null);
                 });
@@ -833,15 +901,9 @@ namespace CareFlow.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<bool>("HasImplants")
-                        .HasColumnType("boolean");
-
                     b.Property<string>("IncisionSite")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<bool>("NeedBloodPrep")
-                        .HasColumnType("boolean");
 
                     b.Property<float>("PrepProgress")
                         .HasColumnType("real");
@@ -851,8 +913,13 @@ namespace CareFlow.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("RequiredMeds")
-                        .IsRequired()
                         .HasColumnType("jsonb");
+
+                    b.Property<string>("RequiredOperation")
+                        .HasColumnType("text");
+
+                    b.Property<string>("RequiredTalk")
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("ScheduleTime")
                         .HasColumnType("timestamp with time zone");
@@ -940,8 +1007,31 @@ namespace CareFlow.Infrastructure.Migrations
                     b.Navigation("Patient");
                 });
 
+            modelBuilder.Entity("CareFlow.Core.Models.Medical.MedicationOrderItem", b =>
+                {
+                    b.HasOne("CareFlow.Core.Models.Medical.Drug", "Drug")
+                        .WithMany("MedicationOrderItems")
+                        .HasForeignKey("DrugId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CareFlow.Core.Models.Medical.MedicationOrder", "MedicationOrder")
+                        .WithMany("Items")
+                        .HasForeignKey("MedicationOrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Drug");
+
+                    b.Navigation("MedicationOrder");
+                });
+
             modelBuilder.Entity("CareFlow.Core.Models.Nursing.ExecutionTask", b =>
                 {
+                    b.HasOne("CareFlow.Core.Models.Organization.Nurse", "CompleterNurse")
+                        .WithMany()
+                        .HasForeignKey("CompleterNurseId");
+
                     b.HasOne("CareFlow.Core.Models.Organization.Nurse", "Executor")
                         .WithMany()
                         .HasForeignKey("ExecutorStaffId");
@@ -957,6 +1047,8 @@ namespace CareFlow.Infrastructure.Migrations
                         .HasForeignKey("PatientId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("CompleterNurse");
 
                     b.Navigation("Executor");
 
@@ -1093,19 +1185,11 @@ namespace CareFlow.Infrastructure.Migrations
 
             modelBuilder.Entity("CareFlow.Core.Models.Medical.MedicationOrder", b =>
                 {
-                    b.HasOne("CareFlow.Core.Models.Medical.Drug", "Drug")
-                        .WithMany("MedicationOrders")
-                        .HasForeignKey("DrugId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("CareFlow.Core.Models.Medical.MedicalOrder", null)
                         .WithOne()
                         .HasForeignKey("CareFlow.Core.Models.Medical.MedicationOrder", "Id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Drug");
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Medical.OperationOrder", b =>
@@ -1146,7 +1230,7 @@ namespace CareFlow.Infrastructure.Migrations
 
             modelBuilder.Entity("CareFlow.Core.Models.Medical.Drug", b =>
                 {
-                    b.Navigation("MedicationOrders");
+                    b.Navigation("MedicationOrderItems");
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Organization.Department", b =>
@@ -1164,6 +1248,11 @@ namespace CareFlow.Infrastructure.Migrations
             modelBuilder.Entity("CareFlow.Core.Models.Medical.InspectionOrder", b =>
                 {
                     b.Navigation("Reports");
+                });
+
+            modelBuilder.Entity("CareFlow.Core.Models.Medical.MedicationOrder", b =>
+                {
+                    b.Navigation("Items");
                 });
 #pragma warning restore 612, 618
         }
