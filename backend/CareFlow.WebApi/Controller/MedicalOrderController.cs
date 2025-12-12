@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using CareFlow.Application.Services;
 using CareFlow.Application.DTOs.MedicalOrder;
 using CareFlow.Core.Models.Medical;
+using CareFlow.Core.Enums;
 
 namespace CareFlow.WebApi.Controllers
 {
@@ -64,9 +65,7 @@ namespace CareFlow.WebApi.Controllers
                         CreateTime = DateTime.UtcNow,
 
                         // 药品特有字段
-                        DrugId = request.DrugId!,
-                        Dosage = request.Dosage!,
-                        UsageRoute = request.UsageRoute!,
+                        UsageRoute = Enum.Parse<UsageRoute>(request.UsageRoute!),
                         FreqCode = request.FreqCode!,
                         TimingStrategy = request.TimingStrategy ?? "IMMEDIATE",
                         SmartSlotsMask = request.SmartSlotsMask ?? 0,
