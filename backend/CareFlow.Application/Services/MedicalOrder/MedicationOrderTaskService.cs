@@ -184,6 +184,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
             {
                 task.Status = "Cancelled";
                 task.ExceptionReason = $"医嘱停止: {reason}";
+                task.IsRolledBack = true;
                 task.LastModifiedAt = DateTime.UtcNow;
                 
                 await _taskRepository.UpdateAsync(task);

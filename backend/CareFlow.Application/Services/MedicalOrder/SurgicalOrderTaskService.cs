@@ -139,6 +139,7 @@ namespace CareFlow.Application.Services
             foreach (var task in pendingTasks)
             {
                 task.Status = "Cancelled";
+                task.IsRolledBack = true;
                 task.ExceptionReason = reason;
                 task.LastModifiedAt = DateTime.UtcNow;
                 await _taskRepository.UpdateAsync(task);
