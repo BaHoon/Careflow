@@ -590,42 +590,42 @@ namespace CareFlow.Infrastructure.Data
                     Id = "P001", Name = "张三", Gender = "男", IdCard = "110100199001010001",
                     DateOfBirth = new DateTime(1990, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                     Age = 34, Weight = 70.5f, Status = "在院", PhoneNumber = "13800138001",
-                    NursingGrade = 2, BedId = "IM-W01-001", AttendingDoctorId = "D001"
+                    NursingGrade = NursingGrade.Grade2, BedId = "IM-W01-001", AttendingDoctorId = "D001"
                 },
                 new Patient
                 {
                     Id = "P002", Name = "李四", Gender = "女", IdCard = "110100198505050002",
                     DateOfBirth = new DateTime(1985, 5, 5, 0, 0, 0, DateTimeKind.Utc),
                     Age = 39, Weight = 58.0f, Status = "在院", PhoneNumber = "13800138002",
-                    NursingGrade = 1, BedId = "IM-W01-002", AttendingDoctorId = "D001"
+                    NursingGrade = NursingGrade.Special, BedId = "IM-W01-002", AttendingDoctorId = "D001"
                 },
                 new Patient
                 {
                     Id = "P003", Name = "王五", Gender = "男", IdCard = "110100197803030003",
                     DateOfBirth = new DateTime(1978, 3, 3, 0, 0, 0, DateTimeKind.Utc),
                     Age = 46, Weight = 75.2f, Status = "在院", PhoneNumber = "13800138003",
-                    NursingGrade = 3, BedId = "SUR-W01-001", AttendingDoctorId = "D002"
+                    NursingGrade = NursingGrade.Grade3, BedId = "SUR-W01-001", AttendingDoctorId = "D002"
                 },
                 new Patient
                 {
                     Id = "P004", Name = "赵六", Gender = "女", IdCard = "110100199212120004",
                     DateOfBirth = new DateTime(1992, 12, 12, 0, 0, 0, DateTimeKind.Utc),
                     Age = 32, Weight = 62.8f, Status = "在院", PhoneNumber = "13800138004",
-                    NursingGrade = 2, BedId = "SUR-W01-002", AttendingDoctorId = "D002"
+                    NursingGrade = NursingGrade.Grade2, BedId = "SUR-W01-002", AttendingDoctorId = "D002"
                 },
                 new Patient
                 {
                     Id = "P005", Name = "钱七", Gender = "男", IdCard = "110100201501010005",
                     DateOfBirth = new DateTime(2015, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                     Age = 9, Weight = 28.5f, Status = "在院", PhoneNumber = "13800138005",
-                    NursingGrade = 1, BedId = "PED-W01-001", AttendingDoctorId = "D001"
+                    NursingGrade = NursingGrade.Grade1, BedId = "PED-W01-001", AttendingDoctorId = "D001"
                 },
                 new Patient
                 {
                     Id = "P006", Name = "孙八", Gender = "男", IdCard = "110100196802020006",
                     DateOfBirth = new DateTime(1968, 2, 2, 0, 0, 0, DateTimeKind.Utc),
                     Age = 56, Weight = 80.1f, Status = "在院", PhoneNumber = "13800138006",
-                    NursingGrade = 3, BedId = "IM-W02-001", AttendingDoctorId = "D002"
+                    NursingGrade = NursingGrade.Grade3, BedId = "IM-W02-001", AttendingDoctorId = "D002"
                 }
             };
             context.Patients.AddRange(patients);
