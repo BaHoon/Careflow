@@ -61,6 +61,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 // 这行代码会调用我们在 Infrastructure 层写的 DependencyInjection 类
 builder.Services.AddInfrastructure(builder.Configuration);
 
+// [关键] 注册应用层服务
+builder.Services.AddApplication();
+
 // [关键] 配置 CORS (跨域资源共享)
 // 允许你的前端 (Vue) 访问这个后端
 builder.Services.AddCors(options =>
@@ -73,8 +76,6 @@ builder.Services.AddCors(options =>
                   .AllowAnyHeader();  // 允许任何 Header
         });
 });
-
-builder.Services.AddScoped<IBarcodeService, AsposeBarcodeService>();
 
 var app = builder.Build();
 

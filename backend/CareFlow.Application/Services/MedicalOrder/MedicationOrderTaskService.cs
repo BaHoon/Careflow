@@ -184,6 +184,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
             {
                 task.Status = "Cancelled";
                 task.ExceptionReason = $"医嘱停止: {reason}";
+                task.IsRolledBack = true;
                 task.LastModifiedAt = DateTime.UtcNow;
                 
                 await _taskRepository.UpdateAsync(task);
@@ -626,7 +627,8 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
                         id = itemId++,
                         text = $"核对药品：{drugName} {item.Dosage}",
                         isChecked = false,
-                        required = true
+                        required = true,
+                        drugId = item.DrugId
                     });
                 }
             }
@@ -942,9 +944,38 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
     /// </summary>
     private string GenerateRetrieveMedicationDataPayload(MedicationOrder order, DateTime retrieveTime)
     {
+        // 构建 Items 数组，用于 BarcodeMatchingService 的通用核对逻辑
+        var items = new List<object>();
+        var itemId = 1;
+
+        if (order.Items != null && order.Items.Any())
+        {
+            foreach (var item in order.Items)
+            {
+                var drugName = item.Drug?.GenericName ?? 
+                              item.Drug?.TradeName ?? 
+                              $"药品({item.DrugId})";
+                
+                items.Add(new
+                {
+                    id = itemId++,
+                    text = $"核对药品：{drugName} {item.Dosage}",
+                    isChecked = false,
+                    required = true,
+                    drugId = item.DrugId // 关键字段：用于扫码匹配
+                });
+            }
+        }
+
         var payload = new
         {
             TaskType = "RetrieveMedication",
+            Title = "药房取药核对",
+            Description = "请从药房取药并核对药品信息",
+            IsChecklist = true,
+            Items = items, // 符合通用协议的 Items 数组
+            
+            // 保留原有信息供参考
             OrderId = order.Id,
             PatientId = order.PatientId,
             RetrieveTime = retrieveTime,
@@ -956,13 +987,13 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
                 Note = item.Note
             }) ?? Enumerable.Empty<object>(),
             UsageRoute = order.UsageRoute,
-            Instructions = "请从药房取药并核对药品信息",
             TotalItems = order.Items?.Count ?? 0
         };
 
         return JsonSerializer.Serialize(payload, new JsonSerializerOptions 
         { 
             WriteIndented = false,
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         });
     }
