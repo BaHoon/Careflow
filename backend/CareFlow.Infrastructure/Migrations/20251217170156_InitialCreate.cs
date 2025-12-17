@@ -484,6 +484,35 @@ namespace CareFlow.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "MedicationOrderItems",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    MedicalOrderId = table.Column<long>(type: "bigint", nullable: false),
+                    DrugId = table.Column<string>(type: "character varying(50)", nullable: false),
+                    Dosage = table.Column<string>(type: "text", nullable: false),
+                    Note = table.Column<string>(type: "text", nullable: false),
+                    CreateTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MedicationOrderItems", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_MedicationOrderItems_Drugs_DrugId",
+                        column: x => x.DrugId,
+                        principalTable: "Drugs",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_MedicationOrderItems_MedicalOrders_MedicalOrderId",
+                        column: x => x.MedicalOrderId,
+                        principalTable: "MedicalOrders",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "MedicationOrders",
                 columns: table => new
                 {
@@ -595,35 +624,6 @@ namespace CareFlow.Infrastructure.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
-            migrationBuilder.CreateTable(
-                name: "MedicationOrderItems",
-                columns: table => new
-                {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    MedicationOrderId = table.Column<long>(type: "bigint", nullable: false),
-                    DrugId = table.Column<string>(type: "character varying(50)", nullable: false),
-                    Dosage = table.Column<string>(type: "text", nullable: false),
-                    Note = table.Column<string>(type: "text", nullable: false),
-                    CreateTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_MedicationOrderItems", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_MedicationOrderItems_Drugs_DrugId",
-                        column: x => x.DrugId,
-                        principalTable: "Drugs",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_MedicationOrderItems_MedicationOrders_MedicationOrderId",
-                        column: x => x.MedicationOrderId,
-                        principalTable: "MedicationOrders",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
             migrationBuilder.CreateIndex(
                 name: "IX_Beds_WardId",
                 table: "Beds",
@@ -685,9 +685,9 @@ namespace CareFlow.Infrastructure.Migrations
                 column: "DrugId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_MedicationOrderItems_MedicationOrderId",
+                name: "IX_MedicationOrderItems_MedicalOrderId",
                 table: "MedicationOrderItems",
-                column: "MedicationOrderId");
+                column: "MedicalOrderId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_NurseRosters_ShiftId",
@@ -764,6 +764,9 @@ namespace CareFlow.Infrastructure.Migrations
                 name: "MedicationOrderItems");
 
             migrationBuilder.DropTable(
+                name: "MedicationOrders");
+
+            migrationBuilder.DropTable(
                 name: "NurseRosters");
 
             migrationBuilder.DropTable(
@@ -783,9 +786,6 @@ namespace CareFlow.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "Drugs");
-
-            migrationBuilder.DropTable(
-                name: "MedicationOrders");
 
             migrationBuilder.DropTable(
                 name: "ShiftTypes");

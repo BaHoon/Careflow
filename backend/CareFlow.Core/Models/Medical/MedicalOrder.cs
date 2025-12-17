@@ -27,15 +27,19 @@ namespace CareFlow.Core.Models.Medical
         public string OrderType { get; set; } = null!; // 鉴别列
         public string Status { get; set; } = null!;
         public bool IsLongTerm { get; set; }
+
+        // [新增] 包含的药品列表 (例如：500ml盐水 + 0.5mg青霉素)
+        // 移动到基类，以便手术医嘱等也能使用
+        public ICollection<MedicationOrderItem> Items { get; set; } = new List<MedicationOrderItem>();
     }
 
     // --- 新增：医嘱药品明细表 (用于解决多药混合问题) ---
     [Table("MedicationOrderItems")]
     public class MedicationOrderItem : EntityBase<long>
     {
-        public long MedicationOrderId { get; set; }
-        [ForeignKey("MedicationOrderId")] // 这是一个导航属性，指向父医嘱
-        public MedicationOrder MedicationOrder { get; set; } = null!;
+        public long MedicalOrderId { get; set; }
+        [ForeignKey("MedicalOrderId")] // 这是一个导航属性，指向父医嘱
+        public MedicalOrder MedicalOrder { get; set; } = null!;
 
         public string DrugId { get; set; } = null!;
         [ForeignKey("DrugId")]
@@ -57,8 +61,6 @@ namespace CareFlow.Core.Models.Medical
         
         // public string Dosage { get; set; } = null!;           // 剂量
 
-        // [新增] 包含的药品列表 (例如：500ml盐水 + 0.5mg青霉素)
-        public ICollection<MedicationOrderItem> Items { get; set; } = new List<MedicationOrderItem>();
         public UsageRoute UsageRoute { get; set; }               // 用法途径
         public bool IsDynamicUsage { get; set; }     // 是否不定量(如吸氧)
         
