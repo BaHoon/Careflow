@@ -72,6 +72,15 @@ public class BarcodeMatchingService : IBarcodeMatchingService
                 return result;
             }
 
+            // 验证任务类型是否允许扫码匹配患者
+            var allowedCategories = new[] { TaskCategory.Immediate, TaskCategory.Duration, TaskCategory.ResultPending };
+            if (!allowedCategories.Contains(executionTask.Category))
+            {
+                result.IsMatched = false;
+                result.ErrorMessage = $"该任务类型({executionTask.Category})不支持扫码匹配患者";
+                return result;
+            }
+
             // 第四步：验证患者是否存在
             var patient = await GetPatientAsync(patientBarcode.RecordId, result);
             if (patient == null)
@@ -132,6 +141,13 @@ public class BarcodeMatchingService : IBarcodeMatchingService
             if (task == null)
             {
                 result.ErrorMessage = "任务不存在";
+                return result;
+            }
+
+            // 验证任务类型是否允许扫码匹配药品
+            if (task.Category != TaskCategory.Verification)
+            {
+                result.ErrorMessage = $"该任务类型({task.Category})不支持扫码匹配药品";
                 return result;
             }
 
