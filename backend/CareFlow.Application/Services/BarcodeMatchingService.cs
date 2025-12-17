@@ -295,7 +295,7 @@ public class BarcodeMatchingService : IBarcodeMatchingService
         public string Description { get; set; } = string.Empty;
         public bool IsChecklist { get; set; }
         public List<TaskItemDto> Items { get; set; } = new();
-        public object MedicationInfo { get; set; }
+        public object? MedicationInfo { get; set; }
     }
 
     private class TaskItemDto

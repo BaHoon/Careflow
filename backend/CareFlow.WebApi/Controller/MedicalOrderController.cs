@@ -24,7 +24,7 @@ namespace CareFlow.WebApi.Controllers
         public async Task<IActionResult> CreateOrder([FromBody] CreateOrderRequestDto request)
         {
             // 1. 根据 OrderType 决定创建哪个实体
-            MedicalOrder orderEntity = null;
+            MedicalOrder? orderEntity = null;
 
             switch (request.OrderType.ToUpper())
             {
