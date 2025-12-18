@@ -292,20 +292,20 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
         if (order == null)
             throw new ArgumentNullException(nameof(order));
 
-        if (!order.SpecificExecutionTime.HasValue)
+        if (!order.StartTime.HasValue)
         {
-            throw new ArgumentException("SPECIFIC策略必须指定具体执行时间");
+            throw new ArgumentException("SPECIFIC策略必须指定执行时间（StartTime）");
         }
 
         // 只生成未来时间的任务
-        if (order.SpecificExecutionTime.Value <= DateTime.UtcNow)
+        if (order.StartTime.Value <= DateTime.UtcNow)
         {
-            _logger.LogWarning("医嘱 {OrderId} 的指定执行时间 {SpecificTime} 已过期，跳过任务生成", 
-                order.Id, order.SpecificExecutionTime.Value);
+            _logger.LogWarning("医嘱 {OrderId} 的执行时间 {StartTime} 已过期，跳过任务生成", 
+                order.Id, order.StartTime.Value);
             return new List<ExecutionTask>();
         }
 
-        var executionTime = order.SpecificExecutionTime.Value;
+        var executionTime = order.StartTime.Value;
         var tasks = new List<ExecutionTask>();
         
         // 1. 生成取药任务（必须）
@@ -524,10 +524,10 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
         switch (order.TimingStrategy.ToUpper())
         {
             case "SPECIFIC":
-                if (!order.SpecificExecutionTime.HasValue)
-                    validationErrors.Add("SPECIFIC策略必须指定具体执行时间");
-                else if (order.SpecificExecutionTime.Value <= DateTime.UtcNow)
-                    validationErrors.Add("具体执行时间必须是未来时间");
+                if (!order.StartTime.HasValue)
+                    validationErrors.Add("SPECIFIC策略必须指定执行时间（StartTime）");
+                else if (order.StartTime.Value <= DateTime.UtcNow)
+                    validationErrors.Add("执行时间必须是未来时间");
                 break;
 
             case "SLOTS":

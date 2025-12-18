@@ -523,7 +523,6 @@ namespace CareFlow.Infrastructure.Migrations
                     IntervalHours = table.Column<decimal>(type: "numeric", nullable: true),
                     StartTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     TimingStrategy = table.Column<string>(type: "text", nullable: false),
-                    SpecificExecutionTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     SmartSlotsMask = table.Column<int>(type: "integer", nullable: false),
                     IntervalDays = table.Column<int>(type: "integer", nullable: false)
                 },

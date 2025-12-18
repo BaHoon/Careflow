@@ -149,6 +149,11 @@ CREATE TABLE "MedicalOrders" (
 );
 
 -- 11. MedicationOrders (Derived)
+-- StartTime 字段说明:
+--   - IMMEDIATE: 不使用（系统自动使用当前时间）
+--   - SPECIFIC:  唯一的执行时刻（仅执行一次）
+--   - CYCLIC:    首次执行时间（后续按 IntervalHours 递增）
+--   - SLOTS:     起始日期（与 SmartSlotsMask 结合使用）
 CREATE TABLE "MedicationOrders" (
     "Id" bigint NOT NULL,
     "UsageRoute" integer NOT NULL,
@@ -156,7 +161,6 @@ CREATE TABLE "MedicationOrders" (
     "IntervalHours" numeric(18,2),
     "StartTime" timestamp with time zone,
     "TimingStrategy" text NOT NULL,
-    "SpecificExecutionTime" timestamp with time zone,
     "SmartSlotsMask" integer NOT NULL,
     "IntervalDays" integer NOT NULL,
     CONSTRAINT "PK_MedicationOrders" PRIMARY KEY ("Id"),

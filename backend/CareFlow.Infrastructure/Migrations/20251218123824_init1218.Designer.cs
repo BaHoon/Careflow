@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CareFlow.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251218121606_init1218")]
+    [Migration("20251218123824_init1218")]
     partial class init1218
     {
         /// <inheritdoc />
@@ -856,9 +856,6 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.Property<int>("SmartSlotsMask")
                         .HasColumnType("integer");
-
-                    b.Property<DateTime?>("SpecificExecutionTime")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("StartTime")
                         .HasColumnType("timestamp with time zone");

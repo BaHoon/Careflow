@@ -77,12 +77,17 @@ namespace CareFlow.Core.Models.Medical
         /// </summary>
         public decimal? IntervalHours { get; set; }
         
-        // ER图中特有的起止时间 (可能与基类重叠，若业务需要独立控制生效期则保留)
+        /// <summary>
+        /// 开始/执行时间
+        /// - IMMEDIATE: 不使用（系统自动使用当前时间）
+        /// - SPECIFIC:  唯一的执行时刻（仅执行一次）
+        /// - CYCLIC:    首次执行时间（后续按 IntervalHours 递增）
+        /// - SLOTS:     起始日期（与 SmartSlotsMask 结合使用）
+        /// </summary>
         public DateTime? StartTime { get; set; }     
         // public DateTime? EndTime { get; set; }    // 基类已有 EndTime，这里注释掉避免冲突，或者使用 new 覆盖
         
         public string TimingStrategy { get; set; } = null!;  // 策略类型(IMMEDIATE/SPECIFIC/CYCLIC/SLOTS)
-        public DateTime? SpecificExecutionTime { get; set; } // 指定执行时间
         
         public int SmartSlotsMask { get; set; }      // 时段位掩码(Bitmask)
         public int IntervalDays { get; set; }        // 间隔天数(1=每天, 2=隔天)

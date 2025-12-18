@@ -677,22 +677,22 @@ namespace CareFlow.Infrastructure.Data
                     }
                 },
 
-                // P003: 吸氧 - 长期吸入 (CYCLIC策略，每6小时检查一次)
+                // P003: 头孢曲松钠 - 静脉注射抗感染治疗 (CYCLIC策略，每8小时一次)
                 new MedicationOrder
                 {
                     PatientId = "P003", DoctorId = "D002", NurseId = "N002",
                     CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(3),
                     OrderType = "MedicationOrder", Status = "Accepted", IsLongTerm = true,
-                    UsageRoute = UsageRoute.Inhalation,
-                    IsDynamicUsage = true,
-                    IntervalHours = 6m, // 每6小时检查一次吸氧情况
+                    UsageRoute = UsageRoute.IVP, // 静脉推注
+                    IsDynamicUsage = false,
+                    IntervalHours = 8m, // 每8小时给药一次
                     StartTime = currentTime.AddDays(-1).Date.AddHours(8), // 从早上8点开始
                     TimingStrategy = "CYCLIC",
                     SmartSlotsMask = 0, // CYCLIC策略不依赖时段
                     IntervalDays = 1,
                     Items = new List<MedicationOrderItem>
                     {
-                        new MedicationOrderItem { DrugId = "OXYGEN001", Dosage = "2L/min", Note = "持续吸氧" }
+                        new MedicationOrderItem { DrugId = "DRUG008", Dosage = "1.0g", Note = "溶于100ml生理盐水缓慢静推" }
                     }
                 },
 
@@ -738,7 +738,7 @@ namespace CareFlow.Infrastructure.Data
                     }
                 },
 
-                // P006: 杜冷丁 - 肌肉注射 (SPECIFIC策略，按需给药)
+                // P006: 杜冷丁 - 肌肉注射 (SPECIFIC策略, 指定时间给药)
                 new MedicationOrder
                 {
                     PatientId = "P006", DoctorId = "D002",
@@ -747,11 +747,10 @@ namespace CareFlow.Infrastructure.Data
                     UsageRoute = UsageRoute.IM,
                     IsDynamicUsage = true,
                     IntervalHours = null, // SPECIFIC策略不需要
-                    StartTime = currentTime.AddDays(-1),
+                    StartTime = currentTime.AddHours(2), // SPECIFIC策略：唯一执行时间
                     TimingStrategy = "SPECIFIC",
                     SmartSlotsMask = 0, // SPECIFIC策略不依赖时段
                     IntervalDays = 0,
-                    SpecificExecutionTime = currentTime.AddHours(2),
                     Items = new List<MedicationOrderItem>
                     {
                         new MedicationOrderItem { DrugId = "DRUG006", Dosage = "50mg", Note = "剧烈疼痛时使用" }

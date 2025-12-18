@@ -854,9 +854,6 @@ namespace CareFlow.Infrastructure.Migrations
                     b.Property<int>("SmartSlotsMask")
                         .HasColumnType("integer");
 
-                    b.Property<DateTime?>("SpecificExecutionTime")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<DateTime?>("StartTime")
                         .HasColumnType("timestamp with time zone");
 
