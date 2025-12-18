@@ -51,7 +51,7 @@
               <div 
                 v-for="patient in filteredPatients" 
                 :key="patient.id"
-                :class="['patient-card', { active: patient.id === selectedPatient.id }]"
+                :class="['patient-card', { active: patient.id === selectedPatient?.id }]"
                 @click="handlePatientClick(patient)"
               >
                 <div class="bed-badge">{{ patient.bedId }}</div>
@@ -120,10 +120,10 @@
                 <div class="form-row" v-if="currentOrder.isLongTerm">
                   <label class="required">执行策略：</label>
                   <el-radio-group v-model="currentOrder.timingStrategy" @change="onStrategyChange">
-                    <el-radio label="Slots">
+                    <el-radio label="SLOTS">
                       <i class="el-icon-clock"></i> 按时段执行 (如早餐前、午餐后)
                     </el-radio>
-                    <el-radio label="Cyclic">
+                    <el-radio label="CYCLIC">
                       <i class="el-icon-refresh"></i> 固定间隔执行 (如每6小时一次)
                     </el-radio>
                   </el-radio-group>
@@ -131,11 +131,26 @@
 
                 <!-- 步骤3：根据策略显示对应配置 -->
                 <div class="strategy-config">
+                  <!-- 3.0 IMMEDIATE策略：显示开始执行时间 -->
+                  <div class="form-row" v-if="currentOrder.timingStrategy === 'IMMEDIATE'">
+                    <label class="required">开始执行时间：</label>
+                    <el-date-picker 
+                      v-model="currentOrder.startTime"
+                      type="datetime"
+                      placeholder="立即执行时间"
+                      :disabled="true"
+                      format="YYYY-MM-DD HH:mm"
+                      value-format="YYYY-MM-DDTHH:mm:ss"
+                      style="width: 280px"
+                    />
+                    <span class="tip-text">立即执行，时间不可修改</span>
+                  </div>
+
                   <!-- 3.1 SPECIFIC策略：日期时间选择器 -->
-                  <div class="form-row" v-if="currentOrder.timingStrategy === 'Specific'">
+                  <div class="form-row" v-if="currentOrder.timingStrategy === 'SPECIFIC'">
                     <label class="required">指定执行时间：</label>
                     <el-date-picker 
-                      v-model="currentOrder.specificExecutionTime"
+                      v-model="currentOrder.startTime"
                       type="datetime"
                       placeholder="选择具体日期和时间"
                       :disabled-date="disablePastDates"
@@ -145,44 +160,115 @@
                     />
                   </div>
 
-                  <!-- 3.2 CYCLIC策略：间隔天数 -->
-                  <div class="form-row" v-if="currentOrder.timingStrategy === 'Cyclic'">
-                    <label class="required">间隔天数：</label>
-                    <el-input-number 
-                      v-model="currentOrder.intervalDays" 
-                      :min="1" 
-                      :max="30"
-                      placeholder="每隔N天执行"
-                      style="width: 150px"
-                    />
-                    <span class="tip-text">如填1表示每天，填2表示隔天</span>
+                  <!-- 3.2 CYCLIC策略：开始时间 + 间隔小时 + 间隔天数 -->
+                  <div v-if="currentOrder.timingStrategy === 'CYCLIC'">
+                    <div class="form-row">
+                      <label class="required">首次执行时间：</label>
+                      <el-date-picker 
+                        v-model="currentOrder.startTime"
+                        type="datetime"
+                        placeholder="选择首次执行时间"
+                        :disabled-date="disablePastDates"
+                        format="YYYY-MM-DD HH:mm"
+                        value-format="YYYY-MM-DDTHH:mm:ss"
+                        style="width: 280px"
+                      />
+                    </div>
+                    <div class="form-row">
+                      <label class="required">间隔小时数：</label>
+                      <el-input-number 
+                        v-model="currentOrder.intervalHours" 
+                        :min="0.5" 
+                        :max="168"
+                        :step="0.5"
+                        :precision="1"
+                        placeholder="执行间隔（小时）"
+                        style="width: 150px"
+                      />
+                      <span class="tip-text">每次执行的间隔时间（小时），如8表示每8小时一次</span>
+                    </div>
+                    <div class="form-row">
+                      <label class="required">间隔天数：</label>
+                      <el-input-number 
+                        v-model="currentOrder.intervalDays" 
+                        :min="1" 
+                        :max="30"
+                        placeholder="间隔天数"
+                        style="width: 150px"
+                      />
+                      <span class="tip-text">1=每天执行，2=隔天执行（通常设为1）</span>
+                    </div>
                   </div>
 
-                  <!-- 3.3 长期医嘱：开始时间 -->
-                  <div class="form-row" v-if="currentOrder.isLongTerm">
-                    <label class="required">开始时间：</label>
-                    <el-date-picker 
-                      v-model="currentOrder.startTime"
-                      type="datetime"
-                      placeholder="长期医嘱生效开始时间"
-                      :disabled-date="disablePastDates"
-                      format="YYYY-MM-DD HH:mm"
-                      value-format="YYYY-MM-DDTHH:mm:ss"
-                      style="width: 280px"
-                    />
+                  <!-- 3.3 SLOTS策略：开始执行时间 -->
+                  <div v-if="currentOrder.timingStrategy === 'SLOTS'">
+                    <div class="form-row">
+                      <label class="required">开始执行时间：</label>
+                      <el-date-picker 
+                        v-model="currentOrder.startTime"
+                        type="datetime"
+                        placeholder="选择开始执行时间"
+                        :disabled-date="disablePastDates"
+                        format="YYYY-MM-DD HH:mm"
+                        value-format="YYYY-MM-DDTHH:mm:ss"
+                        style="width: 280px"
+                      />
+                      <span class="tip-text">从什么时间开始按时段执行</span>
+                    </div>
                   </div>
 
-                  <!-- 3.4 长期医嘱：计划结束时间(可选) -->
-                  <div class="form-row" v-if="currentOrder.isLongTerm">
-                    <label>计划结束时间：</label>
+                  <!-- 3.4 医嘱结束时间（所有医嘱必填） -->
+                  <div class="form-row">
+                    <label class="required">{{ currentOrder.isLongTerm ? '医嘱结束时间' : '医嘱开始时间' }}：</label>
                     <el-date-picker 
                       v-model="currentOrder.plantEndTime"
                       type="datetime"
-                      placeholder="不填表示持续至医嘱停止"
+                      :placeholder="currentOrder.isLongTerm ? '选择医嘱结束时间' : '选择医嘱开始时间'"
+                      :disabled="currentOrder.timingStrategy === 'IMMEDIATE'"
+                      :disabled-date="disablePastDates"
+                      :disabled-time="currentOrder.isLongTerm ? disableTimesBeforeStart : undefined"
                       format="YYYY-MM-DD HH:mm"
                       value-format="YYYY-MM-DDTHH:mm:ss"
                       style="width: 280px"
                     />
+                    <span class="tip-text" v-if="currentOrder.timingStrategy === 'IMMEDIATE'">立即执行，时间不可修改</span>
+                    <span class="tip-text" v-else-if="currentOrder.isLongTerm">不能早于开始执行时间</span>
+                  </div>
+
+                  <!-- 3.5 SLOTS策略：时段选择 + 间隔天数 -->
+                  <div v-if="currentOrder.timingStrategy === 'SLOTS'">
+                    <div class="form-row">
+                      <label class="required">执行时段：</label>
+                      <div class="time-slots-selector" style="margin-top: 10px;">
+                        <div class="slot-category">
+                          <div class="category-title">🍽️ 三餐前后及睡前</div>
+                          <div class="slots-grid">
+                            <div v-for="slot in allTimeSlots" :key="slot.id" 
+                                 :class="['slot-tag', { selected: isSlotSelected(slot.id) }]"
+                                 @click="toggleSlot(slot.id)">
+                              <i class="el-icon-check" v-if="isSlotSelected(slot.id)"></i>
+                              {{ slot.slotName }}
+                              <span class="time-hint">{{ formatTime(slot.defaultTime) }}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="form-row">
+                      <label class="required">间隔天数：</label>
+                      <el-input-number 
+                        v-model="currentOrder.intervalDays"
+                        :min="1"
+                        :max="30"
+                        placeholder="间隔天数" 
+                        style="width: 150px"
+                      />
+                      <span class="tip-text">1=每天执行，2=隔天执行，依此类推</span>
+                    </div>
+                    <div class="freq-reminder" v-if="currentOrder.smartSlotsMask > 0">
+                      <i class="el-icon-info"></i> 
+                      已选择 <strong>{{ getSelectedSlotsCount() }}</strong> 个时段，每 <strong>{{ currentOrder.intervalDays }}</strong> 天执行 <strong>{{ getSelectedSlotsCount() }}</strong> 次
+                    </div>
                   </div>
                 </div>
               </div>
@@ -261,66 +347,10 @@
                       <el-option label="皮内注射 (ID)" :value="12" />
                     </el-select>
                   </div>
-                  <div class="grid-item">
-                    <label class="required">执行频次：</label>
-                    <el-select v-model="currentOrder.freqCode" @change="onFreqChange" placeholder="请选择" style="width: 100%">
-                      <el-option label="单次给药 (ONCE)" value="ONCE" />
-                      <el-option label="每日一次 (QD)" value="QD" />
-                      <el-option label="每日两次 (BID)" value="BID" />
-                      <el-option label="每日三次 (TID)" value="TID" />
-                      <el-option label="每日四次 (QID)" value="QID" />
-                      <el-option label="每6小时一次 (Q6H)" value="Q6H" />
-                      <el-option label="每8小时一次 (Q8H)" value="Q8H" />
-                      <el-option label="每12小时一次 (Q12H)" value="Q12H" />
-                      <el-option label="需要时 (PRN)" value="PRN" />
-                      <el-option label="持续给药 (CONT)" value="CONT" />
-                    </el-select>
-                  </div>
-                </div>
-                <div class="freq-description" v-if="currentOrder.freqCode">
-                  <i class="el-icon-info"></i> {{ getFreqDescription(currentOrder.freqCode) }}
                 </div>
               </div>
 
-              <!-- 步骤6：时段选择器 (仅SLOTS策略显示) -->
-              <div class="form-section" v-if="currentOrder.timingStrategy === 'Slots'">
-                <div class="section-header">
-                  <i class="el-icon-date"></i>
-                  <span>执行时段配置</span>
-                </div>
-                <div class="time-slots-selector">
-                  <div class="slot-category">
-                    <div class="category-title">📅 餐食相关时段</div>
-                    <div class="slots-grid">
-                      <div v-for="slot in mealTimeSlots" :key="slot.id" 
-                           :class="['slot-tag', { selected: isSlotSelected(slot.id) }]"
-                           @click="toggleSlot(slot.id)">
-                        <i class="el-icon-check" v-if="isSlotSelected(slot.id)"></i>
-                        {{ slot.slotName }}
-                        <span class="time-hint">{{ formatTime(slot.defaultTime) }}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="slot-category">
-                    <div class="category-title">⏰ 一般时段</div>
-                    <div class="slots-grid">
-                      <div v-for="slot in generalTimeSlots" :key="slot.id" 
-                           :class="['slot-tag', { selected: isSlotSelected(slot.id) }]"
-                           @click="toggleSlot(slot.id)">
-                        <i class="el-icon-check" v-if="isSlotSelected(slot.id)"></i>
-                        {{ slot.slotName }}
-                        <span class="time-hint">{{ formatTime(slot.defaultTime) }}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="freq-reminder" v-if="currentOrder.smartSlotsMask > 0">
-                    <i class="el-icon-info"></i> 
-                    已选择 {{ getSelectedSlotsCount() }} 个时段，配合频次 <strong>{{ currentOrder.freqCode }}</strong> 将生成对应的执行任务
-                  </div>
-                </div>
-              </div>
-
-              <!-- 步骤7：医嘱备注 -->
+              <!-- 步骤6：医嘱备注 -->
               <div class="form-section">
                 <div class="form-row">
                   <label>医嘱备注：</label>
@@ -386,8 +416,6 @@
                 <!-- 基本信息（始终显示） -->
                 <div class="order-basic-info">
                   <span class="info-item">{{ getRouteName(o.usageRoute) }}</span>
-                  <span class="info-divider">|</span>
-                  <span class="info-item">{{ o.freqCode }}</span>
                 </div>
 
                 <!-- 详细信息（可展开） -->
@@ -459,20 +487,58 @@ const types = [
   { label: '手术/操作', val: 'SurgicalOrder' }
 ];
 
-// 核心医嘱对象（对应 MedicationOrder.cs 结构）
+// 核心医嘱对象（完全对应后端 MedicationOrder.cs 结构）
 const currentOrder = reactive({
-  isLongTerm: true,
+  // 基础信息
+  isLongTerm: true,  // 医嘱类型：true=长期，false=临时
   items: [{ drugId: '', dosage: '', note: '' }],
   usageRoute: 20,
-  freqCode: 'QD',
-  smartSlotsMask: 0,
-  timingStrategy: 'Slots',  // 默认策略
-  specificExecutionTime: null,
-  startTime: null,
-  plantEndTime: null,
-  intervalDays: 1,
+  
+  // 时间策略核心字段（与后端完全对齐）
+  timingStrategy: '',      // 'IMMEDIATE' | 'SPECIFIC' | 'CYCLIC' | 'SLOTS'
+  startTime: null,         // DateTime? - SPECIFIC/CYCLIC/SLOTS 需要
+  plantEndTime: null,      // DateTime - 所有策略必填
+  intervalHours: null,     // decimal? - 仅 CYCLIC 使用
+  intervalDays: 1,         // int - CYCLIC/SLOTS 使用
+  smartSlotsMask: 0,       // int - 仅 SLOTS 使用
+  
   remarks: ''
 });
+
+// 策略配置映射
+const strategyConfig = {
+  // 临时医嘱可选策略
+  temporary: [
+    {
+      value: 'IMMEDIATE',
+      label: '立即执行',
+      icon: '⚡',
+      description: '下达后立即执行，适用于紧急用药'
+    },
+    {
+      value: 'SPECIFIC',
+      label: '指定时间',
+      icon: '📅',
+      description: '指定具体执行时间，适用于预约用药'
+    }
+  ],
+  
+  // 长期医嘱可选策略
+  longTerm: [
+    {
+      value: 'SLOTS',
+      label: '时段执行',
+      icon: '🕐',
+      description: '按医院标准时段执行（如：早中晚餐前后）'
+    },
+    {
+      value: 'CYCLIC',
+      label: '周期执行',
+      icon: '🔄',
+      description: '按固定时间间隔执行（如：每8小时一次）'
+    }
+  ]
+};
 
 const orderCart = ref([]);
 const drugDict = ref([]);
@@ -490,15 +556,8 @@ const rightCollapsed = ref(false);
 // 医嘱详情展开状态
 const expandedOrders = ref([]);
 
-// 计算属性：餐食相关时段
-const mealTimeSlots = computed(() => 
-  timeSlotDict.value.filter(s => [1, 2, 4, 8, 16, 32, 64, 128].includes(s.id))
-);
-
-// 计算属性：一般时段
-const generalTimeSlots = computed(() => 
-  timeSlotDict.value.filter(s => [256, 512, 1024, 2048, 4096, 8192, 16384, 32768].includes(s.id))
-);
+// 计算属性：所有时段（三餐前后+睡前）
+const allTimeSlots = computed(() => timeSlotDict.value);
 
 // 计算属性：过滤后的患者列表
 const filteredPatients = computed(() => {
@@ -517,58 +576,105 @@ const gridTemplateColumns = computed(() => {
   return `${left} 1fr ${right}`;
 });
 
-// 计算属性：表单验证
+// 计算属性：表单验证（基础版本，步骤5会完善）
 const isFormValid = computed(() => {
   // 基础校验
   if (!currentOrder.items.some(i => i.drugId && i.dosage)) return false;
-  if (!currentOrder.usageRoute || !currentOrder.freqCode) return false;
+  if (!currentOrder.usageRoute) return false;
+  if (!currentOrder.timingStrategy) return false;
+  if (!currentOrder.plantEndTime) return false;
 
-  // 策略特定校验
-  switch (currentOrder.timingStrategy) {
-    case 'Specific':
-      if (!currentOrder.specificExecutionTime) return false;
-      if (new Date(currentOrder.specificExecutionTime) <= new Date()) return false;
-      break;
-    case 'Slots':
-      if (currentOrder.smartSlotsMask === 0) return false;
-      break;
-    case 'Cyclic':
-      if (!currentOrder.intervalDays || currentOrder.intervalDays < 1) return false;
-      break;
-  }
-
-  // 长期医嘱必须有开始时间
-  if (currentOrder.isLongTerm && !currentOrder.startTime) return false;
+  // 策略特定校验（简化版）
+  const strategy = currentOrder.timingStrategy.toUpperCase();
+  
+  if (strategy === 'SPECIFIC' && !currentOrder.startTime) return false;
+  if (strategy === 'CYCLIC' && (!currentOrder.startTime || !currentOrder.intervalHours)) return false;
+  if (strategy === 'SLOTS' && (!currentOrder.startTime || currentOrder.smartSlotsMask <= 0)) return false;
 
   return true;
 });
 
+// 计算属性：根据医嘱类型返回可用策略
+const availableStrategies = computed(() => {
+  return currentOrder.isLongTerm 
+    ? strategyConfig.longTerm 
+    : strategyConfig.temporary;
+});
+
 // 医嘱类型切换
 const onOrderTypeChange = (isLongTerm) => {
-  if (isLongTerm) {
-    currentOrder.timingStrategy = 'Slots';
-    currentOrder.startTime = new Date().toISOString();
-    currentOrder.intervalDays = 1;
-    currentOrder.specificExecutionTime = null;
-  } else {
-    currentOrder.timingStrategy = 'Immediate';
-    currentOrder.startTime = null;
-    currentOrder.plantEndTime = null;
-    currentOrder.smartSlotsMask = 0;
-  }
-};
-
-// 策略切换
-const onStrategyChange = () => {
-  // 清空相关字段
-  currentOrder.specificExecutionTime = null;
-  currentOrder.smartSlotsMask = 0;
+  currentOrder.isLongTerm = isLongTerm;
+  
+  // 重置策略选择
+  currentOrder.timingStrategy = '';
+  
+  // 清空所有时间相关字段
+  currentOrder.startTime = null;
+  currentOrder.plantEndTime = null;
+  currentOrder.intervalHours = null;
   currentOrder.intervalDays = 1;
+  currentOrder.smartSlotsMask = 0;
 };
 
-// 频次改变
-const onFreqChange = () => {
-  console.log('频次已更改为:', currentOrder.freqCode);
+// 策略选择处理函数（智能设置默认值）
+const selectStrategy = (strategy) => {
+  currentOrder.timingStrategy = strategy;
+  
+  // 重置所有策略相关字段
+  currentOrder.startTime = null;
+  currentOrder.plantEndTime = null;
+  currentOrder.intervalHours = null;
+  currentOrder.intervalDays = 1;
+  currentOrder.smartSlotsMask = 0;
+  
+  // 根据策略设置智能默认值
+  const now = new Date();
+  
+  switch (strategy.toUpperCase()) {
+    case 'IMMEDIATE':
+      // 立即执行：开始时间和结束时间都为当前时间（临时医嘱）
+      const now = new Date();
+      currentOrder.startTime = now.toISOString();
+      currentOrder.plantEndTime = now.toISOString();
+      break;
+      
+    case 'SPECIFIC':
+      // 指定时间：默认为当前时间
+      currentOrder.startTime = new Date().toISOString();
+      
+      const specificEnd = new Date();
+      specificEnd.setDate(specificEnd.getDate() + 1); // 明天结束
+      currentOrder.plantEndTime = specificEnd.toISOString();
+      break;
+      
+    case 'CYCLIC':
+      // 周期执行：默认每8小时，从当前时间开始
+      currentOrder.startTime = new Date().toISOString();
+      currentOrder.intervalHours = 8;
+      currentOrder.intervalDays = 1;
+      
+      const cyclicEnd = new Date();
+      cyclicEnd.setDate(cyclicEnd.getDate() + 7); // 7天后
+      currentOrder.plantEndTime = cyclicEnd.toISOString();
+      break;
+      
+    case 'SLOTS':
+      // 时段执行：默认从当前时间开始，每天执行
+      currentOrder.startTime = new Date().toISOString();
+      currentOrder.intervalDays = 1;
+      
+      const slotsEnd = new Date();
+      slotsEnd.setDate(slotsEnd.getDate() + 7); // 7天后
+      currentOrder.plantEndTime = slotsEnd.toISOString();
+      break;
+  }
+  
+  ElMessage.success(`已切换至「${getStrategyLabel(strategy)}」策略`);
+};
+
+// 兼容旧的onStrategyChange调用（如果模板中还有使用）
+const onStrategyChange = () => {
+  selectStrategy(currentOrder.timingStrategy);
 };
 
 // 时段操作
@@ -584,7 +690,13 @@ const getSelectedSlotsCount = () => {
   let count = 0;
   let mask = currentOrder.smartSlotsMask;
   while (mask) {
-   折叠切换
+    count += mask & 1;
+    mask >>= 1;
+  }
+  return count;
+};
+
+// 折叠切换
 const toggleLeft = () => {
   leftCollapsed.value = !leftCollapsed.value;
 };
@@ -595,32 +707,22 @@ const toggleRight = () => {
 
 // 患者切换
 const handlePatientClick = (patient) => {
-  if (patient.id === selectedPatient.value.id) return;
+  if (patient.id === selectedPatient.value?.id) return;
   
   const hasUnsubmittedData = 
     currentOrder.items.some(i => i.drugId && i.dosage) || 
     orderCart.value.length > 0;
   
   if (hasUnsubmittedData) {
-    ElMessageBox.confirm(
-      '切换患者将清空当前表单和待提交清单，是否继续？',
-      '确认切换',
-      {
-        confirmButtonText: '确认切换',
-        cancelButtonText: '取消',
-        type: 'warning',
-      }
-    ).then(() => {
-      selectedPatient.value = { ...patient };
+    if (confirm('切换患者将清空当前表单和待提交清单，是否继续？')) {
+      selectedPatient.value = patient;
       clearForm();
       orderCart.value = [];
       expandedOrders.value = [];
       ElMessage.success(`已切换至患者：${patient.name} (${patient.bedId})`);
-    }).catch(() => {
-      ElMessage.info('已取消切换');
-    });
+    }
   } else {
-    selectedPatient.value = { ...patient };
+    selectedPatient.value = patient;
     ElMessage.success(`已切换至患者：${patient.name} (${patient.bedId})`);
   }
 };
@@ -633,12 +735,6 @@ const toggleOrderDetail = (index) => {
   } else {
     expandedOrders.value.push(index);
   }
-};
-
-//  count += mask & 1;
-    mask >>= 1;
-  }
-  return count;
 };
 
 // 药品操作
@@ -656,12 +752,12 @@ const removeDrug = (index) => {
 const clearForm = () => {
   currentOrder.items = [{ drugId: '', dosage: '', note: '' }];
   currentOrder.usageRoute = 20;
-  currentOrder.freqCode = 'QD';
-  currentOrder.smartSlotsMask = 0;
-  currentOrder.specificExecutionTime = null;
-  currentOrder.startTime = currentOrder.isLongTerm ? new Date().toISOString() : null;
+  currentOrder.timingStrategy = '';
+  currentOrder.startTime = null;
   currentOrder.plantEndTime = null;
+  currentOrder.intervalHours = null;
   currentOrder.intervalDays = 1;
+  currentOrder.smartSlotsMask = 0;
   currentOrder.remarks = '';
   ElMessage.success('表单已清空');
 };
@@ -718,6 +814,66 @@ const disablePastDates = (time) => {
   return time.getTime() < Date.now() - 24 * 60 * 60 * 1000;
 };
 
+const disablePastTime = (date) => {
+  const now = new Date();
+  const selectedDate = new Date(date);
+  
+  // 如果选择的是今天，禁用过去的时间
+  if (selectedDate.toDateString() === now.toDateString()) {
+    return {
+      disabledHours: () => {
+        const hours = [];
+        for (let i = 0; i < now.getHours(); i++) {
+          hours.push(i);
+        }
+        return hours;
+      },
+      disabledMinutes: (hour) => {
+        if (hour === now.getHours()) {
+          const minutes = [];
+          for (let i = 0; i <= now.getMinutes(); i++) {
+            minutes.push(i);
+          }
+          return minutes;
+        }
+        return [];
+      }
+    };
+  }
+  return {};
+};
+
+const disableTimesBeforeStart = (date) => {
+  if (!currentOrder.startTime) return {};
+  
+  const startTime = new Date(currentOrder.startTime);
+  const selectedDate = new Date(date);
+  
+  // 如果选择的日期与开始日期是同一天，禁用开始时间之前的时间
+  if (selectedDate.toDateString() === startTime.toDateString()) {
+    return {
+      disabledHours: () => {
+        const hours = [];
+        for (let i = 0; i < startTime.getHours(); i++) {
+          hours.push(i);
+        }
+        return hours;
+      },
+      disabledMinutes: (hour) => {
+        if (hour === startTime.getHours()) {
+          const minutes = [];
+          for (let i = 0; i <= startTime.getMinutes(); i++) {
+            minutes.push(i);
+          }
+          return minutes;
+        }
+        return [];
+      }
+    };
+  }
+  return {};
+};
+
 const formatTime = (timeSpan) => {
   if (!timeSpan) return '';
   // timeSpan 格式: "07:00:00"
@@ -727,6 +883,26 @@ const formatTime = (timeSpan) => {
 
 const getDrugName = (id) => {
   return drugDict.value.find(d => d.id === id)?.genericName || id;
+};
+
+const formatDateTime = (datetime) => {
+  if (!datetime) return '';
+  const date = new Date(datetime);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day} ${hours}:${minutes}`;
+};
+
+const formatDate = (datetime) => {
+  if (!datetime) return '';
+  const date = new Date(datetime);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 // 患者列表
@@ -783,6 +959,12 @@ patientList.value = [
     }
   ];
 
+const getStrategyLabel = (strategy) => {
+  const allStrategies = [...strategyConfig.temporary, ...strategyConfig.longTerm];
+  const found = allStrategies.find(s => s.value === strategy);
+  return found ? found.label : strategy;
+};
+
 const getRouteName = (routeId) => {
   const routes = {
     1: '口服', 10: '肌肉注射', 11: '皮下注射', 12: '皮内注射',
@@ -791,40 +973,29 @@ const getRouteName = (routeId) => {
   return routes[routeId] || routeId;
 };
 
-const getFreqDescription = (freqCode) => {
-  const descriptions = {
-    'ONCE': '单次给药',
-    'QD': '每日一次',
-    'BID': '每日两次',
-    'TID': '每日三次',
-    'QID': '每日四次',
-    'Q6H': '每6小时一次',
-    'Q8H': '每8小时一次',
-    'Q12H': '每12小时一次',
-    'PRN': '需要时给药',
-    'CONT': '持续给药'
-  };
-  return descriptions[freqCode] || freqCode;
-};
+// getFreqDescription 已移除，改用 getStrategyLabel
 
 const getOrderSummary = (order) => {
   const drugNames = order.items.map(i => getDrugName(i.drugId)).join('+');
-  return `${drugNames} (${order.freqCode})`;
+  const strategyLabel = getStrategyLabel(order.timingStrategy);
+  return `${drugNames} (${strategyLabel})`;
 };
 
 const getStrategyDescription = (order) => {
-  switch (order.timingStrategy) {
-    case 'Immediate':
+  const strategy = order.timingStrategy?.toUpperCase();
+  switch (strategy) {
+    case 'IMMEDIATE':
       return '立即执行';
-    case 'Specific':
-      return `指定时间: ${order.specificExecutionTime}`;
-    case 'Cyclic':
-      return `每${order.intervalDays}天执行`;
-    case 'Slots':
+    case 'SPECIFIC':
+      return `指定时间: ${formatDateTime(order.startTime)}`;
+    case 'CYCLIC':
+      return `周期执行: 每${order.intervalHours}小时一次`;
+    case 'SLOTS':
       const slots = timeSlotDict.value.filter(s => (order.smartSlotsMask & s.id) !== 0);
-      return `时段: ${slots.map(s => s.slotName).join(', ')}`;
+      const slotNames = slots.map(s => s.slotName).join('、');
+      return `时段执行: ${slotNames}`;
     default:
-      return order.timingStrategy;
+      return getStrategyLabel(order.timingStrategy);
   }
 };
 
@@ -839,6 +1010,7 @@ onMounted(async () => {
     { id: 'DRUG005', genericName: '布洛芬缓释胶囊', specification: '0.3g/粒' }
   ];
   
+  // 时间段数据（与后端 DbInitializer 完全一致）
   timeSlotDict.value = [
     { id: 1, slotCode: 'PRE_BREAKFAST', slotName: '早餐前', defaultTime: '07:00:00' },
     { id: 2, slotCode: 'POST_BREAKFAST', slotName: '早餐后', defaultTime: '08:30:00' },
@@ -846,22 +1018,11 @@ onMounted(async () => {
     { id: 8, slotCode: 'POST_LUNCH', slotName: '午餐后', defaultTime: '13:00:00' },
     { id: 16, slotCode: 'PRE_DINNER', slotName: '晚餐前', defaultTime: '17:30:00' },
     { id: 32, slotCode: 'POST_DINNER', slotName: '晚餐后', defaultTime: '19:00:00' },
-    { id: 64, slotCode: 'BEDTIME', slotName: '睡前', defaultTime: '21:00:00' },
-    { id: 128, slotCode: 'MIDNIGHT', slotName: '夜间', defaultTime: '00:00:00' },
-    { id: 256, slotCode: 'EARLY_MORNING', slotName: '清晨', defaultTime: '06:00:00' },
-    { id: 512, slotCode: 'MORNING', slotName: '上午', defaultTime: '09:00:00' },
-    { id: 1024, slotCode: 'NOON', slotName: '中午', defaultTime: '12:00:00' },
-    { id: 2048, slotCode: 'AFTERNOON', slotName: '下午', defaultTime: '15:00:00' },
-    { id: 4096, slotCode: 'EVENING', slotName: '傍晚', defaultTime: '18:00:00' },
-    { id: 8192, slotCode: 'NIGHT', slotName: '夜晚', defaultTime: '22:00:00' },
-    { id: 16384, slotCode: 'LATE_NIGHT', slotName: '深夜', defaultTime: '02:00:00' },
-    { id: 32768, slotCode: 'DAWN', slotName: '黎明', defaultTime: '04:00:00' }
+    { id: 64, slotCode: 'BEDTIME', slotName: '睡前', defaultTime: '21:00:00' }
   ];
 
-  // 初始化开始时间
-  if (currentOrder.isLongTerm) {
-    currentOrder.startTime = new Date().toISOString();
-  }
+  // 初始化：长期医嘱不设置默认策略，等待用户选择
+  // 临时医嘱也不设置默认策略，保持表单干净
 });
 </script>
 
