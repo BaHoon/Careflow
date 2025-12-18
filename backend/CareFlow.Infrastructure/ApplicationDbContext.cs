@@ -3,11 +3,12 @@ using CareFlow.Core.Models;
 using CareFlow.Core.Models.Organization;
 using CareFlow.Core.Models.Space;
 using CareFlow.Core.Models.Medical;
+using CareFlow.Application.Interfaces;
 
 using CareFlow.Core.Models.Nursing;
 namespace CareFlow.Infrastructure
 {
-    public class ApplicationDbContext : DbContext
+    public class ApplicationDbContext : DbContext, ICareFlowDbContext
     {
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
         {
@@ -52,6 +53,7 @@ namespace CareFlow.Infrastructure
         public DbSet<ExecutionTask> ExecutionTasks { get; set; }       // 执行单(扫码用)
         public DbSet<ShiftType> ShiftTypes { get; set; }               // 班次定义
         public DbSet<NurseRoster> NurseRosters { get; set; }           // 护士排班
+        public DbSet<NursingTask> NursingTasks { get; set; }
         
         #region 5. Barcode (条形码系统)
         public DbSet<BarcodeIndex> BarcodeIndexes { get; set; }         // 条形码索引表

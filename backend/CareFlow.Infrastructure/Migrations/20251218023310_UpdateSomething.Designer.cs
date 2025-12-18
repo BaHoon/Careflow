@@ -3,6 +3,7 @@ using System;
 using CareFlow.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CareFlow.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251218023310_UpdateSomething")]
+    partial class UpdateSomething
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -533,53 +536,6 @@ namespace CareFlow.Infrastructure.Migrations
                     b.HasIndex("RecorderNurseId");
 
                     b.ToTable("NursingCareNotes");
-                });
-
-            modelBuilder.Entity("CareFlow.Core.Models.Nursing.NursingTask", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("AssignedNurseId")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreateTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("ExecuteTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ExecutorNurseId")
-                        .HasColumnType("text");
-
-                    b.Property<string>("PatientId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("ScheduledTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("TaskType")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AssignedNurseId");
-
-                    b.HasIndex("PatientId");
-
-                    b.ToTable("NursingTasks");
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Nursing.ShiftType", b =>
@@ -1151,23 +1107,6 @@ namespace CareFlow.Infrastructure.Migrations
                     b.Navigation("Patient");
 
                     b.Navigation("RecorderNurse");
-                });
-
-            modelBuilder.Entity("CareFlow.Core.Models.Nursing.NursingTask", b =>
-                {
-                    b.HasOne("CareFlow.Core.Models.Organization.Nurse", "AssignedNurse")
-                        .WithMany()
-                        .HasForeignKey("AssignedNurseId");
-
-                    b.HasOne("CareFlow.Core.Models.Organization.Patient", "Patient")
-                        .WithMany()
-                        .HasForeignKey("PatientId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("AssignedNurse");
-
-                    b.Navigation("Patient");
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Nursing.VitalSignsRecord", b =>
