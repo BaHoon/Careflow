@@ -3,6 +3,8 @@ import App from './App.vue'
 import router from './router'
 import api from './utils/api'
 import axios from 'axios'
+import ElementPlus from 'element-plus'
+import 'element-plus/dist/index.css'
 
 const app = createApp(App)
 
@@ -14,6 +16,7 @@ const app = createApp(App)
 // 也可以将api实例挂载到全局属性上
 app.config.globalProperties.$api = api
 
+app.use(ElementPlus)
 app.use(router)
 
 app.mount('#app')
