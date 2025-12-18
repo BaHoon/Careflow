@@ -1,37 +1,50 @@
 <template>
   <div class="home-container">
-    <nav class="navbar">
-      <div class="logo">CareFlow 系统</div>
-      <div class="user-info">
-        <span>欢迎, {{ currentUser.fullName }} ({{ currentUser.role }})</span>
-        <button @click="logout" class="logout-btn">退出</button>
-      </div>
-    </nav>
-
     <main class="content">
       <h1>工作台 Dashboard</h1>
+      <p class="dept-info">当前科室：{{ currentUser.deptName || '未分配' }}</p>
+
       <div class="cards">
-        <div class="card">
-          <h3>我的患者</h3>
-          <p>查看当前负责的患者列表</p>
-        </div>
-        <div class="card">
-          <h3>待办医嘱</h3>
-          <p>今日待处理的医嘱任务</p>
-        </div>
-        <div class="card clickable" v-if="currentUser.role === 'Nurse'" @click="goToBarcodeMatching">
-          <h3>🔍 条形码匹配验证</h3>
-          <p>扫描条形码验证执行任务与患者匹配</p>
-          <div class="card-badge">护士专用</div>
-        </div>
-        <div class="card" v-if="currentUser.role === 'Admin'">
-          <h3>人员管理</h3>
-          <p>导入与管理医护账号</p>
-        </div>
+        <template v-if="currentUser.role === 'Doctor'">
+          <div class="card clickable" @click="router.push('/order-entry')">
+            <h3>✍️ 开具新医嘱</h3>
+            <p>为所管辖患者下达长期或临时医嘱</p>
+            <div class="card-badge doctor">医生权限</div>
+          </div>
+          <div class="card clickable" @click="router.push('/my-patients')">
+            <h3>👥 我的患者</h3>
+            <p>查看负责的病床列表及临床概况</p>
+          </div>
+        </template>
+
+        <template v-else-if="currentUser.role === 'Nurse'">
+          
+          <div class="card clickable" @click="router.push('/nursing-tasks')">
+            <h3>📋 待办任务</h3>
+            <p>查看今日待输注、待执行的护理项</p>
+          </div>
+        </template>
+
+        <template v-else-if="currentUser.role === 'Admin'">
+          <div class="card clickable" @click="router.push('/staff-management')">
+            <h3>⚙️ 人员管理</h3>
+            <p>管理医护人员账号、权限及科室分配</p>
+            <div class="card-badge admin">管理权限</div>
+          </div>
+        </template>
       </div>
     </main>
   </div>
 </template>
+
+<style scoped>
+/* 增加不同角色的视觉区分 */
+.card-badge.doctor { background: #409eff; }
+.card-badge.nurse { background: #67c23a; }
+.card-badge.admin { background: #f56c6c; }
+
+.dept-info { color: #909399; font-size: 0.9rem; margin-bottom: 20px; }
+</style>
 
 <script setup>
 import { ref, onMounted } from 'vue';
@@ -52,10 +65,6 @@ onMounted(() => {
 
   currentUser.value = JSON.parse(userStr);
 });
-
-function goToBarcodeMatching() {
-  router.push('/barcode-matching');
-}
 
 const logout = () => {
   localStorage.removeItem('token');
