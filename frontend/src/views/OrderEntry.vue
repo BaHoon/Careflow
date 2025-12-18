@@ -24,7 +24,58 @@
         <div class="diagnosis">诊断：肺部感染 / 待查</div>
       </header>
 
-      <div class="main-content">
+      <div class="main-content" :style="{ gridTemplateColumns: gridTemplateColumns }">
+        <!-- 左侧：患者列表面板 -->
+        <aside class="patient-panel" :class="{ collapsed: leftCollapsed }">
+          <div class="panel-header">
+            <span class="panel-title" v-show="!leftCollapsed">患者列表</span>
+            <button @click="toggleLeft" class="collapse-btn" :title="leftCollapsed ? '展开' : '折叠'">
+              {{ leftCollapsed ? '>' : '<' }}
+            </button>
+          </div>
+
+          <div class="panel-content" v-show="!leftCollapsed">
+            <!-- 搜索框 -->
+            <div class="search-box">
+              <el-input 
+                v-model="patientSearch" 
+                placeholder="搜索床号/姓名"
+                clearable
+                size="small"
+              >
+                <template #prefix>🔍</template>
+              </el-input>
+            </div>
+
+            <!-- 患者列表 -->
+            <div class="patient-list">
+              <div 
+                v-for="patient in filteredPatients" 
+                :key="patient.id"
+                :class="['patient-card', { active: patient.id === selectedPatient.id }]"
+                @click="handlePatientClick(patient)"
+              >
+                <div class="bed-badge">{{ patient.bedId }}</div>
+                <div class="patient-basic">
+                  <span class="p-name">{{ patient.name }}</span>
+                  <span class="p-info">{{ patient.gender }} {{ patient.age }}岁</span>
+                </div>
+                <div class="patient-meta">
+                  <span class="p-care">护理{{ patient.nursingGrade }}级</span>
+                </div>
+                <div class="patient-diagnosis">{{ patient.diagnosis }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 折叠状态显示 -->
+          <div class="collapsed-content" v-show="leftCollapsed">
+            <div class="collapsed-text">患者列表</div>
+            <div class="patient-count">{{ patientList.length }}人</div>
+          </div>
+        </aside>
+
+        <!-- 中间：医嘱表单区域 -->
         <section class="form-area">
           <div class="tabs-header">
             <button v-for="t in types" :key="t.val" 
@@ -302,53 +353,67 @@
           </div>
         </section>
 
-        <section class="cart-area">
-          <div class="cart-header">
-            <h3>
-              <i class="el-icon-shopping-cart-2"></i> 待提交医嘱
-              <span class="cart-count">({{ orderCart.length }})</span>
+        <!-- 右侧：待提交医嘱面板 -->
+        <aside class="cart-panel" :class="{ collapsed: rightCollapsed }">
+          <div class="panel-header">
+            <button @click="toggleRight" class="collapse-btn" :title="rightCollapsed ? '展开' : '折叠'">
+              {{ rightCollapsed ? '<' : '>' }}
+            </button>
+            <h3 class="panel-title" v-show="!rightCollapsed">
+              待提交医嘱
+              <span class="cart-count">{{ orderCart.length }}</span>
             </h3>
-            <button @click="clearCart" class="btn-text-danger" v-if="orderCart.length">
-              × 清空全部
+            <button @click="clearCart" class="btn-text-danger" v-if="orderCart.length && !rightCollapsed">
+              × 清空
             </button>
           </div>
 
-          <div class="cart-list" v-if="orderCart.length">
-            <div v-for="(o, idx) in orderCart" :key="idx" class="cart-item">
-              <div class="cart-item-header">
-                <el-tag :type="o.isLongTerm ? 'primary' : 'warning'" size="small">
-                  {{ o.isLongTerm ? '长期' : '临时' }}
-                </el-tag>
-                <span class="order-summary">{{ getOrderSummary(o) }}</span>
-                <button @click="removeFromCart(idx)" class="btn-icon-danger">
-                  ×
-                </button>
-              </div>
-              <div class="cart-item-content">
-                <div class="detail-row">
-                  <span class="label">药品：</span>
-                  <span class="value">
-                    <div v-for="(item, i) in o.items" :key="i" class="med-line">
+          <div class="panel-content" v-show="!rightCollapsed">
+            <div v-if="orderCart.length" class="cart-list">
+              <div v-for="(o, idx) in orderCart" :key="idx" class="cart-item-compact">
+                <!-- 精简摘要 -->
+                <div class="order-summary-line">
+                  <el-tag :type="o.isLongTerm ? 'primary' : 'warning'" size="small">
+                    {{ o.isLongTerm ? '长期' : '临时' }}
+                  </el-tag>
+                  <span class="order-title">{{ getOrderSummary(o) }}</span>
+                  <button @click="toggleOrderDetail(idx)" class="btn-detail">
+                    {{ expandedOrders.includes(idx) ? '▲' : '▼' }}
+                  </button>
+                  <button @click="removeFromCart(idx)" class="btn-mini-danger">
+                    ×
+                  </button>
+                </div>
+                
+                <!-- 基本信息（始终显示） -->
+                <div class="order-basic-info">
+                  <span class="info-item">{{ getRouteName(o.usageRoute) }}</span>
+                  <span class="info-divider">|</span>
+                  <span class="info-item">{{ o.freqCode }}</span>
+                </div>
+
+                <!-- 详细信息（可展开） -->
+                <div v-show="expandedOrders.includes(idx)" class="order-detail-expand">
+                  <div class="detail-section">
+                    <div class="detail-label">药品明细：</div>
+                    <div v-for="(item, i) in o.items" :key="i" class="detail-value">
                       {{ i + 1 }}. {{ getDrugName(item.drugId) }} {{ item.dosage }}
-                      <span v-if="item.note" class="note">({{ item.note }})</span>
+                      <span v-if="item.note" class="note-text">({{ item.note }})</span>
                     </div>
-                  </span>
+                  </div>
+                  <div class="detail-section">
+                    <div class="detail-label">时间策略：</div>
+                    <div class="detail-value">{{ getStrategyDescription(o) }}</div>
+                  </div>
                 </div>
-                <div class="detail-row">
-                  <span class="label">途径/频次：</span>
-                  <span class="value">{{ getRouteName(o.usageRoute) }} / {{ o.freqCode }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="label">时间策略：</span>
-                  <span class="value">{{ getStrategyDescription(o) }}</span>
-                </div>
+              </div>
+
+              <!-- 空状态 -->
+              <div v-if="!orderCart.length" class="cart-empty">
+                <div class="empty-icon">📋</div>
+                <p>暂无待提交医嘱</p>
               </div>
             </div>
-          </div>
-
-          <div v-else class="cart-empty">
-            <i class="el-icon-shopping-cart-full empty-icon"></i>
-            <p>暂无待提交医嘱</p>
           </div>
 
           <div class="cart-footer">
@@ -357,12 +422,18 @@
               class="btn-submit-all" 
               :disabled="!orderCart.length || submitting"
             >
-              <i class="el-icon-check"></i> 
-              <span v-if="!submitting">确认并提交全部医嘱</span>
+              <span v-if="!submitting">✓ 确认并提交</span>
               <span v-else>提交中...</span>
             </button>
           </div>
-        </section>
+
+          <!-- 折叠状态显示 -->
+          <div class="collapsed-content" v-show="rightCollapsed">
+            <div class="collapsed-text">待提交</div>
+            <div class="cart-count-vertical">{{ orderCart.length }}</div>
+            <div class="collapsed-icon">✓</div>
+          </div>
+        </aside>
       </div>
     </main>
   </div>
@@ -410,6 +481,17 @@ const drugDict = ref([]);
 const timeSlotDict = ref([]);
 const submitting = ref(false);
 
+// 患者列表相关
+const patientList = ref([]);
+const patientSearch = ref('');
+
+// 折叠状态
+const leftCollapsed = ref(false);
+const rightCollapsed = ref(false);
+
+// 医嘱详情展开状态
+const expandedOrders = ref([]);
+
 // 计算属性：餐食相关时段
 const mealTimeSlots = computed(() => 
   timeSlotDict.value.filter(s => [1, 2, 4, 8, 16, 32, 64, 128].includes(s.id))
@@ -419,6 +501,23 @@ const mealTimeSlots = computed(() =>
 const generalTimeSlots = computed(() => 
   timeSlotDict.value.filter(s => [256, 512, 1024, 2048, 4096, 8192, 16384, 32768].includes(s.id))
 );
+
+// 计算属性：过滤后的患者列表
+const filteredPatients = computed(() => {
+  if (!patientSearch.value) return patientList.value;
+  const keyword = patientSearch.value.toLowerCase();
+  return patientList.value.filter(p => 
+    p.bedId.toLowerCase().includes(keyword) ||
+    p.name.includes(keyword)
+  );
+});
+
+// 计算属性：栅格列宽度
+const gridTemplateColumns = computed(() => {
+  const left = leftCollapsed.value ? '40px' : '250px';
+  const right = rightCollapsed.value ? '40px' : '300px';
+  return `${left} 1fr ${right}`;
+});
 
 // 计算属性：表单验证
 const isFormValid = computed(() => {
@@ -487,7 +586,58 @@ const getSelectedSlotsCount = () => {
   let count = 0;
   let mask = currentOrder.smartSlotsMask;
   while (mask) {
-    count += mask & 1;
+   折叠切换
+const toggleLeft = () => {
+  leftCollapsed.value = !leftCollapsed.value;
+};
+
+const toggleRight = () => {
+  rightCollapsed.value = !rightCollapsed.value;
+};
+
+// 患者切换
+const handlePatientClick = (patient) => {
+  if (patient.id === selectedPatient.value.id) return;
+  
+  const hasUnsubmittedData = 
+    currentOrder.items.some(i => i.drugId && i.dosage) || 
+    orderCart.value.length > 0;
+  
+  if (hasUnsubmittedData) {
+    ElMessageBox.confirm(
+      '切换患者将清空当前表单和待提交清单，是否继续？',
+      '确认切换',
+      {
+        confirmButtonText: '确认切换',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    ).then(() => {
+      selectedPatient.value = { ...patient };
+      clearForm();
+      orderCart.value = [];
+      expandedOrders.value = [];
+      ElMessage.success(`已切换至患者：${patient.name} (${patient.bedId})`);
+    }).catch(() => {
+      ElMessage.info('已取消切换');
+    });
+  } else {
+    selectedPatient.value = { ...patient };
+    ElMessage.success(`已切换至患者：${patient.name} (${patient.bedId})`);
+  }
+};
+
+// 切换医嘱详情展开状态
+const toggleOrderDetail = (index) => {
+  const idx = expandedOrders.value.indexOf(index);
+  if (idx > -1) {
+    expandedOrders.value.splice(idx, 1);
+  } else {
+    expandedOrders.value.push(index);
+  }
+};
+
+//  count += mask & 1;
     mask >>= 1;
   }
   return count;
@@ -580,6 +730,65 @@ const formatTime = (timeSpan) => {
 const getDrugName = (id) => {
   return drugDict.value.find(d => d.id === id)?.genericName || id;
 };
+
+// 患者列表
+patientList.value = [
+    {
+      id: 'P001',
+      bedId: 'IM-W01-001',
+      name: '张三',
+      gender: '男',
+      age: 34,
+      weight: 70.5,
+      nursingGrade: 2,
+      department: '内科',
+      diagnosis: '肺部感染 / 待查'
+    },
+    {
+      id: 'P002',
+      bedId: 'IM-W01-002',
+      name: '李四',
+      gender: '女',
+      age: 45,
+      weight: 62.0,
+      nursingGrade: 1,
+      department: '内科',
+      diagnosis: '糖尿病'
+    },
+    {
+      id: 'P003',
+      bedId: 'IM-W01-003',
+      name: '王五',
+      gender: '男',
+      age: 56,
+      weight: 75.0,
+      nursingGrade: 3,
+      department: '内科',
+      diagnosis: '高血压'
+    },
+    {
+      id: 'P004',
+      bedId: 'IM-W01-004',
+      name: '赵六',
+      gender: '女',
+      age: 38,
+      weight: 58.5,
+      nursingGrade: 2,
+      department: '内科',
+      diagnosis: '冠心病'
+    },
+    {
+      id: 'P005',
+      bedId: 'IM-W01-005',
+      name: '钱七',
+      gender: '男',
+      age: 67,
+      weight: 68.0,
+      nursingGrade: 2,
+      department: '内科',
+      diagnosis: '慢性阻塞性肺疾病'
+    }
+  ];
 
 const getRouteName = (routeId) => {
   const routes = {
@@ -803,11 +1012,11 @@ onMounted(async () => {
   margin-left: auto;
 }
 
-/* 主内容区域 */
+/* 主内容区域 - 三栏布局 */
 .main-content {
   display: grid;
-  grid-template-columns: 1fr 380px;
   gap: 20px;
+  transition: grid-template-columns 0.3s ease;
 }
 
 /* ==================== 标签页导航 ==================== */
@@ -1197,15 +1406,249 @@ onMounted(async () => {
   border-top: 2px solid #f0f0f0;
 }
 
-/* ==================== 购物车区域 ==================== */
-.cart-area {
+/* ==================== 侧边面板通用样式 ==================== */
+.patient-panel,
+.cart-panel {
   background: var(--bg-card);
-  padding: 20px;
   border-radius: var(--radius-large);
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
   max-height: calc(100vh - 260px);
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.patient-panel.collapsed,
+.cart-panel.collapsed {
+  width: 40px !important;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 15px;
+  border-bottom: 1px solid #e8e8e8;
+  background: #fafafa;
+  flex-shrink: 0;
+}
+
+.patient-panel.collapsed .panel-header,
+.cart-panel.collapsed .panel-header {
+  flex-direction: column;
+  padding: 12px 5px;
+  justify-content: center;
+  background: #f5f5f5;
+}
+
+.cart-count {
+  background: var(--primary-color);
+  color: white;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-left: 6px;
+}
+
+.panel-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #000;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.3px;
+}
+
+.collapse-btn {
+  background: #ddd;
+  color: #666;
+  border: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: normal;
+  transition: all 0.25s;
+  flex-shrink: 0;
+}
+
+.collapse-btn:hover {
+  background: #bbb;
+  color: #333;
+  transform: scale(1.05);
+}
+
+.panel-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ==================== 患者列表面板 ==================== */
+.patient-panel {
+  position: relative;
+}
+
+.search-box {
+  padding: 12px 15px;
+  border-bottom: 1px solid #f0f0f0;
+  flex-shrink: 0;
+}
+
+.search-box :deep(.el-input__inner) {
+  font-size: 1rem;
+  color: var(--text-regular);
+  font-weight: normal;
+}
+
+.search-box :deep(.el-input__inner::placeholder) {
+  color: #999;
+  font-weight: normal;
+}
+
+.patient-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.patient-card {
+  background: white;
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-medium);
+  padding: 12px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.patient-card:hover {
+  border-color: var(--primary-color);
+  transform: translateX(4px);
+  box-shadow: -3px 0 12px rgba(64, 158, 255, 0.15);
+}
+
+.patient-card.active {
+  background: linear-gradient(135deg, #e8f4ff 0%, #f0f8ff 100%);
+  border-color: var(--primary-color);
+  border-width: 2px;
+  box-shadow: -4px 0 16px rgba(64, 158, 255, 0.25);
+}
+
+.bed-badge {
+  background: var(--primary-color);
+  color: white;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  display: inline-block;
+  margin-bottom: 8px;
+}
+
+.patient-card.active .bed-badge {
+  background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%);
+  box-shadow: 0 2px 6px rgba(64, 158, 255, 0.3);
+}
+
+.patient-basic {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.p-name {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--text-primary);
+  letter-spacing: 0.3px;
+}
+
+.p-info {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.patient-meta {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.p-care {
+  font-size: 0.8rem;
+  color: var(--primary-color);
+  background: #e8f4ff;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.patient-diagnosis {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.collapsed-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 0;
+}
+
+.collapsed-text {
+  writing-mode: vertical-rl;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 2px;
+  margin-bottom: 20px;
+}
+
+.patient-count,
+.cart-count-vertical {
+  background: var(--primary-color);
+  color: white;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: bold;
+  margin-top: 10px;
+}
+
+.collapsed-icon {
+  font-size: 1.5rem;
+  color: var(--success-color);
+  margin-top: 20px;
+}
+
+/* ==================== 待提交医嘱面板 ==================== */
+.cart-panel {
+  position: relative;
+}
+
+.cart-panel .panel-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .cart-header {
@@ -1255,51 +1698,142 @@ onMounted(async () => {
   transform: translateY(-2px);
 }
 
-.cart-item-header {
+.cart-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+/* 紧凑型医嘱卡片 */
+.cart-item-compact {
+  background: white;
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-medium);
+  padding: 10px;
+  margin-bottom: 10px;
+  transition: all 0.3s;
+}
+
+.cart-item-compact:hover {
+  border-color: var(--primary-color);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+}
+
+.order-summary-line {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 12px;
-  padding-bottom: 10px;
-  border-bottom: 1px dashed var(--border-color);
+  gap: 6px;
+  margin-bottom: 6px;
 }
 
-.order-summary {
+.order-title {
   flex: 1;
   font-weight: 600;
-  color: var(--text-primary);
-  font-size: 0.95rem;
-}
-
-.cart-item-content {
   font-size: 0.9rem;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.detail-row {
+.btn-detail {
+  background: transparent;
+  border: none;
+  color: var(--primary-color);
+  cursor: pointer;
+  padding: 2px 6px;
+  font-size: 0.75rem;
+  transition: all 0.2s;
+}
+
+.btn-detail:hover {
+  color: #66b1ff;
+  transform: scale(1.1);
+}
+
+.btn-mini-danger {
+  background: transparent;
+  border: none;
+  color: var(--danger-color);
+  cursor: pointer;
+  padding: 0;
+  width: 20px;
+  height: 20px;
   display: flex;
-  margin-bottom: 8px;
-  line-height: 1.6;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  font-weight: bold;
+  transition: all 0.2s;
 }
 
-.detail-row .label {
-  min-width: 90px;
+.btn-mini-danger:hover {
+  background: var(--danger-color);
+  color: white;
+}
+
+.order-basic-info {
+  font-size: 0.8rem;
   color: var(--text-secondary);
-  font-weight: 500;
+  margin-bottom: 6px;
+  padding-left: 2px;
 }
 
-.detail-row .value {
-  flex: 1;
+.info-item {
   color: var(--text-regular);
 }
 
-.med-line {
-  margin-bottom: 4px;
+.info-divider {
+  margin: 0 6px;
+  color: var(--border-color);
 }
 
-.med-line .note {
+.order-detail-expand {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-color);
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.detail-section {
+  margin-bottom: 8px;
+}
+
+.detail-label {
+  font-size: 0.75rem;
   color: var(--text-secondary);
-  font-size: 0.85rem;
+  font-weight: 500;
+  margin-bottom: 3px;
+}
+
+.detail-value {
+  font-size: 0.8rem;
+  color: var(--text-regular);
+  line-height: 1.5;
+}
+
+.note-text {
+  color: var(--text-secondary);
   font-style: italic;
+  font-size: 0.75rem;
+}
+
+.cart-footer {
+  padding: 15px;
+  border-top: 2px solid #f0f0f0;
+  flex-shrink: 0;
 }
 
 .cart-empty {
@@ -1309,23 +1843,60 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   color: var(--text-secondary);
-  padding: 60px 20px;
+  padding: 40px 20px;
 }
 
 .empty-icon {
-  font-size: 4rem;
+  font-size: 3rem;
   opacity: 0.3;
-  margin-bottom: 15px;
+  margin-bottom: 12px;
 }
 
 .cart-empty p {
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   margin: 0;
 }
 
-.cart-footer {
-  padding-top: 15px;
-  border-top: 2px solid #f0f0f0;
+/* ==================== 响应式调整 ==================== */
+@media (max-width: 1600px) {
+  .patient-panel:not(.collapsed) {
+    width: 220px;
+  }
+  
+  .cart-panel:not(.collapsed) {
+    width: 280px;
+  }
+}
+
+@media (max-width: 1400px) {
+  .patient-panel:not(.collapsed) {
+    width: 200px;
+  }
+  
+  .cart-panel:not(.collapsed) {
+    width: 260px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .patient-panel,
+  .cart-panel {
+    position: fixed;
+    top: 60px;
+    height: calc(100vh - 60px);
+    z-index: 100;
+    max-height: none;
+  }
+  
+  .patient-panel {
+    left: 0;
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
+  }
+  
+  .cart-panel {
+    right: 0;
+    box-shadow: -2px 0 12px rgba(0, 0, 0, 0.15);
+  }
 }
 
 .btn-submit-all {
