@@ -69,7 +69,13 @@ namespace CareFlow.Core.Models.Medical
         public UsageRoute UsageRoute { get; set; }               // 用法途径
         public bool IsDynamicUsage { get; set; }     // 是否不定量(如吸氧)
         
-        public string FreqCode { get; set; } = null!;         // 关联频次字典
+        /// <summary>
+        /// 执行间隔（小时数）- 仅用于 CYCLIC 策略
+        /// 例如：6 表示每6小时执行一次，24 表示每天一次
+        /// 支持小数：0.5 表示每30分钟一次
+        /// null 或 0 表示不适用（IMMEDIATE/SPECIFIC/SLOTS策略）
+        /// </summary>
+        public decimal? IntervalHours { get; set; }
         
         // ER图中特有的起止时间 (可能与基类重叠，若业务需要独立控制生效期则保留)
         public DateTime? StartTime { get; set; }     

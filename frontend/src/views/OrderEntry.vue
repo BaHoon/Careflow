@@ -21,7 +21,6 @@
           <span class="detail">{{ selectedPatient.gender }} | {{ selectedPatient.age }}岁 | {{ selectedPatient.weight }}kg</span>
           <span class="tag">护理级别: {{ selectedPatient.nursingGrade }}级</span>
         </div>
-        <div class="diagnosis">诊断：肺部感染 / 待查</div>
       </header>
 
       <div class="main-content" :style="{ gridTemplateColumns: gridTemplateColumns }">
@@ -63,7 +62,6 @@
                 <div class="patient-meta">
                   <span class="p-care">护理{{ patient.nursingGrade }}级</span>
                 </div>
-                <div class="patient-diagnosis">{{ patient.diagnosis }}</div>
               </div>
             </div>
           </div>
@@ -741,8 +739,7 @@ patientList.value = [
       age: 34,
       weight: 70.5,
       nursingGrade: 2,
-      department: '内科',
-      diagnosis: '肺部感染 / 待查'
+      department: '内科'
     },
     {
       id: 'P002',
@@ -752,8 +749,7 @@ patientList.value = [
       age: 45,
       weight: 62.0,
       nursingGrade: 1,
-      department: '内科',
-      diagnosis: '糖尿病'
+      department: '内科'
     },
     {
       id: 'P003',
@@ -763,8 +759,7 @@ patientList.value = [
       age: 56,
       weight: 75.0,
       nursingGrade: 3,
-      department: '内科',
-      diagnosis: '高血压'
+      department: '内科'
     },
     {
       id: 'P004',
@@ -774,8 +769,7 @@ patientList.value = [
       age: 38,
       weight: 58.5,
       nursingGrade: 2,
-      department: '内科',
-      diagnosis: '冠心病'
+      department: '内科'
     },
     {
       id: 'P005',
@@ -785,8 +779,7 @@ patientList.value = [
       age: 67,
       weight: 68.0,
       nursingGrade: 2,
-      department: '内科',
-      diagnosis: '慢性阻塞性肺疾病'
+      department: '内科'
     }
   ];
 
@@ -1004,12 +997,6 @@ onMounted(async () => {
   padding: 4px 12px;
   border-radius: var(--radius-round);
   font-size: 0.85rem;
-}
-
-.diagnosis {
-  color: var(--text-regular);
-  font-size: 0.95rem;
-  margin-left: auto;
 }
 
 /* 主内容区域 - 三栏布局 */
@@ -1591,14 +1578,6 @@ onMounted(async () => {
   background: #e8f4ff;
   padding: 2px 8px;
   border-radius: 10px;
-}
-
-.patient-diagnosis {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .collapsed-content {

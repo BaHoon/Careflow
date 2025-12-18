@@ -1,4 +1,9 @@
-﻿-- 没有加medicaloeder备注
+﻿-- ========================================
+-- CareFlow 医院护理管理系统数据库架构
+-- 核心表结构定义 (PostgreSQL)
+-- 最后更新: 2025-12-18
+-- ========================================
+
 -- 1. Departments
 CREATE TABLE "Departments" (
     "Id" text NOT NULL,
@@ -135,6 +140,7 @@ CREATE TABLE "MedicalOrders" (
     "OrderType" text NOT NULL,
     "Status" text NOT NULL,
     "IsLongTerm" boolean NOT NULL,
+    "Remarks" text,
     "CreateTime" timestamp with time zone NOT NULL,
     CONSTRAINT "PK_MedicalOrders" PRIMARY KEY ("Id"),
     CONSTRAINT "FK_MedicalOrders_Patients_PatientId" FOREIGN KEY ("PatientId") REFERENCES "Patients" ("Id") ON DELETE CASCADE,
@@ -147,7 +153,7 @@ CREATE TABLE "MedicationOrders" (
     "Id" bigint NOT NULL,
     "UsageRoute" integer NOT NULL,
     "IsDynamicUsage" boolean NOT NULL,
-    "FreqCode" text NOT NULL,
+    "IntervalHours" numeric(18,2),
     "StartTime" timestamp with time zone,
     "TimingStrategy" text NOT NULL,
     "SpecificExecutionTime" timestamp with time zone,
@@ -210,7 +216,7 @@ CREATE TABLE "SurgicalOrders" (
     "IncisionSite" text NOT NULL,
     "RequiredTalk" text,
     "RequiredOperation" text,
-    "RequiredMeds" jsonb,
+    "RequiredMeds" text,
     "PrepProgress" real NOT NULL,
     "PrepStatus" text NOT NULL,
     CONSTRAINT "PK_SurgicalOrders" PRIMARY KEY ("Id"),

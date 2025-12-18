@@ -842,12 +842,11 @@ namespace CareFlow.Infrastructure.Migrations
                 {
                     b.HasBaseType("CareFlow.Core.Models.Medical.MedicalOrder");
 
-                    b.Property<string>("FreqCode")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<int>("IntervalDays")
                         .HasColumnType("integer");
+
+                    b.Property<decimal?>("IntervalHours")
+                        .HasColumnType("numeric");
 
                     b.Property<bool>("IsDynamicUsage")
                         .HasColumnType("boolean");
