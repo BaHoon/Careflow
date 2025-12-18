@@ -28,6 +28,11 @@ namespace CareFlow.Core.Models.Medical
         public string Status { get; set; } = null!;
         public bool IsLongTerm { get; set; }
 
+        /// <summary>
+        /// 医嘱备注/嘱托
+        /// </summary>
+        public string? Remarks { get; set; }
+
         // [新增] 包含的药品列表 (例如：500ml盐水 + 0.5mg青霉素)
         // 移动到基类，以便手术医嘱等也能使用
         public ICollection<MedicationOrderItem> Items { get; set; } = new List<MedicationOrderItem>();

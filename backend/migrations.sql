@@ -1,4 +1,5 @@
-﻿-- 1. Departments
+﻿-- 没有加medicaloeder备注
+-- 1. Departments
 CREATE TABLE "Departments" (
     "Id" text NOT NULL,
     "DeptName" text NOT NULL,
