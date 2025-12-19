@@ -58,16 +58,17 @@ namespace CareFlow.Infrastructure.Data
             context.SaveChanges(); // 保存科室
 
             // --- 预置时间槽位数据 (HospitalTimeSlot) ---
-            // 只保留三餐前后和睡前时段
+            // ⚠️ 重要：时间使用 UTC 存储（北京时间 -8小时）
+            // 例如：北京时间 07:00 = UTC 前一天 23:00
             var timeSlots = new HospitalTimeSlot[]
             {
-                new HospitalTimeSlot { Id = 1, SlotCode = "PRE_BREAKFAST", SlotName = "早餐前", DefaultTime = new TimeSpan(7, 0, 0), OffsetMinutes = 15 },
-                new HospitalTimeSlot { Id = 2, SlotCode = "POST_BREAKFAST", SlotName = "早餐后", DefaultTime = new TimeSpan(8, 30, 0), OffsetMinutes = 30 },
-                new HospitalTimeSlot { Id = 4, SlotCode = "PRE_LUNCH", SlotName = "午餐前", DefaultTime = new TimeSpan(11, 30, 0), OffsetMinutes = 15 },
-                new HospitalTimeSlot { Id = 8, SlotCode = "POST_LUNCH", SlotName = "午餐后", DefaultTime = new TimeSpan(13, 0, 0), OffsetMinutes = 30 },
-                new HospitalTimeSlot { Id = 16, SlotCode = "PRE_DINNER", SlotName = "晚餐前", DefaultTime = new TimeSpan(17, 30, 0), OffsetMinutes = 15 },
-                new HospitalTimeSlot { Id = 32, SlotCode = "POST_DINNER", SlotName = "晚餐后", DefaultTime = new TimeSpan(19, 0, 0), OffsetMinutes = 30 },
-                new HospitalTimeSlot { Id = 64, SlotCode = "BEDTIME", SlotName = "睡前", DefaultTime = new TimeSpan(21, 0, 0), OffsetMinutes = 30 }
+                new HospitalTimeSlot { Id = 1, SlotCode = "PRE_BREAKFAST", SlotName = "早餐前", DefaultTime = new TimeSpan(23, 0, 0), OffsetMinutes = 15 },   // 北京 07:00 → UTC 前一天 23:00
+                new HospitalTimeSlot { Id = 2, SlotCode = "POST_BREAKFAST", SlotName = "早餐后", DefaultTime = new TimeSpan(0, 30, 0), OffsetMinutes = 30 },    // 北京 08:30 → UTC 00:30
+                new HospitalTimeSlot { Id = 4, SlotCode = "PRE_LUNCH", SlotName = "午餐前", DefaultTime = new TimeSpan(3, 30, 0), OffsetMinutes = 15 },        // 北京 11:30 → UTC 03:30
+                new HospitalTimeSlot { Id = 8, SlotCode = "POST_LUNCH", SlotName = "午餐后", DefaultTime = new TimeSpan(5, 0, 0), OffsetMinutes = 30 },         // 北京 13:00 → UTC 05:00
+                new HospitalTimeSlot { Id = 16, SlotCode = "PRE_DINNER", SlotName = "晚餐前", DefaultTime = new TimeSpan(9, 30, 0), OffsetMinutes = 15 },       // 北京 17:30 → UTC 09:30
+                new HospitalTimeSlot { Id = 32, SlotCode = "POST_DINNER", SlotName = "晚餐后", DefaultTime = new TimeSpan(11, 0, 0), OffsetMinutes = 30 },      // 北京 19:00 → UTC 11:00
+                new HospitalTimeSlot { Id = 64, SlotCode = "BEDTIME", SlotName = "睡前", DefaultTime = new TimeSpan(13, 0, 0), OffsetMinutes = 30 }             // 北京 21:00 → UTC 13:00
             };
             context.HospitalTimeSlots.AddRange(timeSlots);
             context.SaveChanges(); // 保存时间槽位
