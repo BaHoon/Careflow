@@ -1,4 +1,5 @@
 using CareFlow.Application.DTOs.MedicationOrder;
+using CareFlow.Application.Interfaces;
 using CareFlow.Core.Enums;
 using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models.Medical;
@@ -12,15 +13,18 @@ public class MedicationOrderController : ControllerBase
 {
     private readonly IRepository<MedicationOrder, long> _orderRepository;
     private readonly IMedicationOrderTaskService _taskService;
+    private readonly INurseAssignmentService _nurseAssignmentService;
     private readonly ILogger<MedicationOrderController> _logger;
 
     public MedicationOrderController(
         IRepository<MedicationOrder, long> orderRepository,
         IMedicationOrderTaskService taskService,
+        INurseAssignmentService nurseAssignmentService,
         ILogger<MedicationOrderController> logger)
     {
         _orderRepository = orderRepository;
         _taskService = taskService;
+        _nurseAssignmentService = nurseAssignmentService;
         _logger = logger;
     }
 
@@ -73,7 +77,6 @@ public class MedicationOrderController : ControllerBase
             }
 
             var createdOrderIds = new List<string>();
-            var totalTaskCount = 0;
             var errors = new List<string>();
 
             foreach (var orderDto in request.Orders)
@@ -109,7 +112,7 @@ public class MedicationOrderController : ControllerBase
                         // 给药途径
                         UsageRoute = (UsageRoute)orderDto.UsageRoute,
                         
-                        Remarks = orderDto.Remarks,
+                        Remarks = string.IsNullOrWhiteSpace(orderDto.Remarks) ? null : orderDto.Remarks,
                         
                         // 🔥 关键修复：添加 Items 集合
                         Items = new List<MedicationOrderItem>()
@@ -126,14 +129,14 @@ public class MedicationOrderController : ControllerBase
                             {
                                 DrugId = itemDto.DrugId, // DrugId 是 string 类型
                                 Dosage = itemDto.Dosage,
-                                Note = itemDto.Note ?? string.Empty,
+                                Note = string.IsNullOrWhiteSpace(itemDto.Note) ? string.Empty : itemDto.Note,
                                 CreateTime = DateTime.UtcNow
                             };
                             
                             order.Items.Add(orderItem);
                             
-                            _logger.LogInformation("  ✅ 添加药品: DrugId={DrugId}, Dosage={Dosage}",
-                                orderItem.DrugId, orderItem.Dosage);
+                            _logger.LogInformation("  ✅ 添加药品: DrugId={DrugId}, Dosage={Dosage}, Note={Note}",
+                                orderItem.DrugId, orderItem.Dosage, string.IsNullOrEmpty(orderItem.Note) ? "<空>" : orderItem.Note);
                         }
                         
                         _logger.LogInformation("✅ 成功添加 {Count} 个药品项目到医嘱", order.Items.Count);
@@ -151,14 +154,31 @@ public class MedicationOrderController : ControllerBase
                     _logger.LogInformation("✅ 成功创建医嘱，ID: {OrderId}, Items数量: {ItemCount}",
                         order.Id, order.Items?.Count ?? 0);
                     createdOrderIds.Add(order.Id.ToString());
-
-                    // 3. 生成执行任务
-                    _logger.LogInformation("📋 开始生成执行任务...");
-                    var tasks = await _taskService.GenerateExecutionTasksAsync(order);
-                    totalTaskCount += tasks.Count;
-
-                    _logger.LogInformation("为医嘱 {OrderId} 生成了 {TaskCount} 个执行任务", 
-                        order.Id, tasks.Count);
+                    
+                    // 🏥 计算并设置负责护士（根据排班表）
+                    try
+                    {
+                        var responsibleNurseId = await _nurseAssignmentService.CalculateResponsibleNurseAsync(
+                            request.PatientId, 
+                            order.StartTime ?? DateTime.UtcNow);
+                        
+                        if (!string.IsNullOrEmpty(responsibleNurseId))
+                        {
+                            order.NurseId = responsibleNurseId;
+                            await _orderRepository.UpdateAsync(order);
+                            _logger.LogInformation("✅ 已分配负责护士: {NurseId} 给医嘱 {OrderId}",
+                                responsibleNurseId, order.Id);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("⚠️ 未找到负责护士，医嘱 {OrderId} 的 NurseId 将保持为空", order.Id);
+                        }
+                    }
+                    catch (Exception nurseEx)
+                    {
+                        _logger.LogError(nurseEx, "❌ 计算负责护士失败，医嘱 {OrderId}", order.Id);
+                        // 护士分配失败不影响医嘱创建，继续执行
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -172,12 +192,12 @@ public class MedicationOrderController : ControllerBase
                 Success = createdOrderIds.Count > 0,
                 Message = errors.Count > 0 
                     ? $"成功创建{createdOrderIds.Count}条医嘱，{errors.Count}条失败"
-                    : $"成功创建{createdOrderIds.Count}条医嘱，生成{totalTaskCount}个执行任务",
+                    : $"成功创建{createdOrderIds.Count}条医嘱",
                 Data = new BatchCreateOrderDataDto
                 {
                     CreatedCount = createdOrderIds.Count,
                     OrderIds = createdOrderIds,
-                    TaskCount = totalTaskCount
+                    TaskCount = 0
                 },
                 Errors = errors.Count > 0 ? errors : null
             };
