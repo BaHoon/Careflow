@@ -127,7 +127,7 @@ namespace CareFlow.Core.Models.Medical
 
         public string? RequiredTalk { get; set; }             // "需进行的宣讲JSON"
         public string? RequiredOperation { get; set; }        // "需进行的操作JSON"
-        public string? RequiredMeds { get; set; } = null!;        // 需带入药品JSON
+        // 注意：需带入药品使用基类的 Items 导航属性 (MedicationOrderItem 集合)
         
         public float PrepProgress { get; set; }      // 术前准备进度(0.0-1.0)
         public string PrepStatus { get; set; } = null!;       // 准备状态

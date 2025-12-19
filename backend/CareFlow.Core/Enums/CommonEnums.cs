@@ -7,3 +7,11 @@ public enum BedStatus { Available = 1, Occupied = 2, ToBeCleaned = 3, Maintenanc
 public enum CareLevel { Special = 0, Level1 = 1, Level2 = 2, Level3 = 3 }
 public enum AdmissionStatus { Admitted = 1, Transferring = 2, Discharged = 3 }
 public enum TransferStatus { Pending = 1, Transferring = 2, Completed = 3, Rejected = 4 }
+
+public enum NursingGrade
+{
+    Special = 0, // 特级护理 (最频繁)
+    Grade1 = 1,  // 一级护理
+    Grade2 = 2,  // 二级护理
+    Grade3 = 3   // 三级护理
+}

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
 using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models;
 using CareFlow.Core.Models.Medical;
@@ -48,8 +49,12 @@ namespace CareFlow.Application.Services
 
             _logger.LogInformation("开始为手术医嘱 {OrderId} 生成执行任务", order.Id);
 
-            // 1. 验证医嘱真实性
-            var existingOrder = await _surgicalOrderRepository.GetByIdAsync(order.Id);
+            // 1. 验证医嘱真实性，并加载药品明细
+            var existingOrder = await _surgicalOrderRepository.GetQueryable()
+                .Include(o => o.Items)
+                    .ThenInclude(i => i.Drug)
+                .FirstOrDefaultAsync(o => o.Id == order.Id);
+            
             if (existingOrder == null)
             {
                 throw new InvalidOperationException($"医嘱 {order.Id} 不存在，无法生成任务");
