@@ -96,20 +96,20 @@ namespace CareFlow.Application.Services.Nursing
             {
                 // 三级护理: 每日1次 (14:00)
                 NursingGrade.Grade3 => new List<TimeSpan> { 
-                    new(14, 0, 0) 
+                    new(6, 0, 0) 
                 },
 
                 // 二级护理: 每日2次 (08:00, 16:00)
                 NursingGrade.Grade2 => new List<TimeSpan> { 
-                    new(8, 0, 0), 
-                    new(16, 0, 0) 
+                    new(0, 0, 0), 
+                    new(8, 0, 0) 
                 },
 
                 // 一级护理: 每日3次 (08:00, 16:00, 20:00)
                 NursingGrade.Grade1 => new List<TimeSpan> { 
-                    new(8, 0, 0), 
-                    new(16, 0, 0),
-                    new(20, 0, 0)
+                    new(0, 0, 0), 
+                    new(8, 0, 0),
+                    new(12, 0, 0)
                 },
 
                 // 特级护理: 每2小时一次 (08:00, 10:00 ... )
