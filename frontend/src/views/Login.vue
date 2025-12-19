@@ -56,19 +56,22 @@ const handleLogin = async () => {
   errorMsg.value = '';
 
   try {
-    // 假设后端运行在 localhost:5000 (根据你的 launchSettings.json 调整端口)
-    // 注意：如果你配置了 axios baseURL，这里可以直接写 '/api/auth/login'
+    // 使用统一的API配置
     const res = await axios.post('http://localhost:5181/api/auth/login', form.value);
     
-    const { token, fullName, role } = res.data;
+    // 后端返回的完整数据：token, staffId, fullName, role, deptCode
+    const { token, staffId, fullName, role, deptCode } = res.data;
 
-    // 1. 存储 Token 和用户信息 - 修正为统一的存储格式
+    // 1. 存储 Token 和用户信息（字段名统一使用小驼峰）
     localStorage.setItem('token', token);
     localStorage.setItem('userInfo', JSON.stringify({ 
-      name: fullName, 
-      role: role,
-      id: form.value.employeeNumber // 假设工号就是ID，或者从响应中获取
+      staffId: staffId,      // 员工ID
+      fullName: fullName,    // 姓名
+      role: role,            // 角色
+      deptCode: deptCode     // 科室代码
     }));
+
+    console.log('登录成功，用户信息:', { staffId, fullName, role, deptCode });
 
     // 2. 跳转到主页
     router.push('/home');
