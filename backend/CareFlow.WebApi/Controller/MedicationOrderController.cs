@@ -33,8 +33,34 @@ public class MedicationOrderController : ControllerBase
     {
         try
         {
-            _logger.LogInformation("开始批量创建医嘱，患者ID: {PatientId}, 医嘱数量: {Count}", 
-                request.PatientId, request.Orders.Count);
+            _logger.LogInformation("==================== 开始批量创建医嘱 ====================");
+            _logger.LogInformation("患者ID: {PatientId}", request.PatientId);
+            _logger.LogInformation("医生ID: {DoctorId}", request.DoctorId);
+            _logger.LogInformation("医嘱数量: {Count}", request.Orders.Count);
+            
+            // 🔥 调试：输出每条医嘱的 Items 信息
+            for (int i = 0; i < request.Orders.Count; i++)
+            {
+                var orderDto = request.Orders[i];
+                _logger.LogInformation("医嘱 {Index}: 类型={Type}, Items数量={ItemCount}",
+                    i + 1,
+                    orderDto.IsLongTerm ? "长期" : "临时",
+                    orderDto.Items?.Count ?? 0);
+                    
+                if (orderDto.Items != null && orderDto.Items.Count > 0)
+                {
+                    foreach (var item in orderDto.Items)
+                    {
+                        _logger.LogInformation("  - 药品ID: {DrugId}, 剂量: {Dosage}", 
+                            item.DrugId, item.Dosage);
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning("  ⚠️ 警告: 医嘱 {Index} 的 Items 为空或null!", i + 1);
+                }
+            }
+            _logger.LogInformation("========================================================");
 
             if (request.Orders == null || request.Orders.Count == 0)
             {
@@ -54,6 +80,10 @@ public class MedicationOrderController : ControllerBase
             {
                 try
                 {
+                    _logger.LogInformation("🔧 开始处理医嘱: 类型={Type}, Items数量={ItemCount}",
+                        orderDto.IsLongTerm ? "长期" : "临时",
+                        orderDto.Items?.Count ?? 0);
+
                     // 1. 创建MedicationOrder实体
                     var order = new MedicationOrder
                     {
@@ -65,9 +95,13 @@ public class MedicationOrderController : ControllerBase
                         CreateTime = DateTime.UtcNow,
                         
                         // 时间策略字段
+                        // 前端发送的是北京时间+时区信息（如 "2025-12-19T08:00:00+08:00"）
+                        // .NET 会自动解析并转换为 UTC 时间存储到数据库
                         TimingStrategy = orderDto.TimingStrategy,
-                        StartTime = orderDto.StartTime,
-                        PlantEndTime = orderDto.PlantEndTime,
+                        StartTime = orderDto.StartTime.HasValue 
+                            ? orderDto.StartTime.Value.ToUniversalTime() 
+                            : (DateTime?)null,
+                        PlantEndTime = orderDto.PlantEndTime.ToUniversalTime(),
                         IntervalHours = orderDto.IntervalHours,
                         IntervalDays = orderDto.IntervalDays,
                         SmartSlotsMask = orderDto.SmartSlotsMask,
@@ -75,16 +109,51 @@ public class MedicationOrderController : ControllerBase
                         // 给药途径
                         UsageRoute = (UsageRoute)orderDto.UsageRoute,
                         
-                        Remarks = orderDto.Remarks
+                        Remarks = orderDto.Remarks,
+                        
+                        // 🔥 关键修复：添加 Items 集合
+                        Items = new List<MedicationOrderItem>()
                     };
 
+                    // 🔥 关键修复：创建 MedicationOrderItem 实体
+                    if (orderDto.Items != null && orderDto.Items.Count > 0)
+                    {
+                        _logger.LogInformation("💊 开始创建 {Count} 个药品项目", orderDto.Items.Count);
+                        
+                        foreach (var itemDto in orderDto.Items)
+                        {
+                            var orderItem = new MedicationOrderItem
+                            {
+                                DrugId = itemDto.DrugId, // DrugId 是 string 类型
+                                Dosage = itemDto.Dosage,
+                                Note = itemDto.Note ?? string.Empty,
+                                CreateTime = DateTime.UtcNow
+                            };
+                            
+                            order.Items.Add(orderItem);
+                            
+                            _logger.LogInformation("  ✅ 添加药品: DrugId={DrugId}, Dosage={Dosage}",
+                                orderItem.DrugId, orderItem.Dosage);
+                        }
+                        
+                        _logger.LogInformation("✅ 成功添加 {Count} 个药品项目到医嘱", order.Items.Count);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("⚠️ 警告: 此医嘱没有药品项目 (Items 为空)");
+                    }
+
                     // 2. 保存医嘱（AddAsync已包含SaveChangesAsync）
+                    // EF Core 会自动级联保存 Items 集合
+                    _logger.LogInformation("💾 保存医嘱到数据库...");
                     await _orderRepository.AddAsync(order);
 
-                    _logger.LogInformation("成功创建医嘱，ID: {OrderId}", order.Id);
+                    _logger.LogInformation("✅ 成功创建医嘱，ID: {OrderId}, Items数量: {ItemCount}",
+                        order.Id, order.Items?.Count ?? 0);
                     createdOrderIds.Add(order.Id.ToString());
 
                     // 3. 生成执行任务
+                    _logger.LogInformation("📋 开始生成执行任务...");
                     var tasks = await _taskService.GenerateExecutionTasksAsync(order);
                     totalTaskCount += tasks.Count;
 

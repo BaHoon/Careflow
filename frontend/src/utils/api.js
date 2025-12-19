@@ -3,9 +3,8 @@ import router from '../router'; // 导入路由以便在 401 时跳转
 
 // 1. 创建 axios 实例
 const api = axios.create({
-  // 根据你的 .NET 后端配置修改基础路径
-  // 开发环境下通常是 http://localhost:5000/api 或 5021/7xxx
-  baseURL: 'http://localhost:5000/api', 
+  // 根据后端 launchSettings.json 配置的实际端口
+  baseURL: 'http://localhost:5181/api', 
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json'

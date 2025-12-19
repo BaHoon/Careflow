@@ -49,8 +49,10 @@ public class AuthService
         return new LoginResponseDto
         {
             Token = token,
+            StaffId = user.Id,          // 返回员工ID
             FullName = user.Name,       // 对应 Staff.Name
-            Role = user.RoleType        // 对应 Staff.RoleType (存的是字符串 "Doctor"/"Nurse")
+            Role = user.RoleType,       // 对应 Staff.RoleType (存的是字符串 "Doctor"/"Nurse")
+            DeptCode = user.DeptCode    // 返回科室代码
         };
     }
 

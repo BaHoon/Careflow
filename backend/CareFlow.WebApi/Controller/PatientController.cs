@@ -50,7 +50,7 @@ public class PatientController : ControllerBase
                 {
                     // 验证病区是否属于该科室
                     var wardExists = await query
-                        .AnyAsync(p => p.Bed.WardId == wardId && p.Bed.Ward.DepartmentId == departmentId);
+                        .AnyAsync(p => p.Bed.WardId == wardId && p.Bed.Ward.Department.Id == departmentId);
                     
                     if (!wardExists)
                     {
@@ -59,7 +59,7 @@ public class PatientController : ControllerBase
                     }
                     
                     // 同时过滤科室和病区
-                    query = query.Where(p => p.Bed.Ward.DepartmentId == departmentId && p.Bed.WardId == wardId);
+                    query = query.Where(p => p.Bed.Ward.Department.Id == departmentId && p.Bed.WardId == wardId);
                 }
                 else
                 {
@@ -70,7 +70,7 @@ public class PatientController : ControllerBase
             else if (!string.IsNullOrEmpty(departmentId))
             {
                 // 只指定了科室，返回该科室所有患者
-                query = query.Where(p => p.Bed.Ward.DepartmentId == departmentId);
+                query = query.Where(p => p.Bed.Ward.Department.Id == departmentId);
             }
 
             var patients = await query.ToListAsync();

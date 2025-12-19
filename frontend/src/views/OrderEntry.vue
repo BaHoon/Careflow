@@ -108,10 +108,10 @@
                 <div class="form-row" v-if="!currentOrder.isLongTerm">
                   <label class="required">执行时间：</label>
                   <el-radio-group v-model="currentOrder.timingStrategy" @change="onStrategyChange">
-                    <el-radio label="Immediate">
+                    <el-radio label="IMMEDIATE">
                       <i class="el-icon-video-play"></i> 立即执行
                     </el-radio>
-                    <el-radio label="Specific">
+                    <el-radio label="SPECIFIC">
                       <i class="el-icon-alarm-clock"></i> 指定时间单次执行
                     </el-radio>
                   </el-radio-group>
@@ -468,18 +468,35 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
+import { getPatientList } from '../api/patient';
+import { getDrugList } from '../api/drug';
+import { getTimeSlots } from '../api/hospitalConfig';
+import { batchCreateOrders } from '../api/medicationOrder';
+import { toBeijingTimeISO } from '../utils/timezone';
 
-const currentUser = ref({ fullName: '张医生', role: '主任医师' });
+// 当前用户信息（从localStorage获取登录信息）
+const getUserInfo = () => {
+  try {
+    const userInfoStr = localStorage.getItem('userInfo');
+    if (userInfoStr) {
+      return JSON.parse(userInfoStr);
+    }
+  } catch (error) {
+    console.error('解析用户信息失败:', error);
+  }
+  // 如果没有登录信息，返回默认值
+  return { 
+    staffId: 'DOC001', 
+    fullName: '未登录', 
+    role: 'Doctor',
+    deptCode: '' 
+  };
+};
+
+const currentUser = ref(getUserInfo());
+
 const activeType = ref('MedicationOrder');
-const selectedPatient = ref({ 
-  id: 'P001', 
-  name: '张三', 
-  gender: '男', 
-  age: 34, 
-  weight: 70.5, 
-  bedId: 'IM-W01-001', 
-  nursingGrade: 2 
-});
+const selectedPatient = ref(null); // 初始为空，从患者列表选择
 
 const types = [
   { label: '药物医嘱', val: 'MedicationOrder' },
@@ -633,39 +650,42 @@ const selectStrategy = (strategy) => {
   switch (strategy.toUpperCase()) {
     case 'IMMEDIATE':
       // 立即执行：开始时间和结束时间都为当前时间（临时医嘱）
-      const now = new Date();
-      currentOrder.startTime = now.toISOString();
-      currentOrder.plantEndTime = now.toISOString();
+      const immediateNow = new Date();
+      currentOrder.startTime = getLocalISOString(immediateNow);
+      currentOrder.plantEndTime = getLocalISOString(immediateNow);
       break;
       
     case 'SPECIFIC':
       // 指定时间：默认为当前时间
-      currentOrder.startTime = new Date().toISOString();
+      const specificNow = new Date();
+      currentOrder.startTime = getLocalISOString(specificNow);
       
       const specificEnd = new Date();
       specificEnd.setDate(specificEnd.getDate() + 1); // 明天结束
-      currentOrder.plantEndTime = specificEnd.toISOString();
+      currentOrder.plantEndTime = getLocalISOString(specificEnd);
       break;
       
     case 'CYCLIC':
       // 周期执行：默认每8小时，从当前时间开始
-      currentOrder.startTime = new Date().toISOString();
+      const cyclicNow = new Date();
+      currentOrder.startTime = getLocalISOString(cyclicNow);
       currentOrder.intervalHours = 8;
       currentOrder.intervalDays = 1;
       
       const cyclicEnd = new Date();
       cyclicEnd.setDate(cyclicEnd.getDate() + 7); // 7天后
-      currentOrder.plantEndTime = cyclicEnd.toISOString();
+      currentOrder.plantEndTime = getLocalISOString(cyclicEnd);
       break;
       
     case 'SLOTS':
       // 时段执行：默认从当前时间开始，每天执行
-      currentOrder.startTime = new Date().toISOString();
+      const slotsNow = new Date();
+      currentOrder.startTime = getLocalISOString(slotsNow);
       currentOrder.intervalDays = 1;
       
       const slotsEnd = new Date();
       slotsEnd.setDate(slotsEnd.getDate() + 7); // 7天后
-      currentOrder.plantEndTime = slotsEnd.toISOString();
+      currentOrder.plantEndTime = getLocalISOString(slotsEnd);
       break;
   }
   
@@ -675,6 +695,17 @@ const selectStrategy = (strategy) => {
 // 兼容旧的onStrategyChange调用（如果模板中还有使用）
 const onStrategyChange = () => {
   selectStrategy(currentOrder.timingStrategy);
+};
+
+// 获取本地时间的 ISO 格式字符串（不带时区标识，用于 el-date-picker 显示）
+const getLocalISOString = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
 };
 
 // 时段操作
@@ -794,16 +825,77 @@ const submitAll = async () => {
   
   submitting.value = true;
   try {
-    console.log('提交给后端 API:', orderCart.value);
-    // TODO: 调用实际的 API
-    // await axios.post('/api/MedicalOrder/create', orderCart.value);
+    // 构造批量提交请求（将时间转换为北京时间ISO格式）
+    const requestData = {
+      patientId: selectedPatient.value?.id,
+      doctorId: currentUser.value.staffId, // 从登录信息获取员工ID
+      orders: orderCart.value.map(order => ({
+        isLongTerm: order.isLongTerm,
+        timingStrategy: order.timingStrategy?.toUpperCase(), // 🔥 确保策略为全大写
+        // 🔥 关键：添加北京时区标识 (+08:00)
+        startTime: toBeijingTimeISO(order.startTime),
+        plantEndTime: toBeijingTimeISO(order.plantEndTime),
+        intervalHours: order.intervalHours,
+        intervalDays: order.intervalDays,
+        smartSlotsMask: order.smartSlotsMask,
+        usageRoute: order.usageRoute,
+        remarks: order.remarks,
+        items: order.items
+      }))
+    };
+
+    // 🔥 调试信息：详细输出存储对象
+    console.log('==================== 医嘱提交调试信息 ====================');
+    console.log('📊 提交数据总览:');
+    console.log('  - 患者ID:', requestData.patientId);
+    console.log('  - 医生ID:', requestData.doctorId);
+    console.log('  - 医嘱数量:', requestData.orders.length);
+    console.log('\n📝 每条医嘱详情:');
+    requestData.orders.forEach((order, index) => {
+      console.log(`\n  医嘱 ${index + 1}:`);
+      console.log('    类型:', order.isLongTerm ? '长期医嘱' : '临时医嘱');
+      console.log('    时间策略:', order.timingStrategy);
+      console.log('    开始时间:', order.startTime);
+      console.log('    计划结束时间:', order.plantEndTime);
+      console.log('    用药途径:', order.usageRoute);
+      console.log('    间隔小时:', order.intervalHours);
+      console.log('    间隔天数:', order.intervalDays);
+      console.log('    智能时段掩码:', order.smartSlotsMask);
+      console.log('    备注:', order.remarks);
+      console.log('    💊 药品项目 (items):', order.items);
+      console.log('      - 项目数量:', order.items?.length || 0);
+      if (order.items && order.items.length > 0) {
+        order.items.forEach((item, itemIndex) => {
+          console.log(`      项目 ${itemIndex + 1}:`, {
+            drugId: item.drugId,
+            drugName: item.drugName,
+            dosage: item.dosage,
+            note: item.note
+          });
+        });
+      } else {
+        console.log('      ⚠️ 警告: items 为空或未定义!');
+      }
+    });
+    console.log('\n📤 完整请求数据 (JSON):');
+    console.log(JSON.stringify(requestData, null, 2));
+    console.log('========================================================\n');
     
-    await new Promise(resolve => setTimeout(resolve, 1000)); // 模拟网络延迟
+    const response = await batchCreateOrders(requestData);
     
-    ElMessage.success(`成功提交 ${orderCart.value.length} 条医嘱`);
-    orderCart.value = [];
+    if (response.success) {
+      ElMessage.success(response.message || `成功提交 ${orderCart.value.length} 条医嘱`);
+      orderCart.value = [];
+      expandedOrders.value = [];
+    } else {
+      ElMessage.error(response.message || '提交失败');
+      if (response.errors && response.errors.length > 0) {
+        console.error('提交错误:', response.errors);
+      }
+    }
   } catch (error) {
-    ElMessage.error('提交失败: ' + error.message);
+    console.error('提交失败:', error);
+    ElMessage.error('提交失败: ' + (error.response?.data?.message || error.message));
   } finally {
     submitting.value = false;
   }
@@ -905,59 +997,33 @@ const formatDate = (datetime) => {
   return `${year}-${month}-${day}`;
 };
 
-// 患者列表
-patientList.value = [
-    {
-      id: 'P001',
-      bedId: 'IM-W01-001',
-      name: '张三',
-      gender: '男',
-      age: 34,
-      weight: 70.5,
-      nursingGrade: 2,
-      department: '内科'
-    },
-    {
-      id: 'P002',
-      bedId: 'IM-W01-002',
-      name: '李四',
-      gender: '女',
-      age: 45,
-      weight: 62.0,
-      nursingGrade: 1,
-      department: '内科'
-    },
-    {
-      id: 'P003',
-      bedId: 'IM-W01-003',
-      name: '王五',
-      gender: '男',
-      age: 56,
-      weight: 75.0,
-      nursingGrade: 3,
-      department: '内科'
-    },
-    {
-      id: 'P004',
-      bedId: 'IM-W01-004',
-      name: '赵六',
-      gender: '女',
-      age: 38,
-      weight: 58.5,
-      nursingGrade: 2,
-      department: '内科'
-    },
-    {
-      id: 'P005',
-      bedId: 'IM-W01-005',
-      name: '钱七',
-      gender: '男',
-      age: 67,
-      weight: 68.0,
-      nursingGrade: 2,
-      department: '内科'
+// 加载患者列表的函数（根据当前医生的科室过滤）
+const loadPatientList = async () => {
+  try {
+    // 获取当前医生的科室代码
+    const deptCode = currentUser.value.deptCode;
+    
+    if (!deptCode) {
+      ElMessage.warning('未获取到科室信息，将显示所有患者');
     }
-  ];
+    
+    // 调用API，传入科室ID参数
+    const patients = await getPatientList(deptCode);
+    patientList.value = patients;
+    
+    // 如果有患者，默认选择第一个
+    if (patients.length > 0 && !selectedPatient.value) {
+      selectedPatient.value = patients[0];
+    }
+    
+    console.log('患者列表加载成功:', patients.length, '科室:', deptCode);
+  } catch (error) {
+    console.error('加载患者列表失败:', error);
+    ElMessage.error('加载患者列表失败: ' + (error.response?.data?.message || error.message));
+    // 失败后使用空数组
+    patientList.value = [];
+  }
+};
 
 const getStrategyLabel = (strategy) => {
   const allStrategies = [...strategyConfig.temporary, ...strategyConfig.longTerm];
@@ -999,30 +1065,37 @@ const getStrategyDescription = (order) => {
   }
 };
 
-// 模拟加载数据
+// 页面初始化，加载所有基础数据
 onMounted(async () => {
-  // TODO: 实际开发中通过 API 获取
-  drugDict.value = [
-    { id: 'DRUG001', genericName: '阿莫西林胶囊', specification: '0.25g/粒' },
-    { id: 'DRUG002', genericName: '0.9%氯化钠注射液', specification: '250ml/袋' },
-    { id: 'DRUG003', genericName: '5%葡萄糖注射液', specification: '500ml/袋' },
-    { id: 'DRUG004', genericName: '头孢曲松钠', specification: '1.0g/瓶' },
-    { id: 'DRUG005', genericName: '布洛芬缓释胶囊', specification: '0.3g/粒' }
-  ];
+  console.log('开始加载基础数据...');
   
-  // 时间段数据（与后端 DbInitializer 完全一致）
-  timeSlotDict.value = [
-    { id: 1, slotCode: 'PRE_BREAKFAST', slotName: '早餐前', defaultTime: '07:00:00' },
-    { id: 2, slotCode: 'POST_BREAKFAST', slotName: '早餐后', defaultTime: '08:30:00' },
-    { id: 4, slotCode: 'PRE_LUNCH', slotName: '午餐前', defaultTime: '11:30:00' },
-    { id: 8, slotCode: 'POST_LUNCH', slotName: '午餐后', defaultTime: '13:00:00' },
-    { id: 16, slotCode: 'PRE_DINNER', slotName: '晚餐前', defaultTime: '17:30:00' },
-    { id: 32, slotCode: 'POST_DINNER', slotName: '晚餐后', defaultTime: '19:00:00' },
-    { id: 64, slotCode: 'BEDTIME', slotName: '睡前', defaultTime: '21:00:00' }
-  ];
-
-  // 初始化：长期医嘱不设置默认策略，等待用户选择
-  // 临时医嘱也不设置默认策略，保持表单干净
+  try {
+    // 并行加载所有基础数据
+    const [drugsResponse, timeSlotsResponse] = await Promise.all([
+      getDrugList({ pageSize: 500 }), // 加载所有药品（前500个）
+      getTimeSlots()
+    ]);
+    
+    // 药品字典
+    if (drugsResponse && drugsResponse.items) {
+      drugDict.value = drugsResponse.items;
+      console.log('药品字典加载成功:', drugsResponse.items.length);
+    }
+    
+    // 时段配置
+    if (timeSlotsResponse) {
+      timeSlotDict.value = timeSlotsResponse;
+      console.log('时段配置加载成功:', timeSlotsResponse.length);
+    }
+    
+    // 加载患者列表
+    await loadPatientList();
+    
+    ElMessage.success('基础数据加载完成');
+  } catch (error) {
+    console.error('加载基础数据失败:', error);
+    ElMessage.error('加载基础数据失败，部分功能可能不可用');
+  }
 });
 </script>
 
