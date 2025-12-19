@@ -3,31 +3,6 @@ using CareFlow.Core.Enums;
 namespace CareFlow.Application.DTOs.Inspection;
 
 /// <summary>
-/// 创建检查医嘱请求 DTO
-/// </summary>
-public class CreateInspectionOrderDto
-{
-    public string PatientId { get; set; } = null!;
-    public string DoctorId { get; set; } = null!;
-    public string ItemCode { get; set; } = null!;
-    public string Location { get; set; } = null!;
-    public InspectionSource Source { get; set; }
-    public bool IsLongTerm { get; set; }
-    public DateTime PlantEndTime { get; set; }
-}
-
-/// <summary>
-/// 预约信息更新 DTO (模拟从 RIS/LIS 接收的预约反馈)
-/// </summary>
-public class UpdateAppointmentDto
-{
-    public long OrderId { get; set; }
-    public DateTime AppointmentTime { get; set; }
-    public string AppointmentPlace { get; set; } = null!;
-    public string? Precautions { get; set; }
-}
-
-/// <summary>
 /// 更新检查状态 DTO
 /// </summary>
 public class UpdateInspectionStatusDto
