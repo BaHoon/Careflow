@@ -3,7 +3,6 @@ using CareFlow.Infrastructure.Services;
 using CareFlow.Infrastructure; // 引用基础设施层
 using CareFlow.Application; // 引用应用层
 using CareFlow.Application.Services; // 引用应用层服务
-using CareFlow.Application.Extensions;// 引用应用层扩展方法
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -24,13 +23,22 @@ builder.Services.AddSwaggerGen();
 
 // 注册 AuthService
 builder.Services.AddScoped<AuthService>();
+
+// 注册手术医嘱任务服务及工厂
 builder.Services.AddScoped<IExecutionTaskFactory, SurgicalExecutionTaskFactory>();
+builder.Services.AddScoped<ISurgicalOrderTaskService, SurgicalOrderTaskService>();
 
 // 注册检查类医嘱服务
 builder.Services.AddScoped<CareFlow.Application.Interfaces.IInspectionService, CareFlow.Application.Services.InspectionService>();
 
 // // 注册药品医嘱任务服务
-// builder.Services.AddScoped<IMedicationOrderTaskService, MedicationOrderTaskService>();
+builder.Services.AddScoped<IMedicationOrderTaskService, MedicationOrderTaskService>();
+
+// 注册护士分配计算服务
+builder.Services.AddScoped<CareFlow.Application.Interfaces.INurseAssignmentService, CareFlow.Application.Services.NurseAssignmentService>();
+
+// 注册医嘱管理服务
+builder.Services.AddScoped<CareFlow.Application.Services.IMedicalOrderManager, CareFlow.Application.Services.MedicalOrderManager>();
 
 // 配置 JWT 认证服务
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -52,7 +60,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 // 这行代码会调用我们在 Infrastructure 层写的 DependencyInjection 类
 builder.Services.AddInfrastructure(builder.Configuration);
 
-// [关键] 注册应用层服务 (业务逻辑服务等都在这里面)
+// [关键] 注册应用层服务
 builder.Services.AddApplication();
 
 // [关键] 配置 CORS (跨域资源共享)
@@ -67,8 +75,6 @@ builder.Services.AddCors(options =>
                   .AllowAnyHeader();  // 允许任何 Header
         });
 });
-
-builder.Services.AddScoped<IBarcodeService, AsposeBarcodeService>();
 
 var app = builder.Build();
 
@@ -88,11 +94,11 @@ using (var scope = app.Services.CreateScope())
         CareFlow.Infrastructure.Data.DbInitializer.Initialize(context); // 1) 播种所有虚拟基础数据
 
         var taskFactory = services.GetRequiredService<IExecutionTaskFactory>();
-        var createdTasks = EnsureSurgicalExecutionTasks(context, taskFactory); // 2) 手术医嘱 -> 术前任务拆分
+        // var createdTasks = EnsureSurgicalExecutionTasks(context, taskFactory); // 2) 手术医嘱 -> 术前任务拆分
         
         // 这是一个可选的日志输出，方便你看控制台知道发生了什么
         var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogInformation("数据库初始化已完成，测试数据已插入。同步任务：{TaskCount}", createdTasks);
+        logger.LogInformation("数据库初始化已完成，测试数据已插入。");
     }
     catch (Exception ex)
     {
@@ -130,30 +136,3 @@ app.MapControllers();
 
 // 启动程序！
 app.Run();
-
-static int EnsureSurgicalExecutionTasks(ApplicationDbContext context, IExecutionTaskFactory factory)
-{
-    var surgicalOrders = context.SurgicalOrders
-        .Include(o => o.Patient)
-        .ToList();
-
-    var created = 0;
-    foreach (var order in surgicalOrders)
-    {
-        if (context.ExecutionTasks.Any(t => t.MedicalOrderId == order.Id))
-        {
-            continue;
-        }
-
-        var tasks = factory.CreateTasks(order);
-        context.ExecutionTasks.AddRange(tasks);
-        created += tasks.Count;
-    }
-
-    if (created > 0)
-    {
-        context.SaveChanges();
-    }
-
-    return created;
-}

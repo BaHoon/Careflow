@@ -27,18 +27,41 @@ namespace CareFlow.Core.Models.Medical
         public string OrderType { get; set; } = null!; // 鉴别列
         public string Status { get; set; } = null!;
         public bool IsLongTerm { get; set; }
+
+        // [新增] 包含的药品列表 (例如：500ml盐水 + 0.5mg青霉素)
+        // 移动到基类，以便手术医嘱等也能使用
+        public ICollection<MedicationOrderItem> Items { get; set; } = new List<MedicationOrderItem>();
+    }
+
+    // --- 新增：医嘱药品明细表 (用于解决多药混合问题) ---
+    [Table("MedicationOrderItems")]
+    public class MedicationOrderItem : EntityBase<long>
+    {
+        public long MedicalOrderId { get; set; }
+        [ForeignKey("MedicalOrderId")] // 这是一个导航属性，指向父医嘱
+        public MedicalOrder MedicalOrder { get; set; } = null!;
+
+        public string DrugId { get; set; } = null!;
+        [ForeignKey("DrugId")]
+        public Drug Drug { get; set; } = null!;
+
+        public string Dosage { get; set; } = null!; // 该药品的单次剂量 (如 0.5g)
+        
+        // 某些特殊情况，不同药品的单位可能不同，这里仅作记录
+        public string Note { get; set; } = string.Empty; 
     }
 
     // 药品医嘱 (MEDICATION_ORDER)
     [Table("MedicationOrders")]
     public class MedicationOrder : MedicalOrder
     {
-        public string DrugId { get; set; } = null!;           // 药品ID
-        [ForeignKey("DrugId")]
-        public Drug Drug { get; set; } = null!;               // 药品信息
+        // public string DrugId { get; set; } = null!;           // 药品ID
+        // [ForeignKey("DrugId")]
+        // public Drug Drug { get; set; } = null!;               // 药品信息
         
-        public string Dosage { get; set; } = null!;           // 剂量
-        public string UsageRoute { get; set; } = null!;       // 途径(口服/静滴/涂抹)
+        // public string Dosage { get; set; } = null!;           // 剂量
+
+        public UsageRoute UsageRoute { get; set; }               // 用法途径
         public bool IsDynamicUsage { get; set; }     // 是否不定量(如吸氧)
         
         public string FreqCode { get; set; } = null!;         // 关联频次字典
@@ -91,20 +114,20 @@ namespace CareFlow.Core.Models.Medical
         public ICollection<InspectionReport> Reports { get; set; } = new List<InspectionReport>();
     }
 
-    // 3. 手术医嘱 (SURGICAL_ORDER)
+    // 手术医嘱 (SURGICAL_ORDER)
     [Table("SurgicalOrders")]
     public class SurgicalOrder : MedicalOrder
     {
         public string SurgeryName { get; set; } = null!;      // 手术名称
-        public DateTime ScheduleTime { get; set; }   // 排期时间
+        public DateTime ScheduleTime { get; set; }            // 排期时间
         public string AnesthesiaType { get; set; } = null!;   // 麻醉方式
         public string IncisionSite { get; set; } = null!;     // 切口部位
         
         // 建议在DbContext中配置为 jsonb 类型
-        public string RequiredMeds { get; set; } = null!;        // 需带入药品JSON
-        
-        public bool NeedBloodPrep { get; set; }      // 是否备血
-        public bool HasImplants { get; set; }        // 有无假体/饰品
+
+        public string? RequiredTalk { get; set; }             // "需进行的宣讲JSON"
+        public string? RequiredOperation { get; set; }        // "需进行的操作JSON"
+        public string? RequiredMeds { get; set; } = null!;        // 需带入药品JSON
         
         public float PrepProgress { get; set; }      // 术前准备进度(0.0-1.0)
         public string PrepStatus { get; set; } = null!;       // 准备状态

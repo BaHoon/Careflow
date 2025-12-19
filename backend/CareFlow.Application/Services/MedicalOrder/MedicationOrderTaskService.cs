@@ -2,7 +2,11 @@ using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models.Medical;
 using CareFlow.Core.Models.Nursing;
 using CareFlow.Core.Models;
+using CareFlow.Core.Enums;
 using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
+using System.Linq;
 
 namespace CareFlow.Application.Services;
 
@@ -33,6 +37,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
 
     public async Task<List<ExecutionTask>> GenerateExecutionTasksAsync(MedicationOrder order)
     {
+        // 生成任务拆分逻辑
         // 1. 输入参数验证
         if (order == null)
         {
@@ -41,8 +46,11 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
 
         _logger.LogInformation("开始为医嘱 {OrderId} 生成执行任务", order.Id);
 
-        // 2. 验证医嘱是否真实存在于数据库中
-        var existingOrder = await _medicationOrderRepository.GetByIdAsync(order.Id);
+        // 2. 验证医嘱是否真实存在于数据库中，并加载Items和Drug信息
+        var existingOrder = await _medicationOrderRepository.GetQueryable()
+            .Include(m => m.Items)
+                .ThenInclude(item => item.Drug)
+            .FirstOrDefaultAsync(m => m.Id == order.Id);
         if (existingOrder == null)
         {
             var errorMsg = $"医嘱 {order.Id} 在数据库中不存在，无法生成执行任务";
@@ -69,7 +77,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
         {
             _logger.LogWarning("医嘱 {OrderId} 已存在未完成的任务，建议先处理现有任务", order.Id);
             // 根据业务需求，可以选择抛出异常或继续执行
-            // throw new InvalidOperationException($"医嘱 {order.Id} 已存在未完成的执行任务");
+            throw new InvalidOperationException($"医嘱 {order.Id} 已存在未完成的执行任务");
         }
 
         var tasks = new List<ExecutionTask>();
@@ -141,6 +149,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
 
     public async Task RollbackPendingTasksAsync(long orderId, string reason)
     {
+        // 医嘱回滚
         // 输入验证
         if (orderId <= 0)
         {
@@ -175,6 +184,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
             {
                 task.Status = "Cancelled";
                 task.ExceptionReason = $"医嘱停止: {reason}";
+                task.IsRolledBack = true;
                 task.LastModifiedAt = DateTime.UtcNow;
                 
                 await _taskRepository.UpdateAsync(task);
@@ -191,6 +201,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
 
     public async Task RefreshExecutionTasksAsync(MedicationOrder order)
     {
+        // 医嘱更新后刷新任务
         // 输入验证
         if (order == null)
         {
@@ -240,16 +251,37 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
         if (order == null)
             throw new ArgumentNullException(nameof(order));
 
-        var task = new ExecutionTask
+        var executionTime = DateTime.UtcNow;
+        var tasks = new List<ExecutionTask>();
+        
+        // 1. 生成取药任务（必须）
+        var retrieveTask = new ExecutionTask
         {
             MedicalOrderId = order.Id,
             PatientId = order.PatientId,
-            PlannedStartTime = DateTime.UtcNow,
+            Category = TaskCategory.Verification, // 取药为核对类
+            PlannedStartTime = executionTime.AddMinutes(-30), // 提前30分钟取药
             Status = "Pending",
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            DataPayload = GenerateRetrieveMedicationDataPayload(order, executionTime.AddMinutes(-30))
         };
-
-        return new List<ExecutionTask> { task };
+        
+        // 2. 生成给药任务
+        var administrationTask = new ExecutionTask
+        {
+            MedicalOrderId = order.Id,
+            PatientId = order.PatientId,
+            Category = GetTaskCategoryFromUsageRoute(order.UsageRoute),
+            PlannedStartTime = executionTime,
+            Status = "Pending",
+            CreatedAt = DateTime.UtcNow,
+            DataPayload = GenerateTaskDataPayload(order, executionTime)
+        };
+        
+        tasks.Add(retrieveTask);
+        tasks.Add(administrationTask);
+        
+        return tasks;
     }
 
     /// <summary>
@@ -273,16 +305,37 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
             return new List<ExecutionTask>();
         }
 
-        var task = new ExecutionTask
+        var executionTime = order.SpecificExecutionTime.Value;
+        var tasks = new List<ExecutionTask>();
+        
+        // 1. 生成取药任务（必须）
+        var retrieveTask = new ExecutionTask
         {
             MedicalOrderId = order.Id,
             PatientId = order.PatientId,
-            PlannedStartTime = order.SpecificExecutionTime.Value,
+            Category = TaskCategory.Verification, // 取药为核对类
+            PlannedStartTime = executionTime.AddMinutes(-30), // 提前30分钟取药
             Status = "Pending",
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            DataPayload = GenerateRetrieveMedicationDataPayload(order, executionTime.AddMinutes(-30))
         };
-
-        return new List<ExecutionTask> { task };
+        
+        // 2. 生成给药任务
+        var administrationTask = new ExecutionTask
+        {
+            MedicalOrderId = order.Id,
+            PatientId = order.PatientId,
+            Category = GetTaskCategoryFromUsageRoute(order.UsageRoute),
+            PlannedStartTime = executionTime,
+            Status = "Pending",
+            CreatedAt = DateTime.UtcNow,
+            DataPayload = GenerateTaskDataPayload(order, executionTime)
+        };
+        
+        tasks.Add(retrieveTask);
+        tasks.Add(administrationTask);
+        
+        return tasks;
     }
 
     /// <summary>
@@ -318,14 +371,32 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
                 // 只生成未来时间的任务
                 if (executionTime > DateTime.UtcNow)
                 {
-                    tasks.Add(new ExecutionTask
+                    // 1. 生成取药任务（必须）
+                    var retrieveTask = new ExecutionTask
                     {
                         MedicalOrderId = order.Id,
                         PatientId = order.PatientId,
+                        Category = TaskCategory.Verification, // 取药为核对类
+                        PlannedStartTime = executionTime.AddMinutes(-30), // 提前30分钟取药
+                        Status = "Pending",
+                        CreatedAt = DateTime.UtcNow,
+                        DataPayload = GenerateRetrieveMedicationDataPayload(order, executionTime.AddMinutes(-30))
+                    };
+                    
+                    // 2. 生成给药任务
+                    var administrationTask = new ExecutionTask
+                    {
+                        MedicalOrderId = order.Id,
+                        PatientId = order.PatientId,
+                        Category = GetTaskCategoryFromUsageRoute(order.UsageRoute),
                         PlannedStartTime = executionTime,
                         Status = "Pending",
-                        CreatedAt = DateTime.UtcNow
-                    });
+                        CreatedAt = DateTime.UtcNow,
+                        DataPayload = GenerateTaskDataPayload(order, executionTime)
+                    };
+                    
+                    tasks.Add(retrieveTask);
+                    tasks.Add(administrationTask);
                 }
             }
         }
@@ -374,15 +445,32 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
                 // 只生成未来时间的任务
                 if (executionTime > DateTime.UtcNow)
                 {
-                    tasks.Add(new ExecutionTask
+                    // 1. 生成取药任务（必须）
+                    var retrieveTask = new ExecutionTask
                     {
                         MedicalOrderId = order.Id,
                         PatientId = order.PatientId,
+                        Category = TaskCategory.Verification, // 取药为核对类
+                        PlannedStartTime = executionTime.AddMinutes(-30), // 提前30分钟取药
+                        Status = "Pending",
+                        CreatedAt = DateTime.UtcNow,
+                        DataPayload = GenerateRetrieveMedicationDataPayload(order, executionTime.AddMinutes(-30))
+                    };
+                    
+                    // 2. 生成给药任务
+                    var administrationTask = new ExecutionTask
+                    {
+                        MedicalOrderId = order.Id,
+                        PatientId = order.PatientId,
+                        Category = GetTaskCategoryFromUsageRoute(order.UsageRoute),
                         PlannedStartTime = executionTime,
                         Status = "Pending",
                         CreatedAt = DateTime.UtcNow,
-                        DataPayload = $"{{\"slotCode\":\"{slot.SlotCode}\",\"slotName\":\"{slot.SlotName}\"}}"
-                    });
+                        DataPayload = GenerateTaskDataPayload(order, executionTime, slot.SlotName)
+                    };
+                    
+                    tasks.Add(retrieveTask);
+                    tasks.Add(administrationTask);
                 }
             }
         }
@@ -408,9 +496,12 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
         if (string.IsNullOrWhiteSpace(order.DoctorId))
             validationErrors.Add("医生ID不能为空");
 
-        if (string.IsNullOrWhiteSpace(order.DrugId))
-            validationErrors.Add("药品ID不能为空");
+        if (order.Items == null || !order.Items.Any())
+            throw new ArgumentException($"药品医嘱必须包含至少一种药品（{order.Items?.Count() ?? 0}）");
 
+        if (!Enum.IsDefined(typeof(UsageRoute), order.UsageRoute))
+            throw new ArgumentException("给药途径不能为空或无效");
+        
         if (string.IsNullOrWhiteSpace(order.TimingStrategy))
             validationErrors.Add("时间策略不能为空");
 
@@ -507,6 +598,224 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
     #region 辅助方法
 
     /// <summary>
+    /// 生成执行任务的标准化DataPayload
+    /// </summary>
+    private string GenerateTaskDataPayload(MedicationOrder order, DateTime executionTime, string? slotName = null)
+    {
+        try
+        {
+            // 构建药品描述
+            var drugDescription = BuildDrugDescription(order);
+            
+            // 构建使用时间描述
+            var timingDescription = BuildTimingDescription(order, executionTime, slotName);
+            
+            // 创建任务项列表 - 基于Items集合
+            var items = new List<object>();
+            var itemId = 1;
+
+            // 为每个药品项目创建核对任务
+            if (order.Items != null && order.Items.Any())
+            {
+                foreach (var item in order.Items)
+                {
+                    var drugName = item.Drug?.GenericName ?? 
+                                  item.Drug?.TradeName ?? 
+                                  $"药品({item.DrugId})";
+                    items.Add(new
+                    {
+                        id = itemId++,
+                        text = $"核对药品：{drugName} {item.Dosage}",
+                        isChecked = false,
+                        required = true,
+                        drugId = item.DrugId
+                    });
+                }
+            }
+
+            // 添加通用核对项目
+            items.Add(new
+            {
+                id = itemId++,
+                text = $"核对给药途径：{order.UsageRoute}",
+                isChecked = false,
+                required = true
+            });
+
+            items.Add(new
+            {
+                id = itemId++,
+                text = $"核对患者身份",
+                isChecked = false,
+                required = true
+            });
+
+            // 构建完整的描述
+            var fullDescription = $"{drugDescription} - {order.UsageRoute} - {timingDescription}";
+
+            var dataPayload = new
+            {
+                TaskType = "MEDICATION_ADMINISTRATION",
+                Title = "药品给药核对",
+                Description = fullDescription,
+                IsChecklist = true,
+                Items = items,
+                MedicationInfo = new
+                {
+                    OrderId = order.Id,
+                    Items = order.Items?.Select(item => new
+                    {
+                        DrugId = item.DrugId,
+                        DrugName = item.Drug?.GenericName,
+                        Dosage = item.Dosage,
+                        Note = item.Note
+                    }) ?? Enumerable.Empty<object>(),
+                    UsageRoute = order.UsageRoute,
+                    FreqCode = order.FreqCode,
+                    ExecutionTime = executionTime.ToString("yyyy-MM-dd HH:mm:ss"),
+                    SlotName = slotName
+                }
+            };
+
+            return JsonSerializer.Serialize(dataPayload, new JsonSerializerOptions 
+            { 
+                WriteIndented = false,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "生成DataPayload时发生错误，医嘱ID: {OrderId}", order.Id);
+            // 返回简化版本，确保不会因为DataPayload生成失败而影响任务创建
+            var firstDrugInfo = order.Items?.FirstOrDefault();
+            var drugName = firstDrugInfo?.Drug?.GenericName ?? 
+                          firstDrugInfo?.Drug?.TradeName ?? 
+                          (firstDrugInfo != null ? $"药品({firstDrugInfo.DrugId})" : "未知药品");
+            
+            return JsonSerializer.Serialize(new
+            {
+                TaskType = "MEDICATION_ADMINISTRATION",
+                Title = "药品给药核对",
+                Description = $"药品给药 - {drugName} - {order.UsageRoute}",
+                IsChecklist = true,
+                Items = new[] { new { id = 1, text = "执行给药任务", isChecked = false, required = true } }
+            });
+        }
+    }
+
+    /// <summary>
+    /// 构建药品描述信息
+    /// </summary>
+    private string BuildDrugDescription(MedicationOrder order)
+    {
+        if (order.Items == null || !order.Items.Any())
+        {
+            return "无药品信息";
+        }
+
+        if (order.Items.Count == 1)
+        {
+            // 单个药品
+            var item = order.Items.First();
+            var drugName = item.Drug?.GenericName ?? item.Drug?.TradeName ?? $"药品({item.DrugId})";
+            var tradeName = item.Drug?.TradeName;
+            var specification = item.Drug?.Specification;
+            
+            var fullName = drugName;
+            if (!string.IsNullOrEmpty(tradeName) && tradeName != drugName)
+            {
+                fullName += $"({tradeName})";
+            }
+            if (!string.IsNullOrEmpty(specification))
+            {
+                fullName += $" {specification}";
+            }
+            
+            return $"{fullName} {item.Dosage}";
+        }
+        else
+        {
+            // 多个药品 - 组合药品
+            var descriptions = order.Items.Select(item =>
+            {
+                var drugName = item.Drug?.GenericName ?? 
+                              item.Drug?.TradeName ?? 
+                              $"药品({item.DrugId})";
+                return $"{drugName} {item.Dosage}";
+            });
+            
+            return $"组合用药：{string.Join(" + ", descriptions)}";
+        }
+    }
+
+    /// <summary>
+    /// 构建时间描述信息
+    /// </summary>
+    private string BuildTimingDescription(MedicationOrder order, DateTime executionTime, string? slotName = null)
+    {
+        var timingParts = new List<string>();
+
+        // 添加频次信息
+        var freqDescription = GetFrequencyDescription(order.FreqCode);
+        if (!string.IsNullOrEmpty(freqDescription))
+        {
+            timingParts.Add(freqDescription);
+        }
+
+        // 添加时段信息
+        if (!string.IsNullOrEmpty(slotName))
+        {
+            timingParts.Add($"{slotName}给药");
+        }
+
+        // 添加具体执行时间
+        timingParts.Add($"执行时间：{executionTime:yyyy-MM-dd HH:mm}");
+
+        // 添加策略类型描述
+        switch (order.TimingStrategy.ToUpper())
+        {
+            case "IMMEDIATE":
+                timingParts.Add("立即执行");
+                break;
+            case "SPECIFIC":
+                timingParts.Add("指定时间执行");
+                break;
+            case "CYCLIC":
+                if (order.IntervalDays == 1)
+                    timingParts.Add("每日执行");
+                else
+                    timingParts.Add($"每{order.IntervalDays}天执行");
+                break;
+            case "SLOTS":
+                timingParts.Add("按时段执行");
+                break;
+        }
+
+        return string.Join("，", timingParts);
+    }
+
+    /// <summary>
+    /// 获取频次代码的中文描述
+    /// </summary>
+    private string GetFrequencyDescription(string freqCode)
+    {
+        return freqCode.ToUpper() switch
+        {
+            "ONCE" => "单次给药",
+            "QD" => "每日一次",
+            "BID" => "每日两次", 
+            "TID" => "每日三次",
+            "QID" => "每日四次",
+            "Q6H" => "每6小时一次",
+            "Q8H" => "每8小时一次", 
+            "Q12H" => "每12小时一次",
+            "PRN" => "需要时给药",
+            "CONT" => "持续给药",
+            _ => freqCode
+        };
+    }
+
+    /// <summary>
     /// 根据频次代码获取每日执行次数
     /// </summary>
     private int GetDailyFrequency(string freqCode)
@@ -584,20 +893,109 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
                 RecordId = task.Id.ToString()
             };
 
+            // 生成条形码并保存到文件系统
+            var barcodeResult = await _barcodeService.GenerateAndSaveBarcodeAsync(barcodeIndex, saveToFile: true);
+            
+            // 更新条形码索引信息
+            barcodeIndex.ImagePath = barcodeResult.FilePath;
+            barcodeIndex.ImageSize = barcodeResult.FileSize;
+            barcodeIndex.ImageMimeType = barcodeResult.MimeType;
+            barcodeIndex.ImageGeneratedAt = barcodeResult.GeneratedAt;
+
             // 保存条形码索引到数据库
             await _barcodeRepository.AddAsync(barcodeIndex);
             
-            // 生成条形码图片（可选，如果需要立即生成图片的话）
-            // var barcodeBytes = _barcodeService.GenerateBarcode(barcodeIndex);
-            // 这里可以选择保存到文件系统或其他地方
-            
-            _logger.LogDebug("已为ExecutionTask {TaskId} 生成条形码索引", task.Id);
+            _logger.LogDebug("已为ExecutionTask {TaskId} 生成条形码索引和图片文件 {FilePath}", 
+                task.Id, barcodeResult.FilePath ?? "内存中");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "为ExecutionTask {TaskId} 生成条形码时发生错误", task.Id);
             // 条形码生成失败不应该影响任务的正常创建，所以这里只记录错误
         }
+    }
+
+    /// <summary>
+    /// 根据用药途径获取任务分类
+    /// </summary>
+    private TaskCategory GetTaskCategoryFromUsageRoute(UsageRoute usageRoute)
+    {
+        return usageRoute switch
+        {
+            // 口服/外用类 - 立即执行
+            UsageRoute.PO or UsageRoute.Topical => TaskCategory.Immediate,
+            
+            // 注射类 - 立即执行
+            UsageRoute.IM or UsageRoute.SC or UsageRoute.IVP => TaskCategory.Immediate,
+            
+            // 持续输注类 - 持续执行
+            UsageRoute.IVGTT or UsageRoute.Inhalation => TaskCategory.Duration,
+            
+            // 皮试类 - 结果等待
+            UsageRoute.ST => TaskCategory.ResultPending,
+            
+            // 默认为立即执行
+            _ => TaskCategory.Immediate
+        };
+    }
+
+    /// <summary>
+    /// 生成取药任务的数据载荷
+    /// </summary>
+    private string GenerateRetrieveMedicationDataPayload(MedicationOrder order, DateTime retrieveTime)
+    {
+        // 构建 Items 数组，用于 BarcodeMatchingService 的通用核对逻辑
+        var items = new List<object>();
+        var itemId = 1;
+
+        if (order.Items != null && order.Items.Any())
+        {
+            foreach (var item in order.Items)
+            {
+                var drugName = item.Drug?.GenericName ?? 
+                              item.Drug?.TradeName ?? 
+                              $"药品({item.DrugId})";
+                
+                items.Add(new
+                {
+                    id = itemId++,
+                    text = $"核对药品：{drugName} {item.Dosage}",
+                    isChecked = false,
+                    required = true,
+                    drugId = item.DrugId // 关键字段：用于扫码匹配
+                });
+            }
+        }
+
+        var payload = new
+        {
+            TaskType = "RetrieveMedication",
+            Title = "药房取药核对",
+            Description = "请从药房取药并核对药品信息",
+            IsChecklist = true,
+            Items = items, // 符合通用协议的 Items 数组
+            
+            // 保留原有信息供参考
+            OrderId = order.Id,
+            PatientId = order.PatientId,
+            RetrieveTime = retrieveTime,
+            Medications = order.Items?.Select(item => new
+            {
+                DrugId = item.DrugId,
+                DrugName = item.Drug?.GenericName,
+                Dosage = item.Dosage,
+                Note = item.Note
+            }) ?? Enumerable.Empty<object>(),
+            UsageRoute = order.UsageRoute,
+            TotalItems = order.Items?.Count ?? 0
+        };
+
+        return JsonSerializer.Serialize(payload, new JsonSerializerOptions 
+        { 
+            WriteIndented = false,
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        });
     }
 
     #endregion

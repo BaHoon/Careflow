@@ -62,9 +62,13 @@ const handleLogin = async () => {
     
     const { token, fullName, role } = res.data;
 
-    // 1. 存储 Token 和用户信息
+    // 1. 存储 Token 和用户信息 - 修正为统一的存储格式
     localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify({ fullName, role }));
+    localStorage.setItem('userInfo', JSON.stringify({ 
+      name: fullName, 
+      role: role,
+      id: form.value.employeeNumber // 假设工号就是ID，或者从响应中获取
+    }));
 
     // 2. 跳转到主页
     router.push('/home');

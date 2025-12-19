@@ -1,4 +1,4 @@
-namespace CareFlow.Application.DTOs.MedicationOrder;
+namespace CareFlow.Application.DTOs.Common;
 using CareFlow.Core.Enums;
 
 public class ExecutionTaskDto
@@ -20,15 +20,10 @@ public class ExecutionTaskDto
     public DateTime CreatedAt { get; set; }
 }
 
-public class GenerateTasksRequestDto
-{
-    public long MedicationOrderId { get; set; }
-}
-
-public class GenerateTasksResponseDto
+public class TaskGenerationResultDto
 {
     public bool Success { get; set; }
     public string Message { get; set; } = string.Empty;
-    public List<ExecutionTaskDto> Tasks { get; set; } = new();
+    public List<ExecutionTaskDto> Tasks { get; set; } = new(); // 复用通用的 TaskDto
     public int TaskCount { get; set; }
 }

@@ -1,8 +1,10 @@
 using CareFlow.Core.Interfaces;
+using CareFlow.Core.Models.Barcode;
 using CareFlow.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using CareFlow.Infrastructure.Repositories;
 
 namespace CareFlow.Infrastructure;
 
@@ -22,11 +24,17 @@ public static class DependencyInjection
         // 这是一个比较高级的通用注入写法，或者你可以写死：
         services.AddScoped(typeof(IRepository<,>), typeof(EfRepository<,>));
 
-        // 注册条形码服务
+        // 3. 配置选项
+        services.Configure<BarcodeSettings>(configuration.GetSection(BarcodeSettings.SectionName));
+
+        // 4. 注册条形码服务
         services.AddScoped<IBarcodeService, AsposeBarcodeService>();
         
         // 注册记录验证服务
         services.AddScoped<IRecordValidationService, RecordValidationService>();
+
+        // 注册护士排班专用仓储
+        services.AddScoped<INurseScheduleRepository, NurseScheduleRepository>();
 
         return services;
     }

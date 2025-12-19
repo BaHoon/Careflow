@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using CareFlow.Core.Models;
 using CareFlow.Core.Models.Organization;
 using CareFlow.Core.Models.Space;
 using CareFlow.Core.Models.Medical;
@@ -34,6 +35,7 @@ namespace CareFlow.Infrastructure
         
         // 四种具体的医嘱类型
         public DbSet<MedicationOrder> MedicationOrders { get; set; } // 药品
+        public DbSet<MedicationOrderItem> MedicationOrderItems { get; set; } // 药品医嘱明细
         public DbSet<InspectionOrder> InspectionOrders { get; set; } // 检查
         public DbSet<SurgicalOrder> SurgicalOrders { get; set; }     // 手术
         public DbSet<OperationOrder> OperationOrders { get; set; }   // 操作 (护理/治疗)
@@ -50,6 +52,10 @@ namespace CareFlow.Infrastructure
         public DbSet<ExecutionTask> ExecutionTasks { get; set; }       // 执行单(扫码用)
         public DbSet<ShiftType> ShiftTypes { get; set; }               // 班次定义
         public DbSet<NurseRoster> NurseRosters { get; set; }           // 护士排班
+        
+        #region 5. Barcode (条形码系统)
+        public DbSet<BarcodeIndex> BarcodeIndexes { get; set; }         // 条形码索引表
+        #endregion
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

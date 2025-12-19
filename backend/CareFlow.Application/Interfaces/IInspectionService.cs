@@ -7,20 +7,10 @@ namespace CareFlow.Application.Interfaces;
 /// </summary>
 public interface IInspectionService
 {
-    // ===== 检查医嘱相关 =====
+    // ===== 检查医嘱状态管理(内部使用) =====
     
     /// <summary>
-    /// 创建检查医嘱
-    /// </summary>
-    Task<long> CreateInspectionOrderAsync(CreateInspectionOrderDto dto);
-    
-    /// <summary>
-    /// 更新预约信息 (模拟接收 RIS/LIS 的预约反馈)
-    /// </summary>
-    Task UpdateAppointmentAsync(UpdateAppointmentDto dto);
-    
-    /// <summary>
-    /// 更新检查状态
+    /// 更新检查状态(内部使用,由扫码等操作调用)
     /// </summary>
     Task UpdateInspectionStatusAsync(UpdateInspectionStatusDto dto);
     
@@ -30,24 +20,29 @@ public interface IInspectionService
     Task<InspectionOrderDetailDto> GetInspectionOrderDetailAsync(long orderId);
     
     /// <summary>
-    /// 生成检查导引单
+    /// 病房护士发送检查申请到检查站
     /// </summary>
-    Task<InspectionGuideDto> GenerateInspectionGuideAsync(long orderId);
+    Task SendInspectionRequestAsync(SendInspectionRequestDto dto);
     
     /// <summary>
-    /// 获取患者的所有检查医嘱
+    /// 检查站护士查看待处理的检查申请列表
     /// </summary>
-    Task<List<InspectionOrderDetailDto>> GetPatientInspectionOrdersAsync(string patientId);
+    Task<List<InspectionRequestDto>> GetPendingRequestsAsync(string inspectionStationId);
     
     /// <summary>
-    /// 获取护士看板数据 (按病区查询)
+    /// 检查站护士创建预约(自动生成3个执行任务)
     /// </summary>
-    Task<List<NurseInspectionBoardDto>> GetNurseBoardDataAsync(string wardId);
+    Task CreateAppointmentAsync(CreateAppointmentDto dto);
+    
+    /// <summary>
+    /// 统一扫码处理(根据任务类型自动处理)
+    /// </summary>
+    Task<object> ProcessScanAsync(SingleScanDto dto);
     
     // ===== 检查报告相关 =====
     
     /// <summary>
-    /// 创建检查报告 (模拟从 RIS/LIS 接收报告)
+    /// 创建检查报告
     /// </summary>
     Task<long> CreateInspectionReportAsync(CreateInspectionReportDto dto);
     
@@ -55,14 +50,4 @@ public interface IInspectionService
     /// 获取检查报告详情
     /// </summary>
     Task<InspectionReportDetailDto> GetInspectionReportDetailAsync(long reportId);
-    
-    /// <summary>
-    /// 根据医嘱ID获取报告列表
-    /// </summary>
-    Task<List<InspectionReportDetailDto>> GetReportsByOrderIdAsync(long orderId);
-    
-    /// <summary>
-    /// 更新报告状态
-    /// </summary>
-    Task UpdateReportStatusAsync(UpdateReportStatusDto dto);
 }
