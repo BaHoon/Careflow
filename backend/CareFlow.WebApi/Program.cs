@@ -3,7 +3,8 @@ using CareFlow.Infrastructure.Services;
 using CareFlow.Infrastructure; // 引用基础设施层
 using CareFlow.Application; // 引用应用层
 using CareFlow.Application.Services; // 引用应用层服务
-using CareFlow.Infrastructure; // 添加这个using来引用ApplicationDbContext
+using CareFlow.Application.Interfaces;
+using CareFlow.Application.Services.Nursing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -29,8 +30,8 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<IExecutionTaskFactory, SurgicalExecutionTaskFactory>();
 builder.Services.AddScoped<ISurgicalOrderTaskService, SurgicalOrderTaskService>();
 
-// 注册检查类医嘱服务
-builder.Services.AddScoped<CareFlow.Application.Interfaces.IInspectionService, CareFlow.Application.Services.InspectionService>();
+// 注册检查类医嘱服务（合并到任务服务）
+builder.Services.AddScoped<CareFlow.Application.Interfaces.IInspectionService, CareFlow.Application.Services.MedicalOrder.InspectionOrderTaskService>();
 
 // // 注册药品医嘱任务服务
 builder.Services.AddScoped<IMedicationOrderTaskService, MedicationOrderTaskService>();
@@ -40,6 +41,16 @@ builder.Services.AddScoped<CareFlow.Application.Interfaces.INurseAssignmentServi
 
 // 注册医嘱管理服务
 builder.Services.AddScoped<CareFlow.Application.Services.IMedicalOrderManager, CareFlow.Application.Services.MedicalOrderManager>();
+
+// 注册数据库接口
+builder.Services.AddScoped<ICareFlowDbContext>(provider => 
+    provider.GetRequiredService<ApplicationDbContext>());
+
+// 2. 注册任务生成器 (注意：这是个普通类，我们直接注册它自己)
+builder.Services.AddScoped<NursingTaskGenerator>();
+
+// 3. 注册体征服务 (接口 + 实现)
+builder.Services.AddScoped<IVitalSignService, VitalSignService>();
 
 // 配置 JWT 认证服务
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

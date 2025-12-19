@@ -24,7 +24,7 @@ namespace CareFlow.WebApi.Controllers
         public async Task<IActionResult> CreateOrder([FromBody] CreateOrderRequestDto request)
         {
             // 1. 根据 OrderType 决定创建哪个实体
-            MedicalOrder orderEntity = null;
+            MedicalOrder? orderEntity = null;
 
             switch (request.OrderType.ToUpper())
             {
@@ -45,11 +45,18 @@ namespace CareFlow.WebApi.Controllers
                         ScheduleTime = request.ScheduleTime ?? DateTime.UtcNow.AddDays(1),
                         AnesthesiaType = request.AnesthesiaType ?? "局部麻醉",
                         IncisionSite = request.IncisionSite ?? "待定",
-                        RequiredMeds = request.RequiredMeds,
                         RequiredTalk = request.RequiredTalk,
                         RequiredOperation = request.RequiredOperation,
                         PrepStatus = "未开始",
-                        PrepProgress = 0f
+                        PrepProgress = 0f,
+                        // 将 DTO 中的药品列表转换为 Items 集合
+                        Items = request.MedicationItems?.Select(item => new MedicationOrderItem
+                        {
+                            DrugId = item.DrugId,
+                            Dosage = item.Dosage,
+                            Note = item.Note ?? string.Empty,
+                            CreateTime = DateTime.UtcNow
+                        }).ToList() ?? new List<MedicationOrderItem>()
                     };
                     break;
 

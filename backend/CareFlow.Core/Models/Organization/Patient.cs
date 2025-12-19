@@ -1,7 +1,12 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using CareFlow.Core.Models.Space;
+using CareFlow.Core.Enums;
 using CareFlow.Core.Models;
+
+
+
+
 
 namespace CareFlow.Core.Models.Organization
 {
@@ -15,7 +20,7 @@ namespace CareFlow.Core.Models.Organization
         public float Weight { get; set; }
         public string Status { get; set; } = string.Empty;
         public string PhoneNumber { get; set; } = string.Empty;
-        public int NursingGrade { get; set; }
+        public NursingGrade NursingGrade { get; set; }
 
         // 外键关系
         public string BedId { get; set; } = string.Empty;

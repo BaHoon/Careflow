@@ -13,7 +13,6 @@ namespace CareFlow.WebApi.Controllers;
 [Route("api/[controller]")]
 public class SurgicalOrderTaskController : ControllerBase
 {
-    private readonly IMedicalOrderManager _orderManager;
     private readonly ISurgicalOrderTaskService _taskService;
     private readonly IRepository<SurgicalOrder, long> _orderRepository;
     private readonly IRepository<ExecutionTask, long> _executionTaskRepository;

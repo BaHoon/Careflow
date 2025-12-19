@@ -1,5 +1,13 @@
 namespace CareFlow.Application.DTOs.MedicalOrder
 {
+    // 药品明细 DTO
+    public class MedicationItemDto
+    {
+        public string DrugId { get; set; } = null!;
+        public string Dosage { get; set; } = null!;
+        public string? Note { get; set; }
+    }
+
     public class CreateOrderRequestDto
     {
         // === 1. 必填基础信息 ===
@@ -30,7 +38,8 @@ namespace CareFlow.Application.DTOs.MedicalOrder
         public DateTime? ScheduleTime { get; set; }
         public string? AnesthesiaType { get; set; }
         public string? IncisionSite { get; set; }
-        public string? RequiredMeds { get; set; }      // JSON
+        // RequiredMeds 已改为 Items 列表
+        public List<MedicationItemDto>? MedicationItems { get; set; }  // 手术需带入的药品
         public string? RequiredTalk { get; set; }      // JSON
         public string? RequiredOperation { get; set; } // JSON
 
