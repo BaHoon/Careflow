@@ -5,6 +5,9 @@ namespace CareFlow.Core.Models.Nursing;
 
 public class VitalSignsRecord : EntityBase<long>
 {
+    // [新增] 关联的护理任务ID
+    public long? NursingTaskId { get; set; }
+
     public string PatientId { get; set; }= null!;
     [ForeignKey("PatientId")]
     public Patient Patient { get; set; } = null!;
@@ -26,4 +29,32 @@ public class VitalSignsRecord : EntityBase<long>
     public int PainScore { get; set; } // 0-10
     public decimal Weight { get; set; }
     public string Intervention { get; set; } = string.Empty; // 处置措施
+}
+
+// [新表] 护理任务单
+public class NursingTask : EntityBase<long>
+{
+    public string PatientId { get; set; } = null!;
+    [ForeignKey("PatientId")]
+    public Patient Patient { get; set; } = null!;
+
+    // --- 1. 计划与分配 ---
+    public DateTime ScheduledTime { get; set; } // 计划时间 (08:00, 16:00...)
+        
+    // [用户需求] 自动分配的责任护士
+    // 生成任务时，根据排班表(NurseRoster)填入
+    public string? AssignedNurseId { get; set; } 
+        [ForeignKey("AssignedNurseId")]
+    public Nurse? AssignedNurse { get; set; }
+
+    // --- 2. 执行情况 ---
+    public string Status { get; set; } = "Pending"; // Pending, Completed, Cancelled
+    public DateTime? ExecuteTime { get; set; }      // 实际执行时间
+        
+    // [用户需求] 实际执行护士 (可能和分配的不一样，比如帮忙代测)
+    public string? ExecutorNurseId { get; set; }    
+
+    // --- 3. 任务元数据 ---
+    public string TaskType { get; set; } = "Routine"; // Routine(常规), ReMeasure(复测)
+    public string? Description { get; set; }          // "高热复测"
 }

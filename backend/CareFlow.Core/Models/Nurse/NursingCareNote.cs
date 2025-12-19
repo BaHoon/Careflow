@@ -5,6 +5,8 @@ namespace CareFlow.Core.Models.Nursing;
 
 public class NursingCareNote : EntityBase<long>
 {
+    // [新增] 关联的护理任务ID (不再关联 ExecutionTask)
+    public long? NursingTaskId { get; set; }
     public string PatientId { get; set; }= null!;
     [ForeignKey("PatientId")]
     public Patient Patient { get; set; } = null!;

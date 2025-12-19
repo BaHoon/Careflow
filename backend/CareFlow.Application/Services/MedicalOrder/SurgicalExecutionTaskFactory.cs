@@ -10,13 +10,6 @@ namespace CareFlow.Application.Services
 {
     public class SurgicalExecutionTaskFactory : IExecutionTaskFactory
     {
-        // 内部辅助类：用于解析药品 JSON
-        private class MedItemDto
-        {
-            public string DrugId { get; set; } = string.Empty;
-            public int Count { get; set; }
-        }
-
         // 定义各阶段相对于手术排期的时间偏移量
         private static readonly TimeSpan TalkOffset = TimeSpan.FromHours(-16);  // 术前宣教：前16小时
         private static readonly TimeSpan OpOffset = TimeSpan.FromHours(-2);     // 术前操作：前2小时
@@ -122,24 +115,20 @@ namespace CareFlow.Application.Services
             // A. 基础器械包 (默认都有)
             supplyList.Add(new { Name = $"{order.SurgeryName} 基础器械包", Count = "1套", Type = "Equipment" });
 
-            // B. 药品 JSON 解析
-            if (!string.IsNullOrWhiteSpace(order.RequiredMeds))
+            // B. 从 Items 集合读取药品数据
+            if (order.Items != null && order.Items.Any())
             {
-                try
+                foreach (var item in order.Items)
                 {
-                    var meds = JsonSerializer.Deserialize<List<MedItemDto>>(order.RequiredMeds);
-                    if (meds != null)
-                    {
-                        foreach (var med in meds)
-                        {
-                            // 注意：这里暂时只存DrugId，实际显示时前端需关联或后端Service层注入DrugService查询
-                            supplyList.Add(new { Name = med.DrugId, Count = $"{med.Count}", Type = "Drug" });
-                        }
-                    }
-                }
-                catch
-                {
-                    supplyList.Add(new { Name = "药品数据解析异常", Count = "N/A", Type = "Error" });
+                    // 使用导航属性获取药品名称，如果 Drug 未加载则显示 DrugId
+                    var drugName = item.Drug?.GenericName ?? item.DrugId;
+                    supplyList.Add(new 
+                    { 
+                        Name = drugName, 
+                        Count = item.Dosage, 
+                        Type = "Drug",
+                        Note = item.Note
+                    });
                 }
             }
 
