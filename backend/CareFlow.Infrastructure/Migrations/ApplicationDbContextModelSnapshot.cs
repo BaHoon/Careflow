@@ -323,7 +323,7 @@ namespace CareFlow.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("character varying(50)");
 
-                    b.Property<long>("MedicationOrderId")
+                    b.Property<long>("MedicalOrderId")
                         .HasColumnType("bigint");
 
                     b.Property<string>("Note")
@@ -334,7 +334,7 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.HasIndex("DrugId");
 
-                    b.HasIndex("MedicationOrderId");
+                    b.HasIndex("MedicalOrderId");
 
                     b.ToTable("MedicationOrderItems");
                 });
@@ -1065,15 +1065,15 @@ namespace CareFlow.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("CareFlow.Core.Models.Medical.MedicationOrder", "MedicationOrder")
+                    b.HasOne("CareFlow.Core.Models.Medical.MedicalOrder", "MedicalOrder")
                         .WithMany("Items")
-                        .HasForeignKey("MedicationOrderId")
+                        .HasForeignKey("MedicalOrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Drug");
 
-                    b.Navigation("MedicationOrder");
+                    b.Navigation("MedicalOrder");
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Nursing.ExecutionTask", b =>
@@ -1300,6 +1300,11 @@ namespace CareFlow.Infrastructure.Migrations
                     b.Navigation("MedicationOrderItems");
                 });
 
+            modelBuilder.Entity("CareFlow.Core.Models.Medical.MedicalOrder", b =>
+                {
+                    b.Navigation("Items");
+                });
+
             modelBuilder.Entity("CareFlow.Core.Models.Organization.Department", b =>
                 {
                     b.Navigation("StaffList");
@@ -1315,11 +1320,6 @@ namespace CareFlow.Infrastructure.Migrations
             modelBuilder.Entity("CareFlow.Core.Models.Medical.InspectionOrder", b =>
                 {
                     b.Navigation("Reports");
-                });
-
-            modelBuilder.Entity("CareFlow.Core.Models.Medical.MedicationOrder", b =>
-                {
-                    b.Navigation("Items");
                 });
 #pragma warning restore 612, 618
         }
