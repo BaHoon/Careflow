@@ -837,10 +837,15 @@ namespace CareFlow.Infrastructure.Data
                     OrderType = "SurgicalOrder", Status = "Accepted", IsLongTerm = false,
                     SurgeryName = "腹腔镜阑尾切除术", ScheduleTime = currentTime.AddHours(6),
                     AnesthesiaType = "全身麻醉", IncisionSite = "脐部及右下腹",
-                    RequiredMeds = "[{\"DrugId\":\"DRUG_001\", \"Count\":2}, {\"DrugId\":\"DRUG_002\", \"Count\":5}, {\"DrugId\":\"DRUG_003\", \"Count\":1}]",
                     RequiredTalk = "[\"术前禁食水宣教\", \"术前饰品摘取\", \"更换病号服\"]",
                     RequiredOperation = "[\"手术区域备皮\", \"留置导尿管\", \"建立静脉通路\"]",
-                    PrepProgress = 0.6f, PrepStatus = "术前准备中"
+                    PrepProgress = 0.6f, PrepStatus = "术前准备中",
+                    Items = new List<MedicationOrderItem>
+                    {
+                        new MedicationOrderItem { DrugId = "DRUG001", Dosage = "2支", Note = "术中用药" },
+                        new MedicationOrderItem { DrugId = "DRUG002", Dosage = "5袋", Note = "术中补液" },
+                        new MedicationOrderItem { DrugId = "DRUG003", Dosage = "1支", Note = "术后镇痛" }
+                    }
                 },
                 new SurgicalOrder
                 {
@@ -849,10 +854,14 @@ namespace CareFlow.Infrastructure.Data
                     OrderType = "SurgicalOrder", Status = "PendingReview", IsLongTerm = false,
                     SurgeryName = "腹腔镜胆囊切除术", ScheduleTime = currentTime.AddDays(1).AddHours(2),
                     AnesthesiaType = "全身麻醉", IncisionSite = "脐部及上腹部",
-                    RequiredMeds = "[{\"DrugId\":\"DRUG_005\", \"Count\":3}, {\"DrugId\":\"DRUG_002\", \"Count\":10}]",
                     RequiredTalk = "[\"术前禁食水宣教\"]",
                     RequiredOperation = "[\"交叉配血\",\"手术区域备皮\", \"建立静脉通路\"]",
-                    PrepProgress = 0.2f, PrepStatus = "等待术前评估"
+                    PrepProgress = 0.2f, PrepStatus = "等待术前评估",
+                    Items = new List<MedicationOrderItem>
+                    {
+                        new MedicationOrderItem { DrugId = "DRUG005", Dosage = "3粒", Note = "术前预防感染" },
+                        new MedicationOrderItem { DrugId = "DRUG002", Dosage = "10袋", Note = "术中补液" }
+                    }
                 },
                 new SurgicalOrder
                 {
@@ -861,10 +870,14 @@ namespace CareFlow.Infrastructure.Data
                     OrderType = "SurgicalOrder", Status = "Accepted", IsLongTerm = false,
                     SurgeryName = "左股骨干骨折切开复位内固定术", ScheduleTime = currentTime.AddHours(2),
                     AnesthesiaType = "腰硬联合麻醉", IncisionSite = "左大腿外侧",
-                    RequiredMeds = "[{\"DrugId\":\"DRUG_008\", \"Count\":2}, {\"DrugId\":\"DRUG_009\", \"Count\":1}, {\"DrugId\":\"DRUG_004\", \"Count\":500}]",
                     RequiredTalk = "[\"术前禁食水宣教\", \"术前体位指导\"]",
                     RequiredOperation = "[\"手术区域备皮\", \"留置导尿管\", \"术前抗生素皮试\"]",
-                    PrepProgress = 0.8f, PrepStatus = "急诊准备中"
+                    PrepProgress = 0.8f, PrepStatus = "急诊准备中",
+                    Items = new List<MedicationOrderItem>
+                    {
+                        new MedicationOrderItem { DrugId = "DRUG008", Dosage = "2瓶", Note = "抗感染" },
+                        new MedicationOrderItem { DrugId = "DRUG002", Dosage = "500ml", Note = "术中补液" }
+                    }
                 }
             };
             context.SurgicalOrders.AddRange(surgicalOrders);

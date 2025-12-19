@@ -54,7 +54,7 @@ namespace CareFlow.Infrastructure
         public DbSet<ShiftType> ShiftTypes { get; set; }               // 班次定义
         public DbSet<NurseRoster> NurseRosters { get; set; }           // 护士排班
         public DbSet<NursingTask> NursingTasks { get; set; }
-        
+
         #region 5. Barcode (条形码系统)
         public DbSet<BarcodeIndex> BarcodeIndexes { get; set; }         // 条形码索引表
         #endregion
@@ -80,11 +80,7 @@ namespace CareFlow.Infrastructure
 
             // --- 其他特殊字段配置 ---
 
-            // 如果使用的是 PostgreSQL，可以将 JSON 字符串字段显式指定为 jsonb 类型
-            // (如果没有装 Npgsql 插件或者不想用 jsonb，这行可以注释掉，当作普通文本存储)
-            modelBuilder.Entity<SurgicalOrder>()
-                .Property(s => s.RequiredMeds)
-                .HasColumnType("jsonb");
+            // RequiredMeds 已改为使用 MedicationOrderItem 关系表，不再需要 jsonb 配置
 
             // 确保 HospitalTimeSlot 的 ID 是手动输入的 (不自增)
             modelBuilder.Entity<HospitalTimeSlot>()

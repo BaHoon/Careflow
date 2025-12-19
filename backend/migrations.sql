@@ -209,7 +209,7 @@ CREATE TABLE "SurgicalOrders" (
     "IncisionSite" text NOT NULL,
     "RequiredTalk" text,
     "RequiredOperation" text,
-    "RequiredMeds" jsonb,
+    -- RequiredMeds 已改为使用 MedicationOrderItems 关系表
     "PrepProgress" real NOT NULL,
     "PrepStatus" text NOT NULL,
     CONSTRAINT "PK_SurgicalOrders" PRIMARY KEY ("Id"),
