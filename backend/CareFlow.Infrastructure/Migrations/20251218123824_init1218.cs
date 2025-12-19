@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CareFlow.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class init1218 : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -300,6 +300,7 @@ namespace CareFlow.Infrastructure.Migrations
                     OrderType = table.Column<string>(type: "text", nullable: false),
                     Status = table.Column<string>(type: "text", nullable: false),
                     IsLongTerm = table.Column<bool>(type: "boolean", nullable: false),
+                    Remarks = table.Column<string>(type: "text", nullable: true),
                     CreateTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
@@ -519,10 +520,9 @@ namespace CareFlow.Infrastructure.Migrations
                     Id = table.Column<long>(type: "bigint", nullable: false),
                     UsageRoute = table.Column<int>(type: "integer", nullable: false),
                     IsDynamicUsage = table.Column<bool>(type: "boolean", nullable: false),
-                    FreqCode = table.Column<string>(type: "text", nullable: false),
+                    IntervalHours = table.Column<decimal>(type: "numeric", nullable: true),
                     StartTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     TimingStrategy = table.Column<string>(type: "text", nullable: false),
-                    SpecificExecutionTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     SmartSlotsMask = table.Column<int>(type: "integer", nullable: false),
                     IntervalDays = table.Column<int>(type: "integer", nullable: false)
                 },

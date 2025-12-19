@@ -287,6 +287,9 @@ namespace CareFlow.Infrastructure.Migrations
                     b.Property<DateTime>("PlantEndTime")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("Remarks")
+                        .HasColumnType("text");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text");
@@ -892,21 +895,17 @@ namespace CareFlow.Infrastructure.Migrations
                 {
                     b.HasBaseType("CareFlow.Core.Models.Medical.MedicalOrder");
 
-                    b.Property<string>("FreqCode")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<int>("IntervalDays")
                         .HasColumnType("integer");
+
+                    b.Property<decimal?>("IntervalHours")
+                        .HasColumnType("numeric");
 
                     b.Property<bool>("IsDynamicUsage")
                         .HasColumnType("boolean");
 
                     b.Property<int>("SmartSlotsMask")
                         .HasColumnType("integer");
-
-                    b.Property<DateTime?>("SpecificExecutionTime")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("StartTime")
                         .HasColumnType("timestamp with time zone");

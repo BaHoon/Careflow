@@ -73,7 +73,7 @@ namespace CareFlow.WebApi.Controllers
 
                         // 药品特有字段
                         UsageRoute = Enum.Parse<UsageRoute>(request.UsageRoute!),
-                        FreqCode = request.FreqCode!,
+                        IntervalHours = request.IntervalHours,
                         TimingStrategy = request.TimingStrategy ?? "IMMEDIATE",
                         SmartSlotsMask = request.SmartSlotsMask ?? 0,
                         IntervalDays = request.IntervalDays ?? 1

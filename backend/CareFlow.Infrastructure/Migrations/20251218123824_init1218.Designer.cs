@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CareFlow.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251217170156_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20251218123824_init1218")]
+    partial class init1218
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -289,6 +289,9 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.Property<DateTime>("PlantEndTime")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("text");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -842,21 +845,17 @@ namespace CareFlow.Infrastructure.Migrations
                 {
                     b.HasBaseType("CareFlow.Core.Models.Medical.MedicalOrder");
 
-                    b.Property<string>("FreqCode")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<int>("IntervalDays")
                         .HasColumnType("integer");
+
+                    b.Property<decimal?>("IntervalHours")
+                        .HasColumnType("numeric");
 
                     b.Property<bool>("IsDynamicUsage")
                         .HasColumnType("boolean");
 
                     b.Property<int>("SmartSlotsMask")
                         .HasColumnType("integer");
-
-                    b.Property<DateTime?>("SpecificExecutionTime")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("StartTime")
                         .HasColumnType("timestamp with time zone");

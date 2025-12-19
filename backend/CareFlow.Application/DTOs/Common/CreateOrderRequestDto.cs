@@ -20,7 +20,14 @@ namespace CareFlow.Application.DTOs.MedicalOrder
         public string? DrugId { get; set; }
         public string? Dosage { get; set; }
         public string? UsageRoute { get; set; }
-        public string? FreqCode { get; set; }
+        
+        /// <summary>
+        /// 执行间隔（小时数），仅用于 CYCLIC 策略
+        /// 例如：6 表示每6小时一次，12 表示每12小时一次
+        /// 支持小数：0.5 表示每30分钟一次，1.5 表示每90分钟一次
+        /// </summary>
+        public decimal? IntervalHours { get; set; }
+        
         public bool? IsDynamicUsage { get; set; }
         public string? TimingStrategy { get; set; }
         public int? SmartSlotsMask { get; set; }

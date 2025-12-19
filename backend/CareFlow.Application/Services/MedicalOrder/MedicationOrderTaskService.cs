@@ -292,20 +292,20 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
         if (order == null)
             throw new ArgumentNullException(nameof(order));
 
-        if (!order.SpecificExecutionTime.HasValue)
+        if (!order.StartTime.HasValue)
         {
-            throw new ArgumentException("SPECIFIC策略必须指定具体执行时间");
+            throw new ArgumentException("SPECIFIC策略必须指定执行时间（StartTime）");
         }
 
         // 只生成未来时间的任务
-        if (order.SpecificExecutionTime.Value <= DateTime.UtcNow)
+        if (order.StartTime.Value <= DateTime.UtcNow)
         {
-            _logger.LogWarning("医嘱 {OrderId} 的指定执行时间 {SpecificTime} 已过期，跳过任务生成", 
-                order.Id, order.SpecificExecutionTime.Value);
+            _logger.LogWarning("医嘱 {OrderId} 的执行时间 {StartTime} 已过期，跳过任务生成", 
+                order.Id, order.StartTime.Value);
             return new List<ExecutionTask>();
         }
 
-        var executionTime = order.SpecificExecutionTime.Value;
+        var executionTime = order.StartTime.Value;
         var tasks = new List<ExecutionTask>();
         
         // 1. 生成取药任务（必须）
@@ -346,59 +346,63 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
         if (order == null)
             throw new ArgumentNullException(nameof(order));
 
+        // 验证间隔小时数
+        if (!order.IntervalHours.HasValue || order.IntervalHours.Value <= 0)
+            throw new ArgumentException("周期性医嘱必须指定有效的执行间隔（小时数必须大于0）");
+
         if (order.IntervalDays <= 0)
             throw new ArgumentException("周期间隔天数必须大于0");
 
         var tasks = new List<ExecutionTask>();
-        var startDate = (order.StartTime ?? DateTime.UtcNow).Date;
-        var endDate = order.PlantEndTime.Date;
+        
+        // 使用 StartTime 作为首次执行的完整时间（包含日期+时刻）
+        var currentExecutionTime = order.StartTime ?? DateTime.UtcNow;
+        var endTime = order.PlantEndTime;
 
-        if (endDate < startDate)
+        if (endTime < currentExecutionTime)
         {
             _logger.LogWarning("医嘱 {OrderId} 的结束时间早于开始时间，无法生成周期任务", order.Id);
             return tasks;
         }
 
-        // 根据FreqCode确定每日执行次数
-        var dailyFreq = GetDailyFrequency(order.FreqCode);
+        var intervalHours = (double)order.IntervalHours.Value;
 
-        for (var date = startDate; date <= endDate; date = date.AddDays(order.IntervalDays))
+        // 按时间间隔循环生成任务，直到超过结束时间
+        while (currentExecutionTime <= endTime)
         {
-            for (int i = 0; i < dailyFreq; i++)
+            // 只生成未来时间的任务
+            if (currentExecutionTime > DateTime.UtcNow)
             {
-                var executionTime = CalculateExecutionTime(date, i, dailyFreq);
-                
-                // 只生成未来时间的任务
-                if (executionTime > DateTime.UtcNow)
+                // 1. 生成取药任务
+                var retrieveTask = new ExecutionTask
                 {
-                    // 1. 生成取药任务（必须）
-                    var retrieveTask = new ExecutionTask
-                    {
-                        MedicalOrderId = order.Id,
-                        PatientId = order.PatientId,
-                        Category = TaskCategory.Verification, // 取药为核对类
-                        PlannedStartTime = executionTime.AddMinutes(-30), // 提前30分钟取药
-                        Status = "Pending",
-                        CreatedAt = DateTime.UtcNow,
-                        DataPayload = GenerateRetrieveMedicationDataPayload(order, executionTime.AddMinutes(-30))
-                    };
-                    
-                    // 2. 生成给药任务
-                    var administrationTask = new ExecutionTask
-                    {
-                        MedicalOrderId = order.Id,
-                        PatientId = order.PatientId,
-                        Category = GetTaskCategoryFromUsageRoute(order.UsageRoute),
-                        PlannedStartTime = executionTime,
-                        Status = "Pending",
-                        CreatedAt = DateTime.UtcNow,
-                        DataPayload = GenerateTaskDataPayload(order, executionTime)
-                    };
-                    
-                    tasks.Add(retrieveTask);
-                    tasks.Add(administrationTask);
-                }
+                    MedicalOrderId = order.Id,
+                    PatientId = order.PatientId,
+                    Category = TaskCategory.Verification,
+                    PlannedStartTime = currentExecutionTime.AddMinutes(-30),
+                    Status = "Pending",
+                    CreatedAt = DateTime.UtcNow,
+                    DataPayload = GenerateRetrieveMedicationDataPayload(order, currentExecutionTime.AddMinutes(-30))
+                };
+                
+                // 2. 生成给药任务
+                var administrationTask = new ExecutionTask
+                {
+                    MedicalOrderId = order.Id,
+                    PatientId = order.PatientId,
+                    Category = GetTaskCategoryFromUsageRoute(order.UsageRoute),
+                    PlannedStartTime = currentExecutionTime,
+                    Status = "Pending",
+                    CreatedAt = DateTime.UtcNow,
+                    DataPayload = GenerateTaskDataPayload(order, currentExecutionTime)
+                };
+                
+                tasks.Add(retrieveTask);
+                tasks.Add(administrationTask);
             }
+
+            // 移动到下一次执行时间
+            currentExecutionTime = currentExecutionTime.AddHours(intervalHours);
         }
 
         return tasks;
@@ -505,9 +509,6 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
         if (string.IsNullOrWhiteSpace(order.TimingStrategy))
             validationErrors.Add("时间策略不能为空");
 
-        if (string.IsNullOrWhiteSpace(order.FreqCode))
-            validationErrors.Add("频次代码不能为空");
-
         // 检查时间字段
         if (order.PlantEndTime <= DateTime.UtcNow.AddMinutes(-5)) // 允许5分钟的时间误差
         {
@@ -523,10 +524,10 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
         switch (order.TimingStrategy.ToUpper())
         {
             case "SPECIFIC":
-                if (!order.SpecificExecutionTime.HasValue)
-                    validationErrors.Add("SPECIFIC策略必须指定具体执行时间");
-                else if (order.SpecificExecutionTime.Value <= DateTime.UtcNow)
-                    validationErrors.Add("具体执行时间必须是未来时间");
+                if (!order.StartTime.HasValue)
+                    validationErrors.Add("SPECIFIC策略必须指定执行时间（StartTime）");
+                else if (order.StartTime.Value <= DateTime.UtcNow)
+                    validationErrors.Add("执行时间必须是未来时间");
                 break;
 
             case "SLOTS":
@@ -542,16 +543,18 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
                 break;
 
             case "CYCLIC":
+                if (!order.IntervalHours.HasValue || order.IntervalHours.Value <= 0)
+                {
+                    validationErrors.Add("CYCLIC策略必须指定有效的执行间隔（小时数必须大于0）");
+                }
+                else if (order.IntervalHours.Value > 168) // 7天 = 168小时
+                {
+                    validationErrors.Add("执行间隔不能超过168小时（7天），请合理设置频次");
+                }
+                
                 if (order.IntervalDays <= 0)
                     validationErrors.Add("CYCLIC策略的间隔天数必须大于0");
                 break;
-        }
-
-        // 验证频次代码
-        var supportedFreqCodes = new[] { "ONCE", "QD", "BID", "TID", "QID", "Q6H", "Q8H", "Q12H", "PRN", "CONT" };
-        if (!supportedFreqCodes.Contains(order.FreqCode.ToUpper()))
-        {
-            validationErrors.Add($"不支持的频次代码: {order.FreqCode}");
         }
 
         // 如果有验证错误，抛出异常
@@ -671,7 +674,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
                         Note = item.Note
                     }) ?? Enumerable.Empty<object>(),
                     UsageRoute = order.UsageRoute,
-                    FreqCode = order.FreqCode,
+                    FrequencyDescription = GetFrequencyDescription(order),
                     ExecutionTime = executionTime.ToString("yyyy-MM-dd HH:mm:ss"),
                     SlotName = slotName
                 }
@@ -755,10 +758,10 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
     {
         var timingParts = new List<string>();
 
-        // 添加频次信息
-        var freqDescription = GetFrequencyDescription(order.FreqCode);
-        if (!string.IsNullOrEmpty(freqDescription))
+        // 添加频次信息（针对CYCLIC策略）
+        if (order.TimingStrategy.ToUpper() == "CYCLIC" && order.IntervalHours.HasValue)
         {
+            var freqDescription = GetFrequencyDescription(order);
             timingParts.Add(freqDescription);
         }
 
@@ -795,44 +798,32 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
     }
 
     /// <summary>
-    /// 获取频次代码的中文描述
+    /// 获取频次的中文描述（用于显示）
     /// </summary>
-    private string GetFrequencyDescription(string freqCode)
+    private string GetFrequencyDescription(MedicationOrder order)
     {
-        return freqCode.ToUpper() switch
-        {
-            "ONCE" => "单次给药",
-            "QD" => "每日一次",
-            "BID" => "每日两次", 
-            "TID" => "每日三次",
-            "QID" => "每日四次",
-            "Q6H" => "每6小时一次",
-            "Q8H" => "每8小时一次", 
-            "Q12H" => "每12小时一次",
-            "PRN" => "需要时给药",
-            "CONT" => "持续给药",
-            _ => freqCode
-        };
-    }
+        if (!order.IntervalHours.HasValue)
+            return "未指定频次";
 
-    /// <summary>
-    /// 根据频次代码获取每日执行次数
-    /// </summary>
-    private int GetDailyFrequency(string freqCode)
-    {
-        return freqCode.ToUpper() switch
-        {
-            "ONCE" or "QD" => 1,
-            "BID" => 2,
-            "TID" => 3,
-            "QID" => 4,
-            "Q6H" => 4,  // 每6小时
-            "Q8H" => 3,  // 每8小时
-            "Q12H" => 2, // 每12小时
-            "PRN" => 1,  // 需要时，按1次处理
-            "CONT" => 1, // 持续，按1次处理
-            _ => 1
-        };
+        var hours = order.IntervalHours.Value;
+        
+        // 生成友好的描述
+        if (hours == 24)
+            return "每日一次";
+        else if (hours == 12)
+            return "每12小时一次（每日2次）";
+        else if (hours == 8)
+            return "每8小时一次（每日3次）";
+        else if (hours == 6)
+            return "每6小时一次（每日4次）";
+        else if (hours == 4)
+            return "每4小时一次（每日6次）";
+        else if (hours < 1)
+            return $"每{(int)(hours * 60)}分钟一次";
+        else if (hours == (int)hours)
+            return $"每{(int)hours}小时一次";
+        else
+            return $"每{hours:F1}小时一次";
     }
 
     /// <summary>

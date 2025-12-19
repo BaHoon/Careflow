@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Login from '../views/Login.vue'
 import Home from '../views/Home.vue'
-import BarcodeMatching from '../views/BarcodeMatching.vue'
+import OrderEntry from '../views/OrderEntry.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -18,13 +18,14 @@ const router = createRouter({
     {
       path: '/home',
       name: 'home',
-      component: Home
+      component: Home, 
+      meta: { requiresAuth: true }
     },
     {
-      path: '/barcode-matching',
-      name: 'barcode-matching',
-      component: BarcodeMatching,
-      meta: { requiresAuth: true, role: 'Nurse' }
+      path: '/order-entry', // [新增] 医嘱开具路由
+      name: 'order-entry',
+      component: OrderEntry,
+      meta: { requiresAuth: true, role: 'Doctor' } // 限制只有 Doctor 角色进入
     }
   ]
 })
