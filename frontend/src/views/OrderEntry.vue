@@ -968,9 +968,19 @@ const disableTimesBeforeStart = (date) => {
 
 const formatTime = (timeSpan) => {
   if (!timeSpan) return '';
-  // timeSpan 格式: "07:00:00"
+  // timeSpan 格式: "07:00:00" (UTC时间)
+  // 🔥 需要转换为北京时间（+8小时）显示
   const parts = timeSpan.split(':');
-  return `${parts[0]}:${parts[1]}`;
+  let hours = parseInt(parts[0]);
+  const minutes = parts[1];
+  
+  // UTC转北京时间：+8小时
+  hours = (hours + 8) % 24;
+  
+  // 格式化为两位数
+  const hoursStr = String(hours).padStart(2, '0');
+  
+  return `${hoursStr}:${minutes}`;
 };
 
 const getDrugName = (id) => {

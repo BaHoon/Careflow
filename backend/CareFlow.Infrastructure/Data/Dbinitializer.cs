@@ -625,7 +625,7 @@ namespace CareFlow.Infrastructure.Data
                 new MedicationOrder
                 {
                     PatientId = "P001", DoctorId = "D001", NurseId = "N001",
-                    CreateTime = currentTime.AddDays(-2), PlantEndTime = currentTime.AddDays(5),
+                    CreateTime = currentTime.AddDays(-2), PlantEndTime = currentTime.AddDays(2),
                     OrderType = "MedicationOrder", Status = "Accepted", IsLongTerm = true,
                     UsageRoute = UsageRoute.PO,
                     IsDynamicUsage = false,
@@ -644,12 +644,12 @@ namespace CareFlow.Infrastructure.Data
                 new MedicationOrder
                 {
                     PatientId = "P001", DoctorId = "D001", NurseId = "N002",
-                    CreateTime = currentTime.AddHours(-3), PlantEndTime = currentTime.AddHours(2),
+                    CreateTime = currentTime.AddHours(-1), PlantEndTime = currentTime.AddHours(1),
                     OrderType = "MedicationOrder", Status = "InProgress", IsLongTerm = false,
                     UsageRoute = UsageRoute.IVGTT,
                     IsDynamicUsage = false,
                     IntervalHours = null, // IMMEDIATE策略不需要
-                    StartTime = currentTime.AddHours(-3),
+                    StartTime = currentTime.AddHours(-1),
                     TimingStrategy = "IMMEDIATE",
                     SmartSlotsMask = 0, // IMMEDIATE策略不依赖时段
                     IntervalDays = 0,
@@ -663,7 +663,7 @@ namespace CareFlow.Infrastructure.Data
                 new MedicationOrder
                 {
                     PatientId = "P002", DoctorId = "D001", NurseId = "N001",
-                    CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(7),
+                    CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(2),
                     OrderType = "MedicationOrder", Status = "Accepted", IsLongTerm = true,
                     UsageRoute = UsageRoute.SC,
                     IsDynamicUsage = false,
@@ -682,7 +682,7 @@ namespace CareFlow.Infrastructure.Data
                 new MedicationOrder
                 {
                     PatientId = "P003", DoctorId = "D002", NurseId = "N002",
-                    CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(3),
+                    CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(1),
                     OrderType = "MedicationOrder", Status = "Accepted", IsLongTerm = true,
                     UsageRoute = UsageRoute.IVP, // 静脉推注
                     IsDynamicUsage = false,
@@ -701,7 +701,7 @@ namespace CareFlow.Infrastructure.Data
                 new MedicationOrder
                 {
                     PatientId = "P004", DoctorId = "D002",
-                    CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(5),
+                    CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(2),
                     OrderType = "MedicationOrder", Status = "Accepted", IsLongTerm = true,
                     UsageRoute = UsageRoute.Topical,
                     IsDynamicUsage = false,
@@ -721,7 +721,7 @@ namespace CareFlow.Infrastructure.Data
                 new MedicationOrder
                 {
                     PatientId = "P005", DoctorId = "D001",
-                    CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(7),
+                    CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(1),
                     OrderType = "MedicationOrder", Status = "Accepted", IsLongTerm = true,
                     UsageRoute = UsageRoute.IVGTT,
                     IsDynamicUsage = false,
