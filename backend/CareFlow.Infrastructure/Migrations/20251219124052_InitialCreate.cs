@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CareFlow.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class init1218 : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -331,6 +331,7 @@ namespace CareFlow.Infrastructure.Migrations
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    NursingTaskId = table.Column<long>(type: "bigint", nullable: true),
                     PatientId = table.Column<string>(type: "text", nullable: false),
                     RecorderNurseId = table.Column<string>(type: "text", nullable: false),
                     RecordTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
@@ -367,11 +368,44 @@ namespace CareFlow.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "NursingTasks",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    PatientId = table.Column<string>(type: "text", nullable: false),
+                    ScheduledTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    AssignedNurseId = table.Column<string>(type: "text", nullable: true),
+                    Status = table.Column<string>(type: "text", nullable: false),
+                    ExecuteTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    ExecutorNurseId = table.Column<string>(type: "text", nullable: true),
+                    TaskType = table.Column<string>(type: "text", nullable: false),
+                    Description = table.Column<string>(type: "text", nullable: true),
+                    CreateTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_NursingTasks", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_NursingTasks_Nurses_AssignedNurseId",
+                        column: x => x.AssignedNurseId,
+                        principalTable: "Nurses",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_NursingTasks_Patients_PatientId",
+                        column: x => x.PatientId,
+                        principalTable: "Patients",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "VitalSignsRecords",
                 columns: table => new
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    NursingTaskId = table.Column<long>(type: "bigint", nullable: true),
                     PatientId = table.Column<string>(type: "text", nullable: false),
                     RecorderNurseId = table.Column<string>(type: "text", nullable: false),
                     RecordTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
@@ -569,7 +603,6 @@ namespace CareFlow.Infrastructure.Migrations
                     IncisionSite = table.Column<string>(type: "text", nullable: false),
                     RequiredTalk = table.Column<string>(type: "text", nullable: true),
                     RequiredOperation = table.Column<string>(type: "text", nullable: true),
-                    RequiredMeds = table.Column<string>(type: "jsonb", nullable: true),
                     PrepProgress = table.Column<float>(type: "real", nullable: false),
                     PrepStatus = table.Column<string>(type: "text", nullable: false)
                 },
@@ -715,6 +748,16 @@ namespace CareFlow.Infrastructure.Migrations
                 column: "RecorderNurseId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_NursingTasks_AssignedNurseId",
+                table: "NursingTasks",
+                column: "AssignedNurseId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_NursingTasks_PatientId",
+                table: "NursingTasks",
+                column: "PatientId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Patients_AttendingDoctorId",
                 table: "Patients",
                 column: "AttendingDoctorId");
@@ -771,6 +814,9 @@ namespace CareFlow.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "NursingCareNotes");
+
+            migrationBuilder.DropTable(
+                name: "NursingTasks");
 
             migrationBuilder.DropTable(
                 name: "OperationOrders");

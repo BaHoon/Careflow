@@ -1,3 +1,4 @@
+using CareFlow.Core.Enums;
 namespace CareFlow.Application.DTOs.Patient;
 
 /// <summary>
@@ -11,7 +12,7 @@ public class PatientListDto
     public string Gender { get; set; } = null!;
     public int Age { get; set; }
     public float Weight { get; set; }
-    public int NursingGrade { get; set; }
+    public NursingGrade NursingGrade { get; set; }
     public string Department { get; set; } = null!;
     public string? Diagnosis { get; set; }
 }
@@ -27,7 +28,7 @@ public class PatientDetailDto
     public string Gender { get; set; } = null!;
     public int Age { get; set; }
     public float Weight { get; set; }
-    public int NursingGrade { get; set; }
+    public NursingGrade NursingGrade { get; set; }
     public string Department { get; set; } = null!;
     public string PhoneNumber { get; set; } = null!;
     public string IdCard { get; set; } = null!;
