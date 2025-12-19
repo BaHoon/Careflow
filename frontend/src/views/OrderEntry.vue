@@ -217,8 +217,8 @@
                     </div>
                   </div>
 
-                  <!-- 3.4 医嘱结束时间（所有医嘱必填） -->
-                  <div class="form-row">
+                  <!-- 3.4 医嘱结束时间（SPECIFIC策略下隐藏，因为已在上面设置） -->
+                  <div class="form-row" v-if="currentOrder.timingStrategy !== 'SPECIFIC'">
                     <label class="required">{{ currentOrder.isLongTerm ? '医嘱结束时间' : '医嘱开始时间' }}：</label>
                     <el-date-picker 
                       v-model="currentOrder.plantEndTime"
@@ -466,7 +466,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { getPatientList } from '../api/patient';
 import { getDrugList } from '../api/drug';
@@ -656,13 +656,11 @@ const selectStrategy = (strategy) => {
       break;
       
     case 'SPECIFIC':
-      // 指定时间：默认为当前时间
+      // 指定时间单次执行：开始时间和结束时间相同
       const specificNow = new Date();
       currentOrder.startTime = getLocalISOString(specificNow);
-      
-      const specificEnd = new Date();
-      specificEnd.setDate(specificEnd.getDate() + 1); // 明天结束
-      currentOrder.plantEndTime = getLocalISOString(specificEnd);
+      // plantEndTime 与 startTime 相同（单次执行）
+      currentOrder.plantEndTime = getLocalISOString(specificNow);
       break;
       
     case 'CYCLIC':
@@ -707,6 +705,13 @@ const getLocalISOString = (date) => {
   const seconds = String(date.getSeconds()).padStart(2, '0');
   return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
 };
+
+// 🔥 监听 SPECIFIC 策略的 startTime 变化，自动同步到 plantEndTime
+watch(() => currentOrder.startTime, (newVal) => {
+  if (currentOrder.timingStrategy === 'SPECIFIC' && newVal) {
+    currentOrder.plantEndTime = newVal;
+  }
+});
 
 // 时段操作
 const toggleSlot = (slotId) => {
