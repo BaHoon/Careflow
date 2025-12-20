@@ -1,18 +1,5 @@
 <template>
   <div class="order-container">
-    <nav class="navbar">
-      <div class="logo">
-        <i class="el-icon-s-order"></i> CareFlow | 医嘱开具工作台
-      </div>
-      <div class="user-info">
-        <span class="user-name">{{ currentUser.fullName }}</span>
-        <span class="user-role">({{ currentUser.role }})</span>
-        <button @click="$router.push('/home')" class="btn-back">
-          <i class="el-icon-back"></i> 返回首页
-        </button>
-      </div>
-    </nav>
-
     <main class="order-layout">
       <header class="patient-context" v-if="selectedPatient">
         <div class="patient-badge">{{ selectedPatient.bedId }}</div>
@@ -1432,65 +1419,11 @@ onMounted(async () => {
   --radius-round: 20px;
 }
 
-/* ==================== 顶部导航栏 ==================== */
-.navbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.8rem 2rem;
-  background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
-  color: white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.logo {
-  font-size: 1.3rem;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-
-.user-name {
-  font-weight: 600;
-  font-size: 1rem;
-}
-
-.user-role {
-  color: #ecf0f1;
-  font-size: 0.9rem;
-}
-
-.btn-back {
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: white;
-  padding: 8px 16px;
-  border-radius: var(--radius-small);
-  cursor: pointer;
-  transition: all 0.3s;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 0.9rem;
-}
-
-.btn-back:hover {
-  background: rgba(255, 255, 255, 0.3);
-  transform: translateY(-1px);
-}
-
 /* ==================== 主布局 ==================== */
 .order-layout {
   padding: 20px;
   background: var(--bg-page);
-  min-height: calc(100vh - 60px);
+  min-height: 100%;
 }
 
 /* 患者上下文卡片 */

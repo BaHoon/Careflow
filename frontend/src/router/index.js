@@ -1,9 +1,19 @@
 import { createRouter, createWebHistory } from 'vue-router'
+
+// 基础页面
 import Login from '../views/Login.vue'
 import Home from '../views/Home.vue'
-import OrderEntry from '../views/OrderEntry.vue'
+
+// 布局组件
+import NurseLayout from '../layouts/NurseLayout.vue'
+import DoctorLayout from '../layouts/DoctorLayout.vue'
+
+// 护士子页面
 import NurseDashboard from '../views/NurseDashboard.vue'
 import NurseTaskList from '../views/NurseTaskList.vue'
+
+// 医生子页面
+import OrderEntry from '../views/OrderEntry.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -23,23 +33,43 @@ const router = createRouter({
       component: Home, 
       meta: { requiresAuth: true }
     },
+    
+    // ========== 护士工作台（嵌套路由） ==========
     {
-      path: '/order-entry', // [新增] 医嘱开具路由
-      name: 'order-entry',
-      component: OrderEntry,
-      meta: { requiresAuth: true, role: 'Doctor' } // 限制只有 Doctor 角色进入
+      path: '/nurse',
+      component: NurseLayout, // 使用布局组件作为父路由
+      meta: { requiresAuth: true, role: 'Nurse' },
+      redirect: '/nurse/dashboard', // 默认重定向到床位概览
+      children: [
+        {
+          path: 'dashboard', // 相对路径，实际路径为 /nurse/dashboard
+          name: 'nurse-dashboard',
+          component: NurseDashboard,
+          meta: { title: '床位概览' }
+        },
+        {
+          path: 'tasks', // 相对路径，实际路径为 /nurse/tasks
+          name: 'nurse-tasks',
+          component: NurseTaskList,
+          meta: { title: '我的任务' }
+        }
+      ]
     },
+    
+    // ========== 医生工作台（嵌套路由） ==========
     {
-      path: '/nurse/dashboard', // [新增] 护士床位概览
-      name: 'nurse-dashboard',
-      component: NurseDashboard,
-      meta: { requiresAuth: true, role: 'Nurse' } // 限制只有 Nurse 角色进入
-    },
-    {
-      path: '/nurse/tasks', // [新增] 护士任务列表
-      name: 'nurse-tasks',
-      component: NurseTaskList,
-      meta: { requiresAuth: true, role: 'Nurse' } // 限制只有 Nurse 角色进入
+      path: '/doctor',
+      component: DoctorLayout, // 使用布局组件作为父路由
+      meta: { requiresAuth: true, role: 'Doctor' },
+      redirect: '/doctor/order-entry', // 默认重定向到医嘱开具
+      children: [
+        {
+          path: 'order-entry', // 相对路径，实际路径为 /doctor/order-entry
+          name: 'order-entry',
+          component: OrderEntry,
+          meta: { title: '医嘱开具' }
+        }
+      ]
     }
   ]
 })
