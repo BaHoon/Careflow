@@ -75,8 +75,8 @@ namespace CareFlow.WebApi.Controllers
         /// <summary>
         /// [护士端] 获取病区床位概览
         /// </summary>
-        /// <param name="wardId">病区ID</param>
-        /// <param name="departmentId">科室ID（可选，用于多病区查询）</param>
+        /// <param name="wardId">病区ID（可选）</param>
+        /// <param name="departmentId">科室ID（可选，返回该科室所有病区）</param>
         /// <returns></returns>
         [HttpGet("ward-overview")]
         public async Task<IActionResult> GetWardOverview(string? wardId = null, string? departmentId = null)
@@ -89,21 +89,18 @@ namespace CareFlow.WebApi.Controllers
                     return BadRequest("必须提供 wardId 或 departmentId");
                 }
 
-                // 查询床位信息
+                // 如果传入了科室ID，返回该科室所有病区的分组数据
+                if (!string.IsNullOrEmpty(departmentId))
+                {
+                    return await GetDepartmentOverview(departmentId);
+                }
+
+                // 查询单个病区的床位信息
                 var bedsQuery = _context.Beds
                     .Include(b => b.Ward)
                         .ThenInclude(w => w.Department)
+                    .Where(b => b.WardId == wardId)
                     .AsQueryable();
-
-                // 根据筛选条件
-                if (!string.IsNullOrEmpty(wardId))
-                {
-                    bedsQuery = bedsQuery.Where(b => b.WardId == wardId);
-                }
-                else if (!string.IsNullOrEmpty(departmentId))
-                {
-                    bedsQuery = bedsQuery.Where(b => b.Ward.DepartmentId == departmentId);
-                }
 
                 var beds = await bedsQuery.OrderBy(b => b.Id).ToListAsync();
 
@@ -237,6 +234,146 @@ namespace CareFlow.WebApi.Controllers
         }
 
         /// <summary>
+        /// 获取科室所有病区的概览（内部辅助方法）
+        /// </summary>
+        private async Task<IActionResult> GetDepartmentOverview(string departmentId)
+        {
+            // 获取该科室下所有病区
+            var wards = await _context.Wards
+                .Include(w => w.Department)
+                .Where(w => w.DepartmentId == departmentId)
+                .ToListAsync();
+
+            if (!wards.Any())
+            {
+                return NotFound(new { message = "该科室下没有病区" });
+            }
+
+            var wardOverviews = new List<Dictionary<string, object>>();
+            int totalBedsCount = 0;
+            int totalOccupiedCount = 0;
+            int totalAvailableCount = 0;
+
+            foreach (var ward in wards)
+            {
+                // 查询该病区的床位
+                var beds = await _context.Beds
+                    .Where(b => b.WardId == ward.Id)
+                    .OrderBy(b => b.Id)
+                    .ToListAsync();
+
+                if (!beds.Any()) continue;
+
+                var currentTime = DateTime.UtcNow;
+
+                // 查询床位对应的患者
+                var bedIds = beds.Select(b => b.Id).ToList();
+                var patients = await _context.Patients
+                    .Include(p => p.AttendingDoctor)
+                    .Where(p => bedIds.Contains(p.BedId))
+                    .ToListAsync();
+
+                var bedPatientMap = patients.ToDictionary(p => p.BedId, p => p);
+                var patientIds = patients.Select(p => p.Id).ToList();
+
+                // 批量查询今日手术医嘱
+                var todaySurgeries = await _context.SurgicalOrders
+                    .Where(so => patientIds.Contains(so.PatientId) &&
+                                 so.ScheduleTime.Date == currentTime.Date &&
+                                 (so.Status == "Accepted" || so.Status == "PendingReview"))
+                    .Select(so => so.PatientId)
+                    .Distinct()
+                    .ToListAsync();
+
+                // 批量查询待执行任务
+                var pendingTasks = await _context.ExecutionTasks
+                    .Where(et => patientIds.Contains(et.PatientId) && et.Status == "Pending")
+                    .GroupBy(et => et.PatientId)
+                    .Select(g => new { PatientId = g.Key, Count = g.Count() })
+                    .ToListAsync();
+
+                // 批量查询超时任务
+                var overdueTasks = await _context.ExecutionTasks
+                    .Where(et => patientIds.Contains(et.PatientId) &&
+                                 et.Status == "Pending" &&
+                                 et.PlannedStartTime < currentTime)
+                    .GroupBy(et => et.PatientId)
+                    .Select(g => new { PatientId = g.Key, Count = g.Count() })
+                    .ToListAsync();
+
+                // 批量查询体征异常
+                var recentTime = currentTime.AddHours(-24);
+                var abnormalVitalSigns = await _context.VitalSignsRecords
+                    .Where(vs => patientIds.Contains(vs.PatientId) &&
+                                 vs.RecordTime >= recentTime &&
+                                 (vs.Temperature < 36.0m || vs.Temperature > 38.0m))
+                    .Select(vs => vs.PatientId)
+                    .Distinct()
+                    .ToListAsync();
+
+                // 构建床位概览
+                var bedOverviews = beds.Select(bed =>
+                {
+                    var patient = bedPatientMap.ContainsKey(bed.Id) ? bedPatientMap[bed.Id] : null;
+
+                    return new BedOverviewDto
+                    {
+                        BedId = bed.Id,
+                        BedStatus = bed.Status,
+                        WardId = bed.WardId,
+                        Patient = patient == null ? null : new PatientSummaryDto
+                        {
+                            Id = patient.Id,
+                            Name = patient.Name,
+                            Gender = patient.Gender,
+                            Age = patient.Age,
+                            NursingGrade = (int)patient.NursingGrade,
+                            BedId = patient.BedId
+                        },
+                        StatusFlags = patient == null ? new BedStatusFlagsDto() : new BedStatusFlagsDto
+                        {
+                            HasSurgeryToday = todaySurgeries.Contains(patient.Id),
+                            HasAbnormalVitalSign = abnormalVitalSigns.Contains(patient.Id),
+                            HasNewOrder = false,
+                            HasPendingTask = pendingTasks.Any(pt => pt.PatientId == patient.Id),
+                            HasOverdueTask = overdueTasks.Any(ot => ot.PatientId == patient.Id)
+                        }
+                    };
+                }).ToList();
+
+                var wardBedCount = beds.Count;
+                var wardOccupiedCount = beds.Count(b => b.Status == "占用");
+                var wardAvailableCount = beds.Count(b => b.Status == "空闲");
+
+                totalBedsCount += wardBedCount;
+                totalOccupiedCount += wardOccupiedCount;
+                totalAvailableCount += wardAvailableCount;
+
+                wardOverviews.Add(new Dictionary<string, object>
+                {
+                    { "wardId", ward.Id },
+                    { "wardName", ward.Id },
+                    { "beds", bedOverviews },
+                    { "totalBeds", wardBedCount },
+                    { "occupiedBeds", wardOccupiedCount },
+                    { "availableBeds", wardAvailableCount }
+                });
+            }
+
+            var department = wards.First().Department;
+
+            return Ok(new
+            {
+                departmentId = department.Id,
+                departmentName = department.DeptName,
+                wards = wardOverviews,
+                totalBeds = totalBedsCount,
+                occupiedBeds = totalOccupiedCount,
+                availableBeds = totalAvailableCount
+            });
+        }
+
+        /// <summary>
         /// [护士端] 获取我的待办任务列表
         /// </summary>
         /// <param name="nurseId">护士ID</param>
@@ -255,14 +392,29 @@ namespace CareFlow.WebApi.Controllers
                 var startOfDay = DateTime.SpecifyKind(targetDate.Date, DateTimeKind.Utc);
                 var endOfDay = DateTime.SpecifyKind(startOfDay.AddDays(1), DateTimeKind.Utc);
 
-                // 查询任务
+                // 获取护士所属科室
+                var nurse = await _context.Nurses
+                    .Include(n => n.Department)
+                    .FirstOrDefaultAsync(n => n.Id == nurseId);
+
+                if (nurse == null)
+                {
+                    return NotFound(new { message = "护士不存在" });
+                }
+
+                // 获取该科室下所有病区的床位ID
+                var bedIds = await _context.Beds
+                    .Include(b => b.Ward)
+                    .Where(b => b.Ward.DepartmentId == nurse.DeptCode)
+                    .Select(b => b.Id)
+                    .ToListAsync();
+
+                // 查询任务：筛选该科室所有病区床位上的患者任务
                 var tasksQuery = _context.ExecutionTasks
                     .Include(et => et.Patient)
                     .Where(et => et.PlannedStartTime >= startOfDay &&
-                                 et.PlannedStartTime < endOfDay);
-
-                // 可以根据排班表筛选护士负责的患者，这里简化处理
-                // 实际应该根据 NurseRoster 和病区关系来筛选
+                                 et.PlannedStartTime < endOfDay &&
+                                 bedIds.Contains(et.Patient.BedId));
 
                 if (!string.IsNullOrEmpty(status))
                 {
