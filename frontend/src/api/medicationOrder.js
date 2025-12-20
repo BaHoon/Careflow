@@ -5,14 +5,20 @@ import api from '../utils/api';
  */
 
 /**
- * 批量创建医嘱
+ * 批量创建药品医嘱
  * @param {Object} data - 医嘱数据
  * @param {string} data.patientId - 患者ID
  * @param {string} data.doctorId - 医生ID
  * @param {Array} data.orders - 医嘱列表
  */
+export const batchCreateMedicationOrders = (data) => {
+  return api.post('/orders/medication/batch', data);
+};
+
+// 保留旧函数名称以保持向后兼容（已废弃）
 export const batchCreateOrders = (data) => {
-  return api.post('/MedicationOrder/batch-create', data);
+  console.warn('⚠️ batchCreateOrders 已废弃，请使用 batchCreateMedicationOrders');
+  return batchCreateMedicationOrders(data);
 };
 
 /**

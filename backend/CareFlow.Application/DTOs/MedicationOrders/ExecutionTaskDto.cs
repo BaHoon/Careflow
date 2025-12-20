@@ -1,4 +1,4 @@
-namespace CareFlow.Application.DTOs.MedicationOrder;
+namespace CareFlow.Application.DTOs.MedicationOrders;
 using CareFlow.Core.Enums;
 
 public class ExecutionTaskDto

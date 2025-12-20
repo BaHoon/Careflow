@@ -1,5 +1,9 @@
 using CareFlow.Application.Interfaces;
 using CareFlow.Application.Services;
+using CareFlow.Application.Services.InspectionOrders;
+using CareFlow.Application.Services.MedicationOrders;
+using CareFlow.Application.Services.OperationOrders;
+using CareFlow.Application.Services.SurgicalOrders;
 using CareFlow.Core.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -17,6 +21,12 @@ public static class DependencyInjection
         // 注册应用服务
         services.AddScoped<IBarcodeMatchingService, BarcodeMatchingService>();
         services.AddScoped<IMedicationOrderTaskService, MedicationOrderTaskService>();
+
+        // 注册医嘱服务（分离接口方案）
+        services.AddScoped<IMedicationOrderService, MedicationOrderService>();
+        services.AddScoped<IInspectionOrderService, InspectionOrderService>();
+        services.AddScoped<ISurgicalOrderService, SurgicalOrderService>();
+        services.AddScoped<IOperationOrderService, OperationOrderService>();
 
         return services;
     }

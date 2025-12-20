@@ -366,6 +366,127 @@
               </div>
             </div>
 
+            <!-- TODO: 检查医嘱表单 -->
+            <!-- 位置: 检查医嘱（CT、MRI、X光、超声等）开具表单 -->
+            <div v-else-if="activeType === 'InspectionOrder'" class="inspection-form">
+              <!-- TODO 1: 检查类型选择 -->
+              <!-- 需要字段:
+                   - inspectionType: 检查类型（下拉框）
+                     选项: CT、MRI、X-Ray、Ultrasound（超声）、Endoscopy（内窥镜）等
+                   示例: <el-select v-model="inspectionOrder.inspectionType"> -->
+
+              <!-- TODO 2: 检查部位选择 -->
+              <!-- 需要字段:
+                   - targetOrgan: 检查部位（下拉框或级联选择器）
+                     选项: Head（头部）、Chest（胸部）、Abdomen（腹部）、Extremities（四肢）等
+                   示例: <el-cascader v-model="inspectionOrder.targetOrgan"> -->
+
+              <!-- TODO 3: 紧急程度选择 -->
+              <!-- 需要字段:
+                   - urgency: 紧急程度（单选按钮组）
+                     选项: urgent（紧急）、normal（常规）、routine（例行）
+                   示例: <el-radio-group v-model="inspectionOrder.urgency"> -->
+
+              <!-- TODO 4: 造影剂选项 -->
+              <!-- 需要字段:
+                   - contrast: 是否使用造影剂（复选框）
+                   - 如果勾选，需要显示过敏史确认
+                   示例: <el-checkbox v-model="inspectionOrder.contrast"> -->
+
+              <!-- TODO 5: 预约时间选择 -->
+              <!-- 需要字段:
+                   - scheduledTime: 预约时间（日期时间选择器）
+                   - 需要与设备排班联动，显示可用时段
+                   示例: <el-date-picker v-model="inspectionOrder.scheduledTime"> -->
+
+              <!-- TODO 6: 临床资料 -->
+              <!-- 需要字段:
+                   - clinicalInfo: 临床症状、病史（文本域）
+                   示例: <el-input type="textarea" v-model="inspectionOrder.clinicalInfo"> -->
+
+              <!-- TODO 7: 备注 -->
+              <!-- 需要字段:
+                   - remarks: 特殊说明（文本域）
+                   示例: <el-input type="textarea" v-model="inspectionOrder.remarks"> -->
+
+              <div class="placeholder-form">
+                ⚠️ 检查医嘱表单开发中
+                <br>需实现上述7个字段的表单组件
+              </div>
+            </div>
+
+            <!-- TODO: 手术医嘱表单 -->
+            <!-- 位置: 手术/操作类医嘱开具表单 -->
+            <div v-else-if="activeType === 'SurgicalOrder'" class="surgical-form">
+              <!-- TODO 1: 手术名称 -->
+              <!-- 需要字段:
+                   - surgeryName: 手术名称（搜索下拉框）
+                     示例: 阑尾切除术、胆囊切除术、疝修补术等
+                   - 支持模糊搜索
+                   示例: <el-autocomplete v-model="surgicalOrder.surgeryName"> -->
+
+              <!-- TODO 2: 手术类型 -->
+              <!-- 需要字段:
+                   - surgeryType: 手术类型（单选按钮）
+                     选项: Elective（择期手术）、Emergency（急诊手术）
+                   示例: <el-radio-group v-model="surgicalOrder.surgeryType"> -->
+
+              <!-- TODO 3: 麻醉方式 -->
+              <!-- 需要字段:
+                   - anesthesiaMethod: 麻醉方式（下拉框）
+                     选项: General（全身麻醉）、Local（局部麻醉）、Epidural（硬膜外麻醉）、Spinal（脊髓麻醉）
+                   示例: <el-select v-model="surgicalOrder.anesthesiaMethod"> -->
+
+              <!-- TODO 4: 主刀医生 -->
+              <!-- 需要字段:
+                   - surgeonId: 主刀医生ID（下拉框）
+                   - 需要从后端获取外科医生列表
+                   示例: <el-select v-model="surgicalOrder.surgeonId" @focus="loadSurgeons"> -->
+
+              <!-- TODO 5: 助手医生（多选） -->
+              <!-- 需要字段:
+                   - assistantIds: 助手医生ID列表（多选下拉框）
+                   - 可以选择0-N个助手
+                   示例: <el-select v-model="surgicalOrder.assistantIds" multiple> -->
+
+              <!-- TODO 6: 手术时间 -->
+              <!-- 需要字段:
+                   - scheduledTime: 计划手术时间（日期时间选择器）
+                   - 需要与手术室排班联动
+                   示例: <el-date-picker v-model="surgicalOrder.scheduledTime"> -->
+
+              <!-- TODO 7: 预计时长 -->
+              <!-- 需要字段:
+                   - estimatedDuration: 预计手术时长（数字输入框，单位：分钟）
+                   示例: <el-input-number v-model="surgicalOrder.estimatedDuration" :min="15" :step="15"> -->
+
+              <!-- TODO 8: 手术室选择 -->
+              <!-- 需要字段:
+                   - operatingRoom: 手术室编号（下拉框）
+                   - 需要显示手术室状态（空闲/占用）
+                   示例: <el-select v-model="surgicalOrder.operatingRoom"> -->
+
+              <!-- TODO 9: 备注 -->
+              <!-- 需要字段:
+                   - remarks: 特殊准备事项（文本域）
+                   示例: <el-input type="textarea" v-model="surgicalOrder.remarks"> -->
+
+              <div class="placeholder-form">
+                ⚠️ 手术医嘱表单开发中
+                <br>需实现上述9个字段的表单组件
+              </div>
+            </div>
+
+            <!-- 操作医嘱表单 -->
+            <div v-else-if="activeType === 'OperationOrder'" class="operation-form">
+              <!-- 操作基本信息 -->
+              <div class="placeholder-form">
+                ⚠️ 操作医嘱表单开发中
+                <br>需实现上述个字段的表单组件
+              </div>
+            </div>
+
+            <!-- 其他未知类型的占位符 -->
             <div v-else class="placeholder-form">
               正在开发 {{ activeType }} 的详细表单...
             </div>
@@ -471,7 +592,10 @@ import { ElMessage } from 'element-plus';
 import { getPatientList } from '../api/patient';
 import { getDrugList } from '../api/drug';
 import { getTimeSlots } from '../api/hospitalConfig';
-import { batchCreateOrders } from '../api/medicationOrder';
+import { batchCreateMedicationOrders } from '../api/medicationOrder';
+import { batchCreateInspectionOrders } from '../api/inspectionOrder';
+import { batchCreateSurgicalOrders } from '../api/surgicalOrder';
+import { batchCreateOperationOrders } from '../api/operationOrder';
 import { toBeijingTimeISO } from '../utils/timezone';
 
 // 当前用户信息（从localStorage获取登录信息）
@@ -501,10 +625,47 @@ const selectedPatient = ref(null); // 初始为空，从患者列表选择
 const types = [
   { label: '药物医嘱', val: 'MedicationOrder' },
   { label: '检查申请', val: 'InspectionOrder' },
-  { label: '手术/操作', val: 'SurgicalOrder' }
+  { label: '手术医嘱', val: 'SurgicalOrder' },
+  { label: '护理操作', val: 'OperationOrder' }
 ];
 
-// 核心医嘱对象（完全对应后端 MedicationOrder.cs 结构）
+// TODO: 添加检查医嘱的响应式数据
+// 参考DTO: DTOs/InspectionOrders/BatchCreateInspectionOrderDto.cs
+// const inspectionOrder = reactive({
+//   inspectionType: '',        // 检查类型: CT, MRI, X-Ray, Ultrasound
+//   targetOrgan: '',           // 检查部位: Head, Chest, Abdomen, Extremities
+//   urgency: 'normal',         // 紧急程度: urgent, normal, routine
+//   contrast: false,           // 是否造影剂
+//   scheduledTime: null,       // 预约时间
+//   clinicalInfo: '',          // 临床资料
+//   remarks: ''                // 备注
+// });
+
+// TODO: 添加手术医嘱的响应式数据
+// 参考DTO: DTOs/SurgicalOrders/BatchCreateSurgicalOrderDto.cs
+// const surgicalOrder = reactive({
+//   surgeryName: '',           // 手术名称
+//   surgeryType: 'Elective',   // 手术类型: Elective, Emergency
+//   anesthesiaMethod: '',      // 麻醉方式: General, Local, Epidural, Spinal
+//   surgeonId: '',             // 主刀医生ID
+//   assistantIds: [],          // 助手医生ID数组
+//   scheduledTime: null,       // 手术时间
+//   estimatedDuration: null,   // 预计时长（分钟）
+//   operatingRoom: '',         // 手术室
+//   remarks: ''                // 备注
+// });
+
+// 操作医嘱的响应式数据
+// 参考DTO: DTOs/OperationOrders/BatchCreateOperationOrderDto.cs
+// const operationOrder = reactive({
+//   operationCode: '',         // 操作代码
+//   operationName: '',         // 操作名称
+//   targetSite: '',            // 操作部位（可选）
+//   scheduledTime: null,       // 执行时间
+//   remarks: ''                // 备注
+// });
+
+// 药品医嘱响应式数据
 const currentOrder = reactive({
   // 基础信息
   isLongTerm: true,  // 医嘱类型：true=长期，false=临时
@@ -594,21 +755,33 @@ const gridTemplateColumns = computed(() => {
 });
 
 // 计算属性：表单验证（基础版本，步骤5会完善）
+// TODO: 为其他医嘱类型添加表单验证逻辑
+
 const isFormValid = computed(() => {
-  // 基础校验
-  if (!currentOrder.items.some(i => i.drugId && i.dosage)) return false;
-  if (!currentOrder.usageRoute) return false;
-  if (!currentOrder.timingStrategy) return false;
-  if (!currentOrder.plantEndTime) return false;
+  // 根据医嘱类型进行不同的表单验证
+  if (activeType.value === 'OperationOrder') {
+    // TODO: 操作医嘱验证：操作代码、操作名称、执行时间为必填
 
-  // 策略特定校验（简化版）
-  const strategy = currentOrder.timingStrategy.toUpperCase();
-  
-  if (strategy === 'SPECIFIC' && !currentOrder.startTime) return false;
-  if (strategy === 'CYCLIC' && (!currentOrder.startTime || !currentOrder.intervalHours)) return false;
-  if (strategy === 'SLOTS' && (!currentOrder.startTime || currentOrder.smartSlotsMask <= 0)) return false;
+  } else if (activeType.value === 'InspectionOrder') {
+    // TODO: 检查医嘱验证（待实现表单后补充）
+    return false;
+  } else if (activeType.value === 'SurgicalOrder') {
+    // TODO: 手术医嘱验证（待实现表单后补充）
+    return false;
+  } else {
+    // 药品医嘱验证（原有逻辑）
+    if (!currentOrder.items.some(i => i.drugId && i.dosage)) return false;
+    if (!currentOrder.usageRoute) return false;
+    if (!currentOrder.timingStrategy) return false;
+    if (!currentOrder.plantEndTime) return false;
 
-  return true;
+    const strategy = currentOrder.timingStrategy.toUpperCase();
+    if (strategy === 'SPECIFIC' && !currentOrder.startTime) return false;
+    if (strategy === 'CYCLIC' && (!currentOrder.startTime || !currentOrder.intervalHours)) return false;
+    if (strategy === 'SLOTS' && (!currentOrder.startTime || currentOrder.smartSlotsMask <= 0)) return false;
+
+    return true;
+  }
 });
 
 // 计算属性：根据医嘱类型返回可用策略
@@ -785,31 +958,59 @@ const removeDrug = (index) => {
 };
 
 // 表单操作
+
+// TODO: 清空表单时需根据医嘱类型清空对应的数据
 const clearForm = () => {
-  currentOrder.items = [{ drugId: '', dosage: '', note: '' }];
-  currentOrder.usageRoute = 20;
-  currentOrder.timingStrategy = '';
-  currentOrder.startTime = null;
-  currentOrder.plantEndTime = null;
-  currentOrder.intervalHours = null;
-  currentOrder.intervalDays = 1;
-  currentOrder.smartSlotsMask = 0;
-  currentOrder.remarks = '';
+  if (activeType.value === 'OperationOrder') {
+    // TODO: 清空操作医嘱表单
+
+  } else if (activeType.value === 'InspectionOrder') {
+    // TODO: 清空检查医嘱表单（待实现表单后补充）
+  } else if (activeType.value === 'SurgicalOrder') {
+    // TODO: 清空手术医嘱表单（待实现表单后补充）
+  } else {
+    // 清空药品医嘱表单（原有逻辑）
+    currentOrder.items = [{ drugId: '', dosage: '', note: '' }];
+    currentOrder.usageRoute = 20;
+    currentOrder.timingStrategy = '';
+    currentOrder.startTime = null;
+    currentOrder.plantEndTime = null;
+    currentOrder.intervalHours = null;
+    currentOrder.intervalDays = 1;
+    currentOrder.smartSlotsMask = 0;
+    currentOrder.remarks = '';
+  }
   ElMessage.success('表单已清空');
 };
 
+// 暂存医嘱到待提交清单
 const addToCart = () => {
   if (!isFormValid.value) {
     ElMessage.warning('请完善必填项后再暂存');
     return;
   }
   
-  // 深拷贝当前医嘱到暂存区
-  orderCart.value.push(JSON.parse(JSON.stringify({
-    ...currentOrder,
-    orderType: activeType.value,
-    patientId: selectedPatient.value.id
-  })));
+  // 根据医嘱类型暂存对应数据
+  if (activeType.value === 'OperationOrder') {
+    // TODO: 暂存操作医嘱
+    ElMessage.warning('操作类医嘱表单开发中');
+    return;
+  } else if (activeType.value === 'InspectionOrder') {
+    // TODO: 暂存检查医嘱（待实现表单后补充）
+    ElMessage.warning('检查医嘱表单开发中');
+    return;
+  } else if (activeType.value === 'SurgicalOrder') {
+    // TODO: 暂存手术医嘱（待实现表单后补充）
+    ElMessage.warning('手术医嘱表单开发中');
+    return;
+  } else {
+    // 暂存药品医嘱（原有逻辑）
+    orderCart.value.push({
+      ...JSON.parse(JSON.stringify(currentOrder)),
+      orderType: 'MedicationOrder',
+      patientId: selectedPatient.value.id
+    });
+  }
   
   ElMessage.success('医嘱已暂存到待提交清单');
   clearForm();
@@ -830,72 +1031,165 @@ const submitAll = async () => {
   
   submitting.value = true;
   try {
-    // 构造批量提交请求（将时间转换为北京时间ISO格式）
-    const requestData = {
-      patientId: selectedPatient.value?.id,
-      doctorId: currentUser.value.staffId, // 从登录信息获取员工ID
-      orders: orderCart.value.map(order => ({
-        isLongTerm: order.isLongTerm,
-        timingStrategy: order.timingStrategy?.toUpperCase(), // 🔥 确保策略为全大写
-        // 🔥 关键：添加北京时区标识 (+08:00)
-        startTime: toBeijingTimeISO(order.startTime),
-        plantEndTime: toBeijingTimeISO(order.plantEndTime),
-        intervalHours: order.intervalHours,
-        intervalDays: order.intervalDays,
-        smartSlotsMask: order.smartSlotsMask,
-        usageRoute: order.usageRoute,
-        remarks: order.remarks,
-        items: order.items
-      }))
-    };
+    // 🔥 按医嘱类型分组
+    const medicationOrders = orderCart.value.filter(o => o.orderType === 'MedicationOrder' || !o.orderType);
+    const inspectionOrders = orderCart.value.filter(o => o.orderType === 'InspectionOrder');
+    const surgicalOrders = orderCart.value.filter(o => o.orderType === 'SurgicalOrder');
+    const operationOrders = orderCart.value.filter(o => o.orderType === 'OperationOrder');
 
-    // 🔥 调试信息：详细输出存储对象
-    console.log('==================== 医嘱提交调试信息 ====================');
-    console.log('📊 提交数据总览:');
-    console.log('  - 患者ID:', requestData.patientId);
-    console.log('  - 医生ID:', requestData.doctorId);
-    console.log('  - 医嘱数量:', requestData.orders.length);
-    console.log('\n📝 每条医嘱详情:');
-    requestData.orders.forEach((order, index) => {
-      console.log(`\n  医嘱 ${index + 1}:`);
-      console.log('    类型:', order.isLongTerm ? '长期医嘱' : '临时医嘱');
-      console.log('    时间策略:', order.timingStrategy);
-      console.log('    开始时间:', order.startTime);
-      console.log('    计划结束时间:', order.plantEndTime);
-      console.log('    用药途径:', order.usageRoute);
-      console.log('    间隔小时:', order.intervalHours);
-      console.log('    间隔天数:', order.intervalDays);
-      console.log('    智能时段掩码:', order.smartSlotsMask);
-      console.log('    备注:', order.remarks);
-      console.log('    💊 药品项目 (items):', order.items);
-      console.log('      - 项目数量:', order.items?.length || 0);
-      if (order.items && order.items.length > 0) {
-        order.items.forEach((item, itemIndex) => {
-          console.log(`      项目 ${itemIndex + 1}:`, {
-            drugId: item.drugId,
-            drugName: item.drugName,
-            dosage: item.dosage,
-            note: item.note
-          });
-        });
-      } else {
-        console.log('      ⚠️ 警告: items 为空或未定义!');
+    const results = [];
+    let successCount = 0;
+    let errorMessages = [];
+
+    // 💊 提交药品医嘱
+    if (medicationOrders.length > 0) {
+      const requestData = {
+        patientId: selectedPatient.value?.id,
+        doctorId: currentUser.value.staffId,
+        orders: medicationOrders.map(order => ({
+          isLongTerm: order.isLongTerm,
+          timingStrategy: order.timingStrategy?.toUpperCase(),
+          startTime: toBeijingTimeISO(order.startTime),
+          plantEndTime: toBeijingTimeISO(order.plantEndTime),
+          intervalHours: order.intervalHours,
+          intervalDays: order.intervalDays,
+          smartSlotsMask: order.smartSlotsMask,
+          usageRoute: order.usageRoute,
+          remarks: order.remarks,
+          items: order.items
+        }))
+      };
+
+      console.log('💊 提交药品医嘱:', requestData);
+      
+      try {
+        const response = await batchCreateMedicationOrders(requestData);
+        if (response.success) {
+          successCount += medicationOrders.length;
+          results.push(`药品医嘱: ${medicationOrders.length}条成功`);
+        } else {
+          errorMessages.push(`药品医嘱失败: ${response.message}`);
+          if (response.errors) errorMessages.push(...response.errors);
+        }
+      } catch (error) {
+        errorMessages.push(`药品医嘱提交异常: ${error.message}`);
       }
-    });
-    console.log('\n📤 完整请求数据 (JSON):');
-    console.log(JSON.stringify(requestData, null, 2));
-    console.log('========================================================\n');
-    
-    const response = await batchCreateOrders(requestData);
-    
-    if (response.success) {
-      ElMessage.success(response.message || `成功提交 ${orderCart.value.length} 条医嘱`);
+    }
+
+    // TODO：检查是否正确调用检查医嘱的API和数据结构
+
+    // 🔍 提交检查医嘱
+    if (inspectionOrders.length > 0) {
+      const requestData = {
+        patientId: selectedPatient.value?.id,
+        doctorId: currentUser.value.staffId,
+        orders: inspectionOrders.map(order => ({
+          inspectionType: order.inspectionType,
+          targetOrgan: order.targetOrgan,
+          urgency: order.urgency,
+          contrast: order.contrast,
+          scheduledTime: toBeijingTimeISO(order.scheduledTime),
+          clinicalInfo: order.clinicalInfo
+        }))
+      };
+
+      console.log('🔍 提交检查医嘱:', requestData);
+      
+      try {
+        const response = await batchCreateInspectionOrders(requestData);
+        if (response.success) {
+          successCount += inspectionOrders.length;
+          results.push(`检查医嘱: ${inspectionOrders.length}条成功`);
+        } else {
+          errorMessages.push(`检查医嘱失败: ${response.message}`);
+          if (response.errors) errorMessages.push(...response.errors);
+        }
+      } catch (error) {
+        errorMessages.push(`检查医嘱提交异常: ${error.message}`);
+      }
+    }
+
+    // 🔪 提交手术医嘱
+    if (surgicalOrders.length > 0) {
+      const requestData = {
+        patientId: selectedPatient.value?.id,
+        doctorId: currentUser.value.staffId,
+        orders: surgicalOrders.map(order => ({
+          surgeryName: order.surgeryName,
+          surgeryType: order.surgeryType,
+          anesthesiaMethod: order.anesthesiaMethod,
+          surgeonId: order.surgeonId,
+          assistantIds: order.assistantIds,
+          scheduledTime: toBeijingTimeISO(order.scheduledTime),
+          estimatedDuration: order.estimatedDuration,
+          operatingRoom: order.operatingRoom
+        }))
+      };
+
+      console.log('🔪 提交手术医嘱:', requestData);
+      
+      try {
+        const response = await batchCreateSurgicalOrders(requestData);
+        if (response.success) {
+          successCount += surgicalOrders.length;
+          results.push(`手术医嘱: ${surgicalOrders.length}条成功`);
+        } else {
+          errorMessages.push(`手术医嘱失败: ${response.message}`);
+          if (response.errors) errorMessages.push(...response.errors);
+        }
+      } catch (error) {
+        errorMessages.push(`手术医嘱提交异常: ${error.message}`);
+      }
+    }
+
+    // ⚙️ 提交操作医嘱
+    if (operationOrders.length > 0) {
+      const requestData = {
+        patientId: selectedPatient.value?.id,
+        doctorId: currentUser.value.staffId,
+        orders: operationOrders.map(order => ({
+          operationCode: order.operationCode,
+          operationName: order.operationName,
+          targetSite: order.targetSite || null,
+          scheduledTime: toBeijingTimeISO(order.scheduledTime),
+          remarks: order.remarks || null
+        }))
+      };
+
+      console.log('⚙️ 提交操作医嘱:', requestData);
+      
+      try {
+        const response = await batchCreateOperationOrders(requestData);
+        if (response.success) {
+          successCount += operationOrders.length;
+          results.push(`操作医嘱: ${operationOrders.length}条成功`);
+        } else {
+          errorMessages.push(`操作医嘱失败: ${response.message}`);
+          if (response.errors) errorMessages.push(...response.errors);
+        }
+      } catch (error) {
+        errorMessages.push(`操作医嘱提交异常: ${error.message}`);
+      }
+    }
+
+    // 📢 显示结果
+    if (errorMessages.length === 0) {
+      ElMessage.success(`✅ 成功提交 ${successCount} 条医嘱\n${results.join('\n')}`);
       orderCart.value = [];
       expandedOrders.value = [];
     } else {
-      ElMessage.error(response.message || '提交失败');
-      if (response.errors && response.errors.length > 0) {
-        console.error('提交错误:', response.errors);
+      const successMsg = successCount > 0 ? `成功 ${successCount} 条, ` : '';
+      ElMessage.warning(`${successMsg}失败 ${errorMessages.length} 项\n${errorMessages.slice(0, 3).join('\n')}`);
+      // 移除成功的医嘱
+      if (successCount > 0) {
+        orderCart.value = orderCart.value.filter(order => {
+          const type = order.orderType || 'MedicationOrder';
+          if (type === 'MedicationOrder' && medicationOrders.length > 0) return false;
+          if (type === 'InspectionOrder' && inspectionOrders.length > 0) return false;
+          if (type === 'SurgicalOrder' && surgicalOrders.length > 0) return false;
+          if (type === 'OperationOrder' && operationOrders.length > 0) return false;
+          return true;
+        });
       }
     }
   } catch (error) {
@@ -1299,6 +1593,28 @@ onMounted(async () => {
   text-align: center;
   color: var(--text-secondary);
   font-size: 1.1rem;
+}
+
+/* ==================== 操作医嘱表单样式 ==================== */
+.operation-form .section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 15px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.operation-form .form-row {
+  margin-bottom: 15px;
+}
+
+.operation-form .tip-text {
+  display: inline-block;
+  margin-left: 10px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
 }
 
 /* ==================== 表单分组 ==================== */
