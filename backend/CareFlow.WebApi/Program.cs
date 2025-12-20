@@ -30,6 +30,11 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<IExecutionTaskFactory, SurgicalExecutionTaskFactory>();
 builder.Services.AddScoped<ISurgicalOrderTaskService, SurgicalOrderTaskService>();
 
+// 注册操作医嘱任务服务及工厂
+builder.Services.AddScoped<OperationExecutionTaskFactory>();
+builder.Services.AddScoped<IOperationOrderTaskService, OperationOrderTaskService>();
+builder.Services.AddScoped<IOperationOrderManager, OperationOrderManager>();
+
 // 注册检查类医嘱服务（合并到任务服务）
 builder.Services.AddScoped<CareFlow.Application.Interfaces.IInspectionService, CareFlow.Application.Services.MedicalOrder.InspectionOrderTaskService>();
 
