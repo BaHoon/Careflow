@@ -164,6 +164,12 @@ const loadTasks = async () => {
     return;
   }
 
+  // 清空旧数据
+  tasks.value = [];
+  filteredTasks.value = [];
+  patientList.value = [];
+  selectedPatient.value = '';
+
   loading.value = true;
   try {
     const dateStr = selectedDate.value.toISOString().split('T')[0];

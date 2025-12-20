@@ -56,6 +56,10 @@ const handleLogin = async () => {
   errorMsg.value = '';
 
   try {
+    // 清除旧的登录信息，避免缓存
+    localStorage.removeItem('token');
+    localStorage.removeItem('userInfo');
+    
     // 使用统一的API配置
     const res = await axios.post('http://localhost:5181/api/auth/login', form.value);
     
