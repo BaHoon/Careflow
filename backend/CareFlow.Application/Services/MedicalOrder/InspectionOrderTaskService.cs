@@ -241,7 +241,10 @@ public class InspectionOrderTaskService : IInspectionService
         if (order == null)
             throw new Exception($"未找到检查医嘱 {dto.OrderId}");
 
-        order.AppointmentTime = dto.AppointmentTime;
+        // 时间字段转换
+        // 前端发送的是北京时间+时区信息（如 "2025-12-19T08:00:00+08:00"）
+        // .NET 会自动解析并转换为 UTC 时间存储到数据库
+        order.AppointmentTime = dto.AppointmentTime.ToUniversalTime();
         order.AppointmentPlace = dto.AppointmentPlace;
         order.Precautions = dto.Precautions;
         await _orderRepo.UpdateAsync(order);
