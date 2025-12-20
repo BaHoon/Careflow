@@ -1,4 +1,4 @@
-namespace CareFlow.Application.DTOs.SurgicalOrder;
+namespace CareFlow.Application.DTOs.SurgicalOrders;
 
 public class GenerateSurgicalTasksRequestDto
 {
