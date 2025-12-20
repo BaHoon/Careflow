@@ -2,6 +2,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Login from '../views/Login.vue'
 import Home from '../views/Home.vue'
 import OrderEntry from '../views/OrderEntry.vue'
+import NurseDashboard from '../views/NurseDashboard.vue'
+import NurseTaskList from '../views/NurseTaskList.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -26,6 +28,18 @@ const router = createRouter({
       name: 'order-entry',
       component: OrderEntry,
       meta: { requiresAuth: true, role: 'Doctor' } // 限制只有 Doctor 角色进入
+    },
+    {
+      path: '/nurse/dashboard', // [新增] 护士床位概览
+      name: 'nurse-dashboard',
+      component: NurseDashboard,
+      meta: { requiresAuth: true, role: 'Nurse' } // 限制只有 Nurse 角色进入
+    },
+    {
+      path: '/nurse/tasks', // [新增] 护士任务列表
+      name: 'nurse-tasks',
+      component: NurseTaskList,
+      meta: { requiresAuth: true, role: 'Nurse' } // 限制只有 Nurse 角色进入
     }
   ]
 })

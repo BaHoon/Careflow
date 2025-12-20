@@ -18,10 +18,15 @@
         </template>
 
         <template v-else-if="currentUser.role === 'Nurse'">
-          
-          <div class="card clickable" @click="router.push('/nursing-tasks')">
-            <h3>📋 待办任务</h3>
-            <p>查看今日待输注、待执行的护理项</p>
+          <div class="card clickable" @click="router.push('/nurse/dashboard')">
+            <h3>🏥 床位概览</h3>
+            <p>查看病区床位状态及患者概况</p>
+            <div class="card-badge nurse">护士权限</div>
+          </div>
+          <div class="card clickable" @click="router.push('/nurse/tasks')">
+            <h3>📋 我的任务</h3>
+            <p>查看今日待执行的护理任务</p>
+            <div class="card-badge nurse">护士权限</div>
           </div>
         </template>
 
