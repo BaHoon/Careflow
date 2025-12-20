@@ -1,5 +1,13 @@
 <template>
   <div class="inspection-container">
+    <!-- 返回按钮 -->
+    <div class="back-button-wrapper">
+      <el-button type="primary" plain @click="goBack">
+        <el-icon><ArrowLeft /></el-icon>
+        返回上页
+      </el-button>
+    </div>
+
     <!-- 筛选条件区域 -->
     <el-card class="filter-card" shadow="never">
       <div class="card-header-title" style="display:none">查询条件</div> <!-- 可选：如果需要标题可以放开 -->
@@ -281,9 +289,17 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Printer, DocumentCopy, Search, Refresh } from '@element-plus/icons-vue' // 引入图标
+import { Printer, DocumentCopy, Search, Refresh, ArrowLeft } from '@element-plus/icons-vue'
 import api from '@/utils/api'
+
+const router = useRouter()
+
+// 返回上页
+const goBack = () => {
+  router.back()
+}
 
 // 筛选条件
 const filterForm = reactive({
@@ -509,6 +525,11 @@ onMounted(() => {
   padding: 20px;
   background-color: #f0f2f5;
   min-height: 100vh;
+}
+
+/* 返回按钮样式 */
+.back-button-wrapper {
+  margin-bottom: 16px;
 }
 
 /* 筛选卡片美化 */

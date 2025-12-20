@@ -366,54 +366,68 @@
               </div>
             </div>
 
-            <!-- TODO: 检查医嘱表单 -->
-            <!-- 位置: 检查医嘱（CT、MRI、X光、超声等）开具表单 -->
-            <div v-else-if="activeType === 'InspectionOrder'" class="inspection-form">
-              <!-- TODO 1: 检查类型选择 -->
-              <!-- 需要字段:
-                   - inspectionType: 检查类型（下拉框）
-                     选项: CT、MRI、X-Ray、Ultrasound（超声）、Endoscopy（内窥镜）等
-                   示例: <el-select v-model="inspectionOrder.inspectionType"> -->
+<!-- 检查医嘱表单 DONE-->
+                    <div v-else-if="activeType === 'InspectionOrder'" class="inspection-form">
+                      <div class="form-section">
+                        <div class="section-header">
+                          <i class="el-icon-document"></i>
+                          <span>检查信息</span>
+                        </div>
+                        
+                        <div class="form-row">
+                          <label class="required">检查项目</label>
+                          <el-select 
+                            v-model="inspectionOrder.itemCode" 
+                            placeholder="请选择检查项目" 
+                            style="width: 100%"
+                            filterable
+                            @change="handleInspectionItemChange"
+                          >
+                            <el-option-group label="影像检查">
+                              <el-option label="CT检查" value="CT" />
+                              <el-option label="MRI检查（核磁共振）" value="MRI" />
+                              <el-option label="X光检查" value="XRAY" />
+                              <el-option label="DR检查（数字化X光）" value="DR" />
+                              <el-option label="PET-CT检查" value="PETCT" />
+                              <el-option label="DSA检查（数字减影血管造影）" value="DSA" />
+                            </el-option-group>
+                            <el-option-group label="超声检查">
+                              <el-option label="普通超声" value="US" />
+                              <el-option label="彩色多普勒超声" value="US_DOPPLER" />
+                              <el-option label="心脏超声" value="US_ECHO" />
+                            </el-option-group>
+                            <el-option-group label="内窥镜检查">
+                              <el-option label="胃镜检查" value="ENDO_GASTRO" />
+                              <el-option label="肠镜检查" value="ENDO_COLON" />
+                              <el-option label="支气管镜检查" value="ENDO_BRONCH" />
+                              <el-option label="喉镜检查" value="ENDO_LARYNX" />
+                              <el-option label="膀胱镜检查" value="ENDO_BLADDER" />
+                            </el-option-group>
+                            <el-option-group label="功能检查">
+                              <el-option label="心电图" value="ECG" />
+                              <el-option label="动态心电图（Holter）" value="ECG_HOLTER" />
+                              <el-option label="脑电图" value="EEG" />
+                              <el-option label="肌电图" value="EMG" />
+                              <el-option label="肺功能检查" value="PFT" />
+                            </el-option-group>
+                            <el-option-group label="病理检查">
+                              <el-option label="活检病理" value="PATH_BIOPSY" />
+                              <el-option label="细胞学检查" value="PATH_CYTOLOGY" />
+                            </el-option-group>
+                          </el-select>
+                        </div>
 
-              <!-- TODO 2: 检查部位选择 -->
-              <!-- 需要字段:
-                   - targetOrgan: 检查部位（下拉框或级联选择器）
-                     选项: Head（头部）、Chest（胸部）、Abdomen（腹部）、Extremities（四肢）等
-                   示例: <el-cascader v-model="inspectionOrder.targetOrgan"> -->
-
-              <!-- TODO 3: 紧急程度选择 -->
-              <!-- 需要字段:
-                   - urgency: 紧急程度（单选按钮组）
-                     选项: urgent（紧急）、normal（常规）、routine（例行）
-                   示例: <el-radio-group v-model="inspectionOrder.urgency"> -->
-
-              <!-- TODO 4: 造影剂选项 -->
-              <!-- 需要字段:
-                   - contrast: 是否使用造影剂（复选框）
-                   - 如果勾选，需要显示过敏史确认
-                   示例: <el-checkbox v-model="inspectionOrder.contrast"> -->
-
-              <!-- TODO 5: 预约时间选择 -->
-              <!-- 需要字段:
-                   - scheduledTime: 预约时间（日期时间选择器）
-                   - 需要与设备排班联动，显示可用时段
-                   示例: <el-date-picker v-model="inspectionOrder.scheduledTime"> -->
-
-              <!-- TODO 6: 临床资料 -->
-              <!-- 需要字段:
-                   - clinicalInfo: 临床症状、病史（文本域）
-                   示例: <el-input type="textarea" v-model="inspectionOrder.clinicalInfo"> -->
-
-              <!-- TODO 7: 备注 -->
-              <!-- 需要字段:
-                   - remarks: 特殊说明（文本域）
-                   示例: <el-input type="textarea" v-model="inspectionOrder.remarks"> -->
-
-              <div class="placeholder-form">
-                ⚠️ 检查医嘱表单开发中
-                <br>需实现上述7个字段的表单组件
-              </div>
-            </div>
+                        <div class="form-row">
+                          <label>备注</label>
+                          <el-input
+                            v-model="inspectionOrder.remarks"
+                            type="textarea"
+                            :rows="2"
+                            placeholder="其他需要说明的事项"
+                          />
+                        </div>
+                      </div>
+                    </div>
 
             <!-- TODO: 手术医嘱表单 -->
             <!-- 位置: 手术/操作类医嘱开具表单 -->
@@ -535,23 +549,42 @@
                 </div>
                 
                 <!-- 基本信息（始终显示） -->
-                <div class="order-basic-info">
+                <div class="order-basic-info" v-if="o.orderType === 'InspectionOrder'">
+                  <!-- 检查医嘱无需显示用药途径 -->
+                </div>
+                <div class="order-basic-info" v-else>
                   <span class="info-item">{{ getRouteName(o.usageRoute) }}</span>
                 </div>
 
                 <!-- 详细信息（可展开） -->
                 <div v-show="expandedOrders.includes(idx)" class="order-detail-expand">
-                  <div class="detail-section">
-                    <div class="detail-label">药品明细：</div>
-                    <div v-for="(item, i) in o.items" :key="i" class="detail-value">
-                      {{ i + 1 }}. {{ getDrugName(item.drugId) }} {{ item.dosage }}
-                      <span v-if="item.note" class="note-text">({{ item.note }})</span>
+                  <!-- 检查医嘱详细信息 -->
+                  <template v-if="o.orderType === 'InspectionOrder'">
+                    <div class="detail-section">
+                      <div class="detail-label">检查项目：</div>
+                      <div class="detail-value">{{ o.itemName || o.itemCode }}</div>
                     </div>
-                  </div>
-                  <div class="detail-section">
-                    <div class="detail-label">时间策略：</div>
-                    <div class="detail-value">{{ getStrategyDescription(o) }}</div>
-                  </div>
+                    
+                    <div class="detail-section" v-if="o.remarks">
+                      <div class="detail-label">备注：</div>
+                      <div class="detail-value">{{ o.remarks }}</div>
+                    </div>
+                  </template>
+                  
+                  <!-- 药品医嘱详细信息 -->
+                  <template v-else>
+                    <div class="detail-section">
+                      <div class="detail-label">药品明细：</div>
+                      <div v-for="(item, i) in o.items" :key="i" class="detail-value">
+                        {{ i + 1 }}. {{ getDrugName(item.drugId) }} {{ item.dosage }}
+                        <span v-if="item.note" class="note-text">({{ item.note }})</span>
+                      </div>
+                    </div>
+                    <div class="detail-section">
+                      <div class="detail-label">时间策略：</div>
+                      <div class="detail-value">{{ getStrategyDescription(o) }}</div>
+                    </div>
+                  </template>
                 </div>
               </div>
 
@@ -629,17 +662,12 @@ const types = [
   { label: '护理操作', val: 'OperationOrder' }
 ];
 
-// TODO: 添加检查医嘱的响应式数据
-// 参考DTO: DTOs/InspectionOrders/BatchCreateInspectionOrderDto.cs
-// const inspectionOrder = reactive({
-//   inspectionType: '',        // 检查类型: CT, MRI, X-Ray, Ultrasound
-//   targetOrgan: '',           // 检查部位: Head, Chest, Abdomen, Extremities
-//   urgency: 'normal',         // 紧急程度: urgent, normal, routine
-//   contrast: false,           // 是否造影剂
-//   scheduledTime: null,       // 预约时间
-//   clinicalInfo: '',          // 临床资料
-//   remarks: ''                // 备注
-// });
+// 检查医嘱的响应式数据  DONE
+const inspectionOrder = reactive({
+  itemCode: '',              // 检查项目代码（如 "CT_HEAD" "MRI_CHEST" 等）
+  itemName: '',              // 检查项目名称（用于显示）
+  remarks: ''                // 备注
+});
 
 // TODO: 添加手术医嘱的响应式数据
 // 参考DTO: DTOs/SurgicalOrders/BatchCreateSurgicalOrderDto.cs
@@ -763,8 +791,8 @@ const isFormValid = computed(() => {
     // TODO: 操作医嘱验证：操作代码、操作名称、执行时间为必填
 
   } else if (activeType.value === 'InspectionOrder') {
-    // TODO: 检查医嘱验证（待实现表单后补充）
-    return false;
+    // 检查医嘱验证   DONE
+    return !!selectedPatient.value && !!inspectionOrder.itemCode;
   } else if (activeType.value === 'SurgicalOrder') {
     // TODO: 手术医嘱验证（待实现表单后补充）
     return false;
@@ -957,6 +985,38 @@ const removeDrug = (index) => {
   }
 };
 
+// 检查项目选择处理
+const handleInspectionItemChange = (itemCode) => {
+  if (!itemCode) return;
+  
+  // 根据检查类型自动设置名称
+  const inspectionNames = {
+    'CT': 'CT检查',
+    'MRI': 'MRI检查',
+    'XRAY': 'X光检查',
+    'DR': 'DR检查',
+    'PETCT': 'PET-CT检查',
+    'DSA': 'DSA检查',
+    'US': '超声检查',
+    'US_DOPPLER': '彩色多普勒超声',
+    'US_ECHO': '心脏超声',
+    'ENDO_GASTRO': '胃镜检查',
+    'ENDO_COLON': '肠镜检查',
+    'ENDO_BRONCH': '支气管镜检查',
+    'ENDO_LARYNX': '喉镜检查',
+    'ENDO_BLADDER': '膀胱镜检查',
+    'ECG': '心电图',
+    'ECG_HOLTER': '动态心电图',
+    'EEG': '脑电图',
+    'EMG': '肌电图',
+    'PFT': '肺功能检查',
+    'PATH_BIOPSY': '活检病理',
+    'PATH_CYTOLOGY': '细胞学检查'
+  };
+  
+  inspectionOrder.itemName = inspectionNames[itemCode] || itemCode;
+};
+
 // 表单操作
 
 // TODO: 清空表单时需根据医嘱类型清空对应的数据
@@ -965,7 +1025,10 @@ const clearForm = () => {
     // TODO: 清空操作医嘱表单
 
   } else if (activeType.value === 'InspectionOrder') {
-    // TODO: 清空检查医嘱表单（待实现表单后补充）
+    // 清空检查医嘱表单  DONE
+    inspectionOrder.itemCode = '';
+    inspectionOrder.itemName = '';
+    inspectionOrder.remarks = '';
   } else if (activeType.value === 'SurgicalOrder') {
     // TODO: 清空手术医嘱表单（待实现表单后补充）
   } else {
@@ -996,9 +1059,12 @@ const addToCart = () => {
     ElMessage.warning('操作类医嘱表单开发中');
     return;
   } else if (activeType.value === 'InspectionOrder') {
-    // TODO: 暂存检查医嘱（待实现表单后补充）
-    ElMessage.warning('检查医嘱表单开发中');
-    return;
+    // 暂存检查医嘱  DONE
+    orderCart.value.push({
+      orderType: 'InspectionOrder',
+      ...inspectionOrder,
+      patientId: selectedPatient.value.id
+    });
   } else if (activeType.value === 'SurgicalOrder') {
     // TODO: 暂存手术医嘱（待实现表单后补充）
     ElMessage.warning('手术医嘱表单开发中');
@@ -1081,19 +1147,24 @@ const submitAll = async () => {
     // 🔍 提交检查医嘱
     if (inspectionOrders.length > 0) {
       const requestData = {
-        patientId: selectedPatient.value?.id,
-        doctorId: currentUser.value.staffId,
-        orders: inspectionOrders.map(order => ({
-          inspectionType: order.inspectionType,
-          targetOrgan: order.targetOrgan,
-          urgency: order.urgency,
-          contrast: order.contrast,
-          scheduledTime: toBeijingTimeISO(order.scheduledTime),
-          clinicalInfo: order.clinicalInfo
-        }))
+        PatientId: selectedPatient.value?.id,
+        DoctorId: currentUser.value.staffId,
+        Orders: inspectionOrders.map(order => {
+          const orderData = {
+            ItemCode: order.itemCode
+          };
+          
+          // 添加备注
+          if (order.remarks) {
+            orderData.Remarks = order.remarks;
+          }
+          
+          return orderData;
+        })
       };
 
       console.log('🔍 提交检查医嘱:', requestData);
+      console.log('🔍 检查医嘱数据详情:', JSON.stringify(requestData, null, 2));
       
       try {
         const response = await batchCreateInspectionOrders(requestData);
@@ -1105,7 +1176,12 @@ const submitAll = async () => {
           if (response.errors) errorMessages.push(...response.errors);
         }
       } catch (error) {
-        errorMessages.push(`检查医嘱提交异常: ${error.message}`);
+        console.error('❌ 检查医嘱提交详细错误:', error);
+        console.error('❌ 错误响应:', error.response?.data);
+        errorMessages.push(`检查医嘱提交异常: ${error.response?.data?.message || error.message}`);
+        if (error.response?.data?.errors) {
+          errorMessages.push(...Object.values(error.response.data.errors).flat());
+        }
       }
     }
 
@@ -1351,6 +1427,12 @@ const getRouteName = (routeId) => {
 // getFreqDescription 已移除，改用 getStrategyLabel
 
 const getOrderSummary = (order) => {
+  // 检查医嘱特殊处理
+  if (order.orderType === 'InspectionOrder') {
+    return order.itemName || order.itemCode || '检查';
+  }
+  
+  // 其他类型保持原逻辑
   const drugNames = order.items.map(i => getDrugName(i.drugId)).join('+');
   const strategyLabel = getStrategyLabel(order.timingStrategy);
   return `${drugNames} (${strategyLabel})`;

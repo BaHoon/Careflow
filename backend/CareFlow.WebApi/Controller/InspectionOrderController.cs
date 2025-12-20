@@ -24,8 +24,7 @@ public class InspectionOrderController : ControllerBase
     }
 
     /// <summary>
-    /// 批量创建检查医嘱
-    /// TODO: 待实现完整功能
+    /// 批量创建检查医嘱 DONE
     /// </summary>
     [HttpPost("batch")]
     public async Task<ActionResult<BatchCreateOrderResponseDto>> BatchCreate(
