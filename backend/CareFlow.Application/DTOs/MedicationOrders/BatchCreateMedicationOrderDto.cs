@@ -1,9 +1,9 @@
-namespace CareFlow.Application.DTOs.MedicationOrder;
+namespace CareFlow.Application.DTOs.MedicationOrders;
 
 /// <summary>
-/// 批量创建医嘱请求DTO
+/// 批量创建药物医嘱请求DTO
 /// </summary>
-public class BatchCreateOrderRequestDto
+public class BatchCreateMedicationOrderRequestDto
 {
     public string PatientId { get; set; } = null!;
     public string DoctorId { get; set; } = null!;
@@ -11,7 +11,7 @@ public class BatchCreateOrderRequestDto
 }
 
 /// <summary>
-/// 单个医嘱DTO
+/// 单个药物医嘱DTO
 /// </summary>
 public class MedicationOrderDto
 {
@@ -37,20 +37,4 @@ public class MedicationOrderItemDto
     public string? Note { get; set; }
 }
 
-/// <summary>
-/// 批量创建医嘱响应DTO
-/// </summary>
-public class BatchCreateOrderResponseDto
-{
-    public bool Success { get; set; }
-    public string Message { get; set; } = null!;
-    public BatchCreateOrderDataDto? Data { get; set; }
-    public List<string>? Errors { get; set; }
-}
-
-public class BatchCreateOrderDataDto
-{
-    public int CreatedCount { get; set; }
-    public List<string> OrderIds { get; set; } = new();
-    public int TaskCount { get; set; }
-}
+// 响应DTO已移至 Common 命名空间统一管理
