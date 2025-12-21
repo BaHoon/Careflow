@@ -197,7 +197,9 @@ public class InspectionOrderTaskService : IInspectionService
         if (task.PatientId != dto.PatientId)
             throw new Exception("患者信息不匹配");
 
-        if (task.Status != ExecutionTaskStatus.Pending)
+        // 检查任务状态是否可以执行（待执行或申请已确认状态都可以）
+        if (task.Status != ExecutionTaskStatus.Pending && 
+            task.Status != ExecutionTaskStatus.AppliedConfirmed)
             throw new Exception($"任务状态异常: {task.Status}");
 
         string payload = task.DataPayload;
@@ -359,7 +361,7 @@ public class InspectionOrderTaskService : IInspectionService
             Patient = order.Patient,
             Category = TaskCategory.Immediate, // 打印导引单为即刻执行
             PlannedStartTime = plannedTime,
-            Status = ExecutionTaskStatus.Pending,
+            Status = ExecutionTaskStatus.Applying,  // 初始状态为待申请（需要申请打印）
             DataPayload = JsonSerializer.Serialize(new
             {
                 TaskType = "INSP_PRINT_GUIDE",

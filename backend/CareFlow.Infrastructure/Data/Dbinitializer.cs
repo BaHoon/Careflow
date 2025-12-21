@@ -914,7 +914,28 @@ namespace CareFlow.Infrastructure.Data
                 }
             };
             context.SurgicalOrders.AddRange(surgicalOrders);
-            
+
+            var medicationOrders2 = new List<MedicationOrder>{
+                new MedicationOrder
+                {
+                    PatientId = "P003", DoctorId = "D002", NurseId = "N002",
+                    CreateTime = currentTime, PlantEndTime = currentTime.AddDays(1),
+                    OrderType = "MedicationOrder", Status = OrderStatus.PendingReceive, IsLongTerm = true,  // 修改为Accepted，因为已生成ExecutionTask
+                    UsageRoute = UsageRoute.IVP, // 静脉推注
+                    IsDynamicUsage = false,
+                    IntervalHours = 8m, // 每8小时给药一次
+                    StartTime = currentTime.Date.AddHours(8), // 从早上8点开始
+                    TimingStrategy = "CYCLIC",
+                    SmartSlotsMask = 0, // CYCLIC策略不依赖时段
+                    IntervalDays = 1,
+                    Items = new List<MedicationOrderItem>
+                    {
+                        new MedicationOrderItem { DrugId = "DRUG008", Dosage = "1.0g", Note = "溶于100ml生理盐水缓慢静推" }
+                    }
+                }
+            };
+
+            context.MedicationOrders.AddRange(medicationOrders2);
             // --- 护士排班相关数据 ---
             // 班次类型数据
             // ⚠️ 重要：时间使用 UTC 存储（北京时间 -8小时）
