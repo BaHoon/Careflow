@@ -60,7 +60,7 @@ public class OperationOrderController : ControllerBase
             return Ok(new 
             { 
                 Success = true, 
-                Message = "操作医嘱创建成功，已自动分配护士", 
+                Message = "操作医嘱创建成功，已自动分配护士并生成执行任务", 
                 OrderId = createdOrder.Id, 
                 AssignedNurseId = createdOrder.NurseId,
                 OpId = createdOrder.OpId,

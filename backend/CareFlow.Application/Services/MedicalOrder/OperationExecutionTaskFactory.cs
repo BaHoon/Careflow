@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models.Medical;
 using CareFlow.Core.Models.Nursing;
@@ -10,7 +11,7 @@ namespace CareFlow.Application.Services
 {
     /// <summary>
     /// 操作类医嘱任务生成工厂
-    /// 根据 FrequencyType 和 FrequencyValue 生成执行任务
+    /// 根据 IsLongTerm、FrequencyType 和 FrequencyValue 生成执行任务
     /// 根据操作代码（OpId）自动分配 TaskCategory（Immediate/Duration/ResultPending）
     /// </summary>
     public class OperationExecutionTaskFactory : IExecutionTaskFactory
@@ -20,31 +21,28 @@ namespace CareFlow.Application.Services
         {
             { "OP001", "更换引流袋" },
             { "OP002", "持续吸氧" },
-            { "OP003", "测量生命体征" },
-            { "OP004", "翻身拍背" },
-            { "OP005", "更换敷料" },
-            { "OP006", "导尿" },
-            { "OP007", "鼻饲" },
-            { "OP008", "雾化吸入" },
-            { "OP009", "口腔护理" },
-            { "OP010", "会阴护理" },
-            { "OP011", "皮肤护理" },
-            { "OP012", "协助翻身" },
-            { "OP013", "持续心电监护" },
-            { "OP014", "持续导尿" },
-            { "OP015", "持续胃肠减压" },
-            { "OP016", "持续静脉输液" },
-            { "OP017", "血糖监测" },
-            { "OP018", "血压监测" },
-            { "OP019", "体温监测" },
-            { "OP020", "尿量监测" },
-            { "OP021", "意识状态评估" },
-            { "OP022", "疼痛评估" }
+            { "OP003", "血糖监测" },
+            { "OP004", "更换敷料" },
+            { "OP005", "导尿" },
+            { "OP006", "鼻饲" },
+            { "OP007", "雾化吸入" },
+            { "OP008", "口腔护理" },
+            { "OP009", "会阴护理" },
+            { "OP010", "皮肤护理" },
+            { "OP011", "持续心电监护" },
+            { "OP012", "持续导尿" },
+            { "OP013", "持续胃肠减压" },
+            { "OP014", "持续静脉输液" },
+            { "OP015", "翻身拍背" },
+            { "OP016", "血压监测" },
+            { "OP017", "体温监测" },
+            { "OP018", "尿量监测" },
+            { "OP019", "意识状态评估" },
+            { "OP020", "疼痛评估" }
         };
 
         /// <summary>
         /// 根据操作代码（OpId）获取任务类别
-        /// 参考药品医嘱的 GetTaskCategoryFromUsageRoute 方法
         /// </summary>
         private TaskCategory GetTaskCategoryFromOpId(string opId)
         {
@@ -52,31 +50,29 @@ namespace CareFlow.Application.Services
             {
                 // Immediate 类：即刻执行，扫码即完成
                 "OP001" => TaskCategory.Immediate,  // 更换引流袋
-                "OP004" => TaskCategory.Immediate,  // 翻身拍背
-                "OP005" => TaskCategory.Immediate,  // 更换敷料
-                "OP006" => TaskCategory.Immediate,  // 导尿
-                "OP009" => TaskCategory.Immediate,  // 口腔护理
-                "OP010" => TaskCategory.Immediate,  // 会阴护理
-                "OP011" => TaskCategory.Immediate,  // 皮肤护理
-                "OP012" => TaskCategory.Immediate,  // 协助翻身
+                "OP004" => TaskCategory.Immediate,  // 更换敷料
+                "OP005" => TaskCategory.Immediate,  // 导尿
+                "OP008" => TaskCategory.Immediate,  // 口腔护理
+                "OP009" => TaskCategory.Immediate,  // 会阴护理
+                "OP010" => TaskCategory.Immediate,  // 皮肤护理
+                "OP015" => TaskCategory.Immediate,  // 翻身拍背
                 
                 // Duration 类：持续执行，需要开始和结束时间
                 "OP002" => TaskCategory.Duration,   // 持续吸氧
-                "OP007" => TaskCategory.Duration,   // 鼻饲
-                "OP008" => TaskCategory.Duration,   // 雾化吸入
-                "OP013" => TaskCategory.Duration,   // 持续心电监护
-                "OP014" => TaskCategory.Duration,   // 持续导尿
-                "OP015" => TaskCategory.Duration,   // 持续胃肠减压
-                "OP016" => TaskCategory.Duration,   // 持续静脉输液
+                "OP006" => TaskCategory.Duration,   // 鼻饲
+                "OP007" => TaskCategory.Duration,   // 雾化吸入
+                "OP011" => TaskCategory.Duration,   // 持续心电监护
+                "OP012" => TaskCategory.Duration,   // 持续导尿
+                "OP013" => TaskCategory.Duration,   // 持续胃肠减压
+                "OP014" => TaskCategory.Duration,   // 持续静脉输液
                 
                 // ResultPending 类：需要等待结果，录入结果后完成
-                "OP003" => TaskCategory.ResultPending, // 测量生命体征
-                "OP017" => TaskCategory.ResultPending, // 血糖监测
-                "OP018" => TaskCategory.ResultPending, // 血压监测
-                "OP019" => TaskCategory.ResultPending, // 体温监测
-                "OP020" => TaskCategory.ResultPending, // 尿量监测
-                "OP021" => TaskCategory.ResultPending, // 意识状态评估
-                "OP022" => TaskCategory.ResultPending, // 疼痛评估
+                "OP003" => TaskCategory.ResultPending, // 血糖监测
+                "OP016" => TaskCategory.ResultPending, // 血压监测
+                "OP017" => TaskCategory.ResultPending, // 体温监测
+                "OP018" => TaskCategory.ResultPending, // 尿量监测
+                "OP019" => TaskCategory.ResultPending, // 意识状态评估
+                "OP020" => TaskCategory.ResultPending, // 疼痛评估
                 
                 // 默认为立即执行
                 _ => TaskCategory.Immediate
@@ -96,155 +92,194 @@ namespace CareFlow.Application.Services
 
             var tasks = new List<ExecutionTask>();
 
-            // 3. 根据频次类型和任务类别生成任务
-            switch (operationOrder.FrequencyType)
+            // 3. 根据 IsLongTerm 决定任务生成策略
+            if (operationOrder.IsLongTerm)
             {
-                case "每天":
-                    GenerateDailyTasks(operationOrder, tasks, taskCategory);
-                    break;
-                case "持续":
-                    GenerateContinuousTask(operationOrder, tasks, taskCategory);
-                    break;
-                case "一次性":
-                    GenerateOneTimeTask(operationOrder, tasks, taskCategory);
-                    break;
-                default:
-                    // 默认按一次性处理
-                    GenerateOneTimeTask(operationOrder, tasks, taskCategory);
-                    break;
+                // 长期医嘱：根据"x天y次"生成多个任务
+                GenerateLongTermTasks(operationOrder, tasks, taskCategory);
+            }
+            else
+            {
+                // 临时医嘱：只生成1个任务
+                GenerateOneTimeTask(operationOrder, tasks, taskCategory);
             }
 
             return tasks;
         }
 
         /// <summary>
-        /// 生成每天多次的任务（如：每天3次）
+        /// 生成长期医嘱任务（IsLongTerm=true）
+        /// FrequencyType格式："x天y次"（如"1天3次"）
+        /// - 如果x=1，表示每天执行y次
+        /// - 如果x=2，表示每2天执行y次（第1天、第3天、第5天...各执行y次）
+        /// FrequencyValue格式：时间点列表，用逗号或分号分隔（如"08:00,12:00,16:00"），应包含y个时间点
+        /// 
+        /// 计算逻辑：
+        /// 1. 计算从当前日期（CreateTime.Date）到PlantEndTime.Date的总天数
+        /// 2. 计算包含多少个x天周期：从第1天开始，每x天为一个周期，直到超过结束日期
+        /// 3. 任务数量 = 周期数 × y
+        /// 4. 每个任务的PlannedStartTime = 对应日期 + FrequencyValue中的时间点
+        /// 
+        /// 例如：1天3次，时间点08:00,12:00,16:00，医嘱进行3天（从2024-01-01到2024-01-03）
+        /// - 总天数：3天
+        /// - 周期数：3个周期（第1天、第2天、第3天各为一个周期，因为x=1）
+        /// - 任务数量：3 × 3 = 9个任务
+        /// - 任务时间：
+        ///   第1天：2024-01-01 08:00, 2024-01-01 12:00, 2024-01-01 16:00
+        ///   第2天：2024-01-02 08:00, 2024-01-02 12:00, 2024-01-02 16:00
+        ///   第3天：2024-01-03 08:00, 2024-01-03 12:00, 2024-01-03 16:00
         /// </summary>
-        private void GenerateDailyTasks(OperationOrder order, List<ExecutionTask> tasks, TaskCategory taskCategory)
+        private void GenerateLongTermTasks(OperationOrder order, List<ExecutionTask> tasks, TaskCategory taskCategory)
         {
-            // 解析频次值（如："3次" -> 3）
-            if (!int.TryParse(order.FrequencyValue.Replace("次", "").Trim(), out int timesPerDay))
+            // 解析FrequencyType：提取x（天数）和y（次数）
+            var frequencyParts = order.FrequencyType.Split('天');
+            if (frequencyParts.Length != 2)
             {
-                timesPerDay = 3; // 默认3次
+                throw new ArgumentException($"长期医嘱的FrequencyType格式错误，应为'x天y次'，当前值：{order.FrequencyType}");
             }
 
-            // 计算每次执行的时间点（均匀分布在一天中）
+            if (!int.TryParse(frequencyParts[0].Trim(), out int daysPerCycle))
+            {
+                throw new ArgumentException($"无法解析天数，FrequencyType：{order.FrequencyType}");
+            }
+
+            var timesPart = frequencyParts[1].Replace("次", "").Trim();
+            if (!int.TryParse(timesPart, out int timesPerCycle))
+            {
+                throw new ArgumentException($"无法解析次数，FrequencyType：{order.FrequencyType}");
+            }
+
+            // 解析FrequencyValue：时间点列表（应包含y个时间点）
+            var timePoints = ParseTimePoints(order.FrequencyValue);
+            if (timePoints.Count != timesPerCycle)
+            {
+                throw new ArgumentException($"时间点数量({timePoints.Count})与次数({timesPerCycle})不匹配");
+            }
+
+            // 计算从当前日期（CreateTime.Date）到PlantEndTime.Date的总天数
             var startDate = order.CreateTime.Date;
             var endDate = order.PlantEndTime.Date;
+
+            // 按周期生成任务：从startDate开始，每x天为一个周期
+            // 例如：x=1，从第1天开始，每天执行y次
+            // 例如：x=2，从第1天开始，每2天执行y次（第1天、第3天、第5天...）
             var currentDate = startDate;
+            int cycleIndex = 0;
 
             while (currentDate <= endDate)
             {
-                // 根据次数分配时间点（例如：3次 = 08:00, 14:00, 20:00）
-                var timeSlots = CalculateTimeSlots(timesPerDay);
-                
-                foreach (var timeSlot in timeSlots)
+                // 为当前周期的这一天生成y个任务（对应y个时间点）
+                foreach (var timePoint in timePoints)
                 {
-                    var plannedTime = currentDate.Add(timeSlot);
+                    // 任务的PlannedStartTime = 当前日期 + FrequencyValue中的时间点
+                    var plannedTime = currentDate.Add(timePoint);
                     
                     // 确保不超过结束时间
                     if (plannedTime <= order.PlantEndTime)
                     {
-                        // 根据 TaskCategory 决定是否需要执行时间
-                        if (taskCategory == TaskCategory.Immediate)
-                        {
-                            // Immediate 任务：不需要 PlannedStartTime（立即执行，使用当前时间作为默认值）
-                            tasks.Add(CreateOperationTask(order, null, taskCategory));
-                        }
-                        else
-                        {
-                            // Duration 和 ResultPending 任务：需要 PlannedStartTime（必须按时执行）
-                            tasks.Add(CreateOperationTask(order, plannedTime, taskCategory));
-                        }
+                        tasks.Add(CreateOperationTask(order, plannedTime, taskCategory));
                     }
                 }
 
-                currentDate = currentDate.AddDays(1);
+                // 移动到下一个周期：当前日期 + x天
+                cycleIndex++;
+                currentDate = startDate.AddDays(cycleIndex * daysPerCycle);
             }
         }
 
         /// <summary>
-        /// 生成持续任务（如：持续24小时）
-        /// 注意：FrequencyType="持续" 时，只有 Duration 类型的操作才适用
-        /// </summary>
-        private void GenerateContinuousTask(OperationOrder order, List<ExecutionTask> tasks, TaskCategory taskCategory)
-        {
-            // 持续任务只适用于 Duration 类型
-            if (taskCategory != TaskCategory.Duration)
-            {
-                throw new ArgumentException($"操作 {order.OpId} 的类型为 {taskCategory}，不支持'持续'频次类型。只有 Duration 类型的操作才支持持续执行。");
-            }
-
-            // 解析持续时间（如："24小时" -> 24）
-            if (!int.TryParse(order.FrequencyValue.Replace("小时", "").Trim(), out int hours))
-            {
-                hours = 24; // 默认24小时
-            }
-
-            // 持续任务：开始时间和结束时间
-            var startTime = order.CreateTime;
-            var endTime = startTime.AddHours(hours);
-            
-            // 确保不超过医嘱结束时间
-            if (endTime > order.PlantEndTime)
-            {
-                endTime = order.PlantEndTime;
-            }
-
-            tasks.Add(new ExecutionTask
-            {
-                MedicalOrderId = order.Id,
-                PatientId = order.PatientId,
-                Category = TaskCategory.Duration, // 持续任务
-                PlannedStartTime = startTime, // Duration 任务必须有执行时间
-                Status = "Pending",
-                CreatedAt = DateTime.UtcNow,
-                
-                DataPayload = JsonSerializer.Serialize(new
-                {
-                    TaskType = "CONTINUOUS_OPERATION",
-                    Title = GetOperationName(order.OpId),
-                    Description = $"持续执行：{order.FrequencyValue}",
-                    OpId = order.OpId,
-                    Normal = order.Normal,
-                    ExpectedDurationHours = hours,
-                    PlannedEndTime = endTime, // 记录计划结束时间
-                    RequiresScan = true // 需要扫码验证患者身份
-                })
-            });
-        }
-
-        /// <summary>
-        /// 生成一次性任务
+        /// 生成一次性任务（IsLongTerm=false）
+        /// FrequencyType必须为"一次性"
+        /// FrequencyValue为"立即"或固定时间点（如"14:30"）
+        /// 
+        /// PlannedStartTime计算逻辑：
+        /// - 如果FrequencyValue="立即"：PlannedStartTime = 当前日期当前时间点（DateTime.UtcNow）
+        /// - 如果FrequencyValue=固定时间点（如"14:30"）：PlannedStartTime = 当前日期 + 固定时间点
         /// </summary>
         private void GenerateOneTimeTask(OperationOrder order, List<ExecutionTask> tasks, TaskCategory taskCategory)
         {
-            // 根据 TaskCategory 决定是否需要执行时间
-            if (taskCategory == TaskCategory.Immediate)
+            // 验证FrequencyType
+            if (order.FrequencyType != "一次性")
             {
-                // Immediate 任务：不需要 PlannedStartTime（立即执行）
-                tasks.Add(CreateOperationTask(order, null, taskCategory));
+                throw new ArgumentException($"临时医嘱的FrequencyType必须为'一次性'，当前值：{order.FrequencyType}");
+            }
+
+            DateTime plannedTime;
+
+            // 解析FrequencyValue
+            if (order.FrequencyValue == "立即" || string.IsNullOrWhiteSpace(order.FrequencyValue))
+            {
+                // 立即执行：PlannedStartTime = 当前日期当前时间点
+                plannedTime = DateTime.UtcNow;
             }
             else
             {
-                // Duration 和 ResultPending 任务：使用医嘱创建时间作为执行时间
-                tasks.Add(CreateOperationTask(order, order.CreateTime, taskCategory));
+                // 固定时间点：解析时间字符串（如"14:30"）
+                if (TimeSpan.TryParse(order.FrequencyValue, out var timeSpan))
+                {
+                    // PlannedStartTime = 当前日期 + 固定时间点
+                    plannedTime = DateTime.UtcNow.Date.Add(timeSpan);
+                }
+                else
+                {
+                    // 尝试解析完整日期时间
+                    if (DateTime.TryParse(order.FrequencyValue, out var dateTime))
+                    {
+                        plannedTime = dateTime;
+                    }
+                    else
+                    {
+                        throw new ArgumentException($"无法解析FrequencyValue时间格式：{order.FrequencyValue}");
+                    }
+                }
             }
+
+            // 确保计划时间不超过结束时间
+            if (plannedTime > order.PlantEndTime)
+            {
+                throw new ArgumentException($"计划执行时间({plannedTime})不能晚于医嘱结束时间({order.PlantEndTime})");
+            }
+
+            tasks.Add(CreateOperationTask(order, plannedTime, taskCategory));
+        }
+
+        /// <summary>
+        /// 解析时间点字符串（如"08:00,14:00,20:00"或"08:00;14:00;20:00"）
+        /// </summary>
+        private List<TimeSpan> ParseTimePoints(string frequencyValue)
+        {
+            var timePoints = new List<TimeSpan>();
+            
+            // 支持逗号或分号分隔
+            var separators = new[] { ',', ';', '，', '；' };
+            var parts = frequencyValue.Split(separators, StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (var part in parts)
+            {
+                var trimmed = part.Trim();
+                if (TimeSpan.TryParse(trimmed, out var timeSpan))
+                {
+                    timePoints.Add(timeSpan);
+                }
+                else
+                {
+                    throw new ArgumentException($"无法解析时间点：{trimmed}");
+                }
+            }
+
+            // 按时间顺序排序
+            timePoints.Sort();
+            return timePoints;
         }
 
         /// <summary>
         /// 创建操作任务（通用方法）
         /// </summary>
         /// <param name="order">操作医嘱</param>
-        /// <param name="plannedTime">计划执行时间。Immediate 任务为 null，Duration/ResultPending 任务必须有值</param>
+        /// <param name="plannedTime">计划执行时间。所有任务都必须有明确的执行时间</param>
         /// <param name="category">任务类别</param>
-        private ExecutionTask CreateOperationTask(OperationOrder order, DateTime? plannedTime, TaskCategory category)
+        private ExecutionTask CreateOperationTask(OperationOrder order, DateTime plannedTime, TaskCategory category)
         {
-            // 验证：Duration 和 ResultPending 任务必须有执行时间
-            if (category != TaskCategory.Immediate && !plannedTime.HasValue)
-            {
-                throw new ArgumentException($"任务类别 {category} 必须指定执行时间（PlannedStartTime）");
-            }
 
             // 确定 TaskType 字符串
             string taskType = category switch
@@ -254,73 +289,63 @@ namespace CareFlow.Application.Services
                 _ => "IMMEDIATE_OPERATION"
             };
 
+            // 为Category=3（ResultPending）的任务生成结构化数据模板
+            string? resultPayloadTemplate = null;
+            if (category == TaskCategory.ResultPending)
+            {
+                resultPayloadTemplate = GenerateResultPayloadTemplate(order.OpId);
+            }
+
+            var dataPayload = new
+            {
+                TaskType = taskType,
+                Title = GetOperationName(order.OpId),
+                Description = $"操作代码：{order.OpId}，频次：{order.FrequencyType} {order.FrequencyValue}",
+                OpId = order.OpId,
+                Normal = order.Normal,
+                FrequencyType = order.FrequencyType,
+                FrequencyValue = order.FrequencyValue,
+                RequiresScan = true,
+                IsImmediate = category == TaskCategory.Immediate,
+                ExecutionMode = category == TaskCategory.Immediate ? "立即执行" 
+                               : category == TaskCategory.Duration ? "持续执行"
+                               : "等待结果",
+                ResultPayloadTemplate = resultPayloadTemplate // Category=3的任务包含结果模板
+            };
+
             return new ExecutionTask
             {
                 MedicalOrderId = order.Id,
                 PatientId = order.PatientId,
                 Category = category,
-                PlannedStartTime = plannedTime ?? DateTime.UtcNow, // Immediate 任务使用当前时间作为默认值
+                PlannedStartTime = plannedTime, // 所有任务都有明确的计划开始时间
                 Status = "Pending",
                 CreatedAt = DateTime.UtcNow,
-                
-                DataPayload = JsonSerializer.Serialize(new
-                {
-                    TaskType = taskType,
-                    Title = GetOperationName(order.OpId),
-                    Description = $"操作代码：{order.OpId}，频次：{order.FrequencyType} {order.FrequencyValue}",
-                    OpId = order.OpId,
-                    Normal = order.Normal,
-                    FrequencyType = order.FrequencyType,
-                    FrequencyValue = order.FrequencyValue,
-                    RequiresScan = true, // 需要扫码验证患者身份
-                    IsImmediate = category == TaskCategory.Immediate, // 标记是否为立即执行
-                    ExecutionMode = category == TaskCategory.Immediate ? "立即执行" 
-                                   : category == TaskCategory.Duration ? "持续执行"
-                                   : "等待结果" // ResultPending
+                ResultPayload = null, // 初始为null，Category=3的任务在扫码结束后由护士输入
+                DataPayload = JsonSerializer.Serialize(dataPayload, new JsonSerializerOptions 
+                { 
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
                 })
             };
         }
 
         /// <summary>
-        /// 计算一天中的时间点分布
+        /// 为Category=3（ResultPending）的操作生成结构化结果数据模板
+        /// 护士只需要填写核心结果（如数字或其他）
         /// </summary>
-        private List<TimeSpan> CalculateTimeSlots(int timesPerDay)
+        private string? GenerateResultPayloadTemplate(string opId)
         {
-            // 默认时间分布策略
-            var slots = new List<TimeSpan>();
-            
-            switch (timesPerDay)
+            return opId switch
             {
-                case 1:
-                    slots.Add(new TimeSpan(8, 0, 0)); // 08:00
-                    break;
-                case 2:
-                    slots.Add(new TimeSpan(8, 0, 0));  // 08:00
-                    slots.Add(new TimeSpan(20, 0, 0)); // 20:00
-                    break;
-                case 3:
-                    slots.Add(new TimeSpan(8, 0, 0));  // 08:00
-                    slots.Add(new TimeSpan(14, 0, 0)); // 14:00
-                    slots.Add(new TimeSpan(20, 0, 0)); // 20:00
-                    break;
-                case 4:
-                    slots.Add(new TimeSpan(8, 0, 0));  // 08:00
-                    slots.Add(new TimeSpan(12, 0, 0)); // 12:00
-                    slots.Add(new TimeSpan(16, 0, 0)); // 16:00
-                    slots.Add(new TimeSpan(20, 0, 0)); // 20:00
-                    break;
-                default:
-                    // 超过4次，均匀分布
-                    var interval = 24.0 / timesPerDay;
-                    for (int i = 0; i < timesPerDay; i++)
-                    {
-                        var hours = (int)(interval * i);
-                        slots.Add(new TimeSpan(hours, 0, 0));
-                    }
-                    break;
-            }
-            
-            return slots;
+                "OP003" => JsonSerializer.Serialize(new { Value = 0.0, Unit = "mmol/L", Note = "" }), // 血糖监测：数值+单位+备注
+                "OP016" => JsonSerializer.Serialize(new { Systolic = 0, Diastolic = 0, Note = "" }), // 血压监测：收缩压+舒张压+备注
+                "OP017" => JsonSerializer.Serialize(new { Value = 0.0, Unit = "℃", Note = "" }), // 体温监测：数值+单位+备注
+                "OP018" => JsonSerializer.Serialize(new { Value = 0.0, Unit = "ml", Note = "" }), // 尿量监测：数值+单位+备注
+                "OP019" => JsonSerializer.Serialize(new { Level = "", Description = "", Note = "" }), // 意识状态评估：等级+描述+备注
+                "OP020" => JsonSerializer.Serialize(new { Score = 0, Level = "", Note = "" }), // 疼痛评估：评分+等级+备注
+                _ => null // 其他操作不需要结果模板
+            };
         }
 
         /// <summary>
@@ -334,4 +359,3 @@ namespace CareFlow.Application.Services
         }
     }
 }
-

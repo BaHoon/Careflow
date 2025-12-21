@@ -794,26 +794,32 @@ namespace CareFlow.Infrastructure.Data
             // 2. 操作医嘱 (OperationOrder)
             var operationOrders = new OperationOrder[]
             {
+                // 长期医嘱示例：1天3次，时间点为08:00,14:00,20:00
                 new OperationOrder
                 {
                     PatientId = "P001", DoctorId = "D001", NurseId = "N001",
                     CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(3),
                     OrderType = "OperationOrder", Status = "Accepted", IsLongTerm = true,
-                    OpId = "OP001", Normal = true, FrequencyType = "每天", FrequencyValue = "3次"
+                    OpId = "OP001", Normal = true, FrequencyType = "1天3次", FrequencyValue = "08:00,14:00,20:00",
+                    EndTime = null // 初始为null，所有任务完成后写入
                 },
+                // 长期医嘱示例：持续吸氧，1天1次，持续24小时（Duration类型）
                 new OperationOrder
                 {
                     PatientId = "P003", DoctorId = "D002", NurseId = "N002",
                     CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(2),
                     OrderType = "OperationOrder", Status = "Accepted", IsLongTerm = true,
-                    OpId = "OP002", Normal = true, FrequencyType = "持续", FrequencyValue = "24小时"
+                    OpId = "OP002", Normal = true, FrequencyType = "1天1次", FrequencyValue = "08:00",
+                    EndTime = null
                 },
+                // 临时医嘱示例：一次性，立即执行
                 new OperationOrder
                 {
                     PatientId = "P004", DoctorId = "D002", NurseId = "N001",
                     CreateTime = currentTime.AddHours(-2), PlantEndTime = currentTime.AddHours(1),
                     OrderType = "OperationOrder", Status = "InProgress", IsLongTerm = false,
-                    OpId = "OP003", Normal = true, FrequencyType = "一次性", FrequencyValue = "1次"
+                    OpId = "OP003", Normal = true, FrequencyType = "一次性", FrequencyValue = "立即",
+                    EndTime = null
                 }
             };
             context.OperationOrders.AddRange(operationOrders);

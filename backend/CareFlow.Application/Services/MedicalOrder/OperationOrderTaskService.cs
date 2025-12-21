@@ -16,6 +16,7 @@ namespace CareFlow.Application.Services
         Task<List<ExecutionTask>> GenerateExecutionTasksAsync(OperationOrder order);
         Task RefreshExecutionTasksAsync(OperationOrder order);
         Task RollbackPendingTasksAsync(long orderId, string reason);
+        Task CheckAndUpdateOrderStatusAsync(long orderId);
     }
 
     public class OperationOrderTaskService : IOperationOrderTaskService
@@ -107,12 +108,57 @@ namespace CareFlow.Application.Services
                 }
 
                 _logger.LogInformation("已为医嘱 {OrderId} 成功生成 {Count} 个任务", order.Id, savedTasks.Count);
+                
+                // 6. 检查是否需要更新医嘱状态
+                await CheckAndUpdateOrderStatusAsync(existingOrder.Id);
+                
                 return savedTasks;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "生成执行任务流程发生错误");
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// 检查所有任务是否完成，如果完成则更新医嘱的EndTime
+        /// </summary>
+        public async Task CheckAndUpdateOrderStatusAsync(long orderId)
+        {
+            try
+            {
+                var order = await _operationOrderRepository.GetByIdAsync(orderId);
+                if (order == null) return;
+
+                // 查询该医嘱的所有任务
+                var allTasks = await _taskRepository.ListAsync(t => t.MedicalOrderId == orderId);
+                
+                if (!allTasks.Any())
+                {
+                    _logger.LogWarning("医嘱 {OrderId} 没有关联的任务", orderId);
+                    return;
+                }
+
+                // 检查是否所有任务都已完成（Completed或Cancelled）
+                var incompleteTasks = allTasks.Where(t => 
+                    t.Status != "Completed" && 
+                    t.Status != "Cancelled" && 
+                    t.Status != "Skipped").ToList();
+
+                if (!incompleteTasks.Any() && !order.EndTime.HasValue)
+                {
+                    // 所有任务都已完成，更新EndTime
+                    order.EndTime = DateTime.UtcNow;
+                    order.Status = "Completed";
+                    await _operationOrderRepository.UpdateAsync(order);
+                    _logger.LogInformation("医嘱 {OrderId} 的所有任务已完成，已更新EndTime", orderId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "检查并更新医嘱状态失败，OrderId: {OrderId}", orderId);
+                // 不抛出异常，避免影响主流程
             }
         }
 
@@ -166,6 +212,24 @@ namespace CareFlow.Application.Services
             if (order.PlantEndTime <= order.CreateTime)
             {
                 throw new ArgumentException("医嘱结束时间必须晚于创建时间");
+            }
+
+            // 验证IsLongTerm和FrequencyType的匹配关系
+            if (!order.IsLongTerm)
+            {
+                // 临时医嘱：FrequencyType必须为"一次性"
+                if (order.FrequencyType != "一次性")
+                {
+                    throw new ArgumentException($"临时医嘱（IsLongTerm=false）的FrequencyType必须为'一次性'，当前值：{order.FrequencyType}");
+                }
+            }
+            else
+            {
+                // 长期医嘱：FrequencyType必须为"x天y次"格式
+                if (!order.FrequencyType.Contains("天") || !order.FrequencyType.Contains("次"))
+                {
+                    throw new ArgumentException($"长期医嘱（IsLongTerm=true）的FrequencyType必须为'x天y次'格式，当前值：{order.FrequencyType}");
+                }
             }
         }
 
