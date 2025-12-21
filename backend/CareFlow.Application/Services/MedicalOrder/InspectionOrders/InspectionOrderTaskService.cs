@@ -197,14 +197,14 @@ public class InspectionOrderTaskService : IInspectionService
         if (task.PatientId != dto.PatientId)
             throw new Exception("患者信息不匹配");
 
-        if (task.Status != ExecutionTaskStatus.Pending.ToString())
+        if (task.Status != ExecutionTaskStatus.Pending)
             throw new Exception($"任务状态异常: {task.Status}");
 
         string payload = task.DataPayload;
 
         if (payload.Contains("INSP_PRINT_GUIDE"))
         {
-            task.Status = ExecutionTaskStatus.Completed.ToString();
+            task.Status = ExecutionTaskStatus.Completed;
             task.ActualStartTime = DateTime.UtcNow;
             task.ActualEndTime = DateTime.UtcNow;
             task.ExecutorStaffId = dto.NurseId;
@@ -222,7 +222,7 @@ public class InspectionOrderTaskService : IInspectionService
                 await _orderRepo.UpdateAsync(order);
             }
 
-            task.Status = ExecutionTaskStatus.Completed.ToString();
+            task.Status = ExecutionTaskStatus.Completed;
             task.ActualStartTime = DateTime.UtcNow;
             task.ActualEndTime = DateTime.UtcNow;
             task.ExecutorStaffId = dto.NurseId;
@@ -241,7 +241,7 @@ public class InspectionOrderTaskService : IInspectionService
                 await _orderRepo.UpdateAsync(order);
             }
 
-            task.Status = ExecutionTaskStatus.Completed.ToString();
+            task.Status = ExecutionTaskStatus.Completed;
             task.ActualStartTime = DateTime.UtcNow;
             task.ActualEndTime = DateTime.UtcNow;
             task.ExecutorStaffId = dto.NurseId;
@@ -359,7 +359,7 @@ public class InspectionOrderTaskService : IInspectionService
             Patient = order.Patient,
             Category = TaskCategory.Immediate, // 打印导引单为即刻执行
             PlannedStartTime = plannedTime,
-            Status = ExecutionTaskStatus.Pending.ToString(),
+            Status = ExecutionTaskStatus.Pending,
             DataPayload = JsonSerializer.Serialize(new
             {
                 TaskType = "INSP_PRINT_GUIDE",
@@ -385,7 +385,7 @@ public class InspectionOrderTaskService : IInspectionService
             Patient = order.Patient,
             Category = TaskCategory.Immediate, // 检查站签到为即刻执行
             PlannedStartTime = plannedTime,
-            Status = ExecutionTaskStatus.Pending.ToString(),
+            Status = ExecutionTaskStatus.Pending,
             DataPayload = JsonSerializer.Serialize(new
             {
                 TaskType = "INSP_CHECKIN",
@@ -419,7 +419,7 @@ public class InspectionOrderTaskService : IInspectionService
             Patient = order.Patient,
             Category = TaskCategory.Immediate, // 检查完成确认为即刻执行
             PlannedStartTime = plannedTime,
-            Status = ExecutionTaskStatus.Pending.ToString(),
+            Status = ExecutionTaskStatus.Pending,
             DataPayload = JsonSerializer.Serialize(new
             {
                 TaskType = "INSP_COMPLETE",
@@ -453,7 +453,7 @@ public class InspectionOrderTaskService : IInspectionService
             Patient = order.Patient,
             Category = TaskCategory.DataCollection, // 查看报告为数据收集类
             PlannedStartTime = DateTime.UtcNow, // 报告到达后立即处理
-            Status = ExecutionTaskStatus.Pending.ToString(),
+            Status = ExecutionTaskStatus.Pending,
             DataPayload = JsonSerializer.Serialize(new
             {
                 TaskType = "INSP_REVIEW_REPORT",

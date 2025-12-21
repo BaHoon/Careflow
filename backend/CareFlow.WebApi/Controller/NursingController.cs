@@ -138,7 +138,7 @@ namespace CareFlow.WebApi.Controllers
                 // 批量查询待执行任务
                 var pendingTasks = await _context.ExecutionTasks
                     .Where(et => patientIds.Contains(et.PatientId) &&
-                                 et.Status == "Pending")
+                                 et.Status == ExecutionTaskStatus.Pending)
                     .GroupBy(et => et.PatientId)
                     .Select(g => new { PatientId = g.Key, Count = g.Count() })
                     .ToListAsync();
@@ -146,7 +146,7 @@ namespace CareFlow.WebApi.Controllers
                 // 批量查询超时任务
                 var overdueTasks = await _context.ExecutionTasks
                     .Where(et => patientIds.Contains(et.PatientId) &&
-                                 et.Status == "Pending" &&
+                                 et.Status == ExecutionTaskStatus.Pending &&
                                  et.PlannedStartTime < currentTime)
                     .GroupBy(et => et.PatientId)
                     .Select(g => new { PatientId = g.Key, Count = g.Count() })
@@ -288,7 +288,7 @@ namespace CareFlow.WebApi.Controllers
 
                 // 批量查询待执行任务
                 var pendingTasks = await _context.ExecutionTasks
-                    .Where(et => patientIds.Contains(et.PatientId) && et.Status == "Pending")
+                    .Where(et => patientIds.Contains(et.PatientId) && et.Status == ExecutionTaskStatus.Pending)
                     .GroupBy(et => et.PatientId)
                     .Select(g => new { PatientId = g.Key, Count = g.Count() })
                     .ToListAsync();
@@ -296,7 +296,7 @@ namespace CareFlow.WebApi.Controllers
                 // 批量查询超时任务
                 var overdueTasks = await _context.ExecutionTasks
                     .Where(et => patientIds.Contains(et.PatientId) &&
-                                 et.Status == "Pending" &&
+                                 et.Status == ExecutionTaskStatus.Pending &&
                                  et.PlannedStartTime < currentTime)
                     .GroupBy(et => et.PatientId)
                     .Select(g => new { PatientId = g.Key, Count = g.Count() })
@@ -385,7 +385,7 @@ namespace CareFlow.WebApi.Controllers
         public async Task<IActionResult> GetMyTasks(
             string nurseId, 
             DateTime? date = null, 
-            string? status = null)
+            ExecutionTaskStatus? status = null)
         {
             try
             {
@@ -417,7 +417,7 @@ namespace CareFlow.WebApi.Controllers
                                  et.PlannedStartTime < endOfDay &&
                                  bedIds.Contains(et.Patient.BedId));
 
-                if (!string.IsNullOrEmpty(status))
+                if (status.HasValue)
                 {
                     tasksQuery = tasksQuery.Where(et => et.Status == status);
                 }
@@ -442,8 +442,8 @@ namespace CareFlow.WebApi.Controllers
                     Status = task.Status,
                     DataPayload = task.DataPayload,
                     ResultPayload = task.ResultPayload,
-                    IsOverdue = task.Status == "Pending" && task.PlannedStartTime < currentTime,
-                    IsDueSoon = task.Status == "Pending" && 
+                    IsOverdue = task.Status == ExecutionTaskStatus.Pending && task.PlannedStartTime < currentTime,
+                    IsDueSoon = task.Status == ExecutionTaskStatus.Pending && 
                                 task.PlannedStartTime >= currentTime && 
                                 task.PlannedStartTime <= currentTime.AddMinutes(30)
                 }).ToList();
@@ -456,8 +456,8 @@ namespace CareFlow.WebApi.Controllers
                     totalCount = nurseTasks.Count,
                     overdueCount = nurseTasks.Count(t => t.IsOverdue),
                     dueSoonCount = nurseTasks.Count(t => t.IsDueSoon),
-                    pendingCount = nurseTasks.Count(t => t.Status == "Pending"),
-                    completedCount = nurseTasks.Count(t => t.Status == "Completed")
+                    pendingCount = nurseTasks.Count(t => t.Status == ExecutionTaskStatus.Pending),
+                    completedCount = nurseTasks.Count(t => t.Status == ExecutionTaskStatus.Completed)
                 });
             }
             catch (Exception ex)

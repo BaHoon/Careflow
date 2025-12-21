@@ -22,17 +22,72 @@
           </el-input>
         </div>
 
+        <!-- 筛选工具栏 -->
+        <div class="filter-toolbar">
+          <div class="filter-group">
+            <el-select 
+              v-model="wardFilter" 
+              placeholder="病区筛选" 
+              clearable 
+              size="small"
+              class="ward-filter"
+            >
+              <el-option label="全部病区" value=""></el-option>
+              <el-option 
+                v-for="ward in wardOptions" 
+                :key="ward.wardId"
+                :label="ward.wardName"
+                :value="ward.wardId"
+              >
+                <span>{{ ward.wardName }}</span>
+                <span v-if="ward.isMyWard" class="my-ward-tag">★ 我负责</span>
+              </el-option>
+            </el-select>
+          </div>
+          
+          <div class="filter-group">
+            <el-checkbox 
+              v-model="showOnlyPending" 
+              size="small"
+              class="pending-filter"
+            >
+              仅显示待签收
+            </el-checkbox>
+          </div>
+
+          <div class="filter-group">
+            <el-checkbox 
+              v-model="enableMultiSelect" 
+              size="small"
+              class="multi-select-toggle"
+              @change="handleMultiSelectToggle"
+            >
+              多选模式
+            </el-checkbox>
+          </div>
+        </div>
+
         <!-- 患者列表 -->
         <div class="patient-list">
           <div 
             v-for="patient in filteredPatients" 
             :key="patient.patientId"
             :class="['patient-card', { 
-              active: patient.patientId === selectedPatient?.patientId,
-              'has-pending': patient.unacknowledgedCount > 0 
+              active: isPatientSelected(patient),
+              'has-pending': patient.unacknowledgedCount > 0,
+              'my-ward': isMyWard(patient.wardId)
             }]"
             @click="selectPatient(patient)"
           >
+            <!-- 多选模式复选框 -->
+            <el-checkbox 
+              v-if="enableMultiSelect"
+              :model-value="isPatientSelected(patient)"
+              @click.stop
+              @change="togglePatientSelection(patient)"
+              class="patient-checkbox"
+            />
+            
             <div class="bed-badge">{{ patient.bedId }}</div>
             <div class="patient-basic">
               <span class="p-name">{{ patient.patientName }}</span>
@@ -65,27 +120,62 @@
     <!-- 右侧工作区 -->
     <section class="work-area">
       <!-- 患者信息栏 -->
-      <header class="patient-info-bar" v-if="selectedPatient">
-        <div class="patient-badge">{{ selectedPatient.bedId }}</div>
-        <div class="patient-details">
-          <span class="name">{{ selectedPatient.patientName }}</span>
-          <span class="meta">
-            {{ selectedPatient.gender }} | {{ selectedPatient.age }}岁 | {{ selectedPatient.weight }}kg
-          </span>
-          <span class="tag">护理{{ selectedPatient.nursingGrade }}级</span>
-        </div>
+      <header class="patient-info-bar" v-if="selectedPatients.length > 0">
+        <!-- 单选模式 -->
+        <template v-if="!enableMultiSelect">
+          <div class="patient-badge">{{ selectedPatients[0].bedId }}</div>
+          <div class="patient-details">
+            <span class="name">{{ selectedPatients[0].patientName }}</span>
+            <span class="meta">
+              {{ selectedPatients[0].gender }} | {{ selectedPatients[0].age }}岁 | {{ selectedPatients[0].weight }}kg
+            </span>
+            <span class="tag">护理{{ selectedPatients[0].nursingGrade }}级</span>
+          </div>
+        </template>
+        
+        <!-- 多选模式 -->
+        <template v-else>
+          <div class="multi-patient-header">
+            <div class="selected-count">
+              <span class="count-badge">{{ selectedPatients.length }}</span>
+              <span class="count-text">位患者</span>
+            </div>
+            <div class="patient-badges">
+              <span 
+                v-for="p in selectedPatients.slice(0, 5)" 
+                :key="p.patientId"
+                class="mini-badge"
+                :title="`${p.bedId} ${p.patientName}`"
+              >
+                {{ p.bedId }}
+              </span>
+              <span v-if="selectedPatients.length > 5" class="more-badge">
+                +{{ selectedPatients.length - 5 }}
+              </span>
+            </div>
+            
+            <!-- 排序控制 -->
+            <div class="sort-control">
+              <span class="sort-label">排序:</span>
+              <el-radio-group v-model="orderSortBy" size="small" class="sort-radio">
+                <el-radio-button label="time">时间</el-radio-button>
+                <el-radio-button label="patient">患者</el-radio-button>
+              </el-radio-group>
+            </div>
+          </div>
+        </template>
       </header>
 
       <!-- 提示信息：未选择患者 -->
-      <div v-if="!selectedPatient" class="empty-work-area">
+      <div v-if="selectedPatients.length === 0" class="empty-work-area">
         <div class="empty-icon">📋</div>
         <p>请从左侧选择患者查看待签收医嘱</p>
       </div>
 
       <!-- Tab切换: 新开医嘱 / 停止医嘱 -->
-      <el-tabs v-if="selectedPatient" v-model="activeTab" @tab-click="handleTabClick" class="order-tabs">
-        <el-tab-pane :label="`新开医嘱 (${pendingOrders.newOrders.length})`" name="new">
-          <div v-if="pendingOrders.newOrders.length > 0" class="order-list">
+      <el-tabs v-if="selectedPatients.length > 0" v-model="activeTab" @tab-click="handleTabClick" class="order-tabs">
+        <el-tab-pane :label="`新开医嘱 (${sortedNewOrders.length})`" name="new">
+          <div v-if="sortedNewOrders.length > 0" class="order-list">
             <!-- 批量操作栏 -->
             <div class="batch-toolbar">
               <el-checkbox 
@@ -116,12 +206,18 @@
             </div>
 
             <!-- 医嘱列表 -->
-            <div v-for="order in pendingOrders.newOrders" 
+            <div v-for="order in sortedNewOrders" 
                  :key="order.orderId"
                  class="order-item">
               <el-checkbox v-model="order.selected" @change="handleOrderSelectChange" />
               
               <div class="order-content">
+                <!-- 多选模式下显示患者信息 -->
+                <div v-if="enableMultiSelect" class="order-patient-tag">
+                  <span class="patient-bed-tag">{{ order.bedId }}</span>
+                  <span class="patient-name-tag">{{ order.patientName }}</span>
+                </div>
+                
                 <!-- 医嘱头部 -->
                 <div class="order-header">
                   <el-tag 
@@ -213,8 +309,8 @@
           </div>
         </el-tab-pane>
 
-        <el-tab-pane :label="`停止医嘱 (${pendingOrders.stoppedOrders.length})`" name="stopped">
-          <div v-if="pendingOrders.stoppedOrders.length > 0" class="order-list">
+        <el-tab-pane :label="`停止医嘱 (${sortedStoppedOrders.length})`" name="stopped">
+          <div v-if="sortedStoppedOrders.length > 0" class="order-list">
             <!-- 批量操作栏 -->
             <div class="batch-toolbar">
               <el-checkbox 
@@ -237,12 +333,18 @@
             </div>
 
             <!-- 停止医嘱列表 -->
-            <div v-for="order in pendingOrders.stoppedOrders" 
+            <div v-for="order in sortedStoppedOrders" 
                  :key="order.orderId"
                  class="order-item stopped">
               <el-checkbox v-model="order.selected" @change="handleOrderSelectChange" />
               
               <div class="order-content">
+                <!-- 多选模式下显示患者信息 -->
+                <div v-if="enableMultiSelect" class="order-patient-tag">
+                  <span class="patient-bed-tag">{{ order.bedId }}</span>
+                  <span class="patient-name-tag">{{ order.patientName }}</span>
+                </div>
+                
                 <div class="order-header">
                   <el-tag type="danger" size="small">已停止</el-tag>
                   <el-tag 
@@ -303,19 +405,28 @@ import {
   rejectOrders,
   requestMedicationImmediately,
   requestInspection,
-  cancelMedicationRequest 
+  cancelMedicationRequest,
+  getCurrentWard
 } from '../api/orderAcknowledgement';
 
 // ==================== 状态管理 ====================
 
 const patientList = ref([]);
 const selectedPatient = ref(null);
+const selectedPatients = ref([]); // 多选患者列表
 const pendingOrders = ref({ newOrders: [], stoppedOrders: [] });
 const activeTab = ref('new');
 const patientSearch = ref('');
 const leftCollapsed = ref(false);
 const selectAllNew = ref(false);
 const selectAllStopped = ref(false);
+
+// 筛选相关状态
+const wardFilter = ref('');
+const showOnlyPending = ref(false);
+const enableMultiSelect = ref(false);
+const orderSortBy = ref('time'); // 'time' | 'patient'
+const currentScheduledWardId = ref(null); // 护士当前排班的病区ID
 
 // 当前护士信息
 const getCurrentNurse = () => {
@@ -332,43 +443,150 @@ const getCurrentNurse = () => {
 
 const currentNurse = ref(getCurrentNurse());
 
+// 获取护士当前排班病区
+const fetchCurrentScheduledWard = async () => {
+  try {
+    const nurseId = currentNurse.value.staffId;
+    const result = await getCurrentWard(nurseId);
+    currentScheduledWardId.value = result.wardId;
+    
+    if (result.wardId) {
+      console.log(`✅ 护士当前排班病区: ${result.wardId}`);
+    } else {
+      console.log('ℹ️ 护士今日无排班记录，使用默认病区');
+      currentScheduledWardId.value = currentNurse.value.wardId;
+    }
+  } catch (error) {
+    console.error('获取当前排班病区失败:', error);
+    // 失败时使用护士基本信息中的病区
+    currentScheduledWardId.value = currentNurse.value.wardId;
+  }
+};
+
 // ==================== 计算属性 ====================
+
+// 病区选项（从患者列表中提取唯一病区）
+const wardOptions = computed(() => {
+  const wards = new Map();
+  patientList.value.forEach(p => {
+    if (!wards.has(p.wardId)) {
+      wards.set(p.wardId, {
+        wardId: p.wardId,
+        wardName: p.wardName,
+        // 使用当前排班病区判断是否是"我负责"
+        isMyWard: p.wardId === currentScheduledWardId.value
+      });
+    }
+  });
+  return Array.from(wards.values()).sort((a, b) => {
+    // 我负责的病区排在前面
+    if (a.isMyWard && !b.isMyWard) return -1;
+    if (!a.isMyWard && b.isMyWard) return 1;
+    return a.wardName.localeCompare(b.wardName);
+  });
+});
 
 // 过滤后的患者列表
 const filteredPatients = computed(() => {
-  if (!patientSearch.value) return patientList.value;
-  const keyword = patientSearch.value.toLowerCase();
-  return patientList.value.filter(p => 
-    p.bedId.toLowerCase().includes(keyword) ||
-    p.patientName.includes(keyword)
-  );
+  let filtered = patientList.value;
+  
+  // 搜索过滤
+  if (patientSearch.value) {
+    const keyword = patientSearch.value.toLowerCase();
+    filtered = filtered.filter(p => 
+      p.bedId.toLowerCase().includes(keyword) ||
+      p.patientName.includes(keyword)
+    );
+  }
+  
+  // 病区过滤
+  if (wardFilter.value) {
+    filtered = filtered.filter(p => p.wardId === wardFilter.value);
+  }
+  
+  // 仅显示待签收
+  if (showOnlyPending.value) {
+    filtered = filtered.filter(p => p.unacknowledgedCount > 0);
+  }
+  
+  return filtered;
+});
+
+// 判断是否是我负责的病区（使用当前排班病区）
+const isMyWard = (wardId) => {
+  return wardId === currentScheduledWardId.value;
+};
+
+// 判断患者是否被选中
+const isPatientSelected = (patient) => {
+  if (!enableMultiSelect.value) {
+    return selectedPatient.value?.patientId === patient.patientId;
+  }
+  return selectedPatients.value.some(p => p.patientId === patient.patientId);
+};
+
+// 排序后的医嘱列表
+const sortedNewOrders = computed(() => {
+  if (!enableMultiSelect.value || orderSortBy.value === 'time') {
+    // 按时间排序
+    return [...pendingOrders.value.newOrders].sort((a, b) => 
+      new Date(a.createTime) - new Date(b.createTime)
+    );
+  } else {
+    // 按患者排序
+    return [...pendingOrders.value.newOrders].sort((a, b) => {
+      const patientA = selectedPatients.value.find(p => p.patientId === a.patientId);
+      const patientB = selectedPatients.value.find(p => p.patientId === b.patientId);
+      if (!patientA || !patientB) return 0;
+      return patientA.bedId.localeCompare(patientB.bedId);
+    });
+  }
+});
+
+const sortedStoppedOrders = computed(() => {
+  if (!enableMultiSelect.value || orderSortBy.value === 'time') {
+    return [...pendingOrders.value.stoppedOrders].sort((a, b) => 
+      new Date(a.createTime) - new Date(b.createTime)
+    );
+  } else {
+    return [...pendingOrders.value.stoppedOrders].sort((a, b) => {
+      const patientA = selectedPatients.value.find(p => p.patientId === a.patientId);
+      const patientB = selectedPatients.value.find(p => p.patientId === b.patientId);
+      if (!patientA || !patientB) return 0;
+      return patientA.bedId.localeCompare(patientB.bedId);
+    });
+  }
 });
 
 // 新开医嘱选中数量
 const selectedNewCount = computed(() => {
-  return pendingOrders.value.newOrders.filter(o => o.selected).length;
+  return sortedNewOrders.value.filter(o => o.selected).length;
 });
 
 // 停止医嘱选中数量
 const selectedStoppedCount = computed(() => {
-  return pendingOrders.value.stoppedOrders.filter(o => o.selected).length;
+  return sortedStoppedOrders.value.filter(o => o.selected).length;
 });
 
 // 新开医嘱全选状态
 const isIndeterminateNew = computed(() => {
   const count = selectedNewCount.value;
-  return count > 0 && count < pendingOrders.value.newOrders.length;
+  return count > 0 && count < sortedNewOrders.value.length;
 });
 
 // 停止医嘱全选状态
 const isIndeterminateStopped = computed(() => {
   const count = selectedStoppedCount.value;
-  return count > 0 && count < pendingOrders.value.stoppedOrders.length;
+  return count > 0 && count < sortedStoppedOrders.value.length;
 });
 
 // ==================== 初始化加载 ====================
 
 onMounted(async () => {
+  // 先获取当前排班病区
+  await fetchCurrentScheduledWard();
+  
+  // 再加载患者列表
   await loadPatientList();
   
   // 启动定时刷新
@@ -401,15 +619,105 @@ const loadPatientList = async () => {
 
 // ==================== 患者选择 ====================
 
-// 选择患者
-const selectPatient = async (patient) => {
-  if (selectedPatient.value?.patientId === patient.patientId) return;
-  
-  selectedPatient.value = patient;
-  await loadPatientPendingOrders(patient.patientId);
+// 切换多选模式
+const handleMultiSelectToggle = (enabled) => {
+  if (!enabled) {
+    // 关闭多选模式，保留第一个选中的患者
+    if (selectedPatients.value.length > 0) {
+      selectedPatient.value = selectedPatients.value[0];
+      selectedPatients.value = [selectedPatients.value[0]];
+    }
+  } else {
+    // 开启多选模式
+    if (selectedPatient.value) {
+      selectedPatients.value = [selectedPatient.value];
+    }
+  }
+  // 重新加载医嘱
+  loadSelectedPatientsOrders();
 };
 
-// 加载患者待签收医嘱
+// 选择患者（兼容单选和多选）
+const selectPatient = async (patient) => {
+  if (!enableMultiSelect.value) {
+    // 单选模式
+    if (selectedPatient.value?.patientId === patient.patientId) return;
+    selectedPatient.value = patient;
+    selectedPatients.value = [patient];
+    await loadPatientPendingOrders(patient.patientId);
+  } else {
+    // 多选模式：切换选中状态
+    togglePatientSelection(patient);
+  }
+};
+
+// 切换患者选中状态（多选模式）
+const togglePatientSelection = (patient) => {
+  const index = selectedPatients.value.findIndex(p => p.patientId === patient.patientId);
+  if (index > -1) {
+    selectedPatients.value.splice(index, 1);
+  } else {
+    selectedPatients.value.push(patient);
+  }
+  
+  // 更新单选引用
+  selectedPatient.value = selectedPatients.value[0] || null;
+  
+  // 重新加载医嘱
+  loadSelectedPatientsOrders();
+};
+
+// 加载选中患者的医嘱
+const loadSelectedPatientsOrders = async () => {
+  if (selectedPatients.value.length === 0) {
+    pendingOrders.value = { newOrders: [], stoppedOrders: [] };
+    return;
+  }
+  
+  try {
+    // 并行加载所有选中患者的医嘱
+    const promises = selectedPatients.value.map(p => getPatientPendingOrders(p.patientId));
+    const results = await Promise.all(promises);
+    
+    // 合并所有患者的医嘱，并添加患者信息
+    const allNewOrders = [];
+    const allStoppedOrders = [];
+    
+    results.forEach((data, index) => {
+      const patient = selectedPatients.value[index];
+      
+      data.newOrders.forEach(order => {
+        order.selected = false;
+        order.patientId = patient.patientId;
+        order.patientName = patient.patientName;
+        order.bedId = patient.bedId;
+        allNewOrders.push(order);
+      });
+      
+      data.stoppedOrders.forEach(order => {
+        order.selected = false;
+        order.patientId = patient.patientId;
+        order.patientName = patient.patientName;
+        order.bedId = patient.bedId;
+        allStoppedOrders.push(order);
+      });
+    });
+    
+    pendingOrders.value = {
+      newOrders: allNewOrders,
+      stoppedOrders: allStoppedOrders
+    };
+    
+    // 重置全选状态
+    selectAllNew.value = false;
+    selectAllStopped.value = false;
+  } catch (error) {
+    console.error('加载患者待签收医嘱失败:', error);
+    ElMessage.error(error.message || '加载医嘱失败');
+  }
+};
+
+// 加载患者待签收医嘱（单患者）
 const loadPatientPendingOrders = async (patientId) => {
   try {
     const data = await getPatientPendingOrders(patientId);
@@ -780,7 +1088,11 @@ const stopAutoRefresh = () => {
 // 刷新当前视图（智能Diff更新，避免闪烁）
 const refreshCurrentView = async () => {
   await loadPatientListWithDiff();
-  if (selectedPatient.value) {
+  
+  // 根据选择模式刷新医嘱
+  if (enableMultiSelect.value && selectedPatients.value.length > 0) {
+    await loadSelectedPatientsOrdersWithDiff();
+  } else if (selectedPatient.value) {
     await loadPatientPendingOrdersWithDiff(selectedPatient.value.patientId);
   }
 };
@@ -825,6 +1137,8 @@ const loadPatientListWithDiff = async () => {
           patient.weight = newPatient.weight;
           patient.gender = newPatient.gender;
           patient.nursingGrade = newPatient.nursingGrade;
+          patient.wardId = newPatient.wardId;
+          patient.wardName = newPatient.wardName;
           
           // 如果需要移动位置（保持服务器返回的顺序）
           if (oldIndex !== index) {
@@ -845,8 +1159,66 @@ const loadPatientListWithDiff = async () => {
         selectedPatient.value = updated;
       }
     }
+    
+    // 更新多选患者列表的引用
+    if (enableMultiSelect.value && selectedPatients.value.length > 0) {
+      selectedPatients.value = selectedPatients.value.map(sp => {
+        const updated = patientList.value.find(p => p.patientId === sp.patientId);
+        return updated || sp;
+      });
+    }
   } catch (error) {
     console.error('刷新患者列表失败:', error);
+  }
+};
+
+// 智能Diff更新多患者医嘱列表
+const loadSelectedPatientsOrdersWithDiff = async () => {
+  if (selectedPatients.value.length === 0) return;
+  
+  try {
+    // 并行加载所有选中患者的医嘱
+    const promises = selectedPatients.value.map(p => getPatientPendingOrders(p.patientId));
+    const results = await Promise.all(promises);
+    
+    // 保存旧的选中状态
+    const oldSelectedNew = new Set(
+      pendingOrders.value.newOrders.filter(o => o.selected).map(o => o.orderId)
+    );
+    const oldSelectedStopped = new Set(
+      pendingOrders.value.stoppedOrders.filter(o => o.selected).map(o => o.orderId)
+    );
+    
+    // 合并所有患者的医嘱
+    const allNewOrders = [];
+    const allStoppedOrders = [];
+    
+    results.forEach((data, index) => {
+      const patient = selectedPatients.value[index];
+      
+      data.newOrders.forEach(order => {
+        order.selected = oldSelectedNew.has(order.orderId);
+        order.patientId = patient.patientId;
+        order.patientName = patient.patientName;
+        order.bedId = patient.bedId;
+        allNewOrders.push(order);
+      });
+      
+      data.stoppedOrders.forEach(order => {
+        order.selected = oldSelectedStopped.has(order.orderId);
+        order.patientId = patient.patientId;
+        order.patientName = patient.patientName;
+        order.bedId = patient.bedId;
+        allStoppedOrders.push(order);
+      });
+    });
+    
+    // Diff更新（保持选中状态）
+    diffUpdateOrders(pendingOrders.value.newOrders, allNewOrders);
+    diffUpdateOrders(pendingOrders.value.stoppedOrders, allStoppedOrders);
+    
+  } catch (error) {
+    console.error('刷新多患者医嘱列表失败:', error);
   }
 };
 
@@ -1099,6 +1471,51 @@ const formatDateTime = (dateTime) => {
   font-weight: normal;
 }
 
+/* ==================== 筛选工具栏 ==================== */
+
+.filter-toolbar {
+  padding: 10px 15px;
+  border-bottom: 1px solid #e8e8e8;
+  background: #fafafa;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+}
+
+.ward-filter {
+  width: 100%;
+}
+
+.ward-filter :deep(.el-input__inner) {
+  font-size: 13px;
+}
+
+.my-ward-tag {
+  color: #f59e0b;
+  font-weight: 600;
+  margin-left: 8px;
+  font-size: 12px;
+}
+
+.pending-filter,
+.multi-select-toggle {
+  font-size: 13px;
+}
+
+.pending-filter :deep(.el-checkbox__label),
+.multi-select-toggle :deep(.el-checkbox__label) {
+  font-size: 13px;
+  color: #606266;
+}
+
+/* ==================== 患者列表 ==================== */
+
 .patient-list {
   flex: 1;
   overflow-y: auto;
@@ -1114,6 +1531,24 @@ const formatDateTime = (dateTime) => {
   cursor: pointer;
   transition: all 0.3s;
   position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.patient-card.my-ward {
+  border-left: 3px solid #f59e0b;
+  background: linear-gradient(90deg, #fffbeb 0%, white 20%);
+}
+
+.patient-checkbox {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 1;
+}
+
+.patient-card:has(.patient-checkbox) {
+  padding-left: 40px;
 }
 
 .patient-card:hover {
@@ -1175,6 +1610,16 @@ const formatDateTime = (dateTime) => {
 .p-info {
   font-size: 0.85rem;
   color: var(--text-secondary);
+}
+
+.p-ward {
+  font-size: 0.75rem;
+  color: #8b5cf6;
+  background: #f3e8ff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-top: 4px;
+  display: inline-block;
 }
 
 .patient-meta {
@@ -1278,6 +1723,119 @@ const formatDateTime = (dateTime) => {
   border-radius: var(--radius-round);
   font-size: 0.85rem;
 }
+
+/* ==================== 多选患者头部 ==================== */
+
+.multi-patient-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex: 1;
+}
+
+.selected-count {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.count-badge {
+  background: linear-gradient(135deg, var(--primary-color) 0%, #66b1ff 100%);
+  color: white;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-weight: bold;
+  font-size: 1.2rem;
+  box-shadow: 0 3px 8px rgba(64, 158, 255, 0.3);
+}
+
+.count-text {
+  font-size: 0.95rem;
+  color: var(--text-regular);
+  font-weight: 500;
+}
+
+.patient-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mini-badge {
+  background: #e8f4ff;
+  color: var(--primary-color);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: 1px solid var(--primary-color);
+  transition: all 0.2s;
+}
+
+.mini-badge:hover {
+  background: var(--primary-color);
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(64, 158, 255, 0.3);
+}
+
+.more-badge {
+  background: #f3f4f6;
+  color: #6b7280;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.sort-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.sort-label {
+  font-size: 0.9rem;
+  color: var(--text-regular);
+  font-weight: 500;
+}
+
+.sort-radio :deep(.el-radio-button__inner) {
+  padding: 6px 15px;
+  font-size: 0.85rem;
+}
+
+/* ==================== 医嘱中的患者标签 ==================== */
+
+.order-patient-tag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.patient-bed-tag {
+  background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);
+  color: white;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 4px rgba(139, 92, 246, 0.25);
+}
+
+.patient-name-tag {
+  font-size: 0.9rem;
+  color: #4b5563;
+  font-weight: 600;
+}
+
+/* ==================== 工作区 ==================== */
 
 .empty-work-area {
   flex: 1;

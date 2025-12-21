@@ -41,6 +41,16 @@ public class PatientUnacknowledgedSummaryDto
     public int NursingGrade { get; set; }
     
     /// <summary>
+    /// 病区ID
+    /// </summary>
+    public string WardId { get; set; } = null!;
+    
+    /// <summary>
+    /// 病区名称
+    /// </summary>
+    public string WardName { get; set; } = null!;
+    
+    /// <summary>
     /// 未签收医嘱数量
     /// </summary>
     public int UnacknowledgedCount { get; set; }
