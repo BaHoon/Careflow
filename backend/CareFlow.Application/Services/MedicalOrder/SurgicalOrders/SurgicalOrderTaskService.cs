@@ -140,7 +140,10 @@ namespace CareFlow.Application.Services
 
             var pendingTasks = await _taskRepository.ListAsync(t => 
                 t.MedicalOrderId == orderId && 
-                t.Status == ExecutionTaskStatus.Pending);
+                (t.Status == ExecutionTaskStatus.Applying || 
+                 t.Status == ExecutionTaskStatus.Applied || 
+                 t.Status == ExecutionTaskStatus.AppliedConfirmed || 
+                 t.Status == ExecutionTaskStatus.Pending));
 
             foreach (var task in pendingTasks)
             {
@@ -173,7 +176,11 @@ namespace CareFlow.Application.Services
         {
             var tasks = await _taskRepository.ListAsync(t => 
                 t.MedicalOrderId == orderId && 
-                (t.Status == ExecutionTaskStatus.Pending || t.Status == ExecutionTaskStatus.InProgress));
+                (t.Status == ExecutionTaskStatus.Applying || 
+                 t.Status == ExecutionTaskStatus.Applied || 
+                 t.Status == ExecutionTaskStatus.AppliedConfirmed || 
+                 t.Status == ExecutionTaskStatus.Pending || 
+                 t.Status == ExecutionTaskStatus.InProgress));
             return tasks.Any();
         }
 

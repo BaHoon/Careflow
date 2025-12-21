@@ -197,9 +197,11 @@ public class InspectionOrderTaskService : IInspectionService
         if (task.PatientId != dto.PatientId)
             throw new Exception("患者信息不匹配");
 
-        // 检查任务状态是否可以执行（待执行或申请已确认状态都可以）
-        if (task.Status != ExecutionTaskStatus.Pending && 
-            task.Status != ExecutionTaskStatus.AppliedConfirmed)
+        // 检查任务状态是否可以执行（Applying, Applied, AppliedConfirmed, Pending 状态都可以）
+        if (task.Status != ExecutionTaskStatus.Applying && 
+            task.Status != ExecutionTaskStatus.Applied && 
+            task.Status != ExecutionTaskStatus.AppliedConfirmed && 
+            task.Status != ExecutionTaskStatus.Pending)
             throw new Exception($"任务状态异常: {task.Status}");
 
         string payload = task.DataPayload;
