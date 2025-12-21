@@ -149,6 +149,6 @@ export const StatusDisplayText = {
 export const InspectionTaskType = {
   PrintGuide: 'INSP_PRINT_GUIDE',      // 打印导引单
   CheckIn: 'INSP_CHECKIN',             // 签到
-  Complete: 'INSP_COMPLETE',           // 完成确认
+  Complete: 'INSP_COMPLETE',           // 检查完成确认
   ReviewReport: 'INSP_REVIEW_REPORT'   // 查看报告
 };
