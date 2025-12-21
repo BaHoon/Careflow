@@ -429,65 +429,250 @@
                       </div>
                     </div>
 
-            <!-- TODO: 手术医嘱表单 -->
-            <!-- 位置: 手术/操作类医嘱开具表单 -->
+            <!-- 手术医嘱表单 -->
             <div v-else-if="activeType === 'SurgicalOrder'" class="surgical-form">
-              <!-- TODO 1: 手术名称 -->
-              <!-- 需要字段:
-                   - surgeryName: 手术名称（搜索下拉框）
-                     示例: 阑尾切除术、胆囊切除术、疝修补术等
-                   - 支持模糊搜索
-                   示例: <el-autocomplete v-model="surgicalOrder.surgeryName"> -->
+              <!-- 手术基本信息 -->
+              <div class="form-section">
+                <div class="section-header">
+                  <i class="el-icon-scissors"></i>
+                  <span>手术基本信息</span>
+                </div>
+                
+                <div class="form-row">
+                  <label class="required">手术名称：</label>
+                  <el-input 
+                    v-model="surgicalOrder.surgeryName"
+                    placeholder="请输入手术名称，如：阑尾切除术、胆囊切除术"
+                    clearable
+                  />
+                </div>
 
-              <!-- TODO 2: 手术类型 -->
-              <!-- 需要字段:
-                   - surgeryType: 手术类型（单选按钮）
-                     选项: Elective（择期手术）、Emergency（急诊手术）
-                   示例: <el-radio-group v-model="surgicalOrder.surgeryType"> -->
+                <div class="form-row">
+                  <label class="required">麻醉方式：</label>
+                  <el-select 
+                    v-model="surgicalOrder.anesthesiaType"
+                    placeholder="请选择麻醉方式"
+                    style="width: 100%"
+                  >
+                    <el-option
+                      v-for="item in anesthesiaOptions"
+                      :key="item.value"
+                      :label="item.label"
+                      :value="item.value"
+                    />
+                  </el-select>
+                </div>
 
-              <!-- TODO 3: 麻醉方式 -->
-              <!-- 需要字段:
-                   - anesthesiaMethod: 麻醉方式（下拉框）
-                     选项: General（全身麻醉）、Local（局部麻醉）、Epidural（硬膜外麻醉）、Spinal（脊髓麻醉）
-                   示例: <el-select v-model="surgicalOrder.anesthesiaMethod"> -->
+                <div class="form-row">
+                  <label class="required">切口部位：</label>
+                  <el-input 
+                    v-model="surgicalOrder.incisionSite"
+                    placeholder="请输入切口部位，如：右下腹、脐部"
+                    clearable
+                  />
+                </div>
+              </div>
 
-              <!-- TODO 4: 主刀医生 -->
-              <!-- 需要字段:
-                   - surgeonId: 主刀医生ID（下拉框）
-                   - 需要从后端获取外科医生列表
-                   示例: <el-select v-model="surgicalOrder.surgeonId" @focus="loadSurgeons"> -->
+              <!-- 医生信息 -->
+              <div class="form-section">
+                <div class="section-header">
+                  <i class="el-icon-user"></i>
+                  <span>医生信息</span>
+                </div>
+                
+                <div class="form-row">
+                  <label class="required">主刀医生：</label>
+                  <el-select 
+                    v-model="surgicalOrder.surgeonId"
+                    placeholder="请选择主刀医生"
+                    filterable
+                    style="width: 100%"
+                  >
+                    <el-option
+                      v-for="doctor in doctorList"
+                      :key="doctor.staffId"
+                      :label="`${doctor.name} (${doctor.title || '医师'})`"
+                      :value="doctor.staffId"
+                    />
+                  </el-select>
+                </div>
+              </div>
 
-              <!-- TODO 5: 助手医生（多选） -->
-              <!-- 需要字段:
-                   - assistantIds: 助手医生ID列表（多选下拉框）
-                   - 可以选择0-N个助手
-                   示例: <el-select v-model="surgicalOrder.assistantIds" multiple> -->
+              <!-- 术前准备 -->
+              <div class="form-section">
+                <div class="section-header">
+                  <i class="el-icon-document-checked"></i>
+                  <span>术前准备</span>
+                </div>
+                
+                <div class="form-row">
+                  <label>术前宣讲：</label>
+                  <div class="custom-multi-select">
+                    <el-checkbox-group v-model="surgicalOrder.requiredTalk" class="checkbox-grid">
+                      <el-checkbox
+                        v-for="item in talkOptions"
+                        :key="item.value"
+                        :label="item.value"
+                      >
+                        {{ item.label }}
+                      </el-checkbox>
+                    </el-checkbox-group>
+                    <div class="custom-input-row">
+                      <el-input
+                        v-model="customTalkInput"
+                        placeholder="输入其他术前宣讲事项，按回车添加"
+                        @keyup.enter="addCustomTalk"
+                        clearable
+                        style="flex: 1"
+                      >
+                        <template #append>
+                          <el-button @click="addCustomTalk" :disabled="!customTalkInput.trim()">添加</el-button>
+                        </template>
+                      </el-input>
+                    </div>
+                    <div v-if="customTalkItems.length" class="custom-tags">
+                      <el-tag
+                        v-for="item in customTalkItems"
+                        :key="item"
+                        closable
+                        @close="removeCustomTalk(item)"
+                        type="info"
+                      >
+                        {{ item }}
+                      </el-tag>
+                    </div>
+                  </div>
+                </div>
 
-              <!-- TODO 6: 手术时间 -->
-              <!-- 需要字段:
-                   - scheduledTime: 计划手术时间（日期时间选择器）
-                   - 需要与手术室排班联动
-                   示例: <el-date-picker v-model="surgicalOrder.scheduledTime"> -->
+                <div class="form-row">
+                  <label>术前操作：</label>
+                  <div class="custom-multi-select">
+                    <el-checkbox-group v-model="surgicalOrder.requiredOperation" class="checkbox-grid">
+                      <el-checkbox
+                        v-for="item in operationOptions"
+                        :key="item.value"
+                        :label="item.value"
+                      >
+                        {{ item.label }}
+                      </el-checkbox>
+                    </el-checkbox-group>
+                    <div class="custom-input-row">
+                      <el-input
+                        v-model="customOperationInput"
+                        placeholder="输入其他术前操作，按回车添加"
+                        @keyup.enter="addCustomOperation"
+                        clearable
+                        style="flex: 1"
+                      >
+                        <template #append>
+                          <el-button @click="addCustomOperation" :disabled="!customOperationInput.trim()">添加</el-button>
+                        </template>
+                      </el-input>
+                    </div>
+                    <div v-if="customOperationItems.length" class="custom-tags">
+                      <el-tag
+                        v-for="item in customOperationItems"
+                        :key="item"
+                        closable
+                        @close="removeCustomOperation(item)"
+                        type="info"
+                      >
+                        {{ item }}
+                      </el-tag>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-              <!-- TODO 7: 预计时长 -->
-              <!-- 需要字段:
-                   - estimatedDuration: 预计手术时长（数字输入框，单位：分钟）
-                   示例: <el-input-number v-model="surgicalOrder.estimatedDuration" :min="15" :step="15"> -->
+              <!-- 手术药品 -->
+              <div class="form-section">
+                <div class="section-header">
+                  <i class="el-icon-medicine-box"></i>
+                  <span>手术药品</span>
+                </div>
+                <div class="drug-group-box">
+                  <div class="drug-group-header">
+                    <span>手术药品配置</span>
+                    <button @click="addSurgicalItem" class="btn-icon-text">
+                      + 添加药品
+                    </button>
+                  </div>
+                  <div v-for="(item, index) in surgicalOrder.items" :key="index" class="drug-item-row">
+                    <div class="item-index">{{ index + 1 }}</div>
+                    <el-select 
+                      v-model="item.drugId" 
+                      filterable 
+                      placeholder="搜索药品名称/简拼/条码"
+                      class="drug-select"
+                    >
+                      <el-option 
+                        v-for="d in drugDict" 
+                        :key="d.id" 
+                        :label="`${d.genericName} [${d.specification}]`" 
+                        :value="d.id"
+                      >
+                        <div class="drug-option">
+                          <span class="drug-name">{{ d.genericName }}</span>
+                          <span class="drug-spec">{{ d.specification }}</span>
+                        </div>
+                      </el-option>
+                    </el-select>
+                    <el-input 
+                      v-model="item.dosage" 
+                      placeholder="剂量 (如 0.5g)" 
+                      class="dosage-input"
+                      style="width: 120px"
+                    />
+                    <el-input 
+                      v-model="item.note" 
+                      placeholder="备注 (可选)" 
+                      class="note-input"
+                      style="width: 140px"
+                    />
+                    <button 
+                      @click="removeSurgicalItem(index)" 
+                      class="btn-icon-danger"
+                      :disabled="surgicalOrder.items.length === 1"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              </div>
 
-              <!-- TODO 8: 手术室选择 -->
-              <!-- 需要字段:
-                   - operatingRoom: 手术室编号（下拉框）
-                   - 需要显示手术室状态（空闲/占用）
-                   示例: <el-select v-model="surgicalOrder.operatingRoom"> -->
+              <!-- 手术安排 -->
+              <div class="form-section">
+                <div class="section-header">
+                  <i class="el-icon-time"></i>
+                  <span>手术安排</span>
+                </div>
+                
+                <div class="form-row">
+                  <label class="required">手术时间：</label>
+                  <el-date-picker
+                    v-model="surgicalOrder.scheduleTime"
+                    type="datetime"
+                    placeholder="选择手术日期和时间"
+                    format="YYYY-MM-DD HH:mm"
+                    value-format="YYYY-MM-DDTHH:mm:ss"
+                    :disabled-date="disablePastDates"
+                  />
+                </div>
+              </div>
 
-              <!-- TODO 9: 备注 -->
-              <!-- 需要字段:
-                   - remarks: 特殊准备事项（文本域）
-                   示例: <el-input type="textarea" v-model="surgicalOrder.remarks"> -->
-
-              <div class="placeholder-form">
-                ⚠️ 手术医嘱表单开发中
-                <br>需实现上述9个字段的表单组件
+              <!-- 备注信息 -->
+              <div class="form-section">
+                <div class="form-row">
+                  <label>备注：</label>
+                  <el-input 
+                    v-model="surgicalOrder.remarks"
+                    type="textarea"
+                    :rows="3"
+                    placeholder="填写术前准备、注意事项等"
+                    maxlength="300"
+                    show-word-limit
+                  />
+                </div>
               </div>
             </div>
 
@@ -536,8 +721,8 @@
               <div v-for="(o, idx) in orderCart" :key="idx" class="cart-item-compact">
                 <!-- 精简摘要 -->
                 <div class="order-summary-line">
-                  <el-tag :type="o.isLongTerm ? 'primary' : 'warning'" size="small">
-                    {{ o.isLongTerm ? '长期' : '临时' }}
+                  <el-tag :type="getOrderTagType(o)" size="small">
+                    {{ getOrderTypeLabel(o) }}
                   </el-tag>
                   <span class="order-title">{{ getOrderSummary(o) }}</span>
                   <button @click="toggleOrderDetail(idx)" class="btn-detail">
@@ -548,12 +733,22 @@
                   </button>
                 </div>
                 
+                <!-- 基本信息（始终显示） - 仅药品医嘱显示 -->
+                <div v-if="o.orderType === 'MedicationOrder'" class="order-basic-info">
+                  <span class="info-item">{{ getRouteName(o.usageRoute) }}</span>
+                </div>
                 <!-- 基本信息（始终显示） -->
                 <div class="order-basic-info" v-if="o.orderType === 'InspectionOrder'">
                   <!-- 检查医嘱无需显示用药途径 -->
                 </div>
                 <div class="order-basic-info" v-else>
                   <span class="info-item">{{ getRouteName(o.usageRoute) }}</span>
+                </div>
+                
+                <!-- 手术医嘱基本信息 -->
+                <div v-else-if="o.orderType === 'SurgicalOrder'" class="order-basic-info">
+                  <span class="info-item">🕐 {{ formatDateTime(o.scheduleTime) }}</span>
+                  <span class="info-item">💉 {{ o.anesthesiaType }}</span>
                 </div>
 
                 <!-- 详细信息（可展开） -->
@@ -585,6 +780,22 @@
                       <div class="detail-value">{{ getStrategyDescription(o) }}</div>
                     </div>
                   </template>
+                </div>
+                
+                <!-- 详细信息（可展开） - 手术医嘱 -->
+                <div v-else-if="o.orderType === 'SurgicalOrder'" v-show="expandedOrders.includes(idx)" class="order-detail-expand">
+                  <div class="detail-section">
+                    <div class="detail-label">切口部位：</div>
+                    <div class="detail-value">{{ o.incisionSite }}</div>
+                  </div>
+                  <div class="detail-section">
+                    <div class="detail-label">主刀医生：</div>
+                    <div class="detail-value">{{ o.surgeonId }}</div>
+                  </div>
+                  <div v-if="o.remarks" class="detail-section">
+                    <div class="detail-label">备注：</div>
+                    <div class="detail-value">{{ o.remarks }}</div>
+                  </div>
                 </div>
               </div>
 
@@ -669,19 +880,18 @@ const inspectionOrder = reactive({
   remarks: ''                // 备注
 });
 
-// TODO: 添加手术医嘱的响应式数据
-// 参考DTO: DTOs/SurgicalOrders/BatchCreateSurgicalOrderDto.cs
-// const surgicalOrder = reactive({
-//   surgeryName: '',           // 手术名称
-//   surgeryType: 'Elective',   // 手术类型: Elective, Emergency
-//   anesthesiaMethod: '',      // 麻醉方式: General, Local, Epidural, Spinal
-//   surgeonId: '',             // 主刀医生ID
-//   assistantIds: [],          // 助手医生ID数组
-//   scheduledTime: null,       // 手术时间
-//   estimatedDuration: null,   // 预计时长（分钟）
-//   operatingRoom: '',         // 手术室
-//   remarks: ''                // 备注
-// });
+// 手术医嘱的响应式数据
+const surgicalOrder = reactive({
+  surgeryName: '',           // 手术名称
+  anesthesiaType: '',        // 麻醉方式
+  incisionSite: '',          // 切口部位
+  surgeonId: '',             // 主刀医生ID
+  scheduleTime: null,        // 手术时间
+  requiredTalk: [],          // 术前宣讲（多选）
+  requiredOperation: [],     // 术前操作（多选）
+  items: [{ drugId: '', dosage: '', note: '' }],  // 手术药品
+  remarks: ''                // 备注
+});
 
 // 操作医嘱的响应式数据
 // 参考DTO: DTOs/OperationOrders/BatchCreateOperationOrderDto.cs
@@ -755,9 +965,47 @@ const submitting = ref(false);
 const patientList = ref([]);
 const patientSearch = ref('');
 
+// 医生列表
+const doctorList = ref([]);
+
+// 麻醉方式选项
+const anesthesiaOptions = [
+  { value: '全身麻醉', label: '全身麻醉' },
+  { value: '局部麻醉', label: '局部麻醉' },
+  { value: '硬膜外麻醉', label: '硬膜外麻醉' },
+  { value: '脊髓麻醉', label: '脊髓麻醉' },
+  { value: '联合麻醉', label: '联合麻醉' }
+];
+
+// 术前宣讲选项
+const talkOptions = [
+  { value: '更换手术服', label: '更换手术服' },
+  { value: '摘除配饰', label: '摘除配饰（首饰、手表等）' },
+  { value: '术前禁食', label: '术前禁食禁饮' },
+  { value: '排空膀胱', label: '排空膀胱' },
+  { value: '术前洗浴', label: '术前洗浴' },
+  { value: '备皮', label: '手术区域备皮' }
+];
+
+// 术前操作选项
+const operationOptions = [
+  { value: '术前针注射', label: '术前针注射' },
+  { value: '留置针埋置', label: '留置针埋置' },
+  { value: '采血', label: '采血检查' },
+  { value: '导尿管', label: '导尿管置入' },
+  { value: '心电监护', label: '心电监护' },
+  { value: '吸氧', label: '术前吸氧' }
+];
+
 // 折叠状态
 const leftCollapsed = ref(false);
 const rightCollapsed = ref(false);
+
+// 术前宣讲和术前操作的自定义输入
+const customTalkInput = ref('');
+const customOperationInput = ref('');
+const customTalkItems = ref([]);
+const customOperationItems = ref([]);
 
 // 医嘱详情展开状态
 const expandedOrders = ref([]);
@@ -794,8 +1042,13 @@ const isFormValid = computed(() => {
     // 检查医嘱验证   DONE
     return !!selectedPatient.value && !!inspectionOrder.itemCode;
   } else if (activeType.value === 'SurgicalOrder') {
-    // TODO: 手术医嘱验证（待实现表单后补充）
-    return false;
+    // 手术医嘱验证
+    if (!surgicalOrder.surgeryName) return false;
+    if (!surgicalOrder.anesthesiaType) return false;
+    if (!surgicalOrder.incisionSite) return false;
+    if (!surgicalOrder.surgeonId) return false;
+    if (!surgicalOrder.scheduleTime) return false;
+    return true;
   } else {
     // 药品医嘱验证（原有逻辑）
     if (!currentOrder.items.some(i => i.drugId && i.dosage)) return false;
@@ -985,6 +1238,59 @@ const removeDrug = (index) => {
   }
 };
 
+// 手术药品增删
+const addSurgicalItem = () => {
+  surgicalOrder.items.push({ drugId: '', dosage: '', note: '' });
+};
+
+const removeSurgicalItem = (index) => {
+  if (surgicalOrder.items.length > 1) {
+    surgicalOrder.items.splice(index, 1);
+  }
+};
+
+// 添加自定义术前宣讲
+const addCustomTalk = () => {
+  const value = customTalkInput.value.trim();
+  if (value && !surgicalOrder.requiredTalk.includes(value) && !customTalkItems.value.includes(value)) {
+    customTalkItems.value.push(value);
+    surgicalOrder.requiredTalk.push(value);
+    customTalkInput.value = '';
+  }
+};
+
+// 移除自定义术前宣讲
+const removeCustomTalk = (item) => {
+  const index = customTalkItems.value.indexOf(item);
+  if (index > -1) {
+    customTalkItems.value.splice(index, 1);
+  }
+  const reqIndex = surgicalOrder.requiredTalk.indexOf(item);
+  if (reqIndex > -1) {
+    surgicalOrder.requiredTalk.splice(reqIndex, 1);
+  }
+};
+
+// 添加自定义术前操作
+const addCustomOperation = () => {
+  const value = customOperationInput.value.trim();
+  if (value && !surgicalOrder.requiredOperation.includes(value) && !customOperationItems.value.includes(value)) {
+    customOperationItems.value.push(value);
+    surgicalOrder.requiredOperation.push(value);
+    customOperationInput.value = '';
+  }
+};
+
+// 移除自定义术前操作
+const removeCustomOperation = (item) => {
+  const index = customOperationItems.value.indexOf(item);
+  if (index > -1) {
+    customOperationItems.value.splice(index, 1);
+  }
+  const reqIndex = surgicalOrder.requiredOperation.indexOf(item);
+  if (reqIndex > -1) {
+    surgicalOrder.requiredOperation.splice(reqIndex, 1);
+  }
 // 检查项目选择处理
 const handleInspectionItemChange = (itemCode) => {
   if (!itemCode) return;
@@ -1030,7 +1336,21 @@ const clearForm = () => {
     inspectionOrder.itemName = '';
     inspectionOrder.remarks = '';
   } else if (activeType.value === 'SurgicalOrder') {
-    // TODO: 清空手术医嘱表单（待实现表单后补充）
+    // 清空手术医嘱表单
+    surgicalOrder.surgeryName = '';
+    surgicalOrder.anesthesiaType = '';
+    surgicalOrder.incisionSite = '';
+    surgicalOrder.surgeonId = '';
+    surgicalOrder.scheduleTime = null;
+    surgicalOrder.requiredTalk = [];
+    surgicalOrder.requiredOperation = [];
+    surgicalOrder.items = getDefaultSurgicalItems();
+    surgicalOrder.remarks = '';
+    // 清空自定义输入
+    customTalkInput.value = '';
+    customOperationInput.value = '';
+    customTalkItems.value = [];
+    customOperationItems.value = [];
   } else {
     // 清空药品医嘱表单（原有逻辑）
     currentOrder.items = [{ drugId: '', dosage: '', note: '' }];
@@ -1066,9 +1386,12 @@ const addToCart = () => {
       patientId: selectedPatient.value.id
     });
   } else if (activeType.value === 'SurgicalOrder') {
-    // TODO: 暂存手术医嘱（待实现表单后补充）
-    ElMessage.warning('手术医嘱表单开发中');
-    return;
+    // 暂存手术医嘱
+    orderCart.value.push({
+      ...JSON.parse(JSON.stringify(surgicalOrder)),
+      orderType: 'SurgicalOrder',
+      patientId: selectedPatient.value.id
+    });
   } else {
     // 暂存药品医嘱（原有逻辑）
     orderCart.value.push({
@@ -1192,13 +1515,14 @@ const submitAll = async () => {
         doctorId: currentUser.value.staffId,
         orders: surgicalOrders.map(order => ({
           surgeryName: order.surgeryName,
-          surgeryType: order.surgeryType,
-          anesthesiaMethod: order.anesthesiaMethod,
+          anesthesiaType: order.anesthesiaType,
+          incisionSite: order.incisionSite,
           surgeonId: order.surgeonId,
-          assistantIds: order.assistantIds,
-          scheduledTime: toBeijingTimeISO(order.scheduledTime),
-          estimatedDuration: order.estimatedDuration,
-          operatingRoom: order.operatingRoom
+          scheduleTime: toBeijingTimeISO(order.scheduleTime),
+          requiredTalk: order.requiredTalk || [],
+          requiredOperation: order.requiredOperation || [],
+          items: order.items || [],
+          remarks: order.remarks
         }))
       };
 
@@ -1382,6 +1706,63 @@ const formatDate = (datetime) => {
   return `${year}-${month}-${day}`;
 };
 
+const getOrderTagType = (order) => {
+  if (order.orderType === 'SurgicalOrder') {
+    return order.surgeryType === 'Emergency' ? 'danger' : 'success';
+  }
+  return order.isLongTerm ? 'primary' : 'warning';
+};
+
+const getOrderTypeLabel = (order) => {
+  if (order.orderType === 'SurgicalOrder') {
+    return '手术';
+  } else if (order.orderType === 'InspectionOrder') {
+    return '检查';
+  } else if (order.orderType === 'OperationOrder') {
+    return '操作';
+  }
+  return order.isLongTerm ? '长期' : '临时';
+};
+
+// 获取默认手术药品
+const getDefaultSurgicalItems = () => {
+  return [
+    { drugId: '', dosage: '', note: '' }
+  ];
+};
+
+// 初始化手术药品（空白行）
+const initDefaultSurgicalDrugs = () => {
+  surgicalOrder.items = getDefaultSurgicalItems();
+};
+
+// 加载医生列表
+const loadDoctorList = async () => {
+  try {
+    const response = await fetch('/api/staff/doctors');
+    if (response.ok) {
+      const data = await response.json();
+      doctorList.value = data.data || [];
+      
+      // 自动选择当前登录医生
+      if (currentUser.value?.staffId) {
+        surgicalOrder.surgeonId = currentUser.value.staffId;
+      }
+    }
+  } catch (error) {
+    console.error('加载医生列表失败:', error);
+    // 如果接口不可用，使用模拟数据
+    doctorList.value = [
+      { staffId: 'D001', name: '张医生', title: '主任医师' },
+      { staffId: 'D002', name: '李医生', title: '副主任医师' },
+      { staffId: 'D003', name: '王医生', title: '主治医师' }
+    ];
+    if (currentUser.value?.staffId) {
+      surgicalOrder.surgeonId = currentUser.value.staffId;
+    }
+  }
+};
+
 // 加载患者列表的函数（根据当前医生的科室过滤）
 const loadPatientList = async () => {
   try {
@@ -1427,15 +1808,22 @@ const getRouteName = (routeId) => {
 // getFreqDescription 已移除，改用 getStrategyLabel
 
 const getOrderSummary = (order) => {
-  // 检查医嘱特殊处理
-  if (order.orderType === 'InspectionOrder') {
+  // 判断医嘱类型
+  if (order.orderType === 'SurgicalOrder') {
+    // 手术医嘱摘要
+    return order.surgeryName;
+  } else if (order.orderType === 'InspectionOrder') {
     return order.itemName || order.itemCode || '检查';
   }
-  
-  // 其他类型保持原逻辑
-  const drugNames = order.items.map(i => getDrugName(i.drugId)).join('+');
-  const strategyLabel = getStrategyLabel(order.timingStrategy);
-  return `${drugNames} (${strategyLabel})`;
+  } else if (order.orderType === 'OperationOrder') {
+    // 操作医嘱摘要 (未实现)
+    return '操作医嘱';
+  } else {
+    // 药品医嘱摘要
+    const drugNames = order.items.map(i => getDrugName(i.drugId)).join('+');
+    const strategyLabel = getStrategyLabel(order.timingStrategy);
+    return `${drugNames} (${strategyLabel})`;
+  }
 };
 
 const getStrategyDescription = (order) => {
@@ -1481,6 +1869,12 @@ onMounted(async () => {
     
     // 加载患者列表
     await loadPatientList();
+    
+    // 加载医生列表
+    await loadDoctorList();
+    
+    // 初始化手术常用药品（在药品字典加载完成后）
+    initDefaultSurgicalDrugs();
     
     ElMessage.success('基础数据加载完成');
   } catch (error) {
@@ -1784,6 +2178,21 @@ onMounted(async () => {
   border-radius: var(--radius-small);
 }
 
+/* 手术必备物列表样式 */
+.surgical-items-list {
+  margin-bottom: 15px;
+}
+
+.item-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+  align-items: center;
+  padding: 10px;
+  background: white;
+  border-radius: var(--radius-small);
+}
+
 .item-index {
   width: 30px;
   height: 30px;
@@ -1827,6 +2236,47 @@ onMounted(async () => {
   grid-template-columns: repeat(2, 1fr);
   gap: 15px;
   margin-top: 10px;
+}
+
+/* 自定义多选框样式 */
+.custom-multi-select {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-small);
+}
+
+.checkbox-grid :deep(.el-checkbox) {
+  margin-right: 0;
+}
+
+.custom-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.custom-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-small);
+  min-height: 36px;
+}
+
+.custom-tags .el-tag {
+  margin: 0;
 }
 
 .grid-item {
@@ -2552,6 +3002,21 @@ onMounted(async () => {
   background: #c8e6c9 !important;
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+/* 多选框全展示样式 */
+.multi-select-full :deep(.el-select__tags) {
+  flex-wrap: nowrap !important;
+  overflow: hidden;
+}
+
+.multi-select-full :deep(.el-tag) {
+  max-width: none !important;
+  flex-shrink: 0;
+}
+
+.multi-select-full :deep(.el-select__tags-text) {
+  white-space: nowrap;
 }
 
 /* ==================== 响应式调整 ==================== */
