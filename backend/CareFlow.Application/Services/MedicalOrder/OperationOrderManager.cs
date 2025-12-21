@@ -1,6 +1,7 @@
 using CareFlow.Application.Interfaces;
 using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models.Medical;
+using CareFlow.Core.Utils;
 using Microsoft.Extensions.Logging;
 
 namespace CareFlow.Application.Services
@@ -42,7 +43,8 @@ namespace CareFlow.Application.Services
 
             if (order.CreateTime == default)
             {
-                order.CreateTime = DateTime.UtcNow;
+                // 使用中国时间，直接存储中国时间到数据库
+                order.CreateTime = TimeZoneHelper.StoreChinaTime(TimeZoneHelper.GetChinaTimeNow());
             }
 
             // 2. 先保存到数据库（确保实体有ID，用于后续更新）
@@ -57,8 +59,8 @@ namespace CareFlow.Application.Services
             {
                 try
                 {
-                    // 操作医嘱使用当前时间查询排班
-                    var targetTime = DateTime.UtcNow;
+                    // 操作医嘱使用当前中国时间查询排班
+                    var targetTime = TimeZoneHelper.GetChinaTimeNow();
                     
                     var responsibleNurseId = await _nurseAssignmentService
                         .CalculateResponsibleNurseAsync(order.PatientId, targetTime);
@@ -87,18 +89,8 @@ namespace CareFlow.Application.Services
                 _logger.LogInformation("操作医嘱 {OrderId} 已指定护士: {NurseId}", order.Id, order.NurseId);
             }
 
-            // 4. 自动生成执行任务（医嘱下达后立即拆分任务）
-            try
-            {
-                _logger.LogInformation("开始为操作医嘱 {OrderId} 自动生成执行任务", order.Id);
-                var generatedTasks = await _taskService.GenerateExecutionTasksAsync(order);
-                _logger.LogInformation("✅ 已为操作医嘱 {OrderId} 自动生成 {Count} 个执行任务", order.Id, generatedTasks.Count);
-            }
-            catch (Exception taskEx)
-            {
-                _logger.LogError(taskEx, "❌ 自动生成执行任务失败，操作医嘱 {OrderId}，但不影响医嘱创建", order.Id);
-                // 任务生成失败不影响医嘱创建，继续执行
-            }
+            // 4. 不再自动生成执行任务，任务生成由 generate 接口控制
+            _logger.LogInformation("操作医嘱 {OrderId} 创建完成，等待通过 generate 接口生成执行任务", order.Id);
 
             return order;
         }

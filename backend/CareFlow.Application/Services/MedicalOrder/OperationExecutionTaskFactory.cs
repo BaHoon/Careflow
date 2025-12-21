@@ -6,13 +6,14 @@ using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models.Medical;
 using CareFlow.Core.Models.Nursing;
 using CareFlow.Core.Enums;
+using CareFlow.Core.Utils;
 
 namespace CareFlow.Application.Services
 {
     /// <summary>
     /// 操作类医嘱任务生成工厂
     /// 根据 IsLongTerm、FrequencyType 和 FrequencyValue 生成执行任务
-    /// 根据操作代码（OpId）自动分配 TaskCategory（Immediate/Duration/ResultPending）
+    /// TaskCategory 仅根据操作代码（OpId）确定，与 FrequencyType、FrequencyValue 无关
     /// </summary>
     public class OperationExecutionTaskFactory : IExecutionTaskFactory
     {
@@ -104,6 +105,9 @@ namespace CareFlow.Application.Services
                 GenerateOneTimeTask(operationOrder, tasks, taskCategory);
             }
 
+            // 4. 验证和过滤时间：如果只生成一个任务且时间已过则报错，如果多个任务则删除时间已过的任务
+            ValidateAndFilterTaskTime(tasks);
+
             return tasks;
         }
 
@@ -157,6 +161,7 @@ namespace CareFlow.Application.Services
             }
 
             // 计算从当前日期（CreateTime.Date）到PlantEndTime.Date的总天数
+            // 注意：CreateTime 和 PlantEndTime 在数据库中存储为中国时间，直接使用
             var startDate = order.CreateTime.Date;
             var endDate = order.PlantEndTime.Date;
 
@@ -171,12 +176,14 @@ namespace CareFlow.Application.Services
                 // 为当前周期的这一天生成y个任务（对应y个时间点）
                 foreach (var timePoint in timePoints)
                 {
-                    // 任务的PlannedStartTime = 当前日期 + FrequencyValue中的时间点
-                    var plannedTime = currentDate.Add(timePoint);
+                    // 任务的PlannedStartTime = 当前日期 + FrequencyValue中的时间点（中国时间）
+                    var plannedTimeChina = currentDate.Add(timePoint);
                     
-                    // 确保不超过结束时间
-                    if (plannedTime <= order.PlantEndTime)
+                    // 确保不超过结束时间（直接比较，都是中国时间）
+                    if (plannedTimeChina <= order.PlantEndTime)
                     {
+                        // 直接存储中国时间到数据库
+                        var plannedTime = TimeZoneHelper.StoreChinaTime(plannedTimeChina);
                         tasks.Add(CreateOperationTask(order, plannedTime, taskCategory));
                     }
                 }
@@ -206,26 +213,30 @@ namespace CareFlow.Application.Services
 
             DateTime plannedTime;
 
-            // 解析FrequencyValue
+            // 解析FrequencyValue（使用中国时间）
+            var chinaTimeNow = TimeZoneHelper.GetChinaTimeNow();
+            
             if (order.FrequencyValue == "立即" || string.IsNullOrWhiteSpace(order.FrequencyValue))
             {
-                // 立即执行：PlannedStartTime = 当前日期当前时间点
-                plannedTime = DateTime.UtcNow;
+                // 立即执行：PlannedStartTime = 当前中国时间
+                plannedTime = TimeZoneHelper.StoreChinaTime(chinaTimeNow);
             }
             else
             {
                 // 固定时间点：解析时间字符串（如"14:30"）
                 if (TimeSpan.TryParse(order.FrequencyValue, out var timeSpan))
                 {
-                    // PlannedStartTime = 当前日期 + 固定时间点
-                    plannedTime = DateTime.UtcNow.Date.Add(timeSpan);
+                    // PlannedStartTime = 当前中国日期 + 固定时间点
+                    var plannedTimeChina = chinaTimeNow.Date.Add(timeSpan);
+                    plannedTime = TimeZoneHelper.StoreChinaTime(plannedTimeChina);
                 }
                 else
                 {
-                    // 尝试解析完整日期时间
+                    // 尝试解析完整日期时间（假设输入的是中国时间）
                     if (DateTime.TryParse(order.FrequencyValue, out var dateTime))
                     {
-                        plannedTime = dateTime;
+                        // 输入的时间假设为中国时间，直接存储
+                        plannedTime = TimeZoneHelper.StoreChinaTime(dateTime);
                     }
                     else
                     {
@@ -234,10 +245,12 @@ namespace CareFlow.Application.Services
                 }
             }
 
-            // 确保计划时间不超过结束时间
-            if (plannedTime > order.PlantEndTime)
+            // 确保计划时间不超过结束时间（直接比较，都是中国时间）
+            var plannedTimeChinaCheck = TimeZoneHelper.ToChinaTime(plannedTime);
+            var endTimeChina = TimeZoneHelper.ToChinaTime(order.PlantEndTime);
+            if (plannedTimeChinaCheck > endTimeChina)
             {
-                throw new ArgumentException($"计划执行时间({plannedTime})不能晚于医嘱结束时间({order.PlantEndTime})");
+                throw new ArgumentException($"计划执行时间({plannedTimeChinaCheck:yyyy-MM-dd HH:mm:ss} 北京时间)不能晚于医嘱结束时间({endTimeChina:yyyy-MM-dd HH:mm:ss} 北京时间)");
             }
 
             tasks.Add(CreateOperationTask(order, plannedTime, taskCategory));
@@ -289,7 +302,8 @@ namespace CareFlow.Application.Services
                 _ => "IMMEDIATE_OPERATION"
             };
 
-            // 为Category=3（ResultPending）的任务生成结构化数据模板
+            // 为Category=3（ResultPending）的任务生成结构化数据模板（放在DataPayload中供前端使用）
+            // 但ResultPayload初始为null，等护士输入后才算任务结束
             string? resultPayloadTemplate = null;
             if (category == TaskCategory.ResultPending)
             {
@@ -310,7 +324,7 @@ namespace CareFlow.Application.Services
                 ExecutionMode = category == TaskCategory.Immediate ? "立即执行" 
                                : category == TaskCategory.Duration ? "持续执行"
                                : "等待结果",
-                ResultPayloadTemplate = resultPayloadTemplate // Category=3的任务包含结果模板
+                ResultPayloadTemplate = resultPayloadTemplate // Category=3的任务包含结果模板（供前端使用）
             };
 
             return new ExecutionTask
@@ -318,10 +332,10 @@ namespace CareFlow.Application.Services
                 MedicalOrderId = order.Id,
                 PatientId = order.PatientId,
                 Category = category,
-                PlannedStartTime = plannedTime, // 所有任务都有明确的计划开始时间
+                PlannedStartTime = plannedTime, // 所有任务都有明确的计划开始时间（中国时间存储）
                 Status = "Pending",
-                CreatedAt = DateTime.UtcNow,
-                ResultPayload = null, // 初始为null，Category=3的任务在扫码结束后由护士输入
+                CreatedAt = TimeZoneHelper.StoreChinaTime(TimeZoneHelper.GetChinaTimeNow()), // 使用中国时间，直接存储
+                ResultPayload = null, // 初始为null，Category=3的任务在护士输入结果后才算任务结束
                 DataPayload = JsonSerializer.Serialize(dataPayload, new JsonSerializerOptions 
                 { 
                     PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -356,6 +370,68 @@ namespace CareFlow.Application.Services
             return OperationNameMap.ContainsKey(opId) 
                 ? OperationNameMap[opId] 
                 : $"操作 {opId}";
+        }
+
+        /// <summary>
+        /// 验证和过滤任务时间：
+        /// 1. 如果只生成一个任务，检查PlannedStartTime是否已过，如果已过则报错且不产生任务
+        /// 2. 如果生成多个任务（长期医嘱），自动删除计划开始时间早于当前时间的任务
+        /// 
+        /// 重要说明（长期医嘱场景）：
+        /// - 对于长期医嘱（如1天3次，持续3天），会先生成所有日期的所有时间点任务
+        /// - 然后过滤掉所有时间已过的任务（包括今天已过的时间点）
+        /// - 后续天数的所有时间点任务都会正常生成（不会被过滤）
+        /// 
+        /// 示例：当前时间2024-01-01 14:00，医嘱1天3次（08:00,12:00,16:00），持续3天
+        /// - 生成：今天08:00,12:00,16:00，明天08:00,12:00,16:00，后天08:00,12:00,16:00
+        /// - 过滤：删除今天08:00和12:00（已过），保留今天16:00
+        /// - 保留：明天和后天的所有时间点任务（08:00,12:00,16:00）都正常生成
+        /// </summary>
+        private void ValidateAndFilterTaskTime(List<ExecutionTask> tasks)
+        {
+            // 使用当前中国时间进行比较
+            // 数据库中的时间也是中国时间，直接比较
+            var currentTimeChina = TimeZoneHelper.GetChinaTimeNow();
+            
+            // 如果只生成一个任务，需要检查时间是否已过
+            if (tasks.Count == 1)
+            {
+                var task = tasks[0];
+                // 数据库存储的是中国时间，直接比较
+                var taskTimeChina = TimeZoneHelper.ToChinaTime(task.PlannedStartTime);
+                
+                // 如果任务的计划开始时间已经过去，报错且不产生任务
+                if (taskTimeChina < currentTimeChina)
+                {
+                    tasks.Clear(); // 清空任务列表，不产生任务
+                    throw new ArgumentException(
+                        $"不能选择已经过去的时间。任务的计划开始时间({taskTimeChina:yyyy-MM-dd HH:mm:ss} 北京时间) " +
+                        $"早于当前时间({currentTimeChina:yyyy-MM-dd HH:mm:ss} 北京时间)。请选择未来的时间。");
+                }
+            }
+            // 如果生成多个任务（长期医嘱），自动删除计划开始时间早于当前时间的任务
+            // 注意：这里会删除所有时间已过的任务，包括今天已过的时间点
+            // 但后续天数的所有时间点任务都会正常保留（因为它们的PlannedStartTime >= currentTimeChina）
+            else if (tasks.Count > 1)
+            {
+                var tasksToRemove = tasks.Where(t => 
+                {
+                    var taskTime = TimeZoneHelper.ToChinaTime(t.PlannedStartTime);
+                    return taskTime < currentTimeChina;
+                }).ToList();
+                
+                foreach (var task in tasksToRemove)
+                {
+                    tasks.Remove(task);
+                }
+                
+                // 如果删除后没有剩余任务，报错
+                if (!tasks.Any())
+                {
+                    throw new ArgumentException(
+                        $"所有任务的计划开始时间都早于当前时间({currentTimeChina:yyyy-MM-dd HH:mm:ss} 北京时间)。请调整医嘱的时间范围。");
+                }
+            }
         }
     }
 }

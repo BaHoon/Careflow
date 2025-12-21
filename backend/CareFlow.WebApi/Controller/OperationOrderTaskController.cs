@@ -36,26 +36,17 @@ public class OperationOrderTaskController : ControllerBase
     /// <summary>
     /// 为指定的操作医嘱生成执行任务
     /// </summary>
-    [HttpPost("generate")]
-    public async Task<IActionResult> GenerateTasks([FromBody] GenerateOperationTasksRequestDto request)
+    /// <param name="orderId">操作医嘱ID</param>
+    [HttpPost("{orderId}/generate")]
+    public async Task<IActionResult> GenerateTasks(long orderId)
     {
         try
         {
-            _logger.LogInformation("开始为操作医嘱 {OrderId} 生成执行任务", request.OperationOrderId);
+            _logger.LogInformation("开始为操作医嘱 {OrderId} 生成执行任务", orderId);
 
-            // 1. 获取医嘱
-            var order = await _orderRepository.GetByIdAsync(request.OperationOrderId);
-            if (order == null)
-            {
-                return NotFound(new TaskGenerationResultDto
-                {
-                    Success = false,
-                    Message = $"未找到ID为 {request.OperationOrderId} 的操作医嘱"
-                });
-            }
-
-            // 2. 调用 Service 生成任务
-            var tasks = await _taskService.GenerateExecutionTasksAsync(order);
+            // 直接通过医嘱ID调用Service生成任务
+            // Service内部会：查询医嘱表 -> 根据逻辑拆分任务 -> 保存到任务表
+            var tasks = await _taskService.GenerateExecutionTasksAsync(orderId);
 
             // 3. 转换为通用 DTO
             var taskDtos = MapToDtos(tasks);
@@ -73,7 +64,7 @@ public class OperationOrderTaskController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "生成任务失败，医嘱ID: {OrderId}", request.OperationOrderId);
+            _logger.LogError(ex, "生成任务失败，医嘱ID: {OrderId}", orderId);
             return BadRequest(new TaskGenerationResultDto
             {
                 Success = false,
@@ -116,10 +107,7 @@ public class OperationOrderTaskController : ControllerBase
         {
             _logger.LogInformation("请求刷新操作医嘱 {OrderId} 的任务", orderId);
 
-            var order = await _orderRepository.GetByIdAsync(orderId);
-            if (order == null) return NotFound("医嘱不存在");
-
-            await _taskService.RefreshExecutionTasksAsync(order);
+            await _taskService.RefreshExecutionTasksAsync(orderId);
 
             return Ok(new { Success = true, Message = "任务刷新重置成功" });
         }

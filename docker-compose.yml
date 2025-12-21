@@ -6,6 +6,7 @@ services:
       POSTGRES_USER: hos_user
       POSTGRES_PASSWORD: hos_password123
       POSTGRES_DB: hospital
+      TZ: UTC  # 设置容器时区为 UTC（数据库存储使用UTC，应用层处理时区转换）
     ports:
       - "5432:5432"
     volumes:

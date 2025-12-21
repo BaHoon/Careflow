@@ -8,13 +8,14 @@ using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models;
 using CareFlow.Core.Models.Medical;
 using CareFlow.Core.Models.Nursing;
+using CareFlow.Core.Utils;
 
 namespace CareFlow.Application.Services
 {
     public interface IOperationOrderTaskService
     {
-        Task<List<ExecutionTask>> GenerateExecutionTasksAsync(OperationOrder order);
-        Task RefreshExecutionTasksAsync(OperationOrder order);
+        Task<List<ExecutionTask>> GenerateExecutionTasksAsync(long orderId);
+        Task RefreshExecutionTasksAsync(long orderId);
         Task RollbackPendingTasksAsync(long orderId, string reason);
         Task CheckAndUpdateOrderStatusAsync(long orderId);
     }
@@ -44,34 +45,38 @@ namespace CareFlow.Application.Services
             _taskFactory = taskFactory;
         }
 
-        public async Task<List<ExecutionTask>> GenerateExecutionTasksAsync(OperationOrder order)
+        /// <summary>
+        /// 根据医嘱ID生成执行任务
+        /// 流程：输入医嘱ID -> 查询医嘱表 -> 根据逻辑拆分任务 -> 保存到任务表
+        /// </summary>
+        public async Task<List<ExecutionTask>> GenerateExecutionTasksAsync(long orderId)
         {
-            if (order == null) throw new ArgumentNullException(nameof(order));
+            if (orderId <= 0) throw new ArgumentException("医嘱ID无效", nameof(orderId));
 
-            _logger.LogInformation("开始为操作医嘱 {OrderId} 生成执行任务", order.Id);
+            _logger.LogInformation("开始为操作医嘱 {OrderId} 生成执行任务", orderId);
 
-            // 1. 验证医嘱真实性
-            var existingOrder = await _operationOrderRepository.GetQueryable()
-                .FirstOrDefaultAsync(o => o.Id == order.Id);
+            // 1. 根据ID查询医嘱表
+            var order = await _operationOrderRepository.GetQueryable()
+                .FirstOrDefaultAsync(o => o.Id == orderId);
             
-            if (existingOrder == null)
+            if (order == null)
             {
-                throw new InvalidOperationException($"医嘱 {order.Id} 不存在，无法生成任务");
+                throw new InvalidOperationException($"医嘱 {orderId} 不存在，无法生成任务");
             }
 
             // 2. 状态检查
-            if (existingOrder.Status == "Cancelled")
+            if (order.Status == "Cancelled")
             {
-                throw new InvalidOperationException($"医嘱 {order.Id} 已取消，操作终止");
+                throw new InvalidOperationException($"医嘱 {orderId} 已取消，操作终止");
             }
 
             // 3. 操作特有字段验证
-            ValidateOperationFields(existingOrder);
+            ValidateOperationFields(order);
 
             // 4. 检查重复任务
-            if (await HasPendingTasksAsync(existingOrder.Id))
+            if (await HasPendingTasksAsync(orderId))
             {
-                _logger.LogWarning("医嘱 {OrderId} 已存在未完成的任务", order.Id);
+                _logger.LogWarning("医嘱 {OrderId} 已存在未完成的任务", orderId);
                 // 策略：记录日志但不抛出异常，允许追加任务
             }
 
@@ -79,8 +84,8 @@ namespace CareFlow.Application.Services
 
             try
             {
-                // === 核心：调用工厂生成内存中的任务列表 ===
-                var tasksToCreate = _taskFactory.CreateTasks(existingOrder);
+                // === 核心：调用工厂根据医嘱逻辑拆分任务 ===
+                var tasksToCreate = _taskFactory.CreateTasks(order);
 
                 if (!tasksToCreate.Any())
                 {
@@ -88,12 +93,12 @@ namespace CareFlow.Application.Services
                     return savedTasks;
                 }
 
-                // 5. 批量保存并生成条形码
+                // 5. 批量保存任务到任务表并生成条形码
                 foreach (var task in tasksToCreate)
                 {
                     try
                     {
-                        // 保存任务获取ID
+                        // 保存任务到 ExecutionTasks 表
                         await _taskRepository.AddAsync(task);
                         savedTasks.Add(task);
 
@@ -107,10 +112,10 @@ namespace CareFlow.Application.Services
                     }
                 }
 
-                _logger.LogInformation("已为医嘱 {OrderId} 成功生成 {Count} 个任务", order.Id, savedTasks.Count);
+                _logger.LogInformation("已为医嘱 {OrderId} 成功生成 {Count} 个任务", orderId, savedTasks.Count);
                 
                 // 6. 检查是否需要更新医嘱状态
-                await CheckAndUpdateOrderStatusAsync(existingOrder.Id);
+                await CheckAndUpdateOrderStatusAsync(orderId);
                 
                 return savedTasks;
             }
@@ -148,8 +153,8 @@ namespace CareFlow.Application.Services
 
                 if (!incompleteTasks.Any() && !order.EndTime.HasValue)
                 {
-                    // 所有任务都已完成，更新EndTime
-                    order.EndTime = DateTime.UtcNow;
+                    // 所有任务都已完成，更新EndTime（使用中国时间，直接存储）
+                    order.EndTime = TimeZoneHelper.StoreChinaTime(TimeZoneHelper.GetChinaTimeNow());
                     order.Status = "Completed";
                     await _operationOrderRepository.UpdateAsync(order);
                     _logger.LogInformation("医嘱 {OrderId} 的所有任务已完成，已更新EndTime", orderId);
@@ -162,17 +167,17 @@ namespace CareFlow.Application.Services
             }
         }
 
-        public async Task RefreshExecutionTasksAsync(OperationOrder order)
+        public async Task RefreshExecutionTasksAsync(long orderId)
         {
-            if (order == null) throw new ArgumentNullException(nameof(order));
+            if (orderId <= 0) throw new ArgumentException("医嘱ID无效", nameof(orderId));
             
-            _logger.LogInformation("正在刷新医嘱 {OrderId} 的任务...", order.Id);
+            _logger.LogInformation("正在刷新医嘱 {OrderId} 的任务...", orderId);
             
             // 1. 回滚旧任务
-            await RollbackPendingTasksAsync(order.Id, "医嘱变更重置");
+            await RollbackPendingTasksAsync(orderId, "医嘱变更重置");
             
             // 2. 生成新任务
-            await GenerateExecutionTasksAsync(order);
+            await GenerateExecutionTasksAsync(orderId);
         }
 
         public async Task RollbackPendingTasksAsync(long orderId, string reason)
@@ -181,17 +186,61 @@ namespace CareFlow.Application.Services
 
             _logger.LogInformation("回滚医嘱 {OrderId} 的未完成任务，原因: {Reason}", orderId, reason);
 
-            var pendingTasks = await _taskRepository.ListAsync(t => 
+            // 查询所有未完成的任务（Pending和Running状态）
+            var incompleteTasks = await _taskRepository.ListAsync(t => 
                 t.MedicalOrderId == orderId && 
-                t.Status == "Pending");
+                (t.Status == "Pending" || t.Status == "Running"));
 
-            foreach (var task in pendingTasks)
+            if (!incompleteTasks.Any())
             {
-                task.Status = "Cancelled";
-                task.IsRolledBack = true;
-                task.ExceptionReason = reason;
-                task.LastModifiedAt = DateTime.UtcNow;
-                await _taskRepository.UpdateAsync(task);
+                _logger.LogInformation("医嘱 {OrderId} 没有需要回滚的任务", orderId);
+                return;
+            }
+
+            int deletedCount = 0;
+            foreach (var task in incompleteTasks)
+            {
+                try
+                {
+                    // 1. 删除任务相关的条形码索引
+                    var barcodeId = $"Exec-{task.Id}";
+                    var barcode = await _barcodeRepository.GetByIdAsync(barcodeId);
+                    if (barcode != null)
+                    {
+                        await _barcodeRepository.DeleteAsync(barcode);
+                        _logger.LogDebug("已删除任务 {TaskId} 的条形码索引", task.Id);
+                    }
+
+                    // 2. 删除任务（物理删除）
+                    await _taskRepository.DeleteAsync(task);
+                    deletedCount++;
+
+                    _logger.LogDebug("已删除任务 {TaskId}，计划时间: {PlannedTime}", 
+                        task.Id, task.PlannedStartTime);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "删除任务 {TaskId} 失败", task.Id);
+                    // 单个任务删除失败不影响其他任务
+                }
+            }
+
+            _logger.LogInformation("医嘱 {OrderId} 回滚完成，共删除 {Count} 个任务", orderId, deletedCount);
+
+            // 3. 删除医嘱（物理删除）
+            try
+            {
+                var order = await _operationOrderRepository.GetByIdAsync(orderId);
+                if (order != null)
+                {
+                    await _operationOrderRepository.DeleteAsync(order);
+                    _logger.LogInformation("已删除医嘱 {OrderId}", orderId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "删除医嘱 {OrderId} 失败", orderId);
+                throw; // 医嘱删除失败应该抛出异常
             }
         }
 
