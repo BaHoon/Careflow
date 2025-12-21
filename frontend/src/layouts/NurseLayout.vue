@@ -35,6 +35,15 @@
           <el-icon><Document /></el-icon>
           <span>医嘱签收</span>
         </router-link>
+
+        <router-link 
+          to="/nurse/inspection" 
+          class="nav-item"
+          active-class="active"
+        >
+          <el-icon><Document /></el-icon>
+          <span>医嘱查看</span>
+        </router-link>
       </nav>
       
       <!-- 用户信息 -->

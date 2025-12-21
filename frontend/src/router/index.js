@@ -44,12 +44,6 @@ const router = createRouter({
       redirect: '/nurse/dashboard', // 默认重定向到床位概览
       children: [
         {
-          path: '/inspection', // 检查类医嘱管理
-          name: 'inspection',
-          component: Inspection,
-          meta: { requiresAuth: true }
-        },
-        {
           path: 'dashboard', // 相对路径，实际路径为 /nurse/dashboard
           name: 'nurse-dashboard',
           component: NurseDashboard,
@@ -66,6 +60,12 @@ const router = createRouter({
           name: 'order-acknowledgement',
           component: OrderAcknowledgement,
           meta: { title: '医嘱签收' }
+        },
+        {
+          path: 'inspection', // 相对路径，实际路径为 /nurse/inspection
+          name: 'nurse-inspection',
+          component: Inspection,
+          meta: { title: '医嘱查看' }
         }
       ]
     },

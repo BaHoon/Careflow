@@ -1,13 +1,5 @@
 <template>
   <div class="inspection-container">
-    <!-- 返回按钮 -->
-    <div class="back-button-wrapper">
-      <el-button type="primary" plain @click="goBack">
-        <el-icon><ArrowLeft /></el-icon>
-        返回上页
-      </el-button>
-    </div>
-
     <!-- 筛选条件区域 -->
     <el-card class="filter-card" shadow="never">
       <div class="card-header-title" style="display:none">查询条件</div> <!-- 可选：如果需要标题可以放开 -->
@@ -29,13 +21,6 @@
             <el-option label="全部" value="" />
             <el-option label="需要预约" value="required" />
             <el-option label="无需预约" value="not_required" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="医技确认">
-          <el-select v-model="filterForm.confirmStatus" placeholder="全部" clearable style="width: 120px">
-            <el-option label="全部" value="" />
-            <el-option label="未确认" value="pending" />
-            <el-option label="已确认" value="confirmed" />
           </el-select>
         </el-form-item>
         <el-form-item label="检查状态">
@@ -291,21 +276,15 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Printer, DocumentCopy, Search, Refresh, ArrowLeft } from '@element-plus/icons-vue'
+import { Printer, DocumentCopy, Search, Refresh } from '@element-plus/icons-vue'
 import api from '@/utils/api'
 
 const router = useRouter()
-
-// 返回上页
-const goBack = () => {
-  router.back()
-}
 
 // 筛选条件
 const filterForm = reactive({
   dateRange: [],
   appointmentType: '',
-  confirmStatus: '',
   inspectionStatus: '',
   ward: '',
   patientName: ''
