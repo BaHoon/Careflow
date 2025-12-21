@@ -737,18 +737,19 @@
                 <div v-if="o.orderType === 'MedicationOrder'" class="order-basic-info">
                   <span class="info-item">{{ getRouteName(o.usageRoute) }}</span>
                 </div>
-                <!-- 基本信息（始终显示） -->
-                <div class="order-basic-info" v-if="o.orderType === 'InspectionOrder'">
+                <!-- 检查医嘱基本信息 -->
+                <div class="order-basic-info" v-else-if="o.orderType === 'InspectionOrder'">
                   <!-- 检查医嘱无需显示用药途径 -->
-                </div>
-                <div class="order-basic-info" v-else>
-                  <span class="info-item">{{ getRouteName(o.usageRoute) }}</span>
                 </div>
                 
                 <!-- 手术医嘱基本信息 -->
                 <div v-else-if="o.orderType === 'SurgicalOrder'" class="order-basic-info">
                   <span class="info-item">🕐 {{ formatDateTime(o.scheduleTime) }}</span>
                   <span class="info-item">💉 {{ o.anesthesiaType }}</span>
+                </div>
+
+                <div class="order-basic-info" v-else>
+                  <span class="info-item">{{ getRouteName(o.usageRoute) }}</span>
                 </div>
 
                 <!-- 详细信息（可展开） -->
@@ -767,7 +768,7 @@
                   </template>
                   
                   <!-- 药品医嘱详细信息 -->
-                  <template v-else>
+                  <template v-else-if="o.orderType === 'MedicationOrder'">
                     <div class="detail-section">
                       <div class="detail-label">药品明细：</div>
                       <div v-for="(item, i) in o.items" :key="i" class="detail-value">
@@ -780,22 +781,22 @@
                       <div class="detail-value">{{ getStrategyDescription(o) }}</div>
                     </div>
                   </template>
-                </div>
-                
-                <!-- 详细信息（可展开） - 手术医嘱 -->
-                <div v-else-if="o.orderType === 'SurgicalOrder'" v-show="expandedOrders.includes(idx)" class="order-detail-expand">
-                  <div class="detail-section">
-                    <div class="detail-label">切口部位：</div>
-                    <div class="detail-value">{{ o.incisionSite }}</div>
-                  </div>
-                  <div class="detail-section">
-                    <div class="detail-label">主刀医生：</div>
-                    <div class="detail-value">{{ o.surgeonId }}</div>
-                  </div>
-                  <div v-if="o.remarks" class="detail-section">
-                    <div class="detail-label">备注：</div>
-                    <div class="detail-value">{{ o.remarks }}</div>
-                  </div>
+                  <!-- 手术医嘱详细信息 --> 
+                  <template v-else-if="o.orderType === 'SurgicalOrder'">
+                    <div class="detail-section">
+                      <div class="detail-label">切口部位：</div>
+                      <div class="detail-value">{{ o.incisionSite }}</div>
+                    </div>
+                    <div class="detail-section">
+                      <div class="detail-label">主刀医生：</div>
+                      <div class="detail-value">{{ o.surgeonId }}</div>
+                    </div>
+                    <div v-if="o.remarks" class="detail-section">
+                      <div class="detail-label">备注：</div>
+                      <div class="detail-value">{{ o.remarks }}</div>
+                    </div>
+                  </template> 
+
                 </div>
               </div>
 
@@ -1037,7 +1038,7 @@ const isFormValid = computed(() => {
   // 根据医嘱类型进行不同的表单验证
   if (activeType.value === 'OperationOrder') {
     // TODO: 操作医嘱验证：操作代码、操作名称、执行时间为必填
-
+    return false; // 暂时返回false，等待实现操作医嘱验证逻辑
   } else if (activeType.value === 'InspectionOrder') {
     // 检查医嘱验证   DONE
     return !!selectedPatient.value && !!inspectionOrder.itemCode;
@@ -1291,6 +1292,8 @@ const removeCustomOperation = (item) => {
   if (reqIndex > -1) {
     surgicalOrder.requiredOperation.splice(reqIndex, 1);
   }
+};
+
 // 检查项目选择处理
 const handleInspectionItemChange = (itemCode) => {
   if (!itemCode) return;
@@ -1812,10 +1815,11 @@ const getOrderSummary = (order) => {
   if (order.orderType === 'SurgicalOrder') {
     // 手术医嘱摘要
     return order.surgeryName;
-  } else if (order.orderType === 'InspectionOrder') {
+  } 
+  else if (order.orderType === 'InspectionOrder') {
     return order.itemName || order.itemCode || '检查';
-  }
-  } else if (order.orderType === 'OperationOrder') {
+  } 
+  else if (order.orderType === 'OperationOrder') {
     // 操作医嘱摘要 (未实现)
     return '操作医嘱';
   } else {
