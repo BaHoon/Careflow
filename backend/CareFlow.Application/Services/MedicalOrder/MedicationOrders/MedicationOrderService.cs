@@ -200,7 +200,7 @@ public class MedicationOrderService : IMedicationOrderService
             DoctorId = doctorId,
             OrderType = "MedicationOrder",
             IsLongTerm = orderDto.IsLongTerm,
-            Status = "Active",
+            Status = "PendingReview",
             CreateTime = DateTime.UtcNow,
 
             // 时间策略字段（前端发送的北京时间会被.NET自动转换为UTC）

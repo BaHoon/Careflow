@@ -3,6 +3,7 @@ using CareFlow.Application.Services;
 using CareFlow.Application.Services.InspectionOrders;
 using CareFlow.Application.Services.MedicationOrders;
 using CareFlow.Application.Services.OperationOrders;
+using CareFlow.Application.Services.OrderAcknowledgement;
 using CareFlow.Application.Services.SurgicalOrders;
 using CareFlow.Core.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,6 +28,9 @@ public static class DependencyInjection
         services.AddScoped<IInspectionOrderService, InspectionOrderService>();
         services.AddScoped<ISurgicalOrderService, SurgicalOrderService>();
         services.AddScoped<IOperationOrderService, OperationOrderService>();
+        
+        // 注册医嘱签收服务（阶段一）
+        services.AddScoped<IOrderAcknowledgementService, OrderAcknowledgementService>();
 
         return services;
     }

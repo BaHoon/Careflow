@@ -26,6 +26,15 @@
           <el-icon><List /></el-icon>
           <span>我的任务</span>
         </router-link>
+        
+        <router-link 
+          to="/nurse/acknowledgement" 
+          class="nav-item"
+          active-class="active"
+        >
+          <el-icon><Document /></el-icon>
+          <span>医嘱签收</span>
+        </router-link>
       </nav>
       
       <!-- 用户信息 -->
@@ -67,6 +76,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   Grid, 
   List, 
+  Document,
   Notebook,
   ArrowDown,
   SwitchButton 
