@@ -140,11 +140,11 @@ namespace CareFlow.Application.Services
 
             var pendingTasks = await _taskRepository.ListAsync(t => 
                 t.MedicalOrderId == orderId && 
-                t.Status == "Pending"); // 假设 Pending 是字符串
+                t.Status == ExecutionTaskStatus.Pending);
 
             foreach (var task in pendingTasks)
             {
-                task.Status = "Cancelled";
+                task.Status = ExecutionTaskStatus.Cancelled;
                 task.IsRolledBack = true;
                 task.ExceptionReason = reason;
                 task.LastModifiedAt = DateTime.UtcNow;
@@ -173,7 +173,7 @@ namespace CareFlow.Application.Services
         {
             var tasks = await _taskRepository.ListAsync(t => 
                 t.MedicalOrderId == orderId && 
-                (t.Status == "Pending" || t.Status == "InProgress"));
+                (t.Status == ExecutionTaskStatus.Pending || t.Status == ExecutionTaskStatus.InProgress));
             return tasks.Any();
         }
 

@@ -1070,7 +1070,7 @@ namespace CareFlow.Infrastructure.Data
                     ExecutorStaffId = "N003",
                     ActualEndTime = currentTime.Date.AddHours(0).AddMinutes(35),
                     CompleterNurseId = "N003",
-                    Status = "Completed",
+                    Status = ExecutionTaskStatus.Completed,
                     DataPayload = "{\"taskType\":\"Medication\",\"title\":\"口服阿司匹林 100mg\",\"drugName\":\"阿司匹林片\"}",
                     ResultPayload = "{\"note\":\"患者已服药，无不适\"}"
                 },
@@ -1084,7 +1084,7 @@ namespace CareFlow.Infrastructure.Data
                     PlannedStartTime = currentTime.AddHours(-1),
                     ActualStartTime = currentTime.AddHours(-0.5),
                     ExecutorStaffId = "N003",
-                    Status = "Running",
+                    Status = ExecutionTaskStatus.InProgress,
                     DataPayload = "{\"taskType\":\"IVGTT\",\"title\":\"静脉滴注0.9%氯化钠注射液 250ml\",\"drugName\":\"生理盐水\"}",
                     ResultPayload = null
                 },
@@ -1100,7 +1100,7 @@ namespace CareFlow.Infrastructure.Data
                     ExecutorStaffId = "N004",
                     ActualEndTime = currentTime.Date.AddHours(23).AddMinutes(10),
                     CompleterNurseId = "N004",
-                    Status = "Completed",
+                    Status = ExecutionTaskStatus.Completed,
                     DataPayload = "{\"taskType\":\"Medication\",\"title\":\"皮下注射胰岛素 8单位\",\"drugName\":\"精蛋白锌重组人胰岛素\"}",
                     ResultPayload = "{\"note\":\"注射部位：腹部，患者血糖监测正常\"}"
                 },
@@ -1112,7 +1112,7 @@ namespace CareFlow.Infrastructure.Data
                     PatientId = "P002",
                     Category = TaskCategory.Immediate,
                     PlannedStartTime = currentTime.Date.AddHours(3).AddMinutes(30), // UTC 03:30 (北京 11:30 午餐前)
-                    Status = "Pending",
+                    Status = ExecutionTaskStatus.Pending,
                     DataPayload = "{\"taskType\":\"Medication\",\"title\":\"皮下注射胰岛素 8单位\",\"drugName\":\"精蛋白锌重组人胰岛素\"}"
                 },
                 
@@ -1123,7 +1123,7 @@ namespace CareFlow.Infrastructure.Data
                     PatientId = "P003",
                     Category = TaskCategory.Immediate,
                     PlannedStartTime = currentTime.Date.AddHours(8), // UTC 08:00 (北京 16:00)
-                    Status = "Pending",
+                    Status = ExecutionTaskStatus.Pending,
                     DataPayload = "{\"taskType\":\"Medication\",\"title\":\"静脉推注头孢曲松钠 1.0g\",\"drugName\":\"头孢曲松钠\",\"note\":\"皮试阴性\"}"
                 },
                 
@@ -1138,7 +1138,7 @@ namespace CareFlow.Infrastructure.Data
                     ExecutorStaffId = "N003",
                     ActualEndTime = currentTime.Date.AddHours(0).AddMinutes(15),
                     CompleterNurseId = "N003",
-                    Status = "Completed",
+                    Status = ExecutionTaskStatus.Completed,
                     DataPayload = "{\"taskType\":\"VitalSigns\",\"title\":\"生命体征测量\"}",
                     ResultPayload = "{\"temperature\":36.5,\"pulse\":78,\"respiration\":18,\"systolic\":120,\"diastolic\":80}"
                 },
@@ -1154,7 +1154,7 @@ namespace CareFlow.Infrastructure.Data
                     ExecutorStaffId = "N004",
                     ActualEndTime = currentTime.Date.AddHours(0).AddMinutes(12),
                     CompleterNurseId = "N004",
-                    Status = "Completed",
+                    Status = ExecutionTaskStatus.Completed,
                     DataPayload = "{\"taskType\":\"VitalSigns\",\"title\":\"生命体征测量\"}",
                     ResultPayload = "{\"temperature\":38.2,\"pulse\":92,\"respiration\":20,\"systolic\":135,\"diastolic\":85,\"note\":\"体温异常，已通知医生\"}"
                 },
@@ -1170,7 +1170,7 @@ namespace CareFlow.Infrastructure.Data
                     ExecutorStaffId = "N001",
                     ActualEndTime = currentTime.AddHours(-1.6),
                     CompleterNurseId = "N001",
-                    Status = "Completed",
+                    Status = ExecutionTaskStatus.Completed,
                     DataPayload = "{\"taskType\":\"SurgicalPrep\",\"title\":\"手术区域备皮\",\"surgeryName\":\"腹腔镜阑尾切除术\"}",
                     ResultPayload = "{\"note\":\"备皮完成，皮肤完整无破损\"}"
                 },
@@ -1186,7 +1186,7 @@ namespace CareFlow.Infrastructure.Data
                     ExecutorStaffId = "N002",
                     ActualEndTime = currentTime.AddHours(-0.7),
                     CompleterNurseId = "N002",
-                    Status = "Completed",
+                    Status = ExecutionTaskStatus.Completed,
                     DataPayload = "{\"taskType\":\"SurgicalPrep\",\"title\":\"建立静脉通路\",\"surgeryName\":\"腹腔镜阑尾切除术\"}",
                     ResultPayload = "{\"note\":\"右手背静脉留置针18G，回血良好\"}"
                 },
@@ -1198,7 +1198,7 @@ namespace CareFlow.Infrastructure.Data
                     PatientId = "P003",
                     Category = TaskCategory.Verification,
                     PlannedStartTime = currentTime.AddMinutes(30),
-                    Status = "Pending",
+                    Status = ExecutionTaskStatus.Pending,
                     DataPayload = "{\"taskType\":\"SurgicalPrep\",\"title\":\"留置导尿管\",\"surgeryName\":\"腹腔镜阑尾切除术\"}"
                 },
                 
@@ -1213,7 +1213,7 @@ namespace CareFlow.Infrastructure.Data
                     ExecutorStaffId = "N007",
                     ActualEndTime = currentTime.AddHours(-1.2),
                     CompleterNurseId = "N007",
-                    Status = "Completed",
+                    Status = ExecutionTaskStatus.Completed,
                     DataPayload = "{\"taskType\":\"SkinTest\",\"title\":\"头孢曲松钠皮试\",\"drugName\":\"头孢曲松钠\"}",
                     ResultPayload = "{\"result\":\"阴性\",\"note\":\"皮试 (-)\"}"
                 },
@@ -1225,7 +1225,7 @@ namespace CareFlow.Infrastructure.Data
                     PatientId = "P005",
                     Category = TaskCategory.Duration,
                     PlannedStartTime = currentTime.Date.AddHours(0).AddMinutes(30), // UTC 00:30 (北京 08:30)
-                    Status = "Pending",
+                    Status = ExecutionTaskStatus.Pending,
                     DataPayload = "{\"taskType\":\"IVGTT\",\"title\":\"静脉滴注：盐水100ml+头孢曲松钠2.0g\",\"drugName\":\"混合液\",\"note\":\"皮试阴性\"}"
                 },
                 
@@ -1240,7 +1240,7 @@ namespace CareFlow.Infrastructure.Data
                     ExecutorStaffId = "N002",
                     ActualEndTime = currentTime.Date.AddHours(0).AddMinutes(42),
                     CompleterNurseId = "N002",
-                    Status = "Completed",
+                    Status = ExecutionTaskStatus.Completed,
                     DataPayload = "{\"taskType\":\"Medication\",\"title\":\"外用红霉素眼膏\",\"drugName\":\"红霉素眼膏\"}",
                     ResultPayload = "{\"note\":\"双眼睑内薄层涂抹\"}"
                 },
@@ -1252,7 +1252,7 @@ namespace CareFlow.Infrastructure.Data
                     PatientId = "P001",
                     Category = TaskCategory.Immediate,
                     PlannedStartTime = currentTime.AddDays(-1).Date.AddHours(11), // 昨日 UTC 11:00 (北京 19:00)
-                    Status = "Skipped",
+                    Status = ExecutionTaskStatus.Skipped,
                     DataPayload = "{\"taskType\":\"Medication\",\"title\":\"口服阿司匹林 100mg\",\"drugName\":\"阿司匹林片\"}",
                     ExceptionReason = "患者拒绝服药，已记录"
                 },
@@ -1264,7 +1264,7 @@ namespace CareFlow.Infrastructure.Data
                     PatientId = "P002",
                     Category = TaskCategory.Immediate,
                     PlannedStartTime = currentTime.Date.AddHours(9).AddMinutes(30), // UTC 09:30 (北京 17:30)
-                    Status = "Pending",
+                    Status = ExecutionTaskStatus.Pending,
                     DataPayload = "{\"taskType\":\"Medication\",\"title\":\"皮下注射胰岛素 8单位\",\"drugName\":\"精蛋白锌重组人胰岛素\"}"
                 }
             };

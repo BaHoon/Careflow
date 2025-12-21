@@ -46,7 +46,7 @@ public class ExecutionTask : EntityBase<long>
     public Nurse? CompleterNurse { get; set; }
 
     // 状态
-    public string Status { get; set; } = "Pending"; // Pending, Running, Completed, Skipped, Cancelled
+    public ExecutionTaskStatus Status { get; set; } = ExecutionTaskStatus.Pending;
     public bool IsRolledBack { get; set; } = false; // 是否已回滚
     
     /// <summary>

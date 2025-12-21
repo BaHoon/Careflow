@@ -378,7 +378,7 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
         // 查找该医嘱的所有待执行任务
         var pendingTasks = await _taskRepository.ListAsync(t =>
             t.MedicalOrderId == order.Id &&
-            t.Status == "Pending");
+            t.Status == ExecutionTaskStatus.Pending);
 
         _logger.LogInformation("该停止医嘱有 {Count} 个待执行任务", pendingTasks.Count);
 

@@ -177,12 +177,12 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
             // 查找所有未开始执行的任务
             var pendingTasks = await _taskRepository.ListAsync(t => 
                 t.MedicalOrderId == orderId && 
-                t.Status == "Pending" && 
+                t.Status == ExecutionTaskStatus.Pending && 
                 t.ActualStartTime == null);
 
             foreach (var task in pendingTasks)
             {
-                task.Status = "Cancelled";
+                task.Status = ExecutionTaskStatus.Cancelled;
                 task.ExceptionReason = $"医嘱停止: {reason}";
                 task.IsRolledBack = true;
                 task.LastModifiedAt = DateTime.UtcNow;
@@ -261,7 +261,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
             PatientId = order.PatientId,
             Category = TaskCategory.Verification, // 取药为核对类
             PlannedStartTime = executionTime.AddMinutes(-30), // 提前30分钟取药
-            Status = "Pending",
+            Status = ExecutionTaskStatus.Pending,
             CreatedAt = DateTime.UtcNow,
             DataPayload = GenerateRetrieveMedicationDataPayload(order, executionTime.AddMinutes(-30))
         };
@@ -273,7 +273,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
             PatientId = order.PatientId,
             Category = GetTaskCategoryFromUsageRoute(order.UsageRoute),
             PlannedStartTime = executionTime,
-            Status = "Pending",
+            Status = ExecutionTaskStatus.Pending,
             CreatedAt = DateTime.UtcNow,
             DataPayload = GenerateTaskDataPayload(order, executionTime)
         };
@@ -315,7 +315,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
             PatientId = order.PatientId,
             Category = TaskCategory.Verification, // 取药为核对类
             PlannedStartTime = executionTime.AddMinutes(-30), // 提前30分钟取药
-            Status = "Pending",
+            Status = ExecutionTaskStatus.Pending,
             CreatedAt = DateTime.UtcNow,
             DataPayload = GenerateRetrieveMedicationDataPayload(order, executionTime.AddMinutes(-30))
         };
@@ -327,7 +327,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
             PatientId = order.PatientId,
             Category = GetTaskCategoryFromUsageRoute(order.UsageRoute),
             PlannedStartTime = executionTime,
-            Status = "Pending",
+            Status = ExecutionTaskStatus.Pending,
             CreatedAt = DateTime.UtcNow,
             DataPayload = GenerateTaskDataPayload(order, executionTime)
         };
@@ -380,7 +380,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
                     PatientId = order.PatientId,
                     Category = TaskCategory.Verification,
                     PlannedStartTime = currentExecutionTime.AddMinutes(-30),
-                    Status = "Pending",
+                    Status = ExecutionTaskStatus.Pending,
                     CreatedAt = DateTime.UtcNow,
                     DataPayload = GenerateRetrieveMedicationDataPayload(order, currentExecutionTime.AddMinutes(-30))
                 };
@@ -392,7 +392,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
                     PatientId = order.PatientId,
                     Category = GetTaskCategoryFromUsageRoute(order.UsageRoute),
                     PlannedStartTime = currentExecutionTime,
-                    Status = "Pending",
+                    Status = ExecutionTaskStatus.Pending,
                     CreatedAt = DateTime.UtcNow,
                     DataPayload = GenerateTaskDataPayload(order, currentExecutionTime)
                 };
@@ -456,7 +456,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
                         PatientId = order.PatientId,
                         Category = TaskCategory.Verification, // 取药为核对类
                         PlannedStartTime = executionTime.AddMinutes(-30), // 提前30分钟取药
-                        Status = "Pending",
+                        Status = ExecutionTaskStatus.Pending,
                         CreatedAt = DateTime.UtcNow,
                         DataPayload = GenerateRetrieveMedicationDataPayload(order, executionTime.AddMinutes(-30))
                     };
@@ -468,7 +468,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
                         PatientId = order.PatientId,
                         Category = GetTaskCategoryFromUsageRoute(order.UsageRoute),
                         PlannedStartTime = executionTime,
-                        Status = "Pending",
+                        Status = ExecutionTaskStatus.Pending,
                         CreatedAt = DateTime.UtcNow,
                         DataPayload = GenerateTaskDataPayload(order, executionTime, slot.SlotName)
                     };
@@ -577,7 +577,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
         {
             var existingTasks = await _taskRepository.ListAsync(t => 
                 t.MedicalOrderId == orderId && 
-                (t.Status == "Pending" || t.Status == "InProgress"));
+                (t.Status == ExecutionTaskStatus.Pending || t.Status == ExecutionTaskStatus.InProgress));
 
             var hasPending = existingTasks.Any();
             

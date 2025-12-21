@@ -25,7 +25,7 @@ public enum OrderStatus
 }
 
 public enum TaskType { Dispensing = 1, Administration = 2, Patrol = 3 } // 配药/给药/巡视
-public enum ExecutionTaskStatus { Pending = 1, Dispensed = 2, InProgress = 3, Completed = 4, Cancelled = 5 }
+public enum ExecutionTaskStatus { Applying = 0, Applyend = 1, Pending = 2, InProgress = 3, Completed = 4, Cancelled = 5, Skipped = 6} // 任务状态
 
 /// <summary>
 /// 医嘱时间执行策略
