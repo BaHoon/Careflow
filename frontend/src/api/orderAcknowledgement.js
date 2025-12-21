@@ -47,6 +47,15 @@ export const rejectOrders = (data) => {
   return api.post('/orders/acknowledgement/reject', data);
 };
 
+/**
+ * 获取护士当前排班的病区
+ * @param {string} nurseId - 护士ID
+ * @returns {Promise} 当前排班的病区信息
+ */
+export const getCurrentWard = (nurseId) => {
+  return api.get(`/nurse/schedule/current-ward/${nurseId}`);
+};
+
 // ==================== TODO: 阶段三实现以下API ====================
 
 /**

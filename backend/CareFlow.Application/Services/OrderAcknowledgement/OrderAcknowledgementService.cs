@@ -87,6 +87,8 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
                     Age = patient.Age,
                     Weight = patient.Weight,
                     NursingGrade = (int)patient.NursingGrade,
+                    WardId = patient.Bed.WardId,
+                    WardName = patient.Bed.Ward.Id,
                     UnacknowledgedCount = unacknowledgedCount
                 });
             }
