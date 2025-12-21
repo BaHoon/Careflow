@@ -20,21 +20,6 @@ public interface IInspectionService
     Task<InspectionOrderDetailDto> GetInspectionOrderDetailAsync(long orderId);
     
     /// <summary>
-    /// 病房护士发送检查申请到检查站
-    /// </summary>
-    Task SendInspectionRequestAsync(SendInspectionRequestDto dto);
-    
-    /// <summary>
-    /// 检查站护士查看待处理的检查申请列表
-    /// </summary>
-    Task<List<InspectionRequestDto>> GetPendingRequestsAsync(string inspectionStationId);
-    
-    /// <summary>
-    /// 检查站护士创建预约(自动生成3个执行任务)
-    /// </summary>
-    Task CreateAppointmentAsync(CreateAppointmentDto dto);
-    
-    /// <summary>
     /// 统一扫码处理(根据任务类型自动处理)
     /// </summary>
     Task<object> ProcessScanAsync(SingleScanDto dto);

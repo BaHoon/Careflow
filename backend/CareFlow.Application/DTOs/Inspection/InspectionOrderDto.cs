@@ -49,7 +49,7 @@ public class InspectionOrderDetailDto
     
     public DateTime? CheckStartTime { get; set; }
     public DateTime? CheckEndTime { get; set; }
-    public DateTime? BackToWardTime { get; set; }
+    public DateTime? ReportPendingTime { get; set; }
     public DateTime? ReportTime { get; set; }
     
     public DateTime CreateTime { get; set; }

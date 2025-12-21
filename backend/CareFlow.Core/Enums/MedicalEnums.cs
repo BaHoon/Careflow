@@ -2,7 +2,26 @@ namespace CareFlow.Core.Enums;
 
 public enum DrugCategory { Oral = 1, Injection = 2, External = 3, Material = 4, Exam = 5 }
 public enum OrderType { LongTerm = 1, Temporary = 2 } // 长期/临时
-public enum OrderStatus { Draft = 0, PendingReview = 1, Accepted = 2, Stopped = 3, Cancelled = 4 }
+
+/// <summary>
+/// 医嘱状态
+/// </summary>
+public enum OrderStatus 
+{ 
+    /// <summary>待护士签收</summary>
+    PendingReceive = 1,
+    /// <summary>已签收</summary>
+    Accepted = 2, 
+    /// <summary>执行中</summary>
+    InProgress = 3,
+    /// <summary>已完成</summary>
+    Completed = 4,
+    /// <summary>已停止</summary>
+    Stopped = 5, 
+    /// <summary>已取消</summary>
+    Cancelled = 6 
+}
+
 public enum TaskType { Dispensing = 1, Administration = 2, Patrol = 3 } // 配药/给药/巡视
 public enum ExecutionTaskStatus { Pending = 1, Dispensed = 2, InProgress = 3, Completed = 4, Cancelled = 5 }
 

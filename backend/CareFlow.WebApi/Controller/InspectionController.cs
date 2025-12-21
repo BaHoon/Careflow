@@ -38,58 +38,7 @@ public class InspectionController : ControllerBase
     }
 
     /// <summary>
-    /// 步骤1：病房护士发送检查申请到检查站
-    /// </summary>
-    [HttpPost("send-request")]
-    public async Task<IActionResult> SendRequest([FromBody] SendInspectionRequestDto dto)
-    {
-        try
-        {
-            await _inspectionService.SendInspectionRequestAsync(dto);
-            return Ok(new { message = "检查申请已发送到检查站" });
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-    }
-
-    /// <summary>
-    /// 步骤2：检查站护士查看待处理的检查申请列表
-    /// </summary>
-    [HttpGet("pending-requests")]
-    public async Task<IActionResult> GetPendingRequests([FromQuery] string inspectionStationId)
-    {
-        try
-        {
-            var requests = await _inspectionService.GetPendingRequestsAsync(inspectionStationId);
-            return Ok(requests);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-    }
-
-    /// <summary>
-    /// 步骤3：检查站护士创建预约(自动生成3个执行任务)
-    /// </summary>
-    [HttpPost("appointments")]
-    public async Task<IActionResult> CreateAppointment([FromBody] CreateAppointmentDto dto)
-    {
-        try
-        {
-            await _inspectionService.CreateAppointmentAsync(dto);
-            return Ok(new { message = "预约创建成功，已生成3个执行任务(打印导引单、签到、等待报告)" });
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-    }
-
-    /// <summary>
-    /// 步骤4/5/6：统一扫码接口(根据任务类型自动处理)
+    /// 统一扫码接口(根据任务类型自动处理)
     /// </summary>
     [HttpPost("scan")]
     public async Task<IActionResult> Scan([FromBody] SingleScanDto dto)
@@ -172,7 +121,7 @@ public class InspectionController : ControllerBase
                     o.Precautions,
                     o.CheckStartTime,
                     o.CheckEndTime,
-                    o.BackToWardTime,
+                    o.ReportPendingTime,
                     o.ReportTime,
                     o.CreateTime,
                     RequiresAppointment = o.AppointmentTime.HasValue,

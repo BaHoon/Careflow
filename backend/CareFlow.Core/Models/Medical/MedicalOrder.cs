@@ -25,7 +25,7 @@ namespace CareFlow.Core.Models.Medical
         public DateTime PlantEndTime { get; set; } // 理论结束
         public DateTime? EndTime { get; set; } // 实际结束
         public string OrderType { get; set; } = null!; // 鉴别列
-        public string Status { get; set; } = null!;
+        public OrderStatus Status { get; set; } = OrderStatus.PendingReceive;
         public bool IsLongTerm { get; set; }
 
         /// <summary>
@@ -120,7 +120,7 @@ namespace CareFlow.Core.Models.Medical
         // --- 闭环时间节点 ---
         public DateTime? CheckStartTime { get; set; }         // 检查开始时间
         public DateTime? CheckEndTime { get; set; }           // 检查结束时间
-        public DateTime? BackToWardTime { get; set; }         // 返回病房时间
+        public DateTime? ReportPendingTime { get; set; }      // 报告待出时间
         public DateTime? ReportTime { get; set; }             // 报告完成时间
         public string? ReportId { get; set; }                 // 报告编号(冗余或关联)
         
