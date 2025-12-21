@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CareFlow.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class InitCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -298,7 +298,7 @@ namespace CareFlow.Infrastructure.Migrations
                     PlantEndTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     EndTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     OrderType = table.Column<string>(type: "text", nullable: false),
-                    Status = table.Column<string>(type: "text", nullable: false),
+                    Status = table.Column<int>(type: "integer", nullable: false),
                     IsLongTerm = table.Column<bool>(type: "boolean", nullable: false),
                     Remarks = table.Column<string>(type: "text", nullable: true),
                     CreateTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
@@ -502,7 +502,7 @@ namespace CareFlow.Infrastructure.Migrations
                     Precautions = table.Column<string>(type: "text", nullable: true),
                     CheckStartTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     CheckEndTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    BackToWardTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    ReportPendingTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     ReportTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     ReportId = table.Column<string>(type: "text", nullable: true),
                     InspectionStatus = table.Column<int>(type: "integer", nullable: false)
@@ -601,6 +601,7 @@ namespace CareFlow.Infrastructure.Migrations
                     ScheduleTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     AnesthesiaType = table.Column<string>(type: "text", nullable: false),
                     IncisionSite = table.Column<string>(type: "text", nullable: false),
+                    SurgeonId = table.Column<string>(type: "text", nullable: false),
                     RequiredTalk = table.Column<string>(type: "text", nullable: true),
                     RequiredOperation = table.Column<string>(type: "text", nullable: true),
                     PrepProgress = table.Column<float>(type: "real", nullable: false),
