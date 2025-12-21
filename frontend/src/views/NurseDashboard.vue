@@ -7,6 +7,7 @@
         <el-breadcrumb separator="/">
           <el-breadcrumb-item>护士工作台</el-breadcrumb-item>
           <el-breadcrumb-item>床位概览</el-breadcrumb-item>
+          <el-breadcrumb-item v-if="overview.departmentName">{{ overview.departmentName }}</el-breadcrumb-item>
         </el-breadcrumb>
       </div>
       <div class="header-right">
@@ -17,7 +18,7 @@
           @change="handleWardChange"
         >
           <el-option
-            v-for="ward in wards"
+            v-for="ward in availableWards"
             :key="ward.id"
             :label="ward.name"
             :value="ward.id"
@@ -86,27 +87,36 @@
       </el-row>
     </div>
 
-    <!-- 床位卡片网格 -->
+    <!-- 床位卡片网格 - 按病区分组显示 -->
     <div class="dashboard-beds">
-      <el-card shadow="never">
-        <template #header>
-          <div class="card-header">
-            <span>{{ overview.departmentName }} - {{ overview.wardName }}</span>
-            <el-tag type="info">{{ beds.length }} 张床位</el-tag>
+      <div v-if="wardGroups.length > 0">
+        <el-card 
+          v-for="wardGroup in wardGroups" 
+          :key="wardGroup.wardId"
+          shadow="never"
+          style="margin-bottom: 20px"
+        >
+          <template #header>
+            <div class="card-header">
+              <span>{{ wardGroup.wardName }}</span>
+              <el-tag type="info">{{ wardGroup.totalBeds }} 张床位</el-tag>
+            </div>
+          </template>
+
+          <div v-loading="loading" class="beds-grid">
+            <BedCard
+              v-for="bed in wardGroup.beds"
+              :key="bed.bedId"
+              :bed="bed"
+              @click="handleBedClick"
+            />
           </div>
-        </template>
 
-        <div v-loading="loading" class="beds-grid">
-          <BedCard
-            v-for="bed in beds"
-            :key="bed.bedId"
-            :bed="bed"
-            @click="handleBedClick"
-          />
-        </div>
-
-        <el-empty v-if="!loading && beds.length === 0" description="暂无床位数据" />
-      </el-card>
+          <el-empty v-if="!loading && wardGroup.beds.length === 0" description="暂无床位数据" />
+        </el-card>
+      </div>
+      
+      <el-empty v-if="!loading && wardGroups.length === 0" description="暂无床位数据" />
     </div>
   </div>
 </template>
@@ -128,10 +138,29 @@ import { getWardOverview } from '@/api/nursing';
 
 const router = useRouter();
 
+// 当前护士信息
+const getCurrentNurse = () => {
+  const userInfo = localStorage.getItem('userInfo');
+  if (userInfo) {
+    try {
+      const user = JSON.parse(userInfo);
+      return {
+        staffId: user.staffId,
+        deptCode: user.deptCode,
+        name: user.fullName
+      };
+    } catch (error) {
+      console.error('解析用户信息失败:', error);
+    }
+  }
+  return null;
+};
+
 // 数据状态
 const loading = ref(false);
 const selectedWard = ref('');
 const beds = ref([]);
+const wardGroups = ref([]); // 病区分组数据
 const overview = reactive({
   wardId: '',
   wardName: '',
@@ -144,11 +173,20 @@ const overview = reactive({
 
 // 病区列表（可以从后端获取，这里先硬编码）
 const wards = ref([
-  { id: 'IM-W01', name: '内科一病区' },
-  { id: 'IM-W02', name: '内科二病区' },
-  { id: 'SUR-W01', name: '外科病区' },
-  { id: 'PED-W01', name: '儿科病区' }
+  { id: 'IM-W01', name: '内科一病区', deptCode: 'IM' },
+  { id: 'IM-W02', name: '内科二病区', deptCode: 'IM' },
+  { id: 'SUR-W01', name: '外科病区', deptCode: 'SUR' },
+  { id: 'PED-W01', name: '儿科病区', deptCode: 'PED' }
 ]);
+
+// 根据护士科室过滤病区
+const availableWards = computed(() => {
+  const nurseInfo = getCurrentNurse();
+  if (!nurseInfo || !nurseInfo.deptCode) {
+    return wards.value;
+  }
+  return wards.value.filter(w => w.deptCode === nurseInfo.deptCode);
+});
 
 // 床位使用率
 const bedOccupancyRate = computed(() => {
@@ -158,40 +196,121 @@ const bedOccupancyRate = computed(() => {
 
 // 加载数据
 const loadData = async () => {
-  if (!selectedWard.value) {
-    ElMessage.warning('请先选择病区');
+  const nurseInfo = getCurrentNurse();
+  if (!nurseInfo) {
+    ElMessage.error('未找到护士信息，请重新登录');
+    router.push('/login');
     return;
   }
 
-  loading.value = true;
-  try {
-    const data = await getWardOverview(selectedWard.value);
-    console.log('API 响应数据:', data);
-    
-    if (!data) {
-      throw new Error('未返回数据');
+  // 清空旧数据，避免缓存
+  beds.value = [];
+  wardGroups.value = [];
+  overview.departmentId = '';
+  overview.departmentName = '';
+  overview.wardId = '';
+  overview.wardName = '';
+  overview.totalBeds = 0;
+  overview.occupiedBeds = 0;
+  overview.availableBeds = 0;
+
+  // 如果没有选择病区，使用科室ID加载该科室所有病区
+  if (!selectedWard.value) {
+    loading.value = true;
+    try {
+      const data = await getWardOverview(null, nurseInfo.deptCode);
+      console.log('========== API 响应数据 ==========');
+      console.log('完整数据:', data);
+      console.log('wards数组:', data.wards);
+      console.log('wards是否为数组:', Array.isArray(data.wards));
+      if (data.wards && data.wards.length > 0) {
+        console.log('第一个病区:', data.wards[0]);
+        console.log('第一个病区的beds:', data.wards[0].beds);
+      }
+      console.log('==================================');
+      
+      if (!data) {
+        throw new Error('未返回数据');
+      }
+
+      // 处理科室级别的数据（包含多个病区）
+      if (data.wards && Array.isArray(data.wards)) {
+        // 更新概览信息
+        overview.departmentId = data.departmentId;
+        overview.departmentName = data.departmentName;
+        overview.totalBeds = data.totalBeds;
+        overview.occupiedBeds = data.occupiedBeds;
+        overview.availableBeds = data.availableBeds;
+
+        // 设置病区分组数据
+        wardGroups.value = data.wards;
+        console.log('设置wardGroups.value为:', wardGroups.value);
+        beds.value = []; // 清空单一床位列表
+      } else {
+        // 单病区数据（向后兼容）
+        overview.wardId = data.wardId;
+        overview.wardName = data.wardName;
+        overview.departmentId = data.departmentId;
+        overview.departmentName = data.departmentName;
+        overview.totalBeds = data.totalBeds;
+        overview.occupiedBeds = data.occupiedBeds;
+        overview.availableBeds = data.availableBeds;
+
+        beds.value = data.beds;
+        wardGroups.value = []; // 清空分组数据
+      }
+
+      ElMessage.success('数据加载成功');
+    } catch (error) {
+      console.error('加载病区概览失败:', error);
+      console.error('错误详情:', error.response?.data);
+      const errorMsg = error.response?.data?.message || error.response?.data?.error || '加载数据失败';
+      ElMessage.error(errorMsg);
+    } finally {
+      loading.value = false;
     }
+  } else {
+    // 选择了特定病区，加载该病区数据
+    loading.value = true;
+    try {
+      const data = await getWardOverview(selectedWard.value);
+      console.log('API 响应数据:', data);
+      
+      if (!data) {
+        throw new Error('未返回数据');
+      }
 
-    // 更新概览信息
-    overview.wardId = data.wardId;
-    overview.wardName = data.wardName;
-    overview.departmentId = data.departmentId;
-    overview.departmentName = data.departmentName;
-    overview.totalBeds = data.totalBeds;
-    overview.occupiedBeds = data.occupiedBeds;
-    overview.availableBeds = data.availableBeds;
+      // 更新概览信息（单病区）
+      overview.wardId = data.wardId;
+      overview.wardName = data.wardName;
+      overview.departmentId = data.departmentId;
+      overview.departmentName = data.departmentName;
+      overview.totalBeds = data.totalBeds;
+      overview.occupiedBeds = data.occupiedBeds;
+      overview.availableBeds = data.availableBeds;
 
-    // 更新床位列表
-    beds.value = data.beds;
+      // 更新床位列表
+      beds.value = data.beds;
+      
+      // 转换为病区分组格式以保持一致
+      wardGroups.value = [{
+        wardId: data.wardId,
+        wardName: data.wardName,
+        beds: data.beds,
+        totalBeds: data.totalBeds,
+        occupiedBeds: data.occupiedBeds,
+        availableBeds: data.availableBeds
+      }];
 
-    ElMessage.success('数据加载成功');
-  } catch (error) {
-    console.error('加载病区概览失败:', error);
-    console.error('错误详情:', error.response?.data);
-    const errorMsg = error.response?.data?.message || error.response?.data?.error || '加载数据失败';
-    ElMessage.error(errorMsg);
-  } finally {
-    loading.value = false;
+      ElMessage.success('数据加载成功');
+    } catch (error) {
+      console.error('加载病区概览失败:', error);
+      console.error('错误详情:', error.response?.data);
+      const errorMsg = error.response?.data?.message || error.response?.data?.error || '加载数据失败';
+      ElMessage.error(errorMsg);
+    } finally {
+      loading.value = false;
+    }
   }
 };
 
@@ -216,11 +335,7 @@ const goToTaskList = () => {
 
 // 组件挂载
 onMounted(() => {
-  // 默认选择第一个病区
-  if (wards.value.length > 0) {
-    selectedWard.value = wards.value[0].id;
-    loadData();
-  }
+  loadData();
 });
 </script>
 

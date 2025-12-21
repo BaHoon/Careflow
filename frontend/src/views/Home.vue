@@ -2,7 +2,7 @@
   <div class="home-container">
     <main class="content">
       <h1>工作台 Dashboard</h1>
-      <p class="dept-info">当前科室：{{ currentUser.deptName || '未分配' }}</p>
+      <p class="dept-info">当前科室：{{ currentDeptName }}</p>
 
       <div class="cards">
         <template v-if="currentUser.role === 'Doctor'">
@@ -65,11 +65,29 @@
 </style>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
-const currentUser = ref({ fullName: '', role: '' });
+const currentUser = ref({ fullName: '', role: '', deptCode: '' });
+
+// 科室代码到名称的映射
+const deptNameMap = {
+  'IM': '内科',
+  'SUR': '外科',
+  'PED': '儿科',
+  'OB': '妇产科',
+  'ICU': '重症医学科',
+  'ER': '急诊科'
+};
+
+// 计算当前科室名称
+const currentDeptName = computed(() => {
+  if (!currentUser.value.deptCode) {
+    return '未分配';
+  }
+  return deptNameMap[currentUser.value.deptCode] || currentUser.value.deptCode;
+});
 
 onMounted(() => {
   // 从 LocalStorage 读取用户信息
