@@ -92,7 +92,6 @@
             <div class="patient-basic">
               <span class="p-name">{{ patient.patientName }}</span>
               <span class="p-info">{{ patient.gender }} {{ patient.age }}岁</span>
-              <span class="p-ward">{{ patient.wardName }}</span>
             </div>
             <div class="patient-meta">
               <span class="p-care">护理{{ patient.nursingGrade }}级</span>
