@@ -37,6 +37,13 @@
             <div class="card-badge admin">管理权限</div>
           </div>
         </template>
+
+        <!-- 临时测试按钮（所有角色可见） -->
+        <div class="card clickable test-card" @click="router.push('/inspection')">
+          <h3>🔬 查看检查类医嘱</h3>
+          <p>检查医嘱管理页面（临时测试用）</p>
+          <div class="card-badge test">测试</div>
+        </div>
       </div>
     </main>
   </div>
@@ -47,6 +54,12 @@
 .card-badge.doctor { background: #409eff; }
 .card-badge.nurse { background: #67c23a; }
 .card-badge.admin { background: #f56c6c; }
+.card-badge.test { background: #e6a23c; }
+
+.test-card {
+  border: 2px dashed #e6a23c;
+  opacity: 0.9;
+}
 
 .dept-info { color: #909399; font-size: 0.9rem; margin-bottom: 20px; }
 </style>

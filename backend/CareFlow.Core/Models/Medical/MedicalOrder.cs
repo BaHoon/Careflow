@@ -138,6 +138,7 @@ namespace CareFlow.Core.Models.Medical
         public DateTime ScheduleTime { get; set; }            // 排期时间
         public string AnesthesiaType { get; set; } = null!;   // 麻醉方式
         public string IncisionSite { get; set; } = null!;     // 切口部位
+        public string SurgeonId { get; set; } = null!;        // 主刀医生ID
         
         // 建议在DbContext中配置为 jsonb 类型
 

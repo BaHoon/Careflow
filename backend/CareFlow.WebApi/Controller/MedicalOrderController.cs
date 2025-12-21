@@ -45,10 +45,12 @@ namespace CareFlow.WebApi.Controllers
                         ScheduleTime = request.ScheduleTime ?? DateTime.UtcNow.AddDays(1),
                         AnesthesiaType = request.AnesthesiaType ?? "局部麻醉",
                         IncisionSite = request.IncisionSite ?? "待定",
+                        SurgeonId = request.DoctorId, // 使用医生ID作为主刀医生
                         RequiredTalk = request.RequiredTalk,
                         RequiredOperation = request.RequiredOperation,
                         PrepStatus = "未开始",
                         PrepProgress = 0f,
+                        PlantEndTime = (request.ScheduleTime ?? DateTime.UtcNow.AddDays(1)).AddDays(1),
                         // 将 DTO 中的药品列表转换为 Items 集合
                         Items = request.MedicationItems?.Select(item => new MedicationOrderItem
                         {

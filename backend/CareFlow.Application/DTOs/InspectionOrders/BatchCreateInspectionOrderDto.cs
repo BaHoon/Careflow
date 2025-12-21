@@ -16,34 +16,24 @@ public class BatchCreateInspectionOrderRequestDto
 public class InspectionOrderDto
 {
     /// <summary>
-    /// 检查类型（CT、MRI、X-Ray、Ultrasound等）
+    /// 检查项目代码（如 CT_HEAD、MRI_CHEST等）
     /// </summary>
-    public string InspectionType { get; set; } = null!;
+    public string ItemCode { get; set; } = null!;
     
     /// <summary>
-    /// 检查部位（Head、Chest、Abdomen等）
+    /// 预约时间（可选，不需要预约时为null）
     /// </summary>
-    public string TargetOrgan { get; set; } = null!;
+    public DateTime? AppointmentTime { get; set; }
     
     /// <summary>
-    /// 紧急程度（urgent、normal、routine）
+    /// 预约地点（可选）
     /// </summary>
-    public string Urgency { get; set; } = "normal";
+    public string? AppointmentPlace { get; set; }
     
     /// <summary>
-    /// 是否需要造影剂
+    /// 注意事项（如空腹、憋尿等）
     /// </summary>
-    public bool Contrast { get; set; }
-    
-    /// <summary>
-    /// 预约时间
-    /// </summary>
-    public DateTime ScheduledTime { get; set; }
-    
-    /// <summary>
-    /// 临床资料（症状、病史等）
-    /// </summary>
-    public string? ClinicalInfo { get; set; }
+    public string? Precautions { get; set; }
     
     /// <summary>
     /// 备注

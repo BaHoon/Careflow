@@ -12,7 +12,6 @@ import api from '../utils/api';
  * @param {Array} data.orders - 检查医嘱列表
  * @param {string} data.orders[].inspectionType - 检查类型（CT、MRI、X-Ray等）
  * @param {string} data.orders[].targetOrgan - 检查部位（Head、Chest等）
- * @param {string} data.orders[].urgency - 紧急程度（urgent、normal、routine）
  * @param {boolean} data.orders[].contrast - 是否使用造影剂
  * @param {string} data.orders[].scheduledTime - 预约时间
  * @param {string} [data.orders[].clinicalInfo] - 临床资料（可选）

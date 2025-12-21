@@ -7,6 +7,7 @@ import Home from '../views/Home.vue'
 // 布局组件
 import NurseLayout from '../layouts/NurseLayout.vue'
 import DoctorLayout from '../layouts/DoctorLayout.vue'
+import Inspection from '../views/Inspection.vue'
 
 // 护士子页面
 import NurseDashboard from '../views/NurseDashboard.vue'
@@ -42,6 +43,12 @@ const router = createRouter({
       meta: { requiresAuth: true, role: 'Nurse' },
       redirect: '/nurse/dashboard', // 默认重定向到床位概览
       children: [
+        {
+          path: '/inspection', // 检查类医嘱管理
+          name: 'inspection',
+          component: Inspection,
+          meta: { requiresAuth: true }
+        },
         {
           path: 'dashboard', // 相对路径，实际路径为 /nurse/dashboard
           name: 'nurse-dashboard',
