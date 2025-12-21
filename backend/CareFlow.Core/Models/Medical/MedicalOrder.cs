@@ -120,7 +120,7 @@ namespace CareFlow.Core.Models.Medical
         // --- 闭环时间节点 ---
         public DateTime? CheckStartTime { get; set; }         // 检查开始时间
         public DateTime? CheckEndTime { get; set; }           // 检查结束时间
-        public DateTime? BackToWardTime { get; set; }         // 返回病房时间
+        public DateTime? ReportPendingTime { get; set; }      // 报告待出时间
         public DateTime? ReportTime { get; set; }             // 报告完成时间
         public string? ReportId { get; set; }                 // 报告编号(冗余或关联)
         

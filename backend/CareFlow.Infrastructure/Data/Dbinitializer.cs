@@ -852,7 +852,7 @@ namespace CareFlow.Infrastructure.Data
                     ItemCode = "ECG001", RisLisId = "RIS202412050001", Location = "心电图室",
                     AppointmentTime = currentTime.AddHours(-4), AppointmentPlace = "心电图室1",
                     Precautions = "检查时保持安静", CheckStartTime = currentTime.AddHours(-4),
-                    CheckEndTime = currentTime.AddHours(-3.5), BackToWardTime = currentTime.AddHours(-3),
+                    CheckEndTime = currentTime.AddHours(-3.5), ReportPendingTime = currentTime.AddHours(-3),
                     ReportTime = currentTime.AddHours(-2), ReportId = "ECG202412050001",
                     InspectionStatus = InspectionOrderStatus.ReportCompleted,
                     Source = InspectionSource.RIS
