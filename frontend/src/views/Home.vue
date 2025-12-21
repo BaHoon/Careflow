@@ -6,7 +6,7 @@
 
       <div class="cards">
         <template v-if="currentUser.role === 'Doctor'">
-          <div class="card clickable" @click="router.push('/order-entry')">
+          <div class="card clickable" @click="router.push('/doctor/order-entry')">
             <h3>✍️ 开具新医嘱</h3>
             <p>为所管辖患者下达长期或临时医嘱</p>
             <div class="card-badge doctor">医生权限</div>

@@ -77,8 +77,14 @@ const handleLogin = async () => {
 
     console.log('登录成功，用户信息:', { staffId, fullName, role, deptCode });
 
-    // 2. 跳转到主页
-    router.push('/home');
+    // 2. 根据角色跳转到对应工作台
+    if (role === 'Doctor') {
+      router.push('/doctor');
+    } else if (role === 'Nurse') {
+      router.push('/nurse');
+    } else {
+      router.push('/home');
+    }
   } catch (err) {
     console.error(err);
     errorMsg.value = err.response?.data?.message || '登录失败，请检查网络或账号';

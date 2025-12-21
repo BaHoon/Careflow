@@ -290,9 +290,8 @@ namespace CareFlow.Infrastructure.Migrations
                     b.Property<string>("Remarks")
                         .HasColumnType("text");
 
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
@@ -852,9 +851,6 @@ namespace CareFlow.Infrastructure.Migrations
                     b.Property<DateTime?>("AppointmentTime")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<DateTime?>("BackToWardTime")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<DateTime?>("CheckEndTime")
                         .HasColumnType("timestamp with time zone");
 
@@ -877,6 +873,9 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.Property<string>("ReportId")
                         .HasColumnType("text");
+
+                    b.Property<DateTime?>("ReportPendingTime")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("ReportTime")
                         .HasColumnType("timestamp with time zone");
