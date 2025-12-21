@@ -55,14 +55,14 @@
           </el-select>
         </div>
         
-        <!-- 仅显示待签收 -->
+        <!-- 自定义筛选选项 -->
         <div class="filter-group" v-if="showPendingFilter">
           <el-checkbox 
             v-model="showOnlyPending" 
             size="small"
             class="pending-filter"
           >
-            仅显示待签收
+            {{ pendingFilterLabel }}
           </el-checkbox>
         </div>
 
@@ -113,9 +113,13 @@
             <span class="p-care">护理{{ patient.nursingGrade }}级</span>
           </div>
           
-          <!-- 待签收数量标记 -->
-          <span v-if="patient.unacknowledgedCount > 0" class="pending-badge">
-            {{ patient.unacknowledgedCount }}
+          <!-- 数字徽章标记 -->
+          <span 
+            v-if="shouldShowBadge(patient)" 
+            class="pending-badge"
+            :title="getBadgeTitle(patient)"
+          >
+            {{ getBadgeValue(patient) }}
           </span>
         </div>
 
@@ -179,6 +183,21 @@ const props = defineProps({
   showPendingFilter: {
     type: Boolean,
     default: true
+  },
+  // 自定义筛选标签文本
+  pendingFilterLabel: {
+    type: String,
+    default: '仅显示待签收'
+  },
+  // 徽章字段名（患者对象中的字段名，如 'unacknowledgedCount'、'pendingTaskCount' 等）
+  badgeField: {
+    type: String,
+    default: 'unacknowledgedCount'
+  },
+  // 徽章显示条件（函数，返回是否显示徽章）
+  badgeFilter: {
+    type: Function,
+    default: (patient, badgeValue) => badgeValue > 0
   },
   // 是否启用多选模式功能
   enableMultiSelectMode: {
@@ -246,9 +265,12 @@ const filteredPatients = computed(() => {
     filtered = filtered.filter(p => p.wardId === selectedWard.value);
   }
   
-  // 仅显示待签收
+  // 自定义筛选（根据徽章字段）
   if (showOnlyPending.value) {
-    filtered = filtered.filter(p => p.unacknowledgedCount > 0);
+    filtered = filtered.filter(p => {
+      const badgeValue = getBadgeValue(p);
+      return props.badgeFilter(p, badgeValue);
+    });
   }
   
   return filtered;
@@ -287,6 +309,33 @@ const handleCheckboxChange = (patient) => {
     isMultiSelect: true,
     isCheckboxClick: true
   });
+};
+
+// 获取徽章值
+const getBadgeValue = (patient) => {
+  if (!props.badgeField) return 0;
+  const value = patient[props.badgeField];
+  return typeof value === 'number' ? value : 0;
+};
+
+// 判断是否显示徽章
+const shouldShowBadge = (patient) => {
+  const badgeValue = getBadgeValue(patient);
+  return props.badgeFilter(patient, badgeValue);
+};
+
+// 获取徽章提示文本
+const getBadgeTitle = (patient) => {
+  const badgeValue = getBadgeValue(patient);
+  // 根据字段名生成提示文本
+  const fieldNameMap = {
+    'unacknowledgedCount': '待签收医嘱',
+    'pendingTaskCount': '待处理任务',
+    'urgentCount': '紧急事项',
+    'unreadCount': '未读消息'
+  };
+  const fieldLabel = fieldNameMap[props.badgeField] || '待处理';
+  return `${fieldLabel}: ${badgeValue}`;
 };
 
 // 监听多选模式切换
