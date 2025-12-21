@@ -18,19 +18,22 @@ public class InspectionOrderService : IInspectionOrderService
     private readonly IRepository<Core.Models.Organization.Patient, string> _patientRepo;
     private readonly IRepository<Core.Models.Organization.Doctor, string> _doctorRepo;
     private readonly IInspectionService _inspectionService;
+    private readonly INurseAssignmentService _nurseAssignmentService;
 
     public InspectionOrderService(
         ILogger<InspectionOrderService> logger,
         IRepository<InspectionOrder, long> orderRepo,
         IRepository<Core.Models.Organization.Patient, string> patientRepo,
         IRepository<Core.Models.Organization.Doctor, string> doctorRepo,
-        IInspectionService inspectionService)
+        IInspectionService inspectionService,
+        INurseAssignmentService nurseAssignmentService)
     {
         _logger = logger;
         _orderRepo = orderRepo;
         _patientRepo = patientRepo;
         _doctorRepo = doctorRepo;
         _inspectionService = inspectionService;
+        _nurseAssignmentService = nurseAssignmentService;
     }
 
     /// <summary>
@@ -90,7 +93,7 @@ public class InspectionOrderService : IInspectionOrderService
                         PatientId = request.PatientId,
                         DoctorId = request.DoctorId,
                         OrderType = "InspectionOrder",
-                        Status = "Pending", // 待护士接受
+                        Status = OrderStatus.PendingReceive, // 待护士签收
                         IsLongTerm = false, // 检查医嘱通常为临时医嘱
                         CreateTime = DateTime.UtcNow,
                         PlantEndTime = appointmentTime.AddHours(2), // 预约时间后2小时结束
@@ -112,6 +115,9 @@ public class InspectionOrderService : IInspectionOrderService
 
                     await _orderRepo.AddAsync(order);
                     createdOrders.Add(order.Id);
+                    
+                    // 分配负责护士
+                    await AssignResponsibleNurseAsync(order, request.PatientId);
                     
                     _logger.LogInformation("✅ 创建检查医嘱成功: ID={OrderId}, 项目代码={ItemCode}",
                         order.Id, orderDto.ItemCode);
@@ -299,5 +305,39 @@ public class InspectionOrderService : IInspectionOrderService
         }
 
         return precautions.Count > 0 ? string.Join("; ", precautions) : "无特殊注意事项";
+    }
+
+    /// <summary>
+    /// 分配负责护士
+    /// </summary>
+    private async Task AssignResponsibleNurseAsync(
+        InspectionOrder order,
+        string patientId)
+    {
+        try
+        {
+            // 使用当前时间（医嘱创建时间）来分配负责护士，而不是预约时间
+            // 负责护士是指接收和处理医嘱的护士，不是预约时间执行检查的护士
+            var responsibleNurseId = await _nurseAssignmentService.CalculateResponsibleNurseAsync(
+                patientId,
+                DateTime.UtcNow);
+
+            if (!string.IsNullOrEmpty(responsibleNurseId))
+            {
+                order.NurseId = responsibleNurseId;
+                await _orderRepo.UpdateAsync(order);
+                _logger.LogInformation("✅ 已分配负责护士: {NurseId} 给检查医嘱 {OrderId}",
+                    responsibleNurseId, order.Id);
+            }
+            else
+            {
+                _logger.LogWarning("⚠️ 未找到负责护士，检查医嘱 {OrderId} 的 NurseId 保持为空", order.Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ 计算负责护士失败，检查医嘱 {OrderId}", order.Id);
+            // 护士分配失败不影响医嘱创建，继续执行
+        }
     }
 }

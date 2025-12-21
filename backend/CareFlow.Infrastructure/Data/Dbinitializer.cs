@@ -654,7 +654,7 @@ namespace CareFlow.Infrastructure.Data
                 {
                     PatientId = "P001", DoctorId = "D001", NurseId = "N001",
                     CreateTime = currentTime.AddDays(-2), PlantEndTime = currentTime.AddDays(2),
-                    OrderType = "MedicationOrder", Status = "Accepted", IsLongTerm = true,
+                    OrderType = "MedicationOrder", Status = OrderStatus.Accepted, IsLongTerm = true,
                     UsageRoute = UsageRoute.PO,
                     IsDynamicUsage = false,
                     IntervalHours = null, // SLOTS策略不需要
@@ -673,7 +673,7 @@ namespace CareFlow.Infrastructure.Data
                 {
                     PatientId = "P001", DoctorId = "D001", NurseId = "N002",
                     CreateTime = currentTime.AddHours(-1), PlantEndTime = currentTime.AddHours(1),
-                    OrderType = "MedicationOrder", Status = "InProgress", IsLongTerm = false,
+                    OrderType = "MedicationOrder", Status = OrderStatus.InProgress, IsLongTerm = false,
                     UsageRoute = UsageRoute.IVGTT,
                     IsDynamicUsage = false,
                     IntervalHours = null, // IMMEDIATE策略不需要
@@ -692,7 +692,7 @@ namespace CareFlow.Infrastructure.Data
                 {
                     PatientId = "P002", DoctorId = "D001", NurseId = "N001",
                     CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(2),
-                    OrderType = "MedicationOrder", Status = "Accepted", IsLongTerm = true,
+                    OrderType = "MedicationOrder", Status = OrderStatus.Accepted, IsLongTerm = true,
                     UsageRoute = UsageRoute.SC,
                     IsDynamicUsage = false,
                     IntervalHours = null, // SLOTS策略不需要
@@ -711,7 +711,7 @@ namespace CareFlow.Infrastructure.Data
                 {
                     PatientId = "P003", DoctorId = "D002", NurseId = "N002",
                     CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(1),
-                    OrderType = "MedicationOrder", Status = "Accepted", IsLongTerm = true,
+                    OrderType = "MedicationOrder", Status = OrderStatus.Accepted, IsLongTerm = true,
                     UsageRoute = UsageRoute.IVP, // 静脉推注
                     IsDynamicUsage = false,
                     IntervalHours = 8m, // 每8小时给药一次
@@ -730,7 +730,7 @@ namespace CareFlow.Infrastructure.Data
                 {
                     PatientId = "P004", DoctorId = "D002",
                     CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(2),
-                    OrderType = "MedicationOrder", Status = "Accepted", IsLongTerm = true,
+                    OrderType = "MedicationOrder", Status = OrderStatus.Accepted, IsLongTerm = true,
                     UsageRoute = UsageRoute.Topical,
                     IsDynamicUsage = false,
                     IntervalHours = null, // SLOTS策略不需要
@@ -750,7 +750,7 @@ namespace CareFlow.Infrastructure.Data
                 {
                     PatientId = "P005", DoctorId = "D001",
                     CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(1),
-                    OrderType = "MedicationOrder", Status = "Accepted", IsLongTerm = true,
+                    OrderType = "MedicationOrder", Status = OrderStatus.Accepted, IsLongTerm = true,
                     UsageRoute = UsageRoute.IVGTT,
                     IsDynamicUsage = false,
                     IntervalHours = null, // SLOTS策略不需要
@@ -772,7 +772,7 @@ namespace CareFlow.Infrastructure.Data
                 {
                     PatientId = "P006", DoctorId = "D002",
                     CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(3),
-                    OrderType = "MedicationOrder", Status = "Accepted", IsLongTerm = false,
+                    OrderType = "MedicationOrder", Status = OrderStatus.Accepted, IsLongTerm = false,
                     UsageRoute = UsageRoute.IM,
                     IsDynamicUsage = true,
                     IntervalHours = null, // SPECIFIC策略不需要
@@ -798,21 +798,21 @@ namespace CareFlow.Infrastructure.Data
                 {
                     PatientId = "P001", DoctorId = "D001", NurseId = "N001",
                     CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(3),
-                    OrderType = "OperationOrder", Status = "Accepted", IsLongTerm = true,
+                    OrderType = "OperationOrder", Status = OrderStatus.Accepted, IsLongTerm = true,
                     OpId = "OP001", Normal = true, FrequencyType = "每天", FrequencyValue = "3次"
                 },
                 new OperationOrder
                 {
                     PatientId = "P003", DoctorId = "D002", NurseId = "N002",
                     CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(2),
-                    OrderType = "OperationOrder", Status = "Accepted", IsLongTerm = true,
+                    OrderType = "OperationOrder", Status = OrderStatus.Accepted, IsLongTerm = true,
                     OpId = "OP002", Normal = true, FrequencyType = "持续", FrequencyValue = "24小时"
                 },
                 new OperationOrder
                 {
                     PatientId = "P004", DoctorId = "D002", NurseId = "N001",
                     CreateTime = currentTime.AddHours(-2), PlantEndTime = currentTime.AddHours(1),
-                    OrderType = "OperationOrder", Status = "InProgress", IsLongTerm = false,
+                    OrderType = "OperationOrder", Status = OrderStatus.InProgress, IsLongTerm = false,
                     OpId = "OP003", Normal = true, FrequencyType = "一次性", FrequencyValue = "1次"
                 }
             };
@@ -825,7 +825,7 @@ namespace CareFlow.Infrastructure.Data
                 {
                     PatientId = "P002", DoctorId = "D001",
                     CreateTime = currentTime.AddHours(-4), PlantEndTime = currentTime.AddHours(8),
-                    OrderType = "InspectionOrder", Status = "PendingReview", IsLongTerm = false,
+                    OrderType = "InspectionOrder", Status = OrderStatus.PendingReceive, IsLongTerm = false,
                     ItemCode = "CT001", RisLisId = "RIS202412060001", Location = "影像科",
                     AppointmentTime = currentTime.AddHours(4), AppointmentPlace = "CT室1",
                     Precautions = "检查前4小时禁食", ReportId = "",
@@ -836,7 +836,7 @@ namespace CareFlow.Infrastructure.Data
                 {
                     PatientId = "P005", DoctorId = "D001",
                     CreateTime = currentTime.AddHours(-1), PlantEndTime = currentTime.AddHours(6),
-                    OrderType = "InspectionOrder", Status = "Accepted", IsLongTerm = false,
+                    OrderType = "InspectionOrder", Status = OrderStatus.Accepted, IsLongTerm = false,
                     ItemCode = "LAB001", RisLisId = "LIS202412060001", Location = "检验科",
                     AppointmentTime = currentTime.AddHours(2), AppointmentPlace = "采血室",
                     Precautions = "空腹采血", ReportId = "",
@@ -848,11 +848,11 @@ namespace CareFlow.Infrastructure.Data
                     PatientId = "P006", DoctorId = "D002",
                     CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddHours(-2),
                     EndTime = currentTime.AddHours(-2),
-                    OrderType = "InspectionOrder", Status = "Completed", IsLongTerm = false,
+                    OrderType = "InspectionOrder", Status = OrderStatus.Completed, IsLongTerm = false,
                     ItemCode = "ECG001", RisLisId = "RIS202412050001", Location = "心电图室",
                     AppointmentTime = currentTime.AddHours(-4), AppointmentPlace = "心电图室1",
                     Precautions = "检查时保持安静", CheckStartTime = currentTime.AddHours(-4),
-                    CheckEndTime = currentTime.AddHours(-3.5), BackToWardTime = currentTime.AddHours(-3),
+                    CheckEndTime = currentTime.AddHours(-3.5), ReportPendingTime = currentTime.AddHours(-3),
                     ReportTime = currentTime.AddHours(-2), ReportId = "ECG202412050001",
                     InspectionStatus = InspectionOrderStatus.ReportCompleted,
                     Source = InspectionSource.RIS
@@ -867,7 +867,7 @@ namespace CareFlow.Infrastructure.Data
                 {
                     PatientId = "P003", DoctorId = "D002",
                     CreateTime = currentTime.AddHours(-6), PlantEndTime = currentTime.AddHours(8),
-                    OrderType = "SurgicalOrder", Status = "Accepted", IsLongTerm = false,
+                    OrderType = "SurgicalOrder", Status = OrderStatus.Accepted, IsLongTerm = false,
                     SurgeryName = "腹腔镜阑尾切除术", ScheduleTime = currentTime.AddHours(6),
                     AnesthesiaType = "全身麻醉", IncisionSite = "脐部及右下腹", SurgeonId = "D002",
                     RequiredTalk = "[\"术前禁食水宣教\", \"术前饰品摘取\", \"更换病号服\"]",
@@ -884,7 +884,7 @@ namespace CareFlow.Infrastructure.Data
                 {
                     PatientId = "P004", DoctorId = "D002",
                     CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(1),
-                    OrderType = "SurgicalOrder", Status = "PendingReview", IsLongTerm = false,
+                    OrderType = "SurgicalOrder", Status = OrderStatus.PendingReceive, IsLongTerm = false,
                     SurgeryName = "腹腔镜胆囊切除术", ScheduleTime = currentTime.AddDays(1).AddHours(2),
                     AnesthesiaType = "全身麻醉", IncisionSite = "脐部及上腹部", SurgeonId = "D002",
                     RequiredTalk = "[\"术前禁食水宣教\"]",
@@ -900,7 +900,7 @@ namespace CareFlow.Infrastructure.Data
                 {
                     PatientId = "P006", DoctorId = "D002",
                     CreateTime = currentTime.AddHours(-2), PlantEndTime = currentTime.AddHours(4),
-                    OrderType = "SurgicalOrder", Status = "Accepted", IsLongTerm = false,
+                    OrderType = "SurgicalOrder", Status = OrderStatus.Accepted, IsLongTerm = false,
                     SurgeryName = "左股骨干骨折切开复位内固定术", ScheduleTime = currentTime.AddHours(2),
                     AnesthesiaType = "腰硬联合麻醉", IncisionSite = "左大腿外侧", SurgeonId = "D002",
                     RequiredTalk = "[\"术前禁食水宣教\", \"术前体位指导\"]",

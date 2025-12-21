@@ -3,6 +3,7 @@ using CareFlow.Application.DTOs.SurgicalOrders;
 using CareFlow.Application.Interfaces;
 using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models.Medical;
+using CareFlow.Core.Enums;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
@@ -164,7 +165,7 @@ public class SurgicalOrderService : ISurgicalOrderService
             DoctorId = doctorId,
             OrderType = "SurgicalOrder",
             IsLongTerm = false, // 手术医嘱通常为临时医嘱
-            Status = "Active",
+            Status = OrderStatus.PendingReceive,
             CreateTime = DateTime.UtcNow,
 
             // 手术基础信息
@@ -223,9 +224,10 @@ public class SurgicalOrderService : ISurgicalOrderService
     {
         try
         {
+            // 使用当前时间（医嘱创建时间）来分配负责护士，而不是预约时间
             var responsibleNurseId = await _nurseAssignmentService.CalculateResponsibleNurseAsync(
                 patientId,
-                order.ScheduleTime);
+                DateTime.UtcNow);
 
             if (!string.IsNullOrEmpty(responsibleNurseId))
             {

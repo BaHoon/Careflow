@@ -16,9 +16,9 @@ public enum InspectionOrderStatus
     InProgress = 2,
     
     /// <summary>
-    /// 已回病房 - 检查完成，患者已返回病房
+    /// 报告待出 - 检查完成，等待报告生成
     /// </summary>
-    BackToWard = 3,
+    ReportPending = 3,
     
     /// <summary>
     /// 报告已出 - 检查报告已完成

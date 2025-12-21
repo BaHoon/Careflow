@@ -8,6 +8,7 @@ using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models;
 using CareFlow.Core.Models.Medical;
 using CareFlow.Core.Models.Nursing;
+using CareFlow.Core.Enums;
 
 namespace CareFlow.Application.Services
 {
@@ -61,7 +62,7 @@ namespace CareFlow.Application.Services
             }
 
             // 2. 状态检查 (防止对已取消的医嘱生成任务)
-            if (existingOrder.Status == "Cancelled")
+            if (existingOrder.Status == OrderStatus.Cancelled)
             {
                 throw new InvalidOperationException($"医嘱 {order.Id} 已取消，操作终止");
             }
