@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Login from '../views/Login.vue'
 import Home from '../views/Home.vue'
 import OrderEntry from '../views/OrderEntry.vue'
+import Inspection from '../views/Inspection.vue'
 import NurseDashboard from '../views/NurseDashboard.vue'
 import NurseTaskList from '../views/NurseTaskList.vue'
 
@@ -28,6 +29,12 @@ const router = createRouter({
       name: 'order-entry',
       component: OrderEntry,
       meta: { requiresAuth: true, role: 'Doctor' } // 限制只有 Doctor 角色进入
+    },
+    {
+      path: '/inspection', // 检查类医嘱管理
+      name: 'inspection',
+      component: Inspection,
+      meta: { requiresAuth: true }
     },
     {
       path: '/nurse/dashboard', // [新增] 护士床位概览
