@@ -18,6 +18,28 @@ public class ExecutionTaskDto
     public string? ResultPayload { get; set; }
     public string ExceptionReason { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
+    
+    // --- 延迟状态字段（新增）---
+    
+    /// <summary>
+    /// 实际延迟时长（分钟）
+    /// </summary>
+    public int DelayMinutes { get; set; }
+    
+    /// <summary>
+    /// 允许延迟时长（分钟）
+    /// </summary>
+    public int AllowedDelayMinutes { get; set; }
+    
+    /// <summary>
+    /// 超出允许范围的时长（分钟）
+    /// </summary>
+    public int ExcessDelayMinutes { get; set; }
+    
+    /// <summary>
+    /// 严重程度级别：Normal | Warning | Severe
+    /// </summary>
+    public string SeverityLevel { get; set; } = "Normal";
 }
 
 public class TaskGenerationResultDto

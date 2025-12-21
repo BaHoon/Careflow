@@ -89,6 +89,42 @@ public class NurseTaskDto
     public string Status { get; set; } = string.Empty;
     public string DataPayload { get; set; } = string.Empty;
     public string? ResultPayload { get; set; }
-    public bool IsOverdue { get; set; } // 计算字段：是否超时
-    public bool IsDueSoon { get; set; } // 计算字段：是否临期（30分钟内）
+    
+    // --- 延迟状态字段（新增）---
+    
+    /// <summary>
+    /// 实际延迟时长（分钟）
+    /// 从计划时间到现在的延迟，可能为负数（表示还没到时间）
+    /// </summary>
+    public int DelayMinutes { get; set; }
+    
+    /// <summary>
+    /// 允许延迟时长（分钟）
+    /// 不同类型任务的正常范围不同，如常规护理90分钟，复测30分钟
+    /// </summary>
+    public int AllowedDelayMinutes { get; set; }
+    
+    /// <summary>
+    /// 超出允许范围的时长（分钟）
+    /// 正数表示已超出正常范围，0或负数表示在正常范围内
+    /// </summary>
+    public int ExcessDelayMinutes { get; set; }
+    
+    /// <summary>
+    /// 严重程度级别
+    /// Normal: 正常范围内
+    /// Warning: 超出正常范围0-30分钟
+    /// Severe: 超出正常范围30分钟以上
+    /// </summary>
+    public string SeverityLevel { get; set; } = "Normal";
+    
+    /// <summary>
+    /// 是否超时（向后兼容）
+    /// </summary>
+    public bool IsOverdue { get; set; }
+    
+    /// <summary>
+    /// 是否临期（30分钟内，向后兼容）
+    /// </summary>
+    public bool IsDueSoon { get; set; }
 }

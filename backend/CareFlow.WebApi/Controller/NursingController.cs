@@ -1,6 +1,7 @@
 using CareFlow.Application.Interfaces;
 using CareFlow.Application.DTOs.Nursing; // 引用你新定义的 DTO
 using CareFlow.Application.Services.Nursing; // 引用 Service
+using CareFlow.Application.Services.Scheduling;
 using Microsoft.AspNetCore.Mvc;
 using CareFlow.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -15,16 +16,19 @@ namespace CareFlow.WebApi.Controllers
         private readonly IVitalSignService _vitalSignService;
         private readonly NursingTaskGenerator _taskGenerator;
         private readonly ApplicationDbContext _context;
+        private readonly TaskDelayCalculator _delayCalculator;
 
         // 构造函数注入服务
         public NursingController(
             IVitalSignService vitalSignService, 
             NursingTaskGenerator taskGenerator,
-            ApplicationDbContext context)
+            ApplicationDbContext context,
+            TaskDelayCalculator delayCalculator)
         {
             _vitalSignService = vitalSignService;
             _taskGenerator = taskGenerator;
             _context = context;
+            _delayCalculator = delayCalculator;
         }
 
         /// <summary>
@@ -412,6 +416,7 @@ namespace CareFlow.WebApi.Controllers
                 // 查询任务：筛选该科室所有病区床位上的患者任务
                 var tasksQuery = _context.ExecutionTasks
                     .Include(et => et.Patient)
+                    .Include(et => et.MedicalOrder)
                     .Where(et => et.PlannedStartTime >= startOfDay &&
                                  et.PlannedStartTime < endOfDay &&
                                  bedIds.Contains(et.Patient.BedId));
@@ -427,24 +432,38 @@ namespace CareFlow.WebApi.Controllers
 
                 var currentTime = DateTime.UtcNow;
 
-                var nurseTasks = tasks.Select(task => new NurseTaskDto
+                var nurseTasks = tasks.Select(task =>
                 {
-                    Id = task.Id,
-                    MedicalOrderId = task.MedicalOrderId,
-                    PatientId = task.PatientId,
-                    PatientName = task.Patient?.Name ?? "未知",
-                    BedId = task.Patient?.BedId ?? "未知",
-                    Category = task.Category.ToString(),
-                    PlannedStartTime = task.PlannedStartTime,
-                    ActualStartTime = task.ActualStartTime,
-                    ActualEndTime = task.ActualEndTime,
-                    Status = task.Status,
-                    DataPayload = task.DataPayload,
-                    ResultPayload = task.ResultPayload,
-                    IsOverdue = task.Status == "Pending" && task.PlannedStartTime < currentTime,
-                    IsDueSoon = task.Status == "Pending" && 
-                                task.PlannedStartTime >= currentTime && 
-                                task.PlannedStartTime <= currentTime.AddMinutes(30)
+                    // 计算延迟状态
+                    var delayStatus = _delayCalculator.CalculateExecutionTaskDelay(task, currentTime);
+                    
+                    return new NurseTaskDto
+                    {
+                        Id = task.Id,
+                        MedicalOrderId = task.MedicalOrderId,
+                        PatientId = task.PatientId,
+                        PatientName = task.Patient?.Name ?? "未知",
+                        BedId = task.Patient?.BedId ?? "未知",
+                        Category = task.Category.ToString(),
+                        PlannedStartTime = task.PlannedStartTime,
+                        ActualStartTime = task.ActualStartTime,
+                        ActualEndTime = task.ActualEndTime,
+                        Status = task.Status,
+                        DataPayload = task.DataPayload,
+                        ResultPayload = task.ResultPayload,
+                        
+                        // 新增：延迟状态字段
+                        DelayMinutes = delayStatus.DelayMinutes,
+                        AllowedDelayMinutes = delayStatus.AllowedDelayMinutes,
+                        ExcessDelayMinutes = delayStatus.ExcessDelayMinutes,
+                        SeverityLevel = delayStatus.SeverityLevel,
+                        
+                        // 向后兼容字段
+                        IsOverdue = task.Status == "Pending" && delayStatus.ExcessDelayMinutes > 0,
+                        IsDueSoon = task.Status == "Pending" && 
+                                    task.PlannedStartTime >= currentTime && 
+                                    task.PlannedStartTime <= currentTime.AddMinutes(30)
+                    };
                 }).ToList();
 
                 return Ok(new
