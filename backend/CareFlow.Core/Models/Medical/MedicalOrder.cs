@@ -25,7 +25,7 @@ namespace CareFlow.Core.Models.Medical
         public DateTime PlantEndTime { get; set; } // 理论结束
         public DateTime? EndTime { get; set; } // 实际结束
         public string OrderType { get; set; } = null!; // 鉴别列
-        public string Status { get; set; } = null!;
+        public OrderStatus Status { get; set; } = OrderStatus.PendingReceive;
         public bool IsLongTerm { get; set; }
 
         /// <summary>

@@ -59,7 +59,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
         }
 
         // 3. 验证医嘱状态是否允许生成任务
-        if (existingOrder.Status == "Cancelled" || existingOrder.Status == "Completed")
+        if (existingOrder.Status == OrderStatus.Cancelled || existingOrder.Status == OrderStatus.Completed)
         {
             var errorMsg = $"医嘱 {order.Id} 状态为 {existingOrder.Status}，不允许生成执行任务";
             _logger.LogWarning(errorMsg);

@@ -37,7 +37,7 @@ namespace CareFlow.WebApi.Controllers
                         DoctorId = request.DoctorId,
                         OrderType = "SurgicalOrder",
                         IsLongTerm = request.IsLongTerm,
-                        Status = "Pending", // 初始状态
+                        Status = OrderStatus.PendingReceive, // 初始状态
                         CreateTime = DateTime.UtcNow,
                         
                         // 手术特有字段
@@ -70,7 +70,7 @@ namespace CareFlow.WebApi.Controllers
                         DoctorId = request.DoctorId,
                         OrderType = "MedicationOrder",
                         IsLongTerm = request.IsLongTerm,
-                        Status = "Active",
+                        Status = OrderStatus.PendingReceive,
                         CreateTime = DateTime.UtcNow,
 
                         // 药品特有字段

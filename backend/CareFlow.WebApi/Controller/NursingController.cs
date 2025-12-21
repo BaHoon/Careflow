@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using CareFlow.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using CareFlow.Core.Models.Medical;
+using CareFlow.Core.Enums;
 
 namespace CareFlow.WebApi.Controllers
 {
@@ -129,7 +130,7 @@ namespace CareFlow.WebApi.Controllers
                 var todaySurgeries = await _context.SurgicalOrders
                     .Where(so => patientIds.Contains(so.PatientId) &&
                                  so.ScheduleTime.Date == currentTime.Date &&
-                                 (so.Status == "Accepted" || so.Status == "PendingReview"))
+                                 (so.Status == OrderStatus.Accepted || so.Status == OrderStatus.PendingReceive))
                     .Select(so => so.PatientId)
                     .Distinct()
                     .ToListAsync();
@@ -280,7 +281,7 @@ namespace CareFlow.WebApi.Controllers
                 var todaySurgeries = await _context.SurgicalOrders
                     .Where(so => patientIds.Contains(so.PatientId) &&
                                  so.ScheduleTime.Date == currentTime.Date &&
-                                 (so.Status == "Accepted" || so.Status == "PendingReview"))
+                                 (so.Status == OrderStatus.Accepted || so.Status == OrderStatus.PendingReceive))
                     .Select(so => so.PatientId)
                     .Distinct()
                     .ToListAsync();
