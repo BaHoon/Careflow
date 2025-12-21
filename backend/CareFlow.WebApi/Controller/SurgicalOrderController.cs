@@ -25,7 +25,6 @@ public class SurgicalOrderController : ControllerBase
 
     /// <summary>
     /// 批量创建手术医嘱
-    /// TODO: 待实现完整功能
     /// </summary>
     [HttpPost("batch")]
     public async Task<ActionResult<BatchCreateOrderResponseDto>> BatchCreate(

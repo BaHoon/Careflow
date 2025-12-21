@@ -21,14 +21,14 @@ public class SurgicalOrderDto
     public string SurgeryName { get; set; } = null!;
     
     /// <summary>
-    /// 手术类型（Elective、Emergency）
+    /// 麻醉方式
     /// </summary>
-    public string SurgeryType { get; set; } = null!;
+    public string AnesthesiaType { get; set; } = null!;
     
     /// <summary>
-    /// 麻醉方式（General、Local、Epidural等）
+    /// 切口部位
     /// </summary>
-    public string AnesthesiaMethod { get; set; } = null!;
+    public string IncisionSite { get; set; } = null!;
     
     /// <summary>
     /// 主刀医生ID
@@ -36,27 +36,48 @@ public class SurgicalOrderDto
     public string SurgeonId { get; set; } = null!;
     
     /// <summary>
-    /// 助手医生ID列表
-    /// </summary>
-    public List<string> AssistantIds { get; set; } = new();
-    
-    /// <summary>
     /// 计划手术时间
     /// </summary>
-    public DateTime ScheduledTime { get; set; }
+    public DateTime ScheduleTime { get; set; }
     
     /// <summary>
-    /// 预计时长（分钟）
+    /// 术前宣讲事项（JSON数组）
     /// </summary>
-    public int? EstimatedDuration { get; set; }
+    public List<string>? RequiredTalk { get; set; }
     
     /// <summary>
-    /// 手术室
+    /// 术前操作事项（JSON数组）
     /// </summary>
-    public string? OperatingRoom { get; set; }
+    public List<string>? RequiredOperation { get; set; }
+    
+    /// <summary>
+    /// 手术药品列表
+    /// </summary>
+    public List<SurgicalDrugItemDto>? Items { get; set; }
     
     /// <summary>
     /// 备注
     /// </summary>
     public string? Remarks { get; set; }
+}
+
+/// <summary>
+/// 手术药品项DTO
+/// </summary>
+public class SurgicalDrugItemDto
+{
+    /// <summary>
+    /// 药品ID
+    /// </summary>
+    public string DrugId { get; set; } = null!;
+    
+    /// <summary>
+    /// 剂量
+    /// </summary>
+    public string Dosage { get; set; } = null!;
+    
+    /// <summary>
+    /// 备注
+    /// </summary>
+    public string? Note { get; set; }
 }
