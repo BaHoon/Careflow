@@ -3,8 +3,8 @@
     class="task-item" 
     :class="{ 
       'task-highlight': highlight,
-      'task-overdue': task.isOverdue,
-      'task-due-soon': task.isDueSoon && !task.isOverdue
+      'task-overdue': task.excessDelayMinutes > 0 && task.status !== 'Completed',
+      'task-due-soon': task.status === 'Pending' && task.delayMinutes >= -60 && task.excessDelayMinutes <= 0
     }"
     @click="handleClick"
   >
@@ -28,11 +28,15 @@
       <div class="task-time">
         <el-icon><Clock /></el-icon>
         <span>计划时间：{{ formatTime(task.plannedStartTime) }}</span>
-        <span v-if="task.isOverdue" class="overdue-text">
-          (已超时 {{ getOverdueMinutes }}分钟)
+        <!-- 只在超时任务和临期任务显示延迟信息 -->
+        <span v-if="task.excessDelayMinutes > 0 && task.status !== 'Completed'" class="overdue-text">
+          (超出容忍期 {{ task.excessDelayMinutes }}分钟)
         </span>
-        <span v-else-if="task.isDueSoon" class="due-soon-text">
-          (还有 {{ getDueMinutes }}分钟)
+        <span v-else-if="task.delayMinutes > 0 && task.delayMinutes >= -60 && task.status === 'Pending'" class="delay-text">
+          (延迟 {{ task.delayMinutes }}分钟，容忍期内)
+        </span>
+        <span v-else-if="task.delayMinutes < 0 && task.delayMinutes >= -60 && task.status === 'Pending'" class="due-soon-text">
+          (还有 {{ Math.abs(task.delayMinutes) }}分钟)
         </span>
       </div>
 
@@ -160,22 +164,6 @@ const formatTime = (dateString) => {
   });
 };
 
-// 超时分钟数
-const getOverdueMinutes = computed(() => {
-  if (!props.task.isOverdue) return 0;
-  const now = new Date();
-  const planned = new Date(props.task.plannedStartTime);
-  return Math.floor((now - planned) / 1000 / 60);
-});
-
-// 距离到期分钟数
-const getDueMinutes = computed(() => {
-  if (!props.task.isDueSoon) return 0;
-  const now = new Date();
-  const planned = new Date(props.task.plannedStartTime);
-  return Math.floor((planned - now) / 1000 / 60);
-});
-
 // 事件处理
 const handleClick = () => {
   emit('click', props.task);
@@ -266,8 +254,13 @@ const handleViewDetail = () => {
   font-weight: 600;
 }
 
-.due-soon-text {
+.delay-text {
   color: #e6a23c;
+  font-weight: 500;
+}
+
+.due-soon-text {
+  color: #409eff;
   font-weight: 600;
 }
 

@@ -78,6 +78,12 @@ public class NurseTaskQueryDto
 public class NurseTaskDto
 {
     public long Id { get; set; }
+    
+    /// <summary>
+    /// 任务来源：NursingTask（护理任务）或 ExecutionTask（医嘱执行任务）
+    /// </summary>
+    public string TaskSource { get; set; } = string.Empty;
+    
     public long MedicalOrderId { get; set; }
     public string PatientId { get; set; } = string.Empty;
     public string PatientName { get; set; } = string.Empty;

@@ -77,7 +77,7 @@
           </template>
           <div class="timeline-group">
             <div class="group-header due-soon-header">
-              <h3>临期任务 (30分钟内) ({{ groupedTasks.dueSoon.length }})</h3>
+              <h3>临期任务  ({{ groupedTasks.dueSoon.length }})</h3>
             </div>
             <div class="task-list">
               <TaskItem
@@ -166,9 +166,20 @@ const emit = defineEmits(['task-click']);
 // 任务统计
 const statistics = computed(() => {
   return {
-    overdueCount: props.tasks.filter(t => t.isOverdue).length,
-    dueSoonCount: props.tasks.filter(t => t.isDueSoon && !t.isOverdue).length,
-    pendingCount: props.tasks.filter(t => t.status === 'Pending' && !t.isOverdue && !t.isDueSoon).length,
+    // 超时任务：超出容忍期的未完成任务
+    overdueCount: props.tasks.filter(t => t.excessDelayMinutes > 0 && t.status !== 'Completed').length,
+    // 临期任务：前一小时到容忍期内的待执行任务
+    dueSoonCount: props.tasks.filter(t => 
+      t.status === 'Pending' && 
+      t.delayMinutes >= -60 && 
+      t.excessDelayMinutes <= 0
+    ).length,
+    // 待执行任务：还没到前一小时的任务
+    pendingCount: props.tasks.filter(t => 
+      t.status === 'Pending' && 
+      t.delayMinutes < -60
+    ).length,
+    // 已完成任务
     completedCount: props.tasks.filter(t => t.status === 'Completed').length
   };
 });
@@ -176,9 +187,20 @@ const statistics = computed(() => {
 // 任务分组
 const groupedTasks = computed(() => {
   return {
-    overdue: props.tasks.filter(t => t.isOverdue && t.status !== 'Completed'),
-    dueSoon: props.tasks.filter(t => t.isDueSoon && !t.isOverdue && t.status !== 'Completed'),
-    pending: props.tasks.filter(t => t.status === 'Pending' && !t.isOverdue && !t.isDueSoon),
+    // 超时任务：超出容忍期的未完成任务
+    overdue: props.tasks.filter(t => t.excessDelayMinutes > 0 && t.status !== 'Completed'),
+    // 临期任务：前一小时到容忍期内的待执行任务
+    dueSoon: props.tasks.filter(t => 
+      t.status === 'Pending' && 
+      t.delayMinutes >= -60 && 
+      t.excessDelayMinutes <= 0
+    ),
+    // 待执行任务：还没到前一小时的任务
+    pending: props.tasks.filter(t => 
+      t.status === 'Pending' && 
+      t.delayMinutes < -60
+    ),
+    // 已完成任务
     completed: props.tasks.filter(t => t.status === 'Completed')
   };
 });

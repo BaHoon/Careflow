@@ -378,7 +378,7 @@ namespace CareFlow.WebApi.Controllers
         }
 
         /// <summary>
-        /// [护士端] 获取我的待办任务列表
+        /// [护士端] 获取我的待办任务列表（包含护理任务和医嘱执行任务）
         /// </summary>
         /// <param name="nurseId">护士ID</param>
         /// <param name="date">查询日期（可选，默认今天）</param>
@@ -392,9 +392,18 @@ namespace CareFlow.WebApi.Controllers
         {
             try
             {
-                var targetDate = date ?? DateTime.UtcNow;
-                var startOfDay = DateTime.SpecifyKind(targetDate.Date, DateTimeKind.Utc);
-                var endOfDay = DateTime.SpecifyKind(startOfDay.AddDays(1), DateTimeKind.Utc);
+                // 使用中国时区处理日期
+                var chinaTimeZone = TimeZoneInfo.FindSystemTimeZoneById("China Standard Time");
+                var targetDate = date ?? TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, chinaTimeZone);
+                
+                // 获取当天中国时间的开始和结束（转换为UTC用于数据库查询）
+                var chinaDateOnly = DateOnly.FromDateTime(targetDate);
+                var chinaStartOfDay = chinaDateOnly.ToDateTime(TimeOnly.MinValue);
+                var chinaEndOfDay = chinaDateOnly.AddDays(1).ToDateTime(TimeOnly.MinValue);
+                
+                // 转换为UTC时间（数据库存储的是UTC）
+                var startOfDay = TimeZoneInfo.ConvertTimeToUtc(chinaStartOfDay, chinaTimeZone);
+                var endOfDay = TimeZoneInfo.ConvertTimeToUtc(chinaEndOfDay, chinaTimeZone);
 
                 // 获取护士所属科室
                 var nurse = await _context.Nurses
@@ -413,8 +422,54 @@ namespace CareFlow.WebApi.Controllers
                     .Select(b => b.Id)
                     .ToListAsync();
 
-                // 查询任务：筛选该科室所有病区床位上的患者任务
-                var tasksQuery = _context.ExecutionTasks
+                var currentTime = DateTime.UtcNow;
+                var allTasks = new List<NurseTaskDto>();
+
+                // 1. 查询护理任务 (NursingTask)
+                var nursingTasksQuery = _context.NursingTasks
+                    .Include(nt => nt.Patient)
+                    .Where(nt => nt.ScheduledTime >= startOfDay &&
+                                 nt.ScheduledTime < endOfDay &&
+                                 bedIds.Contains(nt.Patient.BedId));
+
+                if (!string.IsNullOrEmpty(status))
+                {
+                    nursingTasksQuery = nursingTasksQuery.Where(nt => nt.Status == status);
+                }
+
+                var nursingTasks = await nursingTasksQuery.ToListAsync();
+
+                foreach (var task in nursingTasks)
+                {
+                    var delayStatus = _delayCalculator.CalculateNursingTaskDelay(task, currentTime);
+                    
+                    allTasks.Add(new NurseTaskDto
+                    {
+                        Id = task.Id,
+                        TaskSource = "NursingTask", // 标识任务来源
+                        PatientId = task.PatientId,
+                        PatientName = task.Patient?.Name ?? "未知",
+                        BedId = task.Patient?.BedId ?? "未知",
+                        Category = task.TaskType, // Routine, ReMeasure
+                        PlannedStartTime = task.ScheduledTime,
+                        ActualStartTime = task.ExecuteTime,
+                        Status = task.Status,
+                        
+                        // 延迟状态字段
+                        DelayMinutes = delayStatus.DelayMinutes,
+                        AllowedDelayMinutes = delayStatus.AllowedDelayMinutes,
+                        ExcessDelayMinutes = delayStatus.ExcessDelayMinutes,
+                        SeverityLevel = delayStatus.SeverityLevel,
+                        
+                        IsOverdue = task.Status == "Pending" && delayStatus.ExcessDelayMinutes > 0,
+                        IsDueSoon = task.Status == "Pending" && 
+                                    task.ScheduledTime >= currentTime && 
+                                    task.ScheduledTime <= currentTime.AddMinutes(30)
+                    });
+                }
+
+                // 2. 查询医嘱执行任务 (ExecutionTask)
+                var executionTasksQuery = _context.ExecutionTasks
                     .Include(et => et.Patient)
                     .Include(et => et.MedicalOrder)
                     .Where(et => et.PlannedStartTime >= startOfDay &&
@@ -423,23 +478,19 @@ namespace CareFlow.WebApi.Controllers
 
                 if (!string.IsNullOrEmpty(status))
                 {
-                    tasksQuery = tasksQuery.Where(et => et.Status == status);
+                    executionTasksQuery = executionTasksQuery.Where(et => et.Status == status);
                 }
 
-                var tasks = await tasksQuery
-                    .OrderBy(et => et.PlannedStartTime)
-                    .ToListAsync();
+                var executionTasks = await executionTasksQuery.ToListAsync();
 
-                var currentTime = DateTime.UtcNow;
-
-                var nurseTasks = tasks.Select(task =>
+                foreach (var task in executionTasks)
                 {
-                    // 计算延迟状态
                     var delayStatus = _delayCalculator.CalculateExecutionTaskDelay(task, currentTime);
                     
-                    return new NurseTaskDto
+                    allTasks.Add(new NurseTaskDto
                     {
                         Id = task.Id,
+                        TaskSource = "ExecutionTask", // 标识任务来源
                         MedicalOrderId = task.MedicalOrderId,
                         PatientId = task.PatientId,
                         PatientName = task.Patient?.Name ?? "未知",
@@ -452,30 +503,34 @@ namespace CareFlow.WebApi.Controllers
                         DataPayload = task.DataPayload,
                         ResultPayload = task.ResultPayload,
                         
-                        // 新增：延迟状态字段
+                        // 延迟状态字段
                         DelayMinutes = delayStatus.DelayMinutes,
                         AllowedDelayMinutes = delayStatus.AllowedDelayMinutes,
                         ExcessDelayMinutes = delayStatus.ExcessDelayMinutes,
                         SeverityLevel = delayStatus.SeverityLevel,
                         
-                        // 向后兼容字段
                         IsOverdue = task.Status == "Pending" && delayStatus.ExcessDelayMinutes > 0,
                         IsDueSoon = task.Status == "Pending" && 
                                     task.PlannedStartTime >= currentTime && 
                                     task.PlannedStartTime <= currentTime.AddMinutes(30)
-                    };
-                }).ToList();
+                    });
+                }
+
+                // 按计划时间排序
+                var sortedTasks = allTasks.OrderBy(t => t.PlannedStartTime).ToList();
 
                 return Ok(new
                 {
                     nurseId,
                     date = targetDate.Date,
-                    tasks = nurseTasks,
-                    totalCount = nurseTasks.Count,
-                    overdueCount = nurseTasks.Count(t => t.IsOverdue),
-                    dueSoonCount = nurseTasks.Count(t => t.IsDueSoon),
-                    pendingCount = nurseTasks.Count(t => t.Status == "Pending"),
-                    completedCount = nurseTasks.Count(t => t.Status == "Completed")
+                    tasks = sortedTasks,
+                    totalCount = sortedTasks.Count,
+                    nursingTaskCount = nursingTasks.Count,
+                    executionTaskCount = executionTasks.Count,
+                    overdueCount = sortedTasks.Count(t => t.IsOverdue),
+                    dueSoonCount = sortedTasks.Count(t => t.IsDueSoon),
+                    pendingCount = sortedTasks.Count(t => t.Status == "Pending"),
+                    completedCount = sortedTasks.Count(t => t.Status == "Completed")
                 });
             }
             catch (Exception ex)

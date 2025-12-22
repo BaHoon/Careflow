@@ -176,9 +176,23 @@ const loadTasks = async () => {
 
   loading.value = true;
   try {
-    const dateStr = selectedDate.value.toISOString().split('T')[0];
+    // 使用本地日期格式，避免时区转换问题
+    const year = selectedDate.value.getFullYear();
+    const month = String(selectedDate.value.getMonth() + 1).padStart(2, '0');
+    const day = String(selectedDate.value.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
+    
     const response = await getMyTasks(nurseId, dateStr, null); // 不在API层过滤状态
     tasks.value = response.tasks || [];
+    
+    // 确保每个任务都有延迟状态字段（兼容旧数据）
+    tasks.value = tasks.value.map(task => ({
+      ...task,
+      delayMinutes: task.delayMinutes ?? 0,
+      allowedDelayMinutes: task.allowedDelayMinutes ?? 0,
+      excessDelayMinutes: task.excessDelayMinutes ?? 0,
+      severityLevel: task.severityLevel ?? 'Normal'
+    }));
     
     // 提取病人列表
     const patients = new Map();
