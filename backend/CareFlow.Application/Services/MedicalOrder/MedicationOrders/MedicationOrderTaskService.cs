@@ -264,7 +264,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
             PatientId = order.PatientId,
             Category = TaskCategory.Verification, // 取药为核对类
             PlannedStartTime = executionTime.AddMinutes(-30), // 提前30分钟取药
-            Status = ExecutionTaskStatus.Pending,
+            Status = ExecutionTaskStatus.Applying, // 修改：立即执行的取药任务也应该是Applying状态
             CreatedAt = DateTime.UtcNow,
             DataPayload = GenerateRetrieveMedicationDataPayload(order, executionTime.AddMinutes(-30))
         };

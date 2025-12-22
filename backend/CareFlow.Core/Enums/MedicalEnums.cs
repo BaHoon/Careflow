@@ -8,7 +8,7 @@ public enum OrderType { LongTerm = 1, Temporary = 2 } // 长期/临时
 /// </summary>
 public enum OrderStatus 
 { 
-    /// <summary>待护士签收</summary>
+    /// <summary>未提交</summary>
     Draft = 0,
     /// <summary>待护士签收</summary>
     PendingReceive = 1,
