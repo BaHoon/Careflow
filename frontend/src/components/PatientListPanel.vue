@@ -76,6 +76,9 @@
             多选模式
           </el-checkbox>
         </div>
+
+        <!-- 额外的筛选选项（插槽） -->
+        <slot name="extra-filters"></slot>
       </div>
 
       <!-- 患者列表 -->

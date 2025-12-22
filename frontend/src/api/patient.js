@@ -46,6 +46,15 @@ export const getPatientList = (departmentId = null, wardId = null) => {
 export const getPatientsWithPendingCount = (deptCode) => {
   return api.get('/orders/acknowledgement/pending-summary', { 
     params: { deptCode } 
+  }).then(response => {
+    // 确保每个患者都有 unacknowledgedCount 字段（徽章显示）
+    return response.map(patient => ({
+      ...patient,
+      unacknowledgedCount: patient.unacknowledgedCount || 0,
+      // 暂时用 unacknowledgedCount 作为待申请数量的占位符
+      // 未来可以从后端获取真实的待申请数量
+      pendingApplicationCount: patient.unacknowledgedCount || 0
+    }));
   });
 };
 

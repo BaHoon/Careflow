@@ -37,6 +37,15 @@
         </router-link>
         
         <router-link 
+          to="/nurse/application" 
+          class="nav-item"
+          active-class="active"
+        >
+          <el-icon><DocumentCopy /></el-icon>
+          <span>医嘱申请</span>
+        </router-link>
+        
+        <router-link 
           to="/nurse/order-test" 
           class="nav-item"
           active-class="active"
@@ -86,6 +95,7 @@ import {
   Grid, 
   List, 
   Document,
+  DocumentCopy,
   Operation,
   Notebook,
   ArrowDown,
