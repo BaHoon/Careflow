@@ -147,7 +147,7 @@ namespace CareFlow.Application.Services
 
             foreach (var task in pendingTasks)
             {
-                task.Status = ExecutionTaskStatus.Cancelled;
+                task.Status = ExecutionTaskStatus.Stopped;
                 task.IsRolledBack = true;
                 task.ExceptionReason = reason;
                 task.LastModifiedAt = DateTime.UtcNow;

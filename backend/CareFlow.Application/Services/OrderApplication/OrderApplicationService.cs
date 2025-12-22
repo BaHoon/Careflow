@@ -402,10 +402,23 @@ public class OrderApplicationService : IOrderApplicationService
                     continue;
                 }
 
-                // 只有Applied状态的任务可以撤销
-                if (task.Status != ExecutionTaskStatus.Applied)
+                // 只有Applied和AppliedConfirmed状态的任务可以撤销
+                // InProgress（执行中）和结束状态不能撤销
+                var canCancel = task.Status == ExecutionTaskStatus.Applied || 
+                               task.Status == ExecutionTaskStatus.AppliedConfirmed;
+                
+                if (!canCancel)
                 {
-                    errors.Add($"任务 {taskId} 状态为 {task.Status}，不能撤销");
+                    var reason_msg = task.Status switch
+                    {
+                        ExecutionTaskStatus.InProgress => "任务正在执行中",
+                        ExecutionTaskStatus.Completed => "任务已完成",
+                        ExecutionTaskStatus.OrderStopping => "停嘱锁定",
+                        ExecutionTaskStatus.Stopped => "任务已停止/作废",
+                        ExecutionTaskStatus.Incomplete => "任务异常/拒绝",
+                        _ => "当前状态不允许撤销"
+                    };
+                    errors.Add($"任务 {taskId} {reason_msg}（{task.Status}），不能撤销");
                     continue;
                 }
 
@@ -448,6 +461,7 @@ public class OrderApplicationService : IOrderApplicationService
     public async Task<ApplicationResponseDto> CancelInspectionApplicationAsync(
         List<long> orderIds, string nurseId, string? reason = null)
     {
+        // TODO：可撤销逻辑
         _logger.LogInformation("========== 撤销检查申请 ==========");
         _logger.LogInformation("护士ID: {NurseId}, 医嘱数: {Count}", nurseId, orderIds.Count);
 
@@ -628,7 +642,13 @@ public class OrderApplicationService : IOrderApplicationService
         {
             ExecutionTaskStatus.Applying => "待申请",
             ExecutionTaskStatus.Applied => "已申请",
-            ExecutionTaskStatus.AppliedConfirmed => "已结束",
+            ExecutionTaskStatus.AppliedConfirmed => "就绪/已确认",
+            ExecutionTaskStatus.Pending => "待执行",
+            ExecutionTaskStatus.InProgress => "执行中",
+            ExecutionTaskStatus.Completed => "已完成",
+            ExecutionTaskStatus.OrderStopping => "停嘱锁定",
+            ExecutionTaskStatus.Stopped => "已停止/作废",
+            ExecutionTaskStatus.Incomplete => "异常/拒绝",
             _ => status.ToString()
         };
     }

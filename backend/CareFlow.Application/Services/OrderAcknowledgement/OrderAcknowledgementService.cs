@@ -21,6 +21,7 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
     private readonly IRepository<ExecutionTask, long> _taskRepository;
     private readonly IRepository<Doctor, string> _doctorRepository;
     private readonly IRepository<Drug, string> _drugRepository;
+    private readonly IRepository<MedicalOrderStatusHistory, long> _statusHistoryRepository;
     private readonly IMedicationOrderTaskService _medicationTaskService;
     private readonly IInspectionService _inspectionTaskService;
     private readonly ISurgicalOrderTaskService _surgicalTaskService;
@@ -33,6 +34,7 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
         IRepository<ExecutionTask, long> taskRepository,
         IRepository<Doctor, string> doctorRepository,
         IRepository<Drug, string> drugRepository,
+        IRepository<MedicalOrderStatusHistory, long> statusHistoryRepository,
         IMedicationOrderTaskService medicationTaskService,
         IInspectionService inspectionTaskService,
         ISurgicalOrderTaskService surgicalTaskService,
@@ -44,6 +46,7 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
         _taskRepository = taskRepository;
         _doctorRepository = doctorRepository;
         _drugRepository = drugRepository;
+        _statusHistoryRepository = statusHistoryRepository;
         _medicationTaskService = medicationTaskService;
         _inspectionTaskService = inspectionTaskService;
         _surgicalTaskService = surgicalTaskService;
@@ -73,9 +76,12 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
 
             foreach (var patient in patients)
             {
-                // 2. 统计该患者的未签收医嘱数量（状态为PendingReview）
+                // 2. 统计该患者的未签收医嘱数量（状态为PendingReceive、Rejected或PendingStop）
                 var unacknowledgedCount = await _orderRepository.GetQueryable()
-                    .Where(o => o.PatientId == patient.Id && o.Status == OrderStatus.PendingReceive)
+                    .Where(o => o.PatientId == patient.Id && 
+                               (o.Status == OrderStatus.PendingReceive || 
+                                o.Status == OrderStatus.Rejected ||
+                                o.Status == OrderStatus.PendingStop))
                     .CountAsync();
 
                 result.Add(new PatientUnacknowledgedSummaryDto
@@ -112,12 +118,14 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
 
         try
         {
-            // 查询所有待签收的医嘱（包括新开和停止）
+            // 查询所有待签收的医嘱（包括新开、退回和停止）
             var pendingOrders = await _orderRepository.GetQueryable()
                 .Include(o => o.Doctor)
                 .Include(o => o.Patient)
                 .Where(o => o.PatientId == patientId && 
-                           (o.Status == OrderStatus.PendingReceive || o.Status == OrderStatus.Stopped))
+                           (o.Status == OrderStatus.PendingReceive || 
+                            o.Status == OrderStatus.Rejected ||
+                            o.Status == OrderStatus.PendingStop))
                 .OrderByDescending(o => o.CreateTime)
                 .ToListAsync();
 
@@ -134,7 +142,7 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
                 var dto = await MapToPendingOrderDto(order);
 
                 // 根据状态分类
-                if (order.Status == OrderStatus.Stopped)
+                if (order.Status == OrderStatus.PendingStop)
                 {
                     result.StoppedOrders.Add(dto);
                 }
@@ -185,7 +193,9 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
                     continue;
                 }
 
-                if (order.Status != OrderStatus.PendingReceive && order.Status != OrderStatus.Stopped)
+                if (order.Status != OrderStatus.PendingReceive && 
+                    order.Status != OrderStatus.Rejected && 
+                    order.Status != OrderStatus.PendingStop)
                 {
                     var error = $"医嘱 {orderId} 状态为 {order.Status}，不允许签收";
                     _logger.LogWarning(error);
@@ -196,7 +206,7 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
                 AcknowledgedOrderResultDto result;
 
                 // 2. 根据状态判断是新开签收还是停止签收
-                if (order.Status == OrderStatus.Stopped)
+                if (order.Status == OrderStatus.PendingStop)
                 {
                     result = await AcknowledgeStoppedOrderAsync(order, request.NurseId);
                 }
@@ -255,19 +265,36 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
                     continue;
                 }
 
-                if (order.Status != OrderStatus.PendingReceive)
+                if (order.Status != OrderStatus.PendingReceive && order.Status != OrderStatus.Rejected)
                 {
                     errors.Add($"医嘱 {orderId} 状态为 {order.Status}，不允许退回");
                     continue;
                 }
 
-                // 更新状态为Draft，让医生重新修改
-                order.Status = OrderStatus.Draft;
+                var previousStatus = order.Status;
+                
+                // 更新状态为Rejected，让医生重新修改
+                order.Status = OrderStatus.Rejected;
                 order.NurseId = request.NurseId;
-                // TODO: 需要在MedicalOrder实体中添加RejectReason字段
-                // order.RejectReason = request.RejectReason;
+                order.RejectReason = request.RejectReason;
+                order.RejectedAt = DateTime.UtcNow;
+                order.RejectedByNurseId = request.NurseId;
                 
                 await _orderRepository.UpdateAsync(order);
+                
+                // 插入状态历史记录
+                var history = new MedicalOrderStatusHistory
+                {
+                    MedicalOrderId = order.Id,
+                    FromStatus = previousStatus,
+                    ToStatus = OrderStatus.Rejected,
+                    ChangedAt = DateTime.UtcNow,
+                    ChangedById = request.NurseId,
+                    ChangedByType = "Nurse",
+                    Reason = request.RejectReason
+                };
+                await _statusHistoryRepository.AddAsync(history);
+                
                 rejectedIds.Add(orderId);
 
                 _logger.LogInformation("✅ 医嘱 {OrderId} 已退回", orderId);
@@ -301,10 +328,28 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
     {
         _logger.LogInformation("签收新开医嘱，类型: {OrderType}", order.OrderType);
 
+        var previousStatus = order.Status;
+        
         // 1. 更新医嘱状态
         order.Status = OrderStatus.Accepted;
         order.NurseId = nurseId;
+        order.SignedAt = DateTime.UtcNow;
+        order.SignedByNurseId = nurseId;
+        
         await _orderRepository.UpdateAsync(order);
+        
+        // 插入状态历史记录
+        var history = new MedicalOrderStatusHistory
+        {
+            MedicalOrderId = order.Id,
+            FromStatus = previousStatus,
+            ToStatus = OrderStatus.Accepted,
+            ChangedAt = DateTime.UtcNow,
+            ChangedById = nurseId,
+            ChangedByType = "Nurse",
+            Reason = "护士签收"
+        };
+        await _statusHistoryRepository.AddAsync(history);
 
         // 2. 调用对应类型的任务拆分服务
         List<ExecutionTask> tasks = await GenerateTasksForOrderAsync(order);
@@ -370,9 +415,28 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
     {
         _logger.LogInformation("签收停止医嘱，医嘱ID: {OrderId}", order.Id);
 
-        // 更新签收护士
+        var previousStatus = order.Status;
+        
+        // 更新状态为Stopped，并记录签收信息
+        order.Status = OrderStatus.Stopped;
         order.NurseId = nurseId;
+        order.StopConfirmedAt = DateTime.UtcNow;
+        order.StopConfirmedByNurseId = nurseId;
+        
         await _orderRepository.UpdateAsync(order);
+        
+        // 插入状态历史记录
+        var history = new MedicalOrderStatusHistory
+        {
+            MedicalOrderId = order.Id,
+            FromStatus = previousStatus,
+            ToStatus = OrderStatus.Stopped,
+            ChangedAt = DateTime.UtcNow,
+            ChangedById = nurseId,
+            ChangedByType = "Nurse",
+            Reason = "护士确认停嘱"
+        };
+        await _statusHistoryRepository.AddAsync(history);
 
         // TODO: 阶段三实现 - 检查是否有已提交但未执行的申请
         // 查找该医嘱的所有待执行任务
@@ -518,12 +582,20 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
             dto.OpId = operationOrder.OpId;
         }
 
-        // 停止医嘱特有字段
-        if (order.Status == OrderStatus.Stopped)
+        // 停止医嘱特有字段（PendingStop表示待护士签收停止）
+        if (order.Status == OrderStatus.PendingStop)
         {
             dto.StopTime = order.EndTime;
             // TODO: 需要在实体中添加StopReason字段
             dto.StopReason = "医生停止";
+        }
+
+        // 退回医嘱特有字段（Rejected表示护士已退回）
+        if (order.Status == OrderStatus.Rejected)
+        {
+            // TODO: 需要在实体中添加RejectReason字段和RejectTime字段
+            // dto.RejectReason = order.RejectReason;
+            // dto.RejectTime = order.RejectTime;
         }
 
         return dto;

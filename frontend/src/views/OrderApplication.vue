@@ -709,15 +709,15 @@ const handleCancelApply = async (item) => {
     let response;
     if (activeTab.value === 'medication') {
       response = await cancelMedicationApplication({
-        nurseId: currentNurse.staffId,  // ✅ 使用 staffId 字段
-        taskIds: [item.relatedId],
-        cancelReason: '护士取消'
+        nurseId: currentNurse.staffId,
+        ids: [item.relatedId],  // ✅ 后端期望 ids 字段
+        reason: '护士取消'       // ✅ 后端期望 reason 字段
       });
     } else {
       response = await cancelInspectionApplication({
-        nurseId: currentNurse.staffId,  // ✅ 使用 staffId 字段
-        orderIds: [item.relatedId],
-        cancelReason: '护士取消'
+        nurseId: currentNurse.staffId,
+        ids: [item.relatedId],  // ✅ 后端期望 ids 字段
+        reason: '护士取消'       // ✅ 后端期望 reason 字段
       });
     }
 

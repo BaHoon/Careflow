@@ -14,15 +14,18 @@ namespace CareFlow.Application.Services.MedicationOrders;
 public class MedicationOrderService : IMedicationOrderService
 {
     private readonly IRepository<Core.Models.Medical.MedicationOrder, long> _orderRepository;
+    private readonly IRepository<MedicalOrderStatusHistory, long> _statusHistoryRepository;
     private readonly INurseAssignmentService _nurseAssignmentService;
     private readonly ILogger<MedicationOrderService> _logger;
 
     public MedicationOrderService(
         IRepository<Core.Models.Medical.MedicationOrder, long> orderRepository,
+        IRepository<MedicalOrderStatusHistory, long> statusHistoryRepository,
         INurseAssignmentService nurseAssignmentService,
         ILogger<MedicationOrderService> logger)
     {
         _orderRepository = orderRepository;
+        _statusHistoryRepository = statusHistoryRepository;
         _nurseAssignmentService = nurseAssignmentService;
         _logger = logger;
     }
@@ -74,6 +77,19 @@ public class MedicationOrderService : IMedicationOrderService
                 // 保存医嘱（EF Core 会自动级联保存 Items 集合）
                 _logger.LogInformation("保存医嘱到数据库，OrderId将自动生成");
                 await _orderRepository.AddAsync(order);
+                
+                // 插入初始状态历史记录
+                var history = new MedicalOrderStatusHistory
+                {
+                    MedicalOrderId = order.Id,
+                    FromStatus = OrderStatus.Draft,
+                    ToStatus = OrderStatus.PendingReceive,
+                    ChangedAt = DateTime.UtcNow,
+                    ChangedById = request.DoctorId,
+                    ChangedByType = "Doctor",
+                    Reason = "医生创建医嘱"
+                };
+                await _statusHistoryRepository.AddAsync(history);
 
                 _logger.LogInformation("✅ 成功创建药物医嘱，ID: {OrderId}, Items数量: {ItemCount}",
                     order.Id, order.Items?.Count ?? 0);

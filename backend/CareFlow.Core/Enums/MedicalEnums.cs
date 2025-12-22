@@ -21,7 +21,11 @@ public enum OrderStatus
     /// <summary>已停止</summary>
     Stopped = 5, 
     /// <summary>已取消</summary>
-    Cancelled = 6 
+    Cancelled = 6,
+    /// <summary>已退回</summary>
+    Rejected=7,
+    /// <summary>待签收停止医嘱</summary>
+    PendingStop=8
 }
 
 public enum TaskType { Dispensing = 1, Administration = 2, Patrol = 3 } // 配药/给药/巡视
@@ -49,14 +53,14 @@ public enum ExecutionTaskStatus
     /// <summary>已完成 - 任务执行完毕</summary>
     Completed = 5,
     
-    /// <summary>已取消 - 医生取消了医嘱</summary>
-    Cancelled = 6,
+    /// <summary>停止医嘱锁定 - 医嘱下达停止指令时锁定任务</summary>
+    OrderStopping = 6,
     
-    /// <summary>已撤回 - 护士主动撤回申请（仅限Applied状态可撤回）</summary>
-    Revoked = 7,
+    /// <summary>已停止/作废 - 医嘱停止或撤销导致的任务作废</summary>
+    Stopped = 7,
     
-    /// <summary>已跳过 - 护士跳过此次执行</summary>
-    Skipped = 8
+    /// <summary>异常/拒绝 - 护士跳过执行或执行异常</summary>
+    Incomplete = 8
 }
 
 /// <summary>
