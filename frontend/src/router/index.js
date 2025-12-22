@@ -13,6 +13,8 @@ import Inspection from '../views/Inspection.vue'
 import NurseDashboard from '../views/NurseDashboard.vue'
 import NurseTaskList from '../views/NurseTaskList.vue'
 import OrderAcknowledgement from '../views/OrderAcknowledgement.vue'
+import OrderTest from '../views/OrderTest.vue'
+import OrderApplication from '../views/OrderApplication.vue'
 
 // 医生子页面
 import OrderEntry from '../views/OrderEntry.vue'
@@ -62,10 +64,16 @@ const router = createRouter({
           meta: { title: '医嘱签收' }
         },
         {
-          path: 'inspection', // 相对路径，实际路径为 /nurse/inspection
-          name: 'nurse-inspection',
-          component: Inspection,
-          meta: { title: '医嘱查看' }
+          path: 'application', // 相对路径，实际路径为 /nurse/application
+          name: 'order-application',
+          component: OrderApplication,
+          meta: { title: '医嘱申请' }
+        },
+        {
+          path: 'order-test', // 相对路径，实际路径为 /nurse/order-test
+          name: 'order-test',
+          component: OrderTest,
+          meta: { title: '医嘱测试' }
         }
       ]
     },

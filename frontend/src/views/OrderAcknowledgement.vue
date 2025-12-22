@@ -398,15 +398,19 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+// 患者相关API已移至 patient.js
 import { 
-  getPendingOrdersSummary, 
+  getPatientsWithPendingCount, 
+  getCurrentWard 
+} from '../api/patient';
+// 医嘱签收相关API
+import { 
   getPatientPendingOrders,
   acknowledgeOrders,
   rejectOrders,
   requestMedicationImmediately,
   requestInspection,
-  cancelMedicationRequest,
-  getCurrentWard
+  cancelMedicationRequest
 } from '../api/orderAcknowledgement';
 
 // ==================== 状态管理 ====================
@@ -607,7 +611,7 @@ const loadPatientList = async () => {
       return;
     }
 
-    const summary = await getPendingOrdersSummary(deptCode);
+    const summary = await getPatientsWithPendingCount(deptCode);
     patientList.value = summary;
     
     ElMessage.success(`加载了 ${summary.length} 个患者`);

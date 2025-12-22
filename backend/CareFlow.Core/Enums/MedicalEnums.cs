@@ -8,7 +8,7 @@ public enum OrderType { LongTerm = 1, Temporary = 2 } // 长期/临时
 /// </summary>
 public enum OrderStatus 
 { 
-    /// <summary>待护士签收</summary>
+    /// <summary>未提交</summary>
     Draft = 0,
     /// <summary>待护士签收</summary>
     PendingReceive = 1,
@@ -21,11 +21,47 @@ public enum OrderStatus
     /// <summary>已停止</summary>
     Stopped = 5, 
     /// <summary>已取消</summary>
-    Cancelled = 6 
+    Cancelled = 6,
+    /// <summary>已退回</summary>
+    Rejected=7,
+    /// <summary>待签收停止医嘱</summary>
+    PendingStop=8
 }
 
 public enum TaskType { Dispensing = 1, Administration = 2, Patrol = 3 } // 配药/给药/巡视
-public enum ExecutionTaskStatus { Applying = 0, Applyend = 1, Pending = 2, InProgress = 3, Completed = 4, Cancelled = 5, Skipped = 6} // 任务状态
+
+/// <summary>
+/// 执行任务状态枚举
+/// </summary>
+public enum ExecutionTaskStatus 
+{ 
+    /// <summary>待申请 - 任务刚生成，等待护士提交申请（仅药品/检查任务）</summary>
+    Applying = 0,
+    
+    /// <summary>已申请 - 护士已提交申请，等待外部接口反馈</summary>
+    Applied = 1,
+    
+    /// <summary>申请已确认 - 外部接口反馈完毕（药房已配药/检查站已排号）</summary>
+    AppliedConfirmed = 2,
+    
+    /// <summary>待执行 - 无需申请的任务直接进入此状态，或申请确认后进入</summary>
+    Pending = 3,
+    
+    /// <summary>执行中 - 护士正在执行任务</summary>
+    InProgress = 4,
+    
+    /// <summary>已完成 - 任务执行完毕</summary>
+    Completed = 5,
+    
+    /// <summary>停止医嘱锁定 - 医嘱下达停止指令时锁定任务</summary>
+    OrderStopping = 6,
+    
+    /// <summary>已停止/作废 - 医嘱停止或撤销导致的任务作废</summary>
+    Stopped = 7,
+    
+    /// <summary>异常/拒绝 - 护士跳过执行或执行异常</summary>
+    Incomplete = 8
+}
 
 /// <summary>
 /// 医嘱时间执行策略

@@ -35,14 +35,23 @@
           <el-icon><Document /></el-icon>
           <span>医嘱签收</span>
         </router-link>
-
+        
         <router-link 
-          to="/nurse/inspection" 
+          to="/nurse/application" 
           class="nav-item"
           active-class="active"
         >
-          <el-icon><Document /></el-icon>
-          <span>医嘱查看</span>
+          <el-icon><DocumentCopy /></el-icon>
+          <span>医嘱申请</span>
+        </router-link>
+        
+        <router-link 
+          to="/nurse/order-test" 
+          class="nav-item"
+          active-class="active"
+        >
+          <el-icon><Operation /></el-icon>
+          <span>医嘱测试</span>
         </router-link>
       </nav>
       
@@ -86,6 +95,8 @@ import {
   Grid, 
   List, 
   Document,
+  DocumentCopy,
+  Operation,
   Notebook,
   ArrowDown,
   SwitchButton 
