@@ -20,6 +20,31 @@ public class ApplicationItemDto
     /// </summary>
     public long OrderId { get; set; }
     
+    /// <summary>
+    /// 医嘱类型：Medication | Inspection | Surgical | Operation
+    /// </summary>
+    public string OrderType { get; set; } = null!;
+    
+    /// <summary>
+    /// 是否长期医嘱
+    /// </summary>
+    public bool IsLongTerm { get; set; }
+    
+    /// <summary>
+    /// 医嘱显示文本（主要内容）
+    /// </summary>
+    public string DisplayText { get; set; } = null!;
+    
+    /// <summary>
+    /// 项目数量（多药品时使用）
+    /// </summary>
+    public int ItemCount { get; set; }
+    
+    /// <summary>
+    /// 检查来源（仅检查类医嘱）
+    /// </summary>
+    public string? InspectionSource { get; set; }
+    
     // === 患者信息 ===
     public string PatientId { get; set; } = null!;
     public string PatientName { get; set; } = null!;
@@ -39,6 +64,11 @@ public class ApplicationItemDto
     /// 计划开始时间
     /// </summary>
     public DateTime PlannedStartTime { get; set; }
+    
+    /// <summary>
+    /// 计划结束时间
+    /// </summary>
+    public DateTime? PlantEndTime { get; set; }
     
     /// <summary>
     /// 申请内容描述

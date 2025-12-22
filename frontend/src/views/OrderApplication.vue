@@ -79,7 +79,7 @@
             range-separator="至"
             start-placeholder="开始时间"
             end-placeholder="结束时间"
-            value-format="YYYY-MM-DD HH:mm:ss"
+            value-format="YYYY-MM-DDTHH:mm:ss"
             @change="loadApplications"
             class="time-picker"
           />
@@ -89,7 +89,7 @@
         <div class="filter-group">
           <span class="filter-label">排序:</span>
           <el-select v-model="sortBy" @change="handleSortChange" class="sort-select">
-            <el-option label="创建时间" value="createTime" />
+            <el-option label="计划时间" value="createTime" />
             <el-option label="患者床号" value="bedId" />
             <el-option label="申请状态" value="status" />
           </el-select>
@@ -141,13 +141,41 @@
 
             <!-- 申请头部 -->
             <div class="application-header">
+                            
+              <!-- 状态标签 -->
               <el-tag 
                 :type="getStatusColor(item.status)" 
                 size="small"
+                class="status-tag"
               >
                 {{ getStatusText(item.status) }}
               </el-tag>
-              <span class="application-id">#{{ item.relatedId }}</span>
+              <!-- 医嘱类型标签（长期/临时） -->
+              <el-tag 
+                :type="item.isLongTerm ? 'primary' : 'warning'" 
+                size="small"
+              >
+                {{ item.isLongTerm ? '长期' : '临时' }}
+              </el-tag>
+              
+              <!-- 医嘱分类标签（药品/检查/手术） -->
+              <el-tag 
+                :type="getOrderTypeColor(item.orderType)" 
+                size="small"
+              >
+                {{ getOrderTypeName(item.orderType) }}
+              </el-tag>
+              
+              <!-- 主要内容 -->
+              <span class="order-main-text">{{ item.displayText }}</span>
+              
+              <!-- 检查来源（仅检查类） -->
+              <span v-if="item.inspectionSource" class="inspection-source">
+                · {{ item.inspectionSource }}
+              </span>
+
+              
+              <!-- 加急标识 -->
               <span v-if="item.isUrgent" class="urgent-badge">🔥 加急</span>
             </div>
 
@@ -165,9 +193,9 @@
                 </div>
               </div>
 
-              <div v-if="item.scheduleTime" class="detail-section">
-                <span class="detail-label">执行时间:</span>
-                <span class="detail-value">{{ formatDateTime(item.scheduleTime) }}</span>
+              <div v-if="item.plannedStartTime" class="detail-section">
+                <span class="detail-label">计划时间:</span>
+                <span class="detail-value">{{ formatDateTime(item.plannedStartTime) }}</span>
               </div>
 
               <div v-if="item.remarks" class="detail-section">
@@ -204,9 +232,14 @@
                 <span class="detail-value">{{ item.inspectionInfo.precautions }}</span>
               </div>
 
-              <div v-if="item.inspectionInfo.appointmentInfo" class="detail-section">
-                <span class="detail-label">预约信息:</span>
-                <span class="detail-value">{{ item.inspectionInfo.appointmentInfo }}</span>
+              <div v-if="item.inspectionInfo.appointmentTime" class="detail-section">
+                <span class="detail-label">预约时间:</span>
+                <span class="detail-value">{{ formatDateTime(item.inspectionInfo.appointmentTime) }}</span>
+              </div>
+
+              <div v-if="item.inspectionInfo.appointmentPlace" class="detail-section">
+                <span class="detail-label">预约地点:</span>
+                <span class="detail-value">{{ item.inspectionInfo.appointmentPlace }}</span>
               </div>
 
               <div v-if="item.remarks" class="detail-section">
@@ -465,14 +498,32 @@ const loadApplications = async () => {
 
     // 构造请求参数（与后端DTO匹配）
     const requestData = {
-      applicationType: activeTab.value === 'medication' ? 'Medication' : 'Inspection', // ✅ 字符串类型
-      patientIds: [selectedPatient.value.patientId], // ✅ 使用正确的字段名
-      statusFilter: statusFilter.value,
-      startTime: timeRange.value?.[0] || null,
-      endTime: timeRange.value?.[1] || null
+      applicationType: activeTab.value === 'medication' ? 'Medication' : 'Inspection',
+      patientIds: [selectedPatient.value.patientId]
     };
 
+    // 添加状态筛选（如果有的话）
+    if (statusFilter.value && statusFilter.value.length > 0) {
+      requestData.statusFilter = statusFilter.value;
+    }
+
+    // 仅药品申请时添加时间范围参数
+    // 需要将本地时间转换为UTC时间（PostgreSQL要求）
+    if (activeTab.value === 'medication' && timeRange.value && timeRange.value.length === 2) {
+      if (timeRange.value[0]) {
+        // timeRange.value[0] 格式: "2025-12-22T08:00:00" (本地时间)
+        // 需要转换为 "2025-12-22T00:00:00Z" (UTC时间)
+        const localDate = new Date(timeRange.value[0]);
+        requestData.startTime = localDate.toISOString(); // 自动转为UTC并添加Z后缀
+      }
+      if (timeRange.value[1]) {
+        const localDate = new Date(timeRange.value[1]);
+        requestData.endTime = localDate.toISOString();
+      }
+    }
+
     console.log('📤 发送申请列表请求:', requestData);
+    console.log('📤 请求JSON:', JSON.stringify(requestData));
 
     let response;
     if (activeTab.value === 'medication') {
@@ -507,7 +558,28 @@ const loadApplications = async () => {
     }
   } catch (error) {
     console.error('加载申请列表失败:', error);
-    ElMessage.error('加载申请列表失败');
+    console.error('错误详情:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    });
+    
+    // 显示详细的验证错误
+    if (error.response?.data?.errors) {
+      console.error('验证错误详情:', error.response.data.errors);
+      const errors = error.response.data.errors;
+      const errorMessages = Object.entries(errors)
+        .map(([field, messages]) => `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`)
+        .join('\n');
+      ElMessage.error(`验证失败:\n${errorMessages}`);
+    } else {
+      const errorMsg = error.response?.data?.title 
+        || error.response?.data?.message 
+        || error.message 
+        || '加载申请列表失败';
+      ElMessage.error(errorMsg);
+    }
+    
     applicationList.value = [];
   } finally {
     loading.value = false;
@@ -520,7 +592,8 @@ const sortedApplications = computed(() => {
   
   switch (sortBy.value) {
     case 'createTime':
-      return list.sort((a, b) => new Date(b.createTime) - new Date(a.createTime));
+      // 按计划开始时间从早到晚排序（升序）
+      return list.sort((a, b) => new Date(a.plannedStartTime) - new Date(b.plannedStartTime));
     case 'bedId':
       return list.sort((a, b) => (a.bedId || '').localeCompare(b.bedId || ''));
     case 'status':
@@ -735,6 +808,32 @@ const handleCancelApply = async (item) => {
   }
 };
 
+// 医嘱类型颜色映射
+const getOrderTypeColor = (orderType) => {
+  const colorMap = {
+    Medication: 'success',
+    Inspection: 'info',
+    Surgical: 'danger',
+    Operation: 'warning'
+  };
+  return colorMap[orderType] || 'info';
+};
+
+// 医嘱类型名称映射
+const getOrderTypeName = (orderType) => {
+  const nameMap = {
+    Medication: '药品',
+    Inspection: '检查',
+    Surgical: '手术',
+    Operation: '操作',
+    MedicationOrder: '药品',
+    InspectionOrder: '检查',
+    SurgicalOrder: '手术',
+    OperationOrder: '操作'
+  };
+  return nameMap[orderType] || orderType;
+};
+
 // 状态颜色映射
 const getStatusColor = (status) => {
   const colorMap = {
@@ -755,17 +854,19 @@ const getStatusText = (status) => {
   return textMap[status] || status;
 };
 
-// 格式化日期时间
+// 格式化日期时间（自动将UTC时间转换为北京时间）
 const formatDateTime = (dateString) => {
   if (!dateString) return '-';
   try {
     const date = new Date(dateString);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    return `${year}-${month}-${day} ${hours}:${minutes}`;
+    // 使用toLocaleString自动转换为本地时区（北京时间 GMT+8）
+    return date.toLocaleString('zh-CN', { 
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   } catch {
     return dateString;
   }
@@ -1032,6 +1133,25 @@ const formatDateTime = (dateString) => {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
+}
+
+.order-main-text {
+  font-size: 0.95rem;
+  color: var(--text-primary, #303133);
+  font-weight: 600;
+  flex: 1;
+  min-width: 150px;
+}
+
+.inspection-source {
+  font-size: 0.85rem;
+  color: var(--text-secondary, #909399);
+  font-weight: 500;
+}
+
+.status-tag {
+  margin-left: auto;
 }
 
 .application-id {
