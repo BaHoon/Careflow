@@ -573,17 +573,38 @@ public class OrderApplicationService : IOrderApplicationService
             ? $"取药：{string.Join("、", medications.Select(m => m.DrugName))}"
             : "取药任务";
 
+        // 构建显示文本：多药品时显示第一个 + "等"
+        string displayText;
+        if (medications.Count > 1)
+        {
+            displayText = $"{medications[0].DrugName}等";
+        }
+        else if (medications.Count == 1)
+        {
+            displayText = medications[0].DrugName;
+        }
+        else
+        {
+            displayText = "取药任务";
+        }
+
         return new ApplicationItemDto
         {
             ApplicationType = "Medication",
             RelatedId = task.Id,
             OrderId = task.MedicalOrderId,
+            OrderType = task.MedicalOrder?.OrderType ?? "Medication",
+            IsLongTerm = task.MedicalOrder?.IsLongTerm ?? false,
+            DisplayText = displayText,
+            ItemCount = medications.Count,
+            InspectionSource = null,
             PatientId = task.PatientId,
             PatientName = task.Patient?.Name ?? "",
             BedId = task.Patient?.BedId ?? "",
             Status = task.Status.ToString(),
             StatusText = GetStatusText(task.Status),
             PlannedStartTime = task.PlannedStartTime,
+            PlantEndTime = task.MedicalOrder?.PlantEndTime,
             ContentDescription = contentDesc,
             Medications = medications,
             InspectionInfo = null,
@@ -606,12 +627,18 @@ public class OrderApplicationService : IOrderApplicationService
             ApplicationType = "Inspection",
             RelatedId = order.Id,
             OrderId = order.Id,
+            OrderType = "Inspection",
+            IsLongTerm = order.IsLongTerm,
+            DisplayText = order.ItemCode, // TODO: 从字典获取检查项目名称
+            ItemCount = 1,
+            InspectionSource = order.Source.ToString(),
             PatientId = order.PatientId,
             PatientName = order.Patient?.Name ?? "",
             BedId = order.Patient?.BedId ?? "",
             Status = "Applying", // 检查医嘱还未提交申请时显示为待申请
             StatusText = "待申请",
             PlannedStartTime = order.AppointmentTime ?? order.CreateTime,
+            PlantEndTime = order.PlantEndTime,
             ContentDescription = $"检查：{order.ItemCode}",
             Medications = null,
             InspectionInfo = new InspectionDetail
