@@ -1,3 +1,4 @@
+using CareFlow.Core.Enums;
 namespace CareFlow.Application.DTOs.Nursing;
 
 /// <summary>
@@ -92,7 +93,7 @@ public class NurseTaskDto
     public DateTime PlannedStartTime { get; set; }
     public DateTime? ActualStartTime { get; set; }
     public DateTime? ActualEndTime { get; set; }
-    public string Status { get; set; } = string.Empty;
+    public ExecutionTaskStatus Status { get; set; } = ExecutionTaskStatus.Pending;
     public string DataPayload { get; set; } = string.Empty;
     public string? ResultPayload { get; set; }
     

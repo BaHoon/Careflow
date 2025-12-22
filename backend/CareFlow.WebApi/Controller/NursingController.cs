@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using CareFlow.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using CareFlow.Core.Models.Medical;
+using CareFlow.Core.Enums;
 
 namespace CareFlow.WebApi.Controllers
 {
@@ -133,7 +134,7 @@ namespace CareFlow.WebApi.Controllers
                 var todaySurgeries = await _context.SurgicalOrders
                     .Where(so => patientIds.Contains(so.PatientId) &&
                                  so.ScheduleTime.Date == currentTime.Date &&
-                                 (so.Status == "Accepted" || so.Status == "PendingReview"))
+                                 (so.Status == OrderStatus.Accepted || so.Status == OrderStatus.PendingReceive))
                     .Select(so => so.PatientId)
                     .Distinct()
                     .ToListAsync();
@@ -141,7 +142,7 @@ namespace CareFlow.WebApi.Controllers
                 // 批量查询待执行任务
                 var pendingTasks = await _context.ExecutionTasks
                     .Where(et => patientIds.Contains(et.PatientId) &&
-                                 et.Status == "Pending")
+                                 et.Status == ExecutionTaskStatus.Pending)
                     .GroupBy(et => et.PatientId)
                     .Select(g => new { PatientId = g.Key, Count = g.Count() })
                     .ToListAsync();
@@ -149,7 +150,7 @@ namespace CareFlow.WebApi.Controllers
                 // 批量查询超时任务
                 var overdueTasks = await _context.ExecutionTasks
                     .Where(et => patientIds.Contains(et.PatientId) &&
-                                 et.Status == "Pending" &&
+                                 et.Status == ExecutionTaskStatus.Pending &&
                                  et.PlannedStartTime < currentTime)
                     .GroupBy(et => et.PatientId)
                     .Select(g => new { PatientId = g.Key, Count = g.Count() })
@@ -284,14 +285,14 @@ namespace CareFlow.WebApi.Controllers
                 var todaySurgeries = await _context.SurgicalOrders
                     .Where(so => patientIds.Contains(so.PatientId) &&
                                  so.ScheduleTime.Date == currentTime.Date &&
-                                 (so.Status == "Accepted" || so.Status == "PendingReview"))
+                                 (so.Status == OrderStatus.Accepted || so.Status == OrderStatus.PendingReceive))
                     .Select(so => so.PatientId)
                     .Distinct()
                     .ToListAsync();
 
                 // 批量查询待执行任务
                 var pendingTasks = await _context.ExecutionTasks
-                    .Where(et => patientIds.Contains(et.PatientId) && et.Status == "Pending")
+                    .Where(et => patientIds.Contains(et.PatientId) && et.Status == ExecutionTaskStatus.Pending)
                     .GroupBy(et => et.PatientId)
                     .Select(g => new { PatientId = g.Key, Count = g.Count() })
                     .ToListAsync();
@@ -299,7 +300,7 @@ namespace CareFlow.WebApi.Controllers
                 // 批量查询超时任务
                 var overdueTasks = await _context.ExecutionTasks
                     .Where(et => patientIds.Contains(et.PatientId) &&
-                                 et.Status == "Pending" &&
+                                 et.Status == ExecutionTaskStatus.Pending &&
                                  et.PlannedStartTime < currentTime)
                     .GroupBy(et => et.PatientId)
                     .Select(g => new { PatientId = g.Key, Count = g.Count() })
@@ -388,7 +389,7 @@ namespace CareFlow.WebApi.Controllers
         public async Task<IActionResult> GetMyTasks(
             string nurseId, 
             DateTime? date = null, 
-            string? status = null)
+            ExecutionTaskStatus? status = null)
         {
             try
             {
@@ -476,11 +477,36 @@ namespace CareFlow.WebApi.Controllers
                                  et.PlannedStartTime < endOfDay &&
                                  bedIds.Contains(et.Patient.BedId));
 
-                if (!string.IsNullOrEmpty(status))
+                if (status.HasValue)
                 {
                     executionTasksQuery = executionTasksQuery.Where(et => et.Status == status);
                 }
 
+                var tasks = await tasksQuery
+                    .OrderBy(et => et.PlannedStartTime)
+                    .ToListAsync();
+
+                var currentTime = DateTime.UtcNow;
+
+                var nurseTasks = tasks.Select(task => new NurseTaskDto
+                {
+                    Id = task.Id,
+                    MedicalOrderId = task.MedicalOrderId,
+                    PatientId = task.PatientId,
+                    PatientName = task.Patient?.Name ?? "未知",
+                    BedId = task.Patient?.BedId ?? "未知",
+                    Category = task.Category.ToString(),
+                    PlannedStartTime = task.PlannedStartTime,
+                    ActualStartTime = task.ActualStartTime,
+                    ActualEndTime = task.ActualEndTime,
+                    Status = task.Status,
+                    DataPayload = task.DataPayload,
+                    ResultPayload = task.ResultPayload,
+                    IsOverdue = task.Status == ExecutionTaskStatus.Pending && task.PlannedStartTime < currentTime,
+                    IsDueSoon = task.Status == ExecutionTaskStatus.Pending && 
+                                task.PlannedStartTime >= currentTime && 
+                                task.PlannedStartTime <= currentTime.AddMinutes(30)
+                }).ToList();
                 var executionTasks = await executionTasksQuery.ToListAsync();
 
                 foreach (var task in executionTasks)
@@ -509,8 +535,8 @@ namespace CareFlow.WebApi.Controllers
                         ExcessDelayMinutes = delayStatus.ExcessDelayMinutes,
                         SeverityLevel = delayStatus.SeverityLevel,
                         
-                        IsOverdue = task.Status == "Pending" && delayStatus.ExcessDelayMinutes > 0,
-                        IsDueSoon = task.Status == "Pending" && 
+                        IsOverdue = task.Status == ExecutionTaskStatus.Pending && delayStatus.ExcessDelayMinutes > 0,
+                        IsDueSoon = task.Status == ExecutionTaskStatus.Pending && 
                                     task.PlannedStartTime >= currentTime && 
                                     task.PlannedStartTime <= currentTime.AddMinutes(30)
                     });
@@ -523,14 +549,12 @@ namespace CareFlow.WebApi.Controllers
                 {
                     nurseId,
                     date = targetDate.Date,
-                    tasks = sortedTasks,
-                    totalCount = sortedTasks.Count,
-                    nursingTaskCount = nursingTasks.Count,
-                    executionTaskCount = executionTasks.Count,
-                    overdueCount = sortedTasks.Count(t => t.IsOverdue),
-                    dueSoonCount = sortedTasks.Count(t => t.IsDueSoon),
-                    pendingCount = sortedTasks.Count(t => t.Status == "Pending"),
-                    completedCount = sortedTasks.Count(t => t.Status == "Completed")
+                    tasks = nurseTasks,
+                    totalCount = nurseTasks.Count,
+                    overdueCount = nurseTasks.Count(t => t.IsOverdue),
+                    dueSoonCount = nurseTasks.Count(t => t.IsDueSoon),
+                    pendingCount = nurseTasks.Count(t => t.Status == "Pending"),
+                    completedCount = nurseTasks.Count(t => t.Status == "Completed")
                 });
             }
             catch (Exception ex)

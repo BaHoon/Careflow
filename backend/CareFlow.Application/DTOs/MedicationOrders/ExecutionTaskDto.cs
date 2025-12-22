@@ -12,7 +12,7 @@ public class ExecutionTaskDto
     public DateTime? ActualEndTime { get; set; }
     public string? ExecutorStaffId { get; set; }
     public string? CompleterNurseId { get; set; }
-    public string Status { get; set; } = "Pending";
+    public ExecutionTaskStatus Status { get; set; } = ExecutionTaskStatus.Pending;
     public bool IsRolledBack { get; set; }
     public string DataPayload { get; set; } = string.Empty;
     public string? ResultPayload { get; set; }

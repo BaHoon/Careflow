@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CareFlow.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class InitCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -298,14 +298,39 @@ namespace CareFlow.Infrastructure.Migrations
                     PlantEndTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     EndTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     OrderType = table.Column<string>(type: "text", nullable: false),
-                    Status = table.Column<string>(type: "text", nullable: false),
+                    Status = table.Column<int>(type: "integer", nullable: false),
                     IsLongTerm = table.Column<bool>(type: "boolean", nullable: false),
                     Remarks = table.Column<string>(type: "text", nullable: true),
+                    SignedByNurseId = table.Column<string>(type: "text", nullable: true),
+                    SignedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    RejectReason = table.Column<string>(type: "text", nullable: true),
+                    RejectedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    RejectedByNurseId = table.Column<string>(type: "text", nullable: true),
+                    StopReason = table.Column<string>(type: "text", nullable: true),
+                    StopOrderTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    StopDoctorId = table.Column<string>(type: "text", nullable: true),
+                    StopConfirmedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    StopConfirmedByNurseId = table.Column<string>(type: "text", nullable: true),
+                    StopRejectReason = table.Column<string>(type: "text", nullable: true),
+                    StopRejectedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    StopRejectedByNurseId = table.Column<string>(type: "text", nullable: true),
+                    CancelReason = table.Column<string>(type: "text", nullable: true),
+                    CancelledAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    CancelledByDoctorId = table.Column<string>(type: "text", nullable: true),
+                    CompletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    CompletionType = table.Column<string>(type: "text", nullable: true),
+                    ResubmittedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    ModificationNotes = table.Column<string>(type: "text", nullable: true),
                     CreateTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_MedicalOrders", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_MedicalOrders_Doctors_CancelledByDoctorId",
+                        column: x => x.CancelledByDoctorId,
+                        principalTable: "Doctors",
+                        principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_MedicalOrders_Doctors_DoctorId",
                         column: x => x.DoctorId,
@@ -313,8 +338,33 @@ namespace CareFlow.Infrastructure.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
+                        name: "FK_MedicalOrders_Doctors_StopDoctorId",
+                        column: x => x.StopDoctorId,
+                        principalTable: "Doctors",
+                        principalColumn: "Id");
+                    table.ForeignKey(
                         name: "FK_MedicalOrders_Nurses_NurseId",
                         column: x => x.NurseId,
+                        principalTable: "Nurses",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_MedicalOrders_Nurses_RejectedByNurseId",
+                        column: x => x.RejectedByNurseId,
+                        principalTable: "Nurses",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_MedicalOrders_Nurses_SignedByNurseId",
+                        column: x => x.SignedByNurseId,
+                        principalTable: "Nurses",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_MedicalOrders_Nurses_StopConfirmedByNurseId",
+                        column: x => x.StopConfirmedByNurseId,
+                        principalTable: "Nurses",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_MedicalOrders_Nurses_StopRejectedByNurseId",
+                        column: x => x.StopRejectedByNurseId,
                         principalTable: "Nurses",
                         principalColumn: "Id");
                     table.ForeignKey(
@@ -452,7 +502,7 @@ namespace CareFlow.Infrastructure.Migrations
                     ExecutorStaffId = table.Column<string>(type: "text", nullable: true),
                     ActualEndTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     CompleterNurseId = table.Column<string>(type: "text", nullable: true),
-                    Status = table.Column<string>(type: "text", nullable: false),
+                    Status = table.Column<int>(type: "integer", nullable: false),
                     IsRolledBack = table.Column<bool>(type: "boolean", nullable: false),
                     DataPayload = table.Column<string>(type: "text", nullable: false),
                     ResultPayload = table.Column<string>(type: "text", nullable: true),
@@ -502,7 +552,7 @@ namespace CareFlow.Infrastructure.Migrations
                     Precautions = table.Column<string>(type: "text", nullable: true),
                     CheckStartTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     CheckEndTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    BackToWardTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    ReportPendingTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     ReportTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     ReportId = table.Column<string>(type: "text", nullable: true),
                     InspectionStatus = table.Column<int>(type: "integer", nullable: false)
@@ -513,6 +563,34 @@ namespace CareFlow.Infrastructure.Migrations
                     table.ForeignKey(
                         name: "FK_InspectionOrders_MedicalOrders_Id",
                         column: x => x.Id,
+                        principalTable: "MedicalOrders",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "MedicalOrderStatusHistories",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    MedicalOrderId = table.Column<long>(type: "bigint", nullable: false),
+                    FromStatus = table.Column<int>(type: "integer", nullable: false),
+                    ToStatus = table.Column<int>(type: "integer", nullable: false),
+                    ChangedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ChangedById = table.Column<string>(type: "text", nullable: false),
+                    ChangedByType = table.Column<string>(type: "text", nullable: false),
+                    ChangedByName = table.Column<string>(type: "text", nullable: true),
+                    Reason = table.Column<string>(type: "text", nullable: true),
+                    Notes = table.Column<string>(type: "text", nullable: true),
+                    CreateTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MedicalOrderStatusHistories", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_MedicalOrderStatusHistories_MedicalOrders_MedicalOrderId",
+                        column: x => x.MedicalOrderId,
                         principalTable: "MedicalOrders",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -601,6 +679,7 @@ namespace CareFlow.Infrastructure.Migrations
                     ScheduleTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     AnesthesiaType = table.Column<string>(type: "text", nullable: false),
                     IncisionSite = table.Column<string>(type: "text", nullable: false),
+                    SurgeonId = table.Column<string>(type: "text", nullable: false),
                     RequiredTalk = table.Column<string>(type: "text", nullable: true),
                     RequiredOperation = table.Column<string>(type: "text", nullable: true),
                     PrepProgress = table.Column<float>(type: "real", nullable: false),
@@ -698,6 +777,11 @@ namespace CareFlow.Infrastructure.Migrations
                 column: "ReviewerId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_MedicalOrders_CancelledByDoctorId",
+                table: "MedicalOrders",
+                column: "CancelledByDoctorId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_MedicalOrders_DoctorId",
                 table: "MedicalOrders",
                 column: "DoctorId");
@@ -711,6 +795,36 @@ namespace CareFlow.Infrastructure.Migrations
                 name: "IX_MedicalOrders_PatientId",
                 table: "MedicalOrders",
                 column: "PatientId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MedicalOrders_RejectedByNurseId",
+                table: "MedicalOrders",
+                column: "RejectedByNurseId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MedicalOrders_SignedByNurseId",
+                table: "MedicalOrders",
+                column: "SignedByNurseId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MedicalOrders_StopConfirmedByNurseId",
+                table: "MedicalOrders",
+                column: "StopConfirmedByNurseId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MedicalOrders_StopDoctorId",
+                table: "MedicalOrders",
+                column: "StopDoctorId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MedicalOrders_StopRejectedByNurseId",
+                table: "MedicalOrders",
+                column: "StopRejectedByNurseId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MedicalOrderStatusHistories_MedicalOrderId",
+                table: "MedicalOrderStatusHistories",
+                column: "MedicalOrderId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_MedicationOrderItems_DrugId",
@@ -802,6 +916,9 @@ namespace CareFlow.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "InspectionReports");
+
+            migrationBuilder.DropTable(
+                name: "MedicalOrderStatusHistories");
 
             migrationBuilder.DropTable(
                 name: "MedicationOrderItems");

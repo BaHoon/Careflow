@@ -16,22 +16,154 @@ namespace CareFlow.Core.Models.Medical
         [ForeignKey("DoctorId")]
         public Doctor Doctor { get; set; } = null!;
         
-        //校对护士
+        //计划校对护士（计算出的签收护士）
         public string? NurseId { get; set; }
         [ForeignKey("NurseId")]
         public Nurse? Nurse { get; set; }
         
         //基础字段
-        public DateTime PlantEndTime { get; set; } // 理论结束
-        public DateTime? EndTime { get; set; } // 实际结束
+        public DateTime PlantEndTime { get; set; } // 计划结束时间
+        public DateTime? EndTime { get; set; } // 实际结束时间
         public string OrderType { get; set; } = null!; // 鉴别列
-        public string Status { get; set; } = null!;
+        public OrderStatus Status { get; set; } = OrderStatus.PendingReceive;
         public bool IsLongTerm { get; set; }
 
         /// <summary>
         /// 医嘱备注/嘱托
         /// </summary>
         public string? Remarks { get; set; }
+
+        // ==================== 审计字段：签收相关 ====================
+        
+        /// <summary>
+        /// 实际签收护士ID（实际执行签收操作的护士，可能与计划NurseId不同）
+        /// </summary>
+        public string? SignedByNurseId { get; set; }
+        [ForeignKey("SignedByNurseId")]
+        public Nurse? SignedByNurse { get; set; }
+        
+        /// <summary>
+        /// 护士签收时间（Accepted状态时记录）
+        /// </summary>
+        public DateTime? SignedAt { get; set; }
+
+        // ==================== 审计字段：退回相关 (Rejected状态) ====================
+        
+        /// <summary>
+        /// 退回原因（护士退回医嘱时填写）
+        /// </summary>
+        public string? RejectReason { get; set; }
+        
+        /// <summary>
+        /// 退回时间
+        /// </summary>
+        public DateTime? RejectedAt { get; set; }
+        
+        /// <summary>
+        /// 退回护士ID（执行退回操作的护士）
+        /// </summary>
+        public string? RejectedByNurseId { get; set; }
+        [ForeignKey("RejectedByNurseId")]
+        public Nurse? RejectedByNurse { get; set; }
+
+        // ==================== 审计字段：停嘱相关 (PendingStop/Stopped状态) ====================
+        
+        /// <summary>
+        /// 停嘱原因（医生下达停嘱时填写）
+        /// </summary>
+        public string? StopReason { get; set; }
+        
+        /// <summary>
+        /// 医生下达停嘱的时间（进入PendingStop状态的时间）
+        /// </summary>
+        public DateTime? StopOrderTime { get; set; }
+        
+        /// <summary>
+        /// 下达停嘱的医生ID（可能与创建医嘱的医生不同）
+        /// </summary>
+        public string? StopDoctorId { get; set; }
+        [ForeignKey("StopDoctorId")]
+        public Doctor? StopDoctor { get; set; }
+        
+        /// <summary>
+        /// 护士确认停嘱的时间（进入Stopped状态的时间）
+        /// </summary>
+        public DateTime? StopConfirmedAt { get; set; }
+        
+        /// <summary>
+        /// 确认停嘱的护士ID
+        /// </summary>
+        public string? StopConfirmedByNurseId { get; set; }
+        [ForeignKey("StopConfirmedByNurseId")]
+        public Nurse? StopConfirmedByNurse { get; set; }
+        
+        /// <summary>
+        /// 护士拒绝停嘱的原因（如果护士拒绝停嘱）
+        /// </summary>
+        public string? StopRejectReason { get; set; }
+        
+        /// <summary>
+        /// 护士拒绝停嘱的时间
+        /// </summary>
+        public DateTime? StopRejectedAt { get; set; }
+        
+        /// <summary>
+        /// 拒绝停嘱的护士ID
+        /// </summary>
+        public string? StopRejectedByNurseId { get; set; }
+        [ForeignKey("StopRejectedByNurseId")]
+        public Nurse? StopRejectedByNurse { get; set; }
+
+        // ==================== 审计字段：撤销相关 (Cancelled状态) ====================
+        
+        /// <summary>
+        /// 医生撤销医嘱的原因
+        /// </summary>
+        public string? CancelReason { get; set; }
+        
+        /// <summary>
+        /// 撤销时间
+        /// </summary>
+        public DateTime? CancelledAt { get; set; }
+        
+        /// <summary>
+        /// 撤销医嘱的医生ID（可能与创建医嘱的医生不同）
+        /// </summary>
+        public string? CancelledByDoctorId { get; set; }
+        [ForeignKey("CancelledByDoctorId")]
+        public Doctor? CancelledByDoctor { get; set; }
+
+        // ==================== 审计字段：完成相关 (Completed状态) ====================
+        
+        /// <summary>
+        /// 医嘱完成时间（进入Completed状态的时间）
+        /// 注意：与PlantEndTime（计划结束时间）和EndTime（实际结束时间）不同
+        /// </summary>
+        public DateTime? CompletedAt { get; set; }
+        
+        /// <summary>
+        /// 完成类型（Normal=正常到期, Early=提前终止, Abnormal=异常终止）
+        /// </summary>
+        public string? CompletionType { get; set; }
+
+        // ==================== 审计字段：重新提交相关 (Rejected → PendingReceive) ====================
+        
+        /// <summary>
+        /// 最后一次重新提交时间（医生修改后重新提交）
+        /// </summary>
+        public DateTime? ResubmittedAt { get; set; }
+        
+        /// <summary>
+        /// 修改说明（医生在重新提交时填写的修改内容）
+        /// </summary>
+        public string? ModificationNotes { get; set; }
+
+        // ==================== 导航属性：状态变更历史 ====================
+        
+        /// <summary>
+        /// 状态变更历史记录（导航属性，指向独立的历史表）
+        /// </summary>
+        public ICollection<MedicalOrderStatusHistory> StatusHistories { get; set; } = new List<MedicalOrderStatusHistory>();
 
         // [新增] 包含的药品列表 (例如：500ml盐水 + 0.5mg青霉素)
         // 移动到基类，以便手术医嘱等也能使用
@@ -120,7 +252,7 @@ namespace CareFlow.Core.Models.Medical
         // --- 闭环时间节点 ---
         public DateTime? CheckStartTime { get; set; }         // 检查开始时间
         public DateTime? CheckEndTime { get; set; }           // 检查结束时间
-        public DateTime? BackToWardTime { get; set; }         // 返回病房时间
+        public DateTime? ReportPendingTime { get; set; }      // 报告待出时间
         public DateTime? ReportTime { get; set; }             // 报告完成时间
         public string? ReportId { get; set; }                 // 报告编号(冗余或关联)
         
@@ -148,5 +280,62 @@ namespace CareFlow.Core.Models.Medical
         
         public float PrepProgress { get; set; }      // 术前准备进度(0.0-1.0)
         public string PrepStatus { get; set; } = null!;       // 准备状态
+    }
+
+    // ==================== 医嘱状态变更历史表 ====================
+    
+    /// <summary>
+    /// 医嘱状态变更历史记录表
+    /// 用于完整的审计追踪，记录医嘱状态的每一次变更
+    /// </summary>
+    [Table("MedicalOrderStatusHistories")]
+    public class MedicalOrderStatusHistory : EntityBase<long>
+    {
+        /// <summary>
+        /// 关联的医嘱ID
+        /// </summary>
+        public long MedicalOrderId { get; set; }
+        [ForeignKey("MedicalOrderId")]
+        public MedicalOrder MedicalOrder { get; set; } = null!;
+        
+        /// <summary>
+        /// 变更前的状态
+        /// </summary>
+        public OrderStatus FromStatus { get; set; }
+        
+        /// <summary>
+        /// 变更后的状态
+        /// </summary>
+        public OrderStatus ToStatus { get; set; }
+        
+        /// <summary>
+        /// 状态变更时间
+        /// </summary>
+        public DateTime ChangedAt { get; set; }
+        
+        /// <summary>
+        /// 操作人ID（可能是医生ID或护士ID）
+        /// </summary>
+        public string ChangedById { get; set; } = null!;
+        
+        /// <summary>
+        /// 操作人类型（Doctor/Nurse/System）
+        /// </summary>
+        public string ChangedByType { get; set; } = null!;
+        
+        /// <summary>
+        /// 操作人姓名（冗余字段，便于查询）
+        /// </summary>
+        public string? ChangedByName { get; set; }
+        
+        /// <summary>
+        /// 变更原因/说明
+        /// </summary>
+        public string? Reason { get; set; }
+        
+        /// <summary>
+        /// 备注信息
+        /// </summary>
+        public string? Notes { get; set; }
     }
 }

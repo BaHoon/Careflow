@@ -67,10 +67,10 @@ public class InspectionOrderTaskService : IInspectionService
             case InspectionOrderStatus.InProgress:
                 order.CheckStartTime = timestamp;
                 break;
-            case InspectionOrderStatus.BackToWard:
+            case InspectionOrderStatus.ReportPending:
                 if (!order.CheckEndTime.HasValue)
                     order.CheckEndTime = timestamp;
-                order.BackToWardTime = timestamp;
+                order.ReportPendingTime = timestamp;
                 break;
             case InspectionOrderStatus.ReportCompleted:
                 order.ReportTime = timestamp;
@@ -106,7 +106,7 @@ public class InspectionOrderTaskService : IInspectionService
             Precautions = order.Precautions,
             CheckStartTime = order.CheckStartTime,
             CheckEndTime = order.CheckEndTime,
-            BackToWardTime = order.BackToWardTime,
+            ReportPendingTime = order.ReportPendingTime,
             ReportTime = order.ReportTime,
             CreateTime = order.CreateTime,
             IsLongTerm = order.IsLongTerm
@@ -182,72 +182,7 @@ public class InspectionOrderTaskService : IInspectionService
         };
     }
 
-    // ===== 新的工作流方法 =====
-
-    /// <summary>
-    /// 病房护士发送检查申请到检查站
-    /// </summary>
-    public async Task SendInspectionRequestAsync(SendInspectionRequestDto dto)
-    {
-        var order = await _orderRepo.GetByIdAsync(dto.OrderId);
-
-        if (order == null)
-            throw new Exception($"未找到检查医嘱 {dto.OrderId}");
-
-        if (order.InspectionStatus != InspectionOrderStatus.Pending)
-            throw new Exception($"检查医嘱状态异常: {order.InspectionStatus}");
-
-        // 更新医嘱状态并记录检查站ID
-        order.Location = dto.InspectionStationId;
-        await _orderRepo.UpdateAsync(order);
-    }
-
-    /// <summary>
-    /// 检查站护士查看待处理的检查申请列表
-    /// </summary>
-    public async Task<List<InspectionRequestDto>> GetPendingRequestsAsync(string inspectionStationId)
-    {
-        var orders = await _orderRepo.GetQueryable()
-            .Include(o => o.Patient)
-                .ThenInclude(p => p.Bed)
-            .Where(o => o.Location == inspectionStationId)
-            .Where(o => o.InspectionStatus == InspectionOrderStatus.Pending)
-            .Where(o => o.AppointmentTime == null)
-            .OrderBy(o => o.CreateTime)
-            .ToListAsync();
-
-        return orders.Select(o => new InspectionRequestDto
-        {
-            OrderId = o.Id,
-            PatientId = o.PatientId,
-            PatientName = o.Patient.Name,
-            BedNumber = o.Patient.Bed.Id,
-            ItemCode = o.ItemCode,
-            ItemName = GetInspectionItemName(o.ItemCode),
-            CreateTime = o.CreateTime,
-            Status = o.InspectionStatus
-        }).ToList();
-    }
-
-    /// <summary>
-    /// 检查站护士创建预约(自动调用 InspectionOrderTaskService 生成3个执行任务)
-    /// </summary>
-    public async Task CreateAppointmentAsync(CreateAppointmentDto dto)
-    {
-        var order = await _orderRepo.GetQueryable()
-            .Include(o => o.Patient)
-            .FirstOrDefaultAsync(o => o.Id == dto.OrderId);
-
-        if (order == null)
-            throw new Exception($"未找到检查医嘱 {dto.OrderId}");
-
-        order.AppointmentTime = dto.AppointmentTime;
-        order.AppointmentPlace = dto.AppointmentPlace;
-        order.Precautions = dto.Precautions;
-        await _orderRepo.UpdateAsync(order);
-
-        await CreateTasks(order);
-    }
+    // ===== 扫码处理 =====
 
     /// <summary>
     /// 统一扫码处理(根据任务类型自动处理)
@@ -262,14 +197,18 @@ public class InspectionOrderTaskService : IInspectionService
         if (task.PatientId != dto.PatientId)
             throw new Exception("患者信息不匹配");
 
-        if (task.Status != ExecutionTaskStatus.Pending.ToString())
+        // 检查任务状态是否可以执行（Applying, Applied, AppliedConfirmed, Pending 状态都可以）
+        if (task.Status != ExecutionTaskStatus.Applying && 
+            task.Status != ExecutionTaskStatus.Applied && 
+            task.Status != ExecutionTaskStatus.AppliedConfirmed && 
+            task.Status != ExecutionTaskStatus.Pending)
             throw new Exception($"任务状态异常: {task.Status}");
 
         string payload = task.DataPayload;
 
         if (payload.Contains("INSP_PRINT_GUIDE"))
         {
-            task.Status = ExecutionTaskStatus.Completed.ToString();
+            task.Status = ExecutionTaskStatus.Completed;
             task.ActualStartTime = DateTime.UtcNow;
             task.ActualEndTime = DateTime.UtcNow;
             task.ExecutorStaffId = dto.NurseId;
@@ -287,7 +226,7 @@ public class InspectionOrderTaskService : IInspectionService
                 await _orderRepo.UpdateAsync(order);
             }
 
-            task.Status = ExecutionTaskStatus.Completed.ToString();
+            task.Status = ExecutionTaskStatus.Completed;
             task.ActualStartTime = DateTime.UtcNow;
             task.ActualEndTime = DateTime.UtcNow;
             task.ExecutorStaffId = dto.NurseId;
@@ -300,13 +239,13 @@ public class InspectionOrderTaskService : IInspectionService
             var order = await _orderRepo.GetByIdAsync(task.MedicalOrderId);
             if (order != null)
             {
-                order.InspectionStatus = InspectionOrderStatus.BackToWard;
+                order.InspectionStatus = InspectionOrderStatus.ReportPending;
                 order.CheckEndTime = DateTime.UtcNow;
-                order.BackToWardTime = DateTime.UtcNow;
+                order.ReportPendingTime = DateTime.UtcNow;
                 await _orderRepo.UpdateAsync(order);
             }
 
-            task.Status = ExecutionTaskStatus.Completed.ToString();
+            task.Status = ExecutionTaskStatus.Completed;
             task.ActualStartTime = DateTime.UtcNow;
             task.ActualEndTime = DateTime.UtcNow;
             task.ExecutorStaffId = dto.NurseId;
@@ -334,7 +273,7 @@ public class InspectionOrderTaskService : IInspectionService
         {
             InspectionOrderStatus.Pending => "待前往",
             InspectionOrderStatus.InProgress => "检查中",
-            InspectionOrderStatus.BackToWard => "已回病房",
+            InspectionOrderStatus.ReportPending => "报告待出",
             InspectionOrderStatus.ReportCompleted => "报告已出",
             InspectionOrderStatus.Cancelled => "已取消",
             _ => "未知状态"
@@ -424,7 +363,7 @@ public class InspectionOrderTaskService : IInspectionService
             Patient = order.Patient,
             Category = TaskCategory.Immediate, // 打印导引单为即刻执行
             PlannedStartTime = plannedTime,
-            Status = ExecutionTaskStatus.Pending.ToString(),
+            Status = ExecutionTaskStatus.Applying,  // 初始状态为待申请（需要申请打印）
             DataPayload = JsonSerializer.Serialize(new
             {
                 TaskType = "INSP_PRINT_GUIDE",
@@ -450,7 +389,7 @@ public class InspectionOrderTaskService : IInspectionService
             Patient = order.Patient,
             Category = TaskCategory.Immediate, // 检查站签到为即刻执行
             PlannedStartTime = plannedTime,
-            Status = ExecutionTaskStatus.Pending.ToString(),
+            Status = ExecutionTaskStatus.Pending,
             DataPayload = JsonSerializer.Serialize(new
             {
                 TaskType = "INSP_CHECKIN",
@@ -484,7 +423,7 @@ public class InspectionOrderTaskService : IInspectionService
             Patient = order.Patient,
             Category = TaskCategory.Immediate, // 检查完成确认为即刻执行
             PlannedStartTime = plannedTime,
-            Status = ExecutionTaskStatus.Pending.ToString(),
+            Status = ExecutionTaskStatus.Pending,
             DataPayload = JsonSerializer.Serialize(new
             {
                 TaskType = "INSP_COMPLETE",
@@ -518,7 +457,7 @@ public class InspectionOrderTaskService : IInspectionService
             Patient = order.Patient,
             Category = TaskCategory.DataCollection, // 查看报告为数据收集类
             PlannedStartTime = DateTime.UtcNow, // 报告到达后立即处理
-            Status = ExecutionTaskStatus.Pending.ToString(),
+            Status = ExecutionTaskStatus.Pending,
             DataPayload = JsonSerializer.Serialize(new
             {
                 TaskType = "INSP_REVIEW_REPORT",

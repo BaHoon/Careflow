@@ -45,7 +45,6 @@
           <el-option label="已完成" value="Completed" />
         </el-select>
         <el-button type="primary" :icon="Refresh" @click="loadTasks">刷新</el-button>
-        <el-button :icon="Operation" @click="goToDashboard">床位概览</el-button>
       </div>
     </div>
 
@@ -126,13 +125,10 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Refresh, Operation } from '@element-plus/icons-vue';
+import { Refresh } from '@element-plus/icons-vue';
 import TaskTimeline from '@/components/TaskTimeline.vue';
 import { getMyTasks } from '@/api/nursing';
-
-const router = useRouter();
 
 // 数据状态
 const loading = ref(false);
@@ -287,11 +283,6 @@ const handleTaskComplete = async (task) => {
 const handleViewDetail = (task) => {
   currentTask.value = task;
   detailDialogVisible.value = true;
-};
-
-// 跳转到床位概览
-const goToDashboard = () => {
-  router.push({ name: 'nurse-dashboard' });
 };
 
 // 格式化日期时间

@@ -25,7 +25,6 @@
           />
         </el-select>
         <el-button type="primary" :icon="Refresh" @click="loadData">刷新</el-button>
-        <el-button :icon="List" @click="goToTaskList">我的任务</el-button>
       </div>
     </div>
 
@@ -127,7 +126,6 @@ import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import {
   Refresh,
-  List,
   House,
   User,
   CircleCheck,
@@ -326,11 +324,6 @@ const handleBedClick = (bed) => {
     ElMessage.info(`查看患者：${bed.patient.name} (${bed.bedId})`);
     // router.push({ name: 'patient-detail', params: { id: bed.patient.id } });
   }
-};
-
-// 跳转到任务列表
-const goToTaskList = () => {
-  router.push({ name: 'nurse-tasks' });
 };
 
 // 组件挂载

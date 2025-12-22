@@ -3,6 +3,7 @@ using CareFlow.Application.DTOs.SurgicalOrders;
 using CareFlow.Application.Interfaces;
 using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models.Medical;
+using CareFlow.Core.Enums;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
@@ -14,15 +15,18 @@ namespace CareFlow.Application.Services.SurgicalOrders;
 public class SurgicalOrderService : ISurgicalOrderService
 {
     private readonly IRepository<SurgicalOrder, long> _orderRepository;
+    private readonly IRepository<MedicalOrderStatusHistory, long> _statusHistoryRepository;
     private readonly INurseAssignmentService _nurseAssignmentService;
     private readonly ILogger<SurgicalOrderService> _logger;
 
     public SurgicalOrderService(
         IRepository<SurgicalOrder, long> orderRepository,
+        IRepository<MedicalOrderStatusHistory, long> statusHistoryRepository,
         INurseAssignmentService nurseAssignmentService,
         ILogger<SurgicalOrderService> logger)
     {
         _orderRepository = orderRepository;
+        _statusHistoryRepository = statusHistoryRepository;
         _nurseAssignmentService = nurseAssignmentService;
         _logger = logger;
     }
@@ -72,6 +76,19 @@ public class SurgicalOrderService : ISurgicalOrderService
                 // 保存医嘱（EF Core 会自动级联保存 Items 集合，如有术前用药）
                 _logger.LogInformation("保存手术医嘱到数据库，OrderId将自动生成");
                 await _orderRepository.AddAsync(order);
+                
+                // 插入初始状态历史记录
+                var history = new MedicalOrderStatusHistory
+                {
+                    MedicalOrderId = order.Id,
+                    FromStatus = OrderStatus.Draft,
+                    ToStatus = OrderStatus.PendingReceive,
+                    ChangedAt = DateTime.UtcNow,
+                    ChangedById = request.DoctorId,
+                    ChangedByType = "Doctor",
+                    Reason = "医生创建手术医嘱"
+                };
+                await _statusHistoryRepository.AddAsync(history);
 
                 _logger.LogInformation("✅ 成功创建手术医嘱，ID: {OrderId}, 手术名称: {SurgeryName}",
                     order.Id, order.SurgeryName);
@@ -164,7 +181,7 @@ public class SurgicalOrderService : ISurgicalOrderService
             DoctorId = doctorId,
             OrderType = "SurgicalOrder",
             IsLongTerm = false, // 手术医嘱通常为临时医嘱
-            Status = "Active",
+            Status = OrderStatus.PendingReceive,
             CreateTime = DateTime.UtcNow,
 
             // 手术基础信息
@@ -223,9 +240,10 @@ public class SurgicalOrderService : ISurgicalOrderService
     {
         try
         {
+            // 使用当前时间（医嘱创建时间）来分配负责护士，而不是预约时间
             var responsibleNurseId = await _nurseAssignmentService.CalculateResponsibleNurseAsync(
                 patientId,
-                order.ScheduleTime);
+                DateTime.UtcNow);
 
             if (!string.IsNullOrEmpty(responsibleNurseId))
             {

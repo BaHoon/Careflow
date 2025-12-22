@@ -8,6 +8,7 @@ using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models;
 using CareFlow.Core.Models.Medical;
 using CareFlow.Core.Models.Nursing;
+using CareFlow.Core.Enums;
 
 namespace CareFlow.Application.Services
 {
@@ -61,7 +62,7 @@ namespace CareFlow.Application.Services
             }
 
             // 2. 状态检查 (防止对已取消的医嘱生成任务)
-            if (existingOrder.Status == "Cancelled")
+            if (existingOrder.Status == OrderStatus.Cancelled)
             {
                 throw new InvalidOperationException($"医嘱 {order.Id} 已取消，操作终止");
             }
@@ -139,11 +140,14 @@ namespace CareFlow.Application.Services
 
             var pendingTasks = await _taskRepository.ListAsync(t => 
                 t.MedicalOrderId == orderId && 
-                t.Status == "Pending"); // 假设 Pending 是字符串
+                (t.Status == ExecutionTaskStatus.Applying || 
+                 t.Status == ExecutionTaskStatus.Applied || 
+                 t.Status == ExecutionTaskStatus.AppliedConfirmed || 
+                 t.Status == ExecutionTaskStatus.Pending));
 
             foreach (var task in pendingTasks)
             {
-                task.Status = "Cancelled";
+                task.Status = ExecutionTaskStatus.Stopped;
                 task.IsRolledBack = true;
                 task.ExceptionReason = reason;
                 task.LastModifiedAt = DateTime.UtcNow;
@@ -172,7 +176,11 @@ namespace CareFlow.Application.Services
         {
             var tasks = await _taskRepository.ListAsync(t => 
                 t.MedicalOrderId == orderId && 
-                (t.Status == "Pending" || t.Status == "InProgress"));
+                (t.Status == ExecutionTaskStatus.Applying || 
+                 t.Status == ExecutionTaskStatus.Applied || 
+                 t.Status == ExecutionTaskStatus.AppliedConfirmed || 
+                 t.Status == ExecutionTaskStatus.Pending || 
+                 t.Status == ExecutionTaskStatus.InProgress));
             return tasks.Any();
         }
 
