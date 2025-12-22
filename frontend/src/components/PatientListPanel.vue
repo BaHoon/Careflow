@@ -69,7 +69,8 @@
         <!-- 多选模式 -->
         <div class="filter-group" v-if="enableMultiSelectMode">
           <el-checkbox 
-            v-model="multiSelectEnabled" 
+            :model-value="multiSelect"
+            @change="handleMultiSelectToggle"
             size="small"
             class="multi-select-toggle"
           >
@@ -95,7 +96,7 @@
         >
           <!-- 多选模式复选框 -->
           <el-checkbox 
-            v-if="multiSelectEnabled"
+            v-if="multiSelect"
             :model-value="isPatientSelected(patient)"
             @click.stop
             @change="handleCheckboxChange(patient)"
@@ -207,6 +208,11 @@ const props = defineProps({
     type: Boolean,
     default: true
   },
+  // 外部传入的多选状态（从 usePatientData 传入）
+  multiSelect: {
+    type: Boolean,
+    default: false
+  },
   // 初始折叠状态
   initialCollapsed: {
     type: Boolean,
@@ -225,7 +231,6 @@ const emit = defineEmits([
 const searchKeyword = ref('');
 const selectedWard = ref('');
 const showOnlyPending = ref(false);
-const multiSelectEnabled = ref(false);
 const collapsed = ref(props.initialCollapsed);
 
 // ==================== 计算属性 ====================
@@ -301,7 +306,7 @@ const toggleCollapse = () => {
 const handlePatientClick = (patient) => {
   emit('patient-select', {
     patient,
-    isMultiSelect: multiSelectEnabled.value
+    isMultiSelect: props.multiSelect
   });
 };
 
@@ -341,10 +346,10 @@ const getBadgeTitle = (patient) => {
   return `${fieldLabel}: ${badgeValue}`;
 };
 
-// 监听多选模式切换
-watch(multiSelectEnabled, (newValue) => {
-  emit('multi-select-toggle', newValue);
-});
+// 处理多选模式切换
+const handleMultiSelectToggle = (value) => {
+  emit('multi-select-toggle', value);
+};
 </script>
 
 <style scoped>

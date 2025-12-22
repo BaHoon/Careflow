@@ -5,24 +5,15 @@
       :patient-list="patientList"
       :selected-patients="selectedPatients"
       :my-ward-id="currentScheduledWardId"
+      :multi-select="enableMultiSelect"
       title="患者列表"
       pending-filter-label="仅显示有待申请"
       badge-field="pendingApplicationCount"
       :collapsed="false"
       @patient-select="handlePatientSelect"
-    >
-      <template #extra-filters>
-        <div class="filter-group">
-          <el-checkbox 
-            v-model="enableMultiSelect" 
-            size="small"
-            class="multi-select-toggle"
-          >
-            多选模式
-          </el-checkbox>
-        </div>
-      </template>
-    </PatientListPanel>
+      @multi-select-toggle="toggleMultiSelectMode"
+    />
+
 
     <!-- 右侧医嘱申请工作区 -->
     <div class="work-area">
@@ -284,14 +275,13 @@ const {
   selectedPatient, 
   selectedPatients,
   currentScheduledWardId,
+  enableMultiSelect,
   selectSinglePatient,
   togglePatientSelection,
+  toggleMultiSelectMode,
   initializePatientData,
   getCurrentNurse
 } = usePatientData();
-
-// 多选模式（本地状态）
-const enableMultiSelect = ref(false);
 
 // Tab状态
 const activeTab = ref('medication'); // 'medication' | 'inspection'
