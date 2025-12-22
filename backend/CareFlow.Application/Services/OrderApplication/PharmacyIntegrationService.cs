@@ -3,6 +3,7 @@ using CareFlow.Application.Interfaces;
 using CareFlow.Core.Enums;
 using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models.Nursing;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
@@ -64,9 +65,16 @@ public class PharmacyIntegrationService : IPharmacyIntegrationService
                 result.EstimatedCompletionTime);
 
             // 启动后台任务：延迟N分钟后自动确认配药完成
+            // 使用新的服务作用域，避免DbContext被释放
             var delayMinutes = isUrgent ? 1 : 3;
-            _backgroundJobService.ScheduleDelayed(
-                () => ConfirmPharmacyCompletionAsync(taskIds),
+            _backgroundJobService.ScheduleDelayedWithScope(
+                async (serviceProvider) =>
+                {
+                    // 从新作用域获取Repository
+                    var taskRepository = serviceProvider.GetRequiredService<IRepository<ExecutionTask, long>>();
+                    var logger = serviceProvider.GetRequiredService<ILogger<PharmacyIntegrationService>>();
+                    await ConfirmPharmacyCompletionAsync(taskIds, taskRepository, logger);
+                },
                 TimeSpan.FromMinutes(delayMinutes)
             );
 
@@ -116,10 +124,13 @@ public class PharmacyIntegrationService : IPharmacyIntegrationService
     /// <summary>
     /// 确认药房配药完成（后台任务调用）
     /// </summary>
-    private async Task ConfirmPharmacyCompletionAsync(List<long> taskIds)
+    private async Task ConfirmPharmacyCompletionAsync(
+        List<long> taskIds, 
+        IRepository<ExecutionTask, long> taskRepository,
+        ILogger<PharmacyIntegrationService> logger)
     {
-        _logger.LogInformation("========== 药房配药完成确认 ==========");
-        _logger.LogInformation("💊 确认任务数量: {Count}", taskIds.Count);
+        logger.LogInformation("========== 药房配药完成确认 ==========");
+        logger.LogInformation("💊 确认任务数量: {Count}", taskIds.Count);
 
         var successCount = 0;
         var failCount = 0;
@@ -128,11 +139,11 @@ public class PharmacyIntegrationService : IPharmacyIntegrationService
         {
             try
             {
-                var task = await _taskRepository.GetByIdAsync(taskId);
+                var task = await taskRepository.GetByIdAsync(taskId);
                 
                 if (task == null)
                 {
-                    _logger.LogWarning("⚠️ 任务 {TaskId} 不存在", taskId);
+                    logger.LogWarning("⚠️ 任务 {TaskId} 不存在", taskId);
                     failCount++;
                     continue;
                 }
@@ -140,7 +151,7 @@ public class PharmacyIntegrationService : IPharmacyIntegrationService
                 // 只有Applied状态的任务才能确认
                 if (task.Status != ExecutionTaskStatus.Applied)
                 {
-                    _logger.LogWarning("⚠️ 任务 {TaskId} 状态为 {Status}，跳过确认", 
+                    logger.LogWarning("⚠️ 任务 {TaskId} 状态为 {Status}，跳过确认", 
                         taskId, task.Status);
                     failCount++;
                     continue;
@@ -170,23 +181,23 @@ public class PharmacyIntegrationService : IPharmacyIntegrationService
                 }
                 catch (Exception payloadEx)
                 {
-                    _logger.LogWarning(payloadEx, "⚠️ 更新DataPayload失败，任务ID: {TaskId}", taskId);
+                    logger.LogWarning(payloadEx, "⚠️ 更新DataPayload失败，任务ID: {TaskId}", taskId);
                     // 即使Payload更新失败，状态更新仍然有效，继续执行
                 }
 
-                await _taskRepository.UpdateAsync(task);
+                await taskRepository.UpdateAsync(task);
                 successCount++;
                 
-                _logger.LogInformation("✅ 任务 {TaskId} 确认完成", taskId);
+                logger.LogInformation("✅ 任务 {TaskId} 确认完成", taskId);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ 确认任务 {TaskId} 失败", taskId);
+                logger.LogError(ex, "❌ 确认任务 {TaskId} 失败", taskId);
                 failCount++;
             }
         }
 
-        _logger.LogInformation("========== 药房配药确认完成：成功 {Success}，失败 {Fail} ==========",
+        logger.LogInformation("========== 药房配药确认完成：成功 {Success}，失败 {Fail} ==========",
             successCount, failCount);
     }
 }

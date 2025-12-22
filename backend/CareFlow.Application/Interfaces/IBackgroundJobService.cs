@@ -11,4 +11,11 @@ public interface IBackgroundJobService
     /// <param name="action">要执行的任务</param>
     /// <param name="delay">延迟时间</param>
     void ScheduleDelayed(Func<Task> action, TimeSpan delay);
+    
+    /// <summary>
+    /// 延迟执行任务（使用新的服务作用域）
+    /// </summary>
+    /// <param name="action">要执行的任务，接收IServiceProvider参数</param>
+    /// <param name="delay">延迟时间</param>
+    void ScheduleDelayedWithScope(Func<IServiceProvider, Task> action, TimeSpan delay);
 }
