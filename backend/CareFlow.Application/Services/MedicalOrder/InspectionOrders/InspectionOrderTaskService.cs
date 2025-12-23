@@ -68,7 +68,7 @@ public class InspectionOrderTaskService : IInspectionService
         {
             MedicalOrderId = order.Id,
             PatientId = order.PatientId,
-            Category = TaskCategory.Immediate,  // 核对类任务
+            Category = TaskCategory.ApplicationWithPrint,  // 申请打印类任务：申请后打印导引单即结束
             Status = ExecutionTaskStatus.Applying,  // 待申请状态
             PlannedStartTime = DateTime.UtcNow.AddHours(1),  // 签收后1小时内申请
             CreatedAt = DateTime.UtcNow,
