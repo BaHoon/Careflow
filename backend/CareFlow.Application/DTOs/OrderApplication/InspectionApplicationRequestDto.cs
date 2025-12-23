@@ -14,11 +14,11 @@ public class InspectionApplicationRequestDto
     public string NurseId { get; set; } = null!;
     
     /// <summary>
-    /// 检查医嘱ID列表（InspectionOrder.Id）
+    /// 申请任务ID列表（ExecutionTask.Id，签收时生成的申请任务）
     /// </summary>
-    [Required(ErrorMessage = "检查医嘱ID列表不能为空")]
-    [MinLength(1, ErrorMessage = "至少需要选择一个检查医嘱")]
-    public List<long> OrderIds { get; set; } = new();
+    [Required(ErrorMessage = "申请任务ID列表不能为空")]
+    [MinLength(1, ErrorMessage = "至少需要选择一个申请任务")]
+    public List<long> TaskIds { get; set; } = new();
     
     /// <summary>
     /// 是否加急

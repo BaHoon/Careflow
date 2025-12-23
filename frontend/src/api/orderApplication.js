@@ -53,7 +53,7 @@ export const submitMedicationApplication = (data) => {
  * 提交检查申请
  * @param {Object} data - 申请数据
  * @param {string} data.nurseId - 护士ID
- * @param {Array<number>} data.orderIds - 医嘱ID列表
+ * @param {Array<number>} data.taskIds - 申请任务ID列表
  * @param {boolean} data.isUrgent - 是否加急
  * @param {string} data.remarks - 备注
  * @returns {Promise<Object>} 申请结果
