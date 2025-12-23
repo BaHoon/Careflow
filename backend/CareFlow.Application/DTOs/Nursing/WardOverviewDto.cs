@@ -100,6 +100,17 @@ public class NurseTaskDto
     /// 负责护士姓名
     /// </summary>
     public string? AssignedNurseName { get; set; }
+    
+    /// <summary>
+    /// 实际执行护士ID（可能与责任护士不同）
+    /// </summary>
+    public string? ExecutorNurseId { get; set; }
+    
+    /// <summary>
+    /// 实际执行护士姓名
+    /// </summary>
+    public string? ExecutorNurseName { get; set; }
+    
     public DateTime PlannedStartTime { get; set; }
     public DateTime? ActualStartTime { get; set; }
     public DateTime? ActualEndTime { get; set; }

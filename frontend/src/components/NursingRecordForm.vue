@@ -241,7 +241,7 @@
           {{ formatDateTime(recordData.actualStartTime || recordData.executeTime) || '未知' }}
         </el-descriptions-item>
         <el-descriptions-item label="录入护士">
-          {{ recordData.assignedNurseName || recordData.executorNurse || '未知' }}
+          {{ recordData.executorNurseName || recordData.assignedNurseName || recordData.executorNurse || '未知' }}
         </el-descriptions-item>
       </el-descriptions>
 
@@ -268,10 +268,50 @@
       </el-descriptions>
 
       <!-- 护理笔记 -->
-      <div v-if="vitalSignsData.noteContent || vitalSignsData.note_content" class="mt-20">
-        <el-divider content-position="left">护理笔记</el-divider>
-        <div class="note-content">{{ vitalSignsData.noteContent || vitalSignsData.note_content }}</div>
-      </div>
+      <el-descriptions title="护理笔记" :column="2" border class="mt-20">
+        <!-- 意识状态 - 有值才显示 -->
+        <el-descriptions-item v-if="vitalSignsData.consciousness" label="意识状态">
+          {{ vitalSignsData.consciousness }}
+        </el-descriptions-item>
+        <!-- 皮肤状况 - 有值才显示 -->
+        <el-descriptions-item v-if="vitalSignsData.skinCondition || vitalSignsData.skin_condition" label="皮肤状况">
+          {{ vitalSignsData.skinCondition || vitalSignsData.skin_condition }}
+        </el-descriptions-item>
+        <!-- 入量 - 有值才显示 -->
+        <el-descriptions-item v-if="vitalSignsData.intakeVolume || vitalSignsData.intake_volume" label="入量">
+          {{ vitalSignsData.intakeVolume || vitalSignsData.intake_volume }} ml
+          <span v-if="vitalSignsData.intakeType || vitalSignsData.intake_type" class="sub-info">
+            ({{ vitalSignsData.intakeType || vitalSignsData.intake_type }})
+          </span>
+        </el-descriptions-item>
+        <!-- 出量 - 有值才显示 -->
+        <el-descriptions-item v-if="vitalSignsData.outputVolume || vitalSignsData.output_volume" label="出量">
+          {{ vitalSignsData.outputVolume || vitalSignsData.output_volume }} ml
+          <span v-if="vitalSignsData.outputType || vitalSignsData.output_type" class="sub-info">
+            ({{ vitalSignsData.outputType || vitalSignsData.output_type }})
+          </span>
+        </el-descriptions-item>
+        <!-- 体重 - 有值才显示 -->
+        <el-descriptions-item v-if="vitalSignsData.weight" label="体重">
+          {{ vitalSignsData.weight }} kg
+        </el-descriptions-item>
+        <!-- 干预措施 - 有值才显示 -->
+        <el-descriptions-item v-if="vitalSignsData.intervention" label="干预措施" :span="2">
+          {{ vitalSignsData.intervention }}
+        </el-descriptions-item>
+        <!-- 病情观察 - 始终显示 -->
+        <el-descriptions-item label="病情观察" :span="2">
+          <div class="note-content">
+            {{ vitalSignsData.noteContent || vitalSignsData.note_content || '无' }}
+          </div>
+        </el-descriptions-item>
+        <!-- 健康教育 - 有值才显示 -->
+        <el-descriptions-item v-if="vitalSignsData.healthEducation || vitalSignsData.health_education" label="健康教育" :span="2">
+          <div class="note-content">
+            {{ vitalSignsData.healthEducation || vitalSignsData.health_education }}
+          </div>
+        </el-descriptions-item>
+      </el-descriptions>
     </div>
 
     <template #footer>
@@ -376,17 +416,49 @@ const loadVitalSignsData = async () => {
   }
   
   try {
-    // TODO: 这里需要调用后端 API 获取 VitalSignsRecord 数据
+    console.log('📋 加载体征数据，recordData:', props.recordData);
+    
+    // 方案1: 如果有 vitalSigns 字段，直接使用
+    if (props.recordData.vitalSigns) {
+      vitalSignsData.value = props.recordData.vitalSigns;
+      console.log('✅ 从 vitalSigns 字段加载数据');
+      return;
+    }
+    
+    // 方案2: 从 resultPayload 解析（后端返回的JSON字符串）
+    if (props.recordData.resultPayload) {
+      try {
+        const payload = typeof props.recordData.resultPayload === 'string' 
+          ? JSON.parse(props.recordData.resultPayload) 
+          : props.recordData.resultPayload;
+        vitalSignsData.value = payload;
+        console.log('✅ 从 resultPayload 解析数据:', payload);
+        return;
+      } catch (parseError) {
+        console.error('解析 resultPayload 失败:', parseError);
+      }
+    }
+    
+    // 方案3: 从 dataPayload 解析（可能是任务参数）
+    if (props.recordData.dataPayload) {
+      try {
+        const payload = typeof props.recordData.dataPayload === 'string' 
+          ? JSON.parse(props.recordData.dataPayload) 
+          : props.recordData.dataPayload;
+        vitalSignsData.value = payload;
+        console.log('✅ 从 dataPayload 解析数据:', payload);
+        return;
+      } catch (parseError) {
+        console.error('解析 dataPayload 失败:', parseError);
+      }
+    }
+    
+    // TODO: 方案4：调用后端 API 获取 VitalSignsRecord 数据
     // const response = await getVitalSignsByTaskId(taskId);
     // vitalSignsData.value = response.data;
     
-    // 临时方案：从 recordData 中获取（如果有的话）
-    if (props.recordData.vitalSigns) {
-      vitalSignsData.value = props.recordData.vitalSigns;
-    } else {
-      vitalSignsData.value = {};
-      console.log('⚠️ 未找到体征数据');
-    }
+    console.log('⚠️ 未找到体征数据');
+    vitalSignsData.value = {};
   } catch (error) {
     console.error('加载体征数据失败:', error);
     vitalSignsData.value = {};
@@ -558,6 +630,8 @@ const formatDateTime = (datetime) => {
 
 .view-mode {
   padding: 10px 0;
+  max-height: 70vh;
+  overflow-y: auto;
 }
 
 .mt-20 {
@@ -565,17 +639,36 @@ const formatDateTime = (datetime) => {
 }
 
 .note-content {
-  padding: 16px;
+  padding: 12px 16px;
   background: #f5f7fa;
   border-radius: 4px;
   line-height: 1.8;
   color: #606266;
   white-space: pre-wrap;
+  min-height: 40px;
+}
+
+.sub-info {
+  color: #909399;
+  font-size: 12px;
+  margin-left: 4px;
 }
 
 .dialog-footer {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+}
+
+/* 自定义 descriptions 样式 */
+:deep(.el-descriptions__title) {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 12px;
+}
+
+:deep(.el-descriptions__label) {
+  font-weight: 500;
 }
 </style>
