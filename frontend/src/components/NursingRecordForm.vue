@@ -312,6 +312,55 @@
           </div>
         </el-descriptions-item>
       </el-descriptions>
+
+      <!-- 补充说明区域 -->
+      <div class="supplement-section" v-if="isViewMode">
+        <el-divider content-position="left">
+          <el-icon><EditPen /></el-icon>
+          <span>补充说明</span>
+        </el-divider>
+        
+        <!-- 补充说明列表 -->
+        <div v-if="supplements.length > 0" class="supplement-list">
+          <div v-for="supplement in supplements" :key="supplement.id" class="supplement-item">
+            <div class="supplement-header">
+              <el-tag size="small" :type="supplement.supplementType === 'Correction' ? 'warning' : 'info'">
+                {{ supplement.supplementType === 'Correction' ? '更正' : '补充' }}
+              </el-tag>
+              <span class="supplement-nurse">{{ supplement.supplementNurseName }}</span>
+              <span class="supplement-time">{{ formatDateTime(supplement.supplementTime) }}</span>
+            </div>
+            <div class="supplement-content">{{ supplement.content }}</div>
+          </div>
+        </div>
+        
+        <!-- 添加补充说明表单 -->
+        <div class="add-supplement">
+          <el-form :model="supplementForm" label-width="100px">
+            <el-form-item label="补充类型">
+              <el-radio-group v-model="supplementForm.supplementType">
+                <el-radio label="Addition">补充信息</el-radio>
+                <el-radio label="Correction">更正错误</el-radio>
+              </el-radio-group>
+            </el-form-item>
+            <el-form-item label="补充内容">
+              <el-input
+                v-model="supplementForm.content"
+                type="textarea"
+                :rows="3"
+                placeholder="请输入补充说明内容..."
+                maxlength="500"
+                show-word-limit
+              />
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" @click="handleAddSupplement" :loading="supplementing">
+                提交补充说明
+              </el-button>
+            </el-form-item>
+          </el-form>
+        </div>
+      </div>
     </div>
 
     <template #footer>
@@ -326,9 +375,10 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, reactive } from 'vue';
 import { InfoFilled, Compass, EditPen } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
+import { addSupplement, getSupplements } from '@/api/nursing';
 
 const props = defineProps({
   modelValue: {
@@ -354,6 +404,14 @@ const emit = defineEmits(['update:modelValue', 'submit-success']);
 
 const formRef = ref(null);
 const submitting = ref(false);
+
+// 补充说明相关状态
+const supplements = ref([]);
+const supplementForm = reactive({
+  content: '',
+  supplementType: 'Addition'
+});
+const supplementing = ref(false);
 
 const visible = computed({
   get: () => props.modelValue,
@@ -506,8 +564,9 @@ watch(() => props.modelValue, async (newVal) => {
     console.log('  - taskType:', props.recordData.taskType);
     
     if (isViewMode.value) {
-      // 查看模式：加载体征数据
+      // 查看模式：加载体征数据和补充说明
       await loadVitalSignsData();
+      await loadSupplements();
     } else {
       // 录入模式：重置表单
       resetForm();
@@ -516,6 +575,57 @@ watch(() => props.modelValue, async (newVal) => {
     }
   }
 });
+
+// 加载补充说明列表
+const loadSupplements = async () => {
+  if (!props.recordData.id) return;
+
+  try {
+    // 注意：api 拦截器已返回 response.data，因此这里直接使用返回值
+    const result = await getSupplements(props.recordData.id);
+    supplements.value = result || [];
+  } catch (error) {
+    console.error('加载补充说明失败:', error);
+    supplements.value = [];
+  }
+};
+
+// 提交补充说明
+const handleAddSupplement = async () => {
+  if (!supplementForm.content.trim()) {
+    ElMessage.warning('请输入补充内容');
+    return;
+  }
+  
+  try {
+    supplementing.value = true;
+
+    const data = {
+      nursingTaskId: props.recordData.id,
+      supplementNurseId: props.currentNurseId,
+      content: supplementForm.content,
+      supplementType: supplementForm.supplementType
+    };
+
+    // API 返回已创建的补充说明对象
+    await addSupplement(data);
+
+    ElMessage.success('补充说明已添加');
+
+    // 重置表单
+    supplementForm.content = '';
+    supplementForm.supplementType = 'Addition';
+
+    // 重新加载补充说明列表
+    await loadSupplements();
+
+  } catch (error) {
+    console.error('添加补充说明失败:', error);
+    ElMessage.error(error?.message || '添加补充说明失败');
+  } finally {
+    supplementing.value = false;
+  }
+};
 
 // 重置表单
 const resetForm = () => {
@@ -670,5 +780,32 @@ const formatDateTime = (datetime) => {
 
 :deep(.el-descriptions__label) {
   font-weight: 500;
+}
+
+/* 补充说明样式 */
+.supplement-item {
+  padding: 12px;
+  background: #f5f7fa;
+  border-radius: 4px;
+  margin-bottom: 12px;
+}
+
+.supplement-item:last-child {
+  margin-bottom: 0;
+}
+
+.supplement-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: #909399;
+}
+
+.supplement-content {
+  color: #606266;
+  line-height: 1.6;
+  white-space: pre-wrap;
 }
 </style>

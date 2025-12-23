@@ -109,3 +109,19 @@ export const cancelNursingTask = (taskId, nurseId, cancelReason = '') => {
     params: { nurseId, cancelReason }
   });
 };
+
+/**
+ * 添加护理记录补充说明
+ * @param {object} data - 补充说明数据 { nursingTaskId, supplementNurseId, content, supplementType }
+ */
+export const addSupplement = (data) => {
+  return api.post('/Nursing/tasks/supplement', data);
+};
+
+/**
+ * 获取护理记录的补充说明列表
+ * @param {number} taskId - 护理任务ID
+ */
+export const getSupplements = (taskId) => {
+  return api.get(`/Nursing/tasks/${taskId}/supplements`);
+};

@@ -54,6 +54,7 @@ namespace CareFlow.Infrastructure
         public DbSet<ShiftType> ShiftTypes { get; set; }               // 班次定义
         public DbSet<NurseRoster> NurseRosters { get; set; }           // 护士排班
         public DbSet<NursingTask> NursingTasks { get; set; }
+        public DbSet<NursingRecordSupplement> NursingRecordSupplements { get; set; } // 护理记录补充说明
 
         #region 5. Barcode (条形码系统)
         public DbSet<BarcodeIndex> BarcodeIndexes { get; set; }         // 条形码索引表

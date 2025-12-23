@@ -129,6 +129,44 @@ namespace CareFlow.WebApi.Controllers
         }
 
         /// <summary>
+        /// [护士端] 添加护理记录补充说明
+        /// </summary>
+        /// <param name="dto">补充说明数据</param>
+        /// <returns></returns>
+        [HttpPost("tasks/supplement")]
+        public async Task<IActionResult> AddSupplement([FromBody] AddSupplementDto dto)
+        {
+            try
+            {
+                var result = await _vitalSignService.AddSupplementAsync(dto);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "添加补充说明失败", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// [护士端] 获取护理记录的补充说明列表
+        /// </summary>
+        /// <param name="taskId">护理任务ID</param>
+        /// <returns></returns>
+        [HttpGet("tasks/{taskId}/supplements")]
+        public async Task<IActionResult> GetSupplements(long taskId)
+        {
+            try
+            {
+                var supplements = await _vitalSignService.GetSupplementsAsync(taskId);
+                return Ok(supplements);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "获取补充说明失败", error = ex.Message });
+            }
+        }
+
+        /// <summary>
         /// [护士端] 获取病区床位概览
         /// </summary>
         /// <param name="wardId">病区ID（可选）</param>
