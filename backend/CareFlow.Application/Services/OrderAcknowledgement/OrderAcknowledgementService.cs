@@ -705,9 +705,10 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
             }
             else if (order is InspectionOrder inspectionOrder)
             {
-                // 检查医嘱的任务生成发生在检查站创建预约时，签收阶段不生成任务
-                _logger.LogInformation("检查医嘱已签收，任务将在检查站创建预约时生成");
-                tasks = new List<ExecutionTask>();
+                // 检查医嘱签收时生成申请任务，预约确认后生成执行任务
+                var applicationTask = await _inspectionTaskService.GenerateApplicationTaskAsync(inspectionOrder);
+                tasks = new List<ExecutionTask> { applicationTask };
+                _logger.LogInformation("检查医嘱生成1个申请任务，预约确认后将生成执行任务");
             }
             else if (order is SurgicalOrder surgicalOrder)
             {
@@ -876,7 +877,7 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
     /// <summary>
     /// 为任务生成条形码索引和图片（签收医嘱时调用）
     /// </summary>
-    private async Task GenerateBarcodeForTaskAsync(ExecutionTask task)
+    public async Task GenerateBarcodeForTaskAsync(ExecutionTask task)
     {
         try
         {

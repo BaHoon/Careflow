@@ -1,5 +1,7 @@
 using System.Text.Json;
 using CareFlow.Application.DTOs.Inspection;
+using CareFlow.Application.DTOs.InspectionOrders;
+using CareFlow.Application.DTOs.OrderApplication;
 using CareFlow.Application.Interfaces;
 using CareFlow.Core.Enums;
 using CareFlow.Core.Interfaces;
@@ -44,6 +46,89 @@ public class InspectionOrderTaskService : IInspectionService
         _doctorRepo = doctorRepo;
         _nurseRepo = nurseRepo;
         _taskRepo = taskRepo;
+    }
+
+    // ===== 任务生成相关 =====
+
+    /// <summary>
+    /// 生成检查申请任务【任务1】（签收时调用）
+    /// </summary>
+    public async Task<ExecutionTask> GenerateApplicationTaskAsync(InspectionOrder order)
+    {
+        // 加载医嘱完整信息
+        var fullOrder = await _orderRepo.GetQueryable()
+            .Include(o => o.Patient)
+            .FirstOrDefaultAsync(o => o.Id == order.Id);
+
+        if (fullOrder == null)
+            throw new Exception($"检查医嘱 {order.Id} 不存在");
+
+        // 创建申请任务：病房护士在签收后1小时内提交检查申请
+        var task = new ExecutionTask
+        {
+            MedicalOrderId = order.Id,
+            PatientId = order.PatientId,
+            Category = TaskCategory.Immediate,  // 核对类任务
+            Status = ExecutionTaskStatus.Applying,  // 待申请状态
+            PlannedStartTime = DateTime.UtcNow.AddHours(1),  // 签收后1小时内申请
+            CreatedAt = DateTime.UtcNow,
+            DataPayload = JsonSerializer.Serialize(new
+            {
+                TaskType = "InspectionApplication",
+                Title = "提交检查申请",
+                Description = $"检查项目: {order.ItemCode}，检查位置: {order.Location ?? "待定"}",
+                ItemCode = order.ItemCode,
+                Location = order.Location,
+                Source = order.Source,
+                RisLisId = order.RisLisId,
+                Instructions = "请在检查申请界面提交此检查医嘱的申请"
+            })
+        };
+
+        await _taskRepo.AddAsync(task);
+        return task;
+    }
+
+    /// <summary>
+    /// 根据预约信息生成执行任务（预约确认后调用）
+    /// </summary>
+    public async Task<List<ExecutionTask>> GenerateExecutionTasksAsync(
+        long orderId, AppointmentDetail appointmentDetail)
+    {
+        // 加载医嘱完整信息
+        var order = await _orderRepo.GetQueryable()
+            .Include(o => o.Patient)
+            .FirstOrDefaultAsync(o => o.Id == orderId);
+
+        if (order == null)
+            throw new Exception($"检查医嘱 {orderId} 不存在");
+
+        // 更新医嘱的预约信息
+        order.AppointmentTime = appointmentDetail.AppointmentTime;
+        order.AppointmentPlace = appointmentDetail.AppointmentPlace;
+        order.Precautions = appointmentDetail.Precautions;
+        order.InspectionStatus = InspectionOrderStatus.Pending;  // 待前往
+        await _orderRepo.UpdateAsync(order);
+
+        var tasks = new List<ExecutionTask>
+        {
+            // 任务1: 打印检查导引单（病房护士，预约后立即执行）
+            // CreatePrintGuideTask(order, appointmentDetail.AppointmentTime.AddMinutes(-30)),
+            
+            // 任务2: 患者检查签到（检查站护士，预约时间前5分钟）
+            CreatePatientCheckInTask(order, appointmentDetail.AppointmentTime.AddMinutes(-5)),
+            
+            // 任务3: 检查完成确认（检查站护士，预约时间后30分钟）
+            CreateCheckCompleteTask(order, appointmentDetail.AppointmentTime.AddMinutes(30))
+        };
+
+        // 保存任务到数据库
+        foreach (var task in tasks)
+        {
+            await _taskRepo.AddAsync(task);
+        }
+
+        return tasks;
     }
 
     // ===== 检查医嘱状态管理(内部使用) =====
@@ -299,7 +384,7 @@ public class InspectionOrderTaskService : IInspectionService
             CreatePrintGuideTask(order, appointmentTime.AddMinutes(-60)),
             
             // 任务2: 检查站签到（检查站护士，扫码后自动完成）
-            CreateCheckInTask(order, appointmentTime),
+            CreatePatientCheckInTask(order, appointmentTime),
             
             // 任务3: 检查完成确认（检查站护士，扫码后自动完成）
             CreateCheckCompleteTask(order, appointmentTime.AddMinutes(30))
@@ -351,12 +436,11 @@ public class InspectionOrderTaskService : IInspectionService
         return new ExecutionTask
         {
             MedicalOrderId = order.Id,
-            MedicalOrder = order,
             PatientId = order.PatientId,
-            Patient = order.Patient,
-            Category = TaskCategory.Immediate, // 打印导引单为即刻执行
+            Category = TaskCategory.Immediate,
             PlannedStartTime = plannedTime,
-            Status = ExecutionTaskStatus.Applying,  // 初始状态为待申请（需要申请打印）
+            Status = ExecutionTaskStatus.Pending,
+            CreatedAt = DateTime.UtcNow,
             DataPayload = JsonSerializer.Serialize(new
             {
                 TaskType = "INSP_PRINT_GUIDE",
@@ -370,19 +454,17 @@ public class InspectionOrderTaskService : IInspectionService
     
     /// <summary>
     /// 任务2: 检查站签到（检查站护士扫码）
-    /// 此任务在扫码时自动完成，护士只需扫码即可
     /// </summary>
-    private ExecutionTask CreateCheckInTask(InspectionOrder order, DateTime plannedTime)
+    private ExecutionTask CreatePatientCheckInTask(InspectionOrder order, DateTime plannedTime)
     {
         return new ExecutionTask
         {
             MedicalOrderId = order.Id,
-            MedicalOrder = order,
             PatientId = order.PatientId,
-            Patient = order.Patient,
-            Category = TaskCategory.Immediate, // 检查站签到为即刻执行
+            Category = TaskCategory.DataCollection,
             PlannedStartTime = plannedTime,
             Status = ExecutionTaskStatus.Pending,
+            CreatedAt = DateTime.UtcNow,
             DataPayload = JsonSerializer.Serialize(new
             {
                 TaskType = "INSP_CHECKIN",
@@ -396,7 +478,7 @@ public class InspectionOrderTaskService : IInspectionService
                     risLisId = order.RisLisId,
                     qrCodeData = $"INSPECTION_{order.Id}_{order.PatientId}",
                     scanRequired = true,
-                    autoComplete = true  // 扫码后自动完成
+                    autoComplete = true
                 }
             })
         };
@@ -404,19 +486,17 @@ public class InspectionOrderTaskService : IInspectionService
     
     /// <summary>
     /// 任务3: 检查完成确认（检查站护士扫码）
-    /// 此任务在扫码时自动完成
     /// </summary>
     private ExecutionTask CreateCheckCompleteTask(InspectionOrder order, DateTime plannedTime)
     {
         return new ExecutionTask
         {
             MedicalOrderId = order.Id,
-            MedicalOrder = order,
             PatientId = order.PatientId,
-            Patient = order.Patient,
-            Category = TaskCategory.Immediate, // 检查完成确认为即刻执行
+            Category = TaskCategory.Immediate,
             PlannedStartTime = plannedTime,
             Status = ExecutionTaskStatus.Pending,
+            CreatedAt = DateTime.UtcNow,
             DataPayload = JsonSerializer.Serialize(new
             {
                 TaskType = "INSP_COMPLETE",
@@ -430,7 +510,7 @@ public class InspectionOrderTaskService : IInspectionService
                     risLisId = order.RisLisId,
                     qrCodeData = $"INSPECTION_{order.Id}_{order.PatientId}",
                     scanRequired = true,
-                    autoComplete = true  // 扫码后自动完成
+                    autoComplete = true
                 }
             })
         };
@@ -438,7 +518,6 @@ public class InspectionOrderTaskService : IInspectionService
     
     /// <summary>
     /// 动态创建任务：查看检查报告（病房护士）
-    /// 此方法在报告推送时调用，应在 InspectionService.CreateInspectionReportAsync 中调用
     /// </summary>
     public async Task<ExecutionTask> CreateReportReviewTask(InspectionOrder order, long reportId)
     {

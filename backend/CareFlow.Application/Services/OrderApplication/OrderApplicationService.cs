@@ -5,6 +5,7 @@ using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models.Medical;
 using CareFlow.Core.Models.Nursing;
 using CareFlow.Core.Models.Organization;
+using CareFlow.Core.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
@@ -20,8 +21,12 @@ public class OrderApplicationService : IOrderApplicationService
     private readonly IRepository<InspectionOrder, long> _inspectionOrderRepository;
     private readonly IRepository<MedicationOrder, long> _medicationOrderRepository;
     private readonly IRepository<Patient, string> _patientRepository;
+    private readonly IRepository<BarcodeIndex, string> _barcodeRepository;
     private readonly IPharmacyIntegrationService _pharmacyService;
     private readonly IInspectionStationService _inspectionStationService;
+    private readonly IInspectionService _inspectionService;
+    private readonly INurseAssignmentService _nurseAssignmentService;
+    private readonly IBarcodeService _barcodeService;
     private readonly ILogger<OrderApplicationService> _logger;
 
     public OrderApplicationService(
@@ -29,16 +34,24 @@ public class OrderApplicationService : IOrderApplicationService
         IRepository<InspectionOrder, long> inspectionOrderRepository,
         IRepository<MedicationOrder, long> medicationOrderRepository,
         IRepository<Patient, string> patientRepository,
+        IRepository<BarcodeIndex, string> barcodeRepository,
         IPharmacyIntegrationService pharmacyService,
         IInspectionStationService inspectionStationService,
+        IInspectionService inspectionService,
+        INurseAssignmentService nurseAssignmentService,
+        IBarcodeService barcodeService,
         ILogger<OrderApplicationService> logger)
     {
         _taskRepository = taskRepository;
         _inspectionOrderRepository = inspectionOrderRepository;
         _medicationOrderRepository = medicationOrderRepository;
         _patientRepository = patientRepository;
+        _barcodeRepository = barcodeRepository;
         _pharmacyService = pharmacyService;
         _inspectionStationService = inspectionStationService;
+        _inspectionService = inspectionService;
+        _nurseAssignmentService = nurseAssignmentService;
+        _barcodeService = barcodeService;
         _logger = logger;
     }
 
@@ -135,32 +148,44 @@ public class OrderApplicationService : IOrderApplicationService
 
         try
         {
-            // 查询已签收但未申请的检查医嘱
-            var query = _inspectionOrderRepository.GetQueryable()
-                .Include(o => o.Patient)
+            // 查询检查任务（已生成任务的检查医嘱）
+            var query = _taskRepository.GetQueryable()
+                .Include(t => t.Patient)
                     .ThenInclude(p => p.Bed)
-                .Where(o => request.PatientIds.Contains(o.PatientId)
-                         && o.Status == OrderStatus.Accepted  // 已签收
-                         && o.InspectionStatus == InspectionOrderStatus.Pending); // 待前往
+                .Include(t => t.MedicalOrder)
+                .Where(t => request.PatientIds.Contains(t.PatientId)
+                         && t.MedicalOrder.OrderType == "InspectionOrder"
+                         && (t.Status == ExecutionTaskStatus.Applying 
+                             || t.Status == ExecutionTaskStatus.Applied 
+                             || t.Status == ExecutionTaskStatus.AppliedConfirmed));
 
-            var orders = await query
-                .OrderBy(o => o.CreateTime)
+            // 状态筛选
+            if (request.StatusFilter != null && request.StatusFilter.Any())
+            {
+                var statusEnums = request.StatusFilter
+                    .Select(s => Enum.Parse<ExecutionTaskStatus>(s))
+                    .ToList();
+                query = query.Where(t => statusEnums.Contains(t.Status));
+            }
+
+            var tasks = await query
+                .OrderBy(t => t.PlannedStartTime)
                 .ToListAsync();
 
-            _logger.LogInformation("查询到 {Count} 条待申请检查医嘱", orders.Count);
+            _logger.LogInformation("查询到 {Count} 条检查任务", tasks.Count);
 
             // 转换为DTO
             var result = new List<ApplicationItemDto>();
-            foreach (var order in orders)
+            foreach (var task in tasks)
             {
                 try
                 {
-                    var dto = await MapInspectionOrderToApplicationItemDto(order);
+                    var dto = await MapInspectionTaskToApplicationItemDto(task);
                     result.Add(dto);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "映射检查医嘱 {OrderId} 失败", order.Id);
+                    _logger.LogError(ex, "映射检查任务 {TaskId} 失败", task.Id);
                 }
             }
 
@@ -290,79 +315,182 @@ public class OrderApplicationService : IOrderApplicationService
         InspectionApplicationRequestDto request)
     {
         _logger.LogInformation("========== 提交检查申请 ==========");
-        _logger.LogInformation("护士ID: {NurseId}, 医嘱数: {Count}, 加急: {IsUrgent}",
-            request.NurseId, request.OrderIds.Count, request.IsUrgent);
+        _logger.LogInformation("护士ID: {NurseId}, 任务数: {Count}, 加急: {IsUrgent}",
+            request.NurseId, request.TaskIds.Count, request.IsUrgent);
 
-        var processedIds = new List<long>();
+        var processedOrderIds = new List<long>();
         var errors = new List<string>();
 
         try
         {
-            // 1. 验证所有检查医嘱
-            foreach (var orderId in request.OrderIds)
+            // 1. 查找待申请的检查申请任务
+            foreach (var taskId in request.TaskIds)
             {
-                var order = await _inspectionOrderRepository.GetByIdAsync(orderId);
+                // 查找申请任务（签收时生成的任务）
+                var applicationTask = await _taskRepository.GetByIdAsync(taskId);
                 
-                if (order == null)
+                if (applicationTask == null)
                 {
-                    errors.Add($"检查医嘱 {orderId} 不存在");
+                    _logger.LogWarning("❌ 申请任务 {TaskId} 不存在", taskId);
+                    errors.Add($"申请任务 {taskId} 不存在");
                     continue;
                 }
 
-                if (order.Status != OrderStatus.Accepted)
+                if (applicationTask.Status != ExecutionTaskStatus.Applying)
                 {
-                    errors.Add($"检查医嘱 {orderId} 状态为 {order.Status}，不能申请");
+                    _logger.LogWarning("❌ 申请任务 {TaskId} 状态为 {Status}，不能申请", taskId, applicationTask.Status);
+                    errors.Add($"申请任务 {taskId} 状态为 {applicationTask.Status}，不能申请");
                     continue;
                 }
 
-                if (order.InspectionStatus != InspectionOrderStatus.Pending)
+                _logger.LogInformation("📋 找到申请任务 TaskId={TaskId}, OrderId={OrderId}, Status={Status}", 
+                    applicationTask.Id, applicationTask.MedicalOrderId, applicationTask.Status);
+
+                // 2. 更新任务状态为Applied（已申请）
+                applicationTask.Status = ExecutionTaskStatus.Applied;
+                applicationTask.LastModifiedAt = DateTime.UtcNow;
+                applicationTask.ActualStartTime = DateTime.UtcNow;  // 记录提交时间
+                applicationTask.ExecutorStaffId = request.NurseId;  // 记录提交护士
+                
+                // 更新DataPayload添加申请信息
+                try
                 {
-                    errors.Add($"检查医嘱 {orderId} 检查状态为 {order.InspectionStatus}，不能重复申请");
-                    continue;
+                    var payload = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(applicationTask.DataPayload);
+                    if (payload != null)
+                    {
+                        payload["SubmittedAt"] = JsonSerializer.SerializeToElement(DateTime.UtcNow);
+                        payload["SubmittedBy"] = JsonSerializer.SerializeToElement(request.NurseId);
+                        payload["IsUrgent"] = JsonSerializer.SerializeToElement(request.IsUrgent);
+                        applicationTask.DataPayload = JsonSerializer.Serialize(payload);
+                    }
                 }
-
-                // 2. 更新检查医嘱状态（标记为已申请）
-                // 注意：这里不修改InspectionStatus，等待检查站确认后才更新
-                order.Remarks = string.IsNullOrEmpty(order.Remarks)
-                    ? $"[{DateTime.UtcNow:yyyy-MM-dd HH:mm}] 护士{request.NurseId}提交申请"
-                    : order.Remarks + $"\n[{DateTime.UtcNow:yyyy-MM-dd HH:mm}] 护士{request.NurseId}提交申请";
-
-                if (request.IsUrgent)
+                catch (Exception ex)
                 {
-                    order.Remarks += " (加急)";
+                    _logger.LogWarning(ex, "更新任务 {TaskId} 的DataPayload失败", taskId);
                 }
-
-                await _inspectionOrderRepository.UpdateAsync(order);
-                processedIds.Add(orderId);
-                _logger.LogInformation("✅ 检查医嘱 {OrderId} 已标记为申请", orderId);
+                
+                await _taskRepository.UpdateAsync(applicationTask);
+                processedOrderIds.Add(applicationTask.MedicalOrderId);
+                _logger.LogInformation("✅ 申请任务 {TaskId} 已更新为Applied状态", applicationTask.Id);
             }
 
-            if (processedIds.Count == 0)
+            if (processedOrderIds.Count == 0)
             {
                 return new ApplicationResponseDto
                 {
                     Success = false,
-                    Message = "所有检查医嘱申请失败",
+                    Message = "所有检查申请失败：未找到待申请的任务",
                     Errors = errors
                 };
             }
 
-            // 3. 调用检查站系统接口
+            // 3. 调用检查站系统接口（传递医嘱ID列表）
             var inspectionResult = await _inspectionStationService.SendInspectionRequestAsync(
-                processedIds, request.IsUrgent);
+                processedOrderIds, request.IsUrgent);
 
             if (!inspectionResult.Success)
             {
                 _logger.LogWarning("⚠️ 检查站系统接口调用失败: {Message}", inspectionResult.Message);
+                return new ApplicationResponseDto
+                {
+                    Success = false,
+                    Message = $"检查站系统接口调用失败: {inspectionResult.Message}",
+                    ProcessedIds = processedOrderIds,
+                    Errors = errors
+                };
+            }
+
+            // 3.5 检查站确认成功后，更新申请任务状态为 AppliedConfirmed
+            _logger.LogInformation("🔄 更新申请任务状态为已确认...");
+            foreach (var taskId in request.TaskIds)
+            {
+                var applicationTask = await _taskRepository.GetByIdAsync(taskId);
+                if (applicationTask != null && applicationTask.Status == ExecutionTaskStatus.Applied)
+                {
+                    applicationTask.Status = ExecutionTaskStatus.AppliedConfirmed;
+                    applicationTask.LastModifiedAt = DateTime.UtcNow;
+                    await _taskRepository.UpdateAsync(applicationTask);
+                    _logger.LogInformation("✅ 申请任务 {TaskId} 状态已更新为 AppliedConfirmed", taskId);
+                }
+            }
+
+            // 4. 预约成功后，生成任务、分配护士、生成条形码
+            if (inspectionResult.AppointmentDetails != null && inspectionResult.AppointmentDetails.Any())
+            {
+                _logger.LogInformation("🔄 开始生成检查任务...");
+                
+                foreach (var (orderId, appointmentDetail) in inspectionResult.AppointmentDetails)
+                {
+                    try
+                    {
+                        // 4.1 生成检查执行任务（2个任务：签到、完成确认）
+                        var tasks = await _inspectionService.GenerateExecutionTasksAsync(
+                            orderId, appointmentDetail);
+                        
+                        _logger.LogInformation("✅ 检查医嘱 {OrderId} 生成了 {Count} 个执行任务", 
+                            orderId, tasks.Count);
+
+                        // 4.2 为每个任务分配责任护士并生成条形码
+                        foreach (var task in tasks)
+                        {
+                            // 根据任务计划时间分配责任护士
+                            var order = await _inspectionOrderRepository.GetByIdAsync(orderId);
+                            if (order != null)
+                            {
+                                var responsibleNurse = await _nurseAssignmentService
+                                    .CalculateResponsibleNurseAsync(order.PatientId, task.PlannedStartTime);
+
+                                if (responsibleNurse != null)
+                                {
+                                    task.AssignedNurseId = responsibleNurse;
+                                    _logger.LogInformation("任务 {TaskId} 分配计划责任护士 {NurseId}", 
+                                        task.Id, responsibleNurse);
+                                }
+                                else
+                                {
+                                    _logger.LogWarning("任务 {TaskId} 计划时间 {Time} 无排班护士，计划责任护士留空",
+                                        task.Id, task.PlannedStartTime);
+                                }
+                            }
+
+                            await _taskRepository.UpdateAsync(task);
+                        }
+
+                        // 4.3 为每个任务生成条形码
+                        int barcodeSuccessCount = 0;
+                        foreach (var task in tasks)
+                        {
+                            try
+                            {
+                                await GenerateBarcodeForTaskAsync(task);
+                                barcodeSuccessCount++;
+                                _logger.LogInformation("✅ 任务 {TaskId} 已生成条形码", task.Id);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "为任务 {TaskId} 生成条形码失败", task.Id);
+                                // 条形码生成失败不影响整体流程
+                            }
+                        }
+                        
+                        _logger.LogInformation("✅ 检查医嘱 {OrderId} 生成了 {Count} 个任务条形码", 
+                            orderId, barcodeSuccessCount);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "❌ 处理检查医嘱 {OrderId} 的任务生成失败", orderId);
+                        errors.Add($"检查医嘱 {orderId} 任务生成失败: {ex.Message}");
+                    }
+                }
             }
 
             return new ApplicationResponseDto
             {
                 Success = true,
                 Message = errors.Count > 0
-                    ? $"成功申请 {processedIds.Count} 个检查，失败 {errors.Count} 个"
-                    : $"成功申请 {processedIds.Count} 个检查",
-                ProcessedIds = processedIds,
+                    ? $"成功申请 {processedOrderIds.Count} 个检查，失败 {errors.Count} 个"
+                    : $"成功申请 {processedOrderIds.Count} 个检查，并已生成执行任务",
+                ProcessedIds = processedOrderIds,
                 Errors = errors.Count > 0 ? errors : null,
                 AppointmentInfo = inspectionResult.AppointmentNumbers
             };
@@ -661,6 +789,55 @@ public class OrderApplicationService : IOrderApplicationService
     }
 
     /// <summary>
+    /// 将检查任务映射为ApplicationItemDto
+    /// </summary>
+    private async Task<ApplicationItemDto> MapInspectionTaskToApplicationItemDto(ExecutionTask task)
+    {
+        var inspectionOrder = task.MedicalOrder as InspectionOrder;
+        if (inspectionOrder == null)
+        {
+            throw new InvalidOperationException($"任务 {task.Id} 的医嘱不是检查医嘱类型");
+        }
+
+        return new ApplicationItemDto
+        {
+            ApplicationType = "Inspection",
+            RelatedId = task.Id, // 使用任务ID
+            OrderId = inspectionOrder.Id,
+            OrderType = "Inspection",
+            IsLongTerm = inspectionOrder.IsLongTerm,
+            DisplayText = inspectionOrder.ItemCode,
+            ItemCount = 1,
+            InspectionSource = inspectionOrder.Source.ToString(),
+            PatientId = task.PatientId,
+            PatientName = task.Patient?.Name ?? "",
+            BedId = task.Patient?.Bed?.Id ?? "",
+            Status = task.Status.ToString(), // 从任务状态读取
+            StatusText = GetStatusText(task.Status), // 从任务状态转换
+            PlannedStartTime = task.PlannedStartTime,
+            PlantEndTime = inspectionOrder.PlantEndTime,
+            ContentDescription = $"检查：{inspectionOrder.ItemCode}",
+            Medications = null,
+            InspectionInfo = new InspectionDetail
+            {
+                ItemCode = inspectionOrder.ItemCode,
+                ItemName = inspectionOrder.ItemCode,
+                Location = inspectionOrder.Location,
+                Source = inspectionOrder.Source.ToString(),
+                Precautions = inspectionOrder.Precautions,
+                AppointmentTime = inspectionOrder.AppointmentTime,
+                AppointmentPlace = inspectionOrder.AppointmentPlace
+            },
+            IsUrgent = false,
+            Remarks = inspectionOrder.Remarks,
+            CreateTime = task.CreateTime,
+            AppliedAt = task.Status >= ExecutionTaskStatus.Applied ? task.LastModifiedAt : null,
+            AppliedBy = task.AssignedNurseId,
+            ConfirmedAt = task.Status == ExecutionTaskStatus.AppliedConfirmed ? task.LastModifiedAt : null
+        };
+    }
+
+    /// <summary>
     /// 获取状态中文描述
     /// </summary>
     private string GetStatusText(ExecutionTaskStatus status)
@@ -678,6 +855,42 @@ public class OrderApplicationService : IOrderApplicationService
             ExecutionTaskStatus.Incomplete => "异常/拒绝",
             _ => status.ToString()
         };
+    }
+
+    /// <summary>
+    /// 为任务生成条形码索引和图片
+    /// </summary>
+    private async Task GenerateBarcodeForTaskAsync(ExecutionTask task)
+    {
+        try
+        {
+            var barcodeIndex = new BarcodeIndex
+            {
+                Id = $"ExecutionTasks-{task.Id}",
+                TableName = "ExecutionTasks",
+                RecordId = task.Id.ToString()
+            };
+
+            // 生成条形码并保存到文件系统
+            var barcodeResult = await _barcodeService.GenerateAndSaveBarcodeAsync(barcodeIndex, saveToFile: true);
+            
+            // 更新条形码索引信息
+            barcodeIndex.ImagePath = barcodeResult.FilePath;
+            barcodeIndex.ImageSize = barcodeResult.FileSize;
+            barcodeIndex.ImageMimeType = barcodeResult.MimeType;
+            barcodeIndex.ImageGeneratedAt = barcodeResult.GeneratedAt;
+
+            // 保存条形码索引到数据库
+            await _barcodeRepository.AddAsync(barcodeIndex);
+            
+            _logger.LogDebug("已为ExecutionTask {TaskId} 生成条形码索引和图片文件 {FilePath}", 
+                task.Id, barcodeResult.FilePath ?? "内存中");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "为ExecutionTask {TaskId} 生成条形码时发生错误", task.Id);
+            throw;
+        }
     }
 
     #endregion
