@@ -1,5 +1,6 @@
 using CareFlow.Application.Interfaces;
 using CareFlow.Application.Options;
+using CareFlow.Core.Enums;
 using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models.Nursing;
 using Microsoft.EntityFrameworkCore;
@@ -45,7 +46,7 @@ public class ShiftHandoverService
 
             // 1. 查询所有未完成的任务
             var unfinishedTasks = await _nursingTaskRepo.GetQueryable()
-                .Where(t => t.Status == "Pending")
+                .Where(t => t.Status == ExecutionTaskStatus.Pending)
                 .ToListAsync();
 
             if (unfinishedTasks.Count == 0)
@@ -77,7 +78,7 @@ public class ShiftHandoverService
                     
                     // 设置为未分配状态
                     task.AssignedNurseId = null;
-                    task.Status = "Unassigned";
+                    task.Status = ExecutionTaskStatus.Pending;//TODO: 特殊状态
                     continue;
                 }
 
@@ -92,9 +93,9 @@ public class ShiftHandoverService
                 task.AssignedNurseId = newNurseId;
                 
                 // 确保状态正确
-                if (task.Status == "Unassigned")
+                if (task.Status == ExecutionTaskStatus.Pending)//TODO: 特殊状态
                 {
-                    task.Status = "Pending";
+                    task.Status = ExecutionTaskStatus.Pending;
                 }
 
                 transferredCount++;
@@ -105,7 +106,7 @@ public class ShiftHandoverService
             // 3. 批量保存更改
             if (transferredCount > 0 || failedCount > 0)
             {
-                foreach (var task in unfinishedTasks.Where(t => t.AssignedNurseId != null || t.Status == "Unassigned"))
+                foreach (var task in unfinishedTasks.Where(t => t.AssignedNurseId != null || t.Status == ExecutionTaskStatus.Pending))//TODO: 特殊状态
                 {
                     await _nursingTaskRepo.UpdateAsync(task);
                 }

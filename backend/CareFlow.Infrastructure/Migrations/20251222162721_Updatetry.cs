@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CareFlow.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class InitCreate : Migration
+    public partial class Updatetry : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -426,7 +426,7 @@ namespace CareFlow.Infrastructure.Migrations
                     PatientId = table.Column<string>(type: "text", nullable: false),
                     ScheduledTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     AssignedNurseId = table.Column<string>(type: "text", nullable: true),
-                    Status = table.Column<string>(type: "text", nullable: false),
+                    Status = table.Column<int>(type: "integer", nullable: false),
                     ExecuteTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     ExecutorNurseId = table.Column<string>(type: "text", nullable: true),
                     TaskType = table.Column<string>(type: "text", nullable: false),

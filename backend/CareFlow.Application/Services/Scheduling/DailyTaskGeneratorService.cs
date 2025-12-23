@@ -1,5 +1,6 @@
 using CareFlow.Application.Interfaces;
 using CareFlow.Application.Options;
+using CareFlow.Core.Enums;
 using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models.Nursing;
 using CareFlow.Core.Models.Organization;
@@ -110,7 +111,7 @@ public class DailyTaskGeneratorService
                         PatientId = patient.Id,
                         ScheduledTime = scheduledTimeUtc,
                         AssignedNurseId = assignedNurseId,
-                        Status = assignedNurseId != null ? "Pending" : "Unassigned",
+                        Status = assignedNurseId != null ? ExecutionTaskStatus.Pending : ExecutionTaskStatus.Applying,//TODO
                         TaskType = "Routine",
                         Description = $"常规护理 - {timeSlot.ToString(@"hh\:mm")}"
                     };

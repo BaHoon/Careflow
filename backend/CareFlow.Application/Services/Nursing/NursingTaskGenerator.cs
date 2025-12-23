@@ -69,7 +69,7 @@ namespace CareFlow.Application.Services.Nursing
                         // 填入计算出的护士ID (如果没排班，这里可能是null，允许后续人工分配)
                         AssignedNurseId = assignedNurseId, 
                         
-                        Status = "Pending",
+                        Status = ExecutionTaskStatus.Pending,
                         TaskType = "Routine", // 标记为常规任务
                         Description = $"常规护理 (等级:{(NursingGrade)patient.NursingGrade})",
                         

@@ -74,7 +74,7 @@ namespace CareFlow.Application.Services.Nursing
             }
 
             // 4. 更新任务状态
-            task.Status = "Completed";
+            task.Status = ExecutionTaskStatus.Completed;
             task.ExecuteTime = input.ExecutionTime;
             task.ExecutorNurseId = input.CurrentNurseId; // 记录实际执行人（可能和分配的人不一样）
 
@@ -116,7 +116,7 @@ namespace CareFlow.Application.Services.Nursing
                     // 规则：复测任务通常默认分配给原来的护士
                     AssignedNurseId = originalTask.AssignedNurseId, 
                     
-                    Status = "Pending",
+                    Status = ExecutionTaskStatus.Pending,
                     TaskType = "ReMeasure", // 标记为复测任务
                     Description = $"{reasonDesc} - 请复测",
                     

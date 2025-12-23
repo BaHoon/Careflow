@@ -1,4 +1,5 @@
 using CareFlow.Application.Options;
+using CareFlow.Core.Enums;
 using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models.Nursing;
 using Microsoft.EntityFrameworkCore;
@@ -62,7 +63,7 @@ public class TaskReminderService
     private async Task CheckOverdueNursingTasksAsync(DateTime nowUtc, DateTime nowInChina)
     {
         var overdueTasks = await _nursingTaskRepo.GetQueryable()
-            .Where(t => t.Status == "Pending" && t.ScheduledTime < nowUtc)
+            .Where(t => t.Status == ExecutionTaskStatus.Pending && t.ScheduledTime < nowUtc)
             .Include(t => t.Patient)
             .Include(t => t.AssignedNurse)
             .ToListAsync();
@@ -124,7 +125,7 @@ public class TaskReminderService
     private async Task CheckOverdueExecutionTasksAsync(DateTime nowUtc, DateTime nowInChina)
     {
         var overdueTasks = await _executionTaskRepo.GetQueryable()
-            .Where(t => t.Status == "Pending" && t.PlannedStartTime < nowUtc)
+            .Where(t => t.Status == ExecutionTaskStatus.Pending && t.PlannedStartTime < nowUtc)
             .Include(t => t.Patient)
             .Include(t => t.MedicalOrder)
             .ToListAsync();

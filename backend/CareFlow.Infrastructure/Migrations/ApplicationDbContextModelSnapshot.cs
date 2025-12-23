@@ -685,9 +685,8 @@ namespace CareFlow.Infrastructure.Migrations
                     b.Property<DateTime>("ScheduledTime")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
 
                     b.Property<string>("TaskType")
                         .IsRequired()
@@ -723,64 +722,6 @@ namespace CareFlow.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("ShiftTypes");
-                });
-
-            modelBuilder.Entity("CareFlow.Core.Models.Nursing.VitalSign", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("CreateTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("DiastolicPressure")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("HeartRate")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("MeasurementTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("MedicalOrderId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("text");
-
-                    b.Property<string>("PatientId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("RecorderNurseId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int?>("RespiratoryRate")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal?>("Spo2")
-                        .HasColumnType("numeric");
-
-                    b.Property<int?>("SystolicPressure")
-                        .HasColumnType("integer");
-
-                    b.Property<long?>("TaskId")
-                        .HasColumnType("bigint");
-
-                    b.Property<decimal?>("Temperature")
-                        .HasColumnType("numeric");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PatientId");
-
-                    b.HasIndex("RecorderNurseId");
-
-                    b.ToTable("VitalSigns");
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Nursing.VitalSignsRecord", b =>
@@ -1390,25 +1331,6 @@ namespace CareFlow.Infrastructure.Migrations
                     b.Navigation("AssignedNurse");
 
                     b.Navigation("Patient");
-                });
-
-            modelBuilder.Entity("CareFlow.Core.Models.Nursing.VitalSign", b =>
-                {
-                    b.HasOne("CareFlow.Core.Models.Organization.Patient", "Patient")
-                        .WithMany()
-                        .HasForeignKey("PatientId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CareFlow.Core.Models.Organization.Nurse", "RecorderNurse")
-                        .WithMany()
-                        .HasForeignKey("RecorderNurseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Patient");
-
-                    b.Navigation("RecorderNurse");
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Nursing.VitalSignsRecord", b =>
