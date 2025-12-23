@@ -42,16 +42,32 @@ public class InspectionStationService : IInspectionStationService
         _logger.LogInformation("TODO: 需要根据InspectionOrder.Source区分RIS/LIS系统");
         _logger.LogInformation("TODO: 调用外部API获取预约号和排队信息");
 
-        // 模拟：返回成功响应
+        // 模拟：返回成功响应，包含预约详情
+        var appointmentDetails = new Dictionary<long, AppointmentDetail>();
+        var appointmentNumbers = new Dictionary<long, string>();
+        
+        foreach (var orderId in orderIds)
+        {
+            var appointmentNumber = $"APPT-{DateTime.UtcNow:yyyyMMddHHmmss}-{orderId}";
+            appointmentNumbers[orderId] = appointmentNumber;
+            
+            // 模拟预约详情（实际应从外部系统获取）
+            appointmentDetails[orderId] = new AppointmentDetail
+            {
+                AppointmentNumber = appointmentNumber,
+                AppointmentTime = DateTime.UtcNow.AddHours(2), // 模拟2小时后的预约时间
+                AppointmentPlace = "放射科3楼CT室", // 模拟预约地点
+                Precautions = "检查前需空腹4小时，请勿饮水" // 模拟注意事项
+            };
+        }
+        
         var result = new InspectionRequestResult
         {
             Success = true,
             Message = "检查站接口待实现 - 当前为模拟数据",
             AcceptedOrderIds = orderIds,
-            AppointmentNumbers = orderIds.ToDictionary(
-                id => id,
-                id => $"APPT-{DateTime.UtcNow:yyyyMMddHHmmss}-{id}"
-            )
+            AppointmentNumbers = appointmentNumbers,
+            AppointmentDetails = appointmentDetails
         };
 
         _logger.LogInformation("✅ 检查申请发送成功（模拟）");
