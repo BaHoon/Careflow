@@ -4,18 +4,17 @@ import api from '../utils/api';
  * 检查类医嘱相关API - 完整工作流
  * 
  * 流程说明：
- * 步骤0: 医生开立检查医嘱 (状态: Pending)
- * 步骤1: 病房护士接收医嘱 (状态: Pending)
- * 步骤2: 医嘱被接收后通过GetAppointmentPlace和GenerateAppointmentTime自动填写预约相关字段 (状态: Pending)
- * 步骤3: ⚡自动生成3个任务（步骤456） (状态: Pending)
- * 步骤4: 病房护士打印导引单 (状态: Pending)
- * 步骤5: 护士扫码签到 ⚡自动更新 (状态: Pending → InProgress)
- * 步骤6: 检查站护士扫码完成 ⚡自动更新 (状态: InProgress → ReportPending)
- * 步骤7: 上传检查报告 ⚡自动生成第4个任务 (状态: ReportPending → ReportCompleted)
- * 步骤8: 病房护士查看报告
+ * 步骤1: 医生开立检查医嘱 (状态: Pending)
+ * 步骤2: 病房护士签收医嘱 (状态: Pending)
+ * 步骤3: 护士提交检查申请，等待预约确认 (状态: Pending)
+ * 步骤4: 预约确认后，护士打印导引单交给患者 (状态: Pending)
+ * 步骤5: 患者自行前往检查站进行检查
+ * 步骤6: 检查时间+30分钟后，系统自动获取报告 (状态: Pending → ReportPending/ReportCompleted)
+ * 步骤7: 报告到达后，自动生成"查看报告"任务给护士 (状态: ReportCompleted)
+ * 步骤8: 病房护士查看报告并告知患者
  */
 
-// ========== 步骤0：医生开立检查医嘱 ==========
+// ========== 步骤1：医生开立检查医嘱 ==========
 
 /**
  * 批量创建检查医嘱
@@ -35,9 +34,7 @@ export const batchCreateInspectionOrders = (data) => {
 /**
  * 统一扫码接口 - 根据任务类型自动处理
  * 
- * 步骤4: 打印导引单 → 返回打印确认
- * 步骤5: 签到 → ⚡自动更新状态为 InProgress，记录签到时间
- * 步骤6: 完成确认 → ⚡自动更新状态为 ReportPending，记录完成时间
+ * 步骤4: 打印导引单 → 确认打印完成
  * 
  * @param {Object} data
  * @param {number} data.taskId - 任务ID
@@ -48,14 +45,14 @@ export const processScan = (data) => {
   return api.post('/Inspection/scan', data);
 };
 
-// ========== 步骤7：上传报告（⚡自动生成第4个任务）==========
+// ========== 步骤7：系统自动获取报告（⚡自动生成查看任务）==========
 
 /**
- * 创建检查报告
+ * 创建检查报告（通常由系统自动调用或检查站推送）
  * ⚡自动操作:
  * - 更新状态为 ReportCompleted
  * - 记录报告时间
- * - 自动生成"查看报告"任务（任务4）
+ * - 自动生成"查看报告"任务给病房护士
  * 
  * @param {Object} data
  * @param {number} data.orderId - 检查医嘱ID
@@ -87,7 +84,7 @@ export const getInspectionReport = (reportId) => {
  * @param {Object} params
  * @param {number} [params.pageIndex=1] - 页码
  * @param {number} [params.pageSize=20] - 每页数量
- * @param {string} [params.inspectionStatus] - 检查状态（Pending, InProgress, ReportPending, ReportCompleted）
+ * @param {string} [params.inspectionStatus] - 检查状态（Pending, ReportPending, ReportCompleted）
  * @param {string} [params.ward] - 病区
  * @param {string} [params.patientName] - 患者姓名
  */
@@ -130,7 +127,6 @@ export const getAvailableInspectionDevices = () => {
 
 export const InspectionOrderStatus = {
   Pending: 'Pending',              // 待前往
-  InProgress: 'InProgress',        // 检查中
   ReportPending: 'ReportPending',  // 报告待出
   ReportCompleted: 'ReportCompleted', // 报告已出
   Cancelled: 'Cancelled'           // 已取消
@@ -138,7 +134,6 @@ export const InspectionOrderStatus = {
 
 export const StatusDisplayText = {
   'Pending': '待前往',
-  'InProgress': '检查中',
   'ReportPending': '报告待出',
   'ReportCompleted': '报告已出',
   'Cancelled': '已取消'
@@ -148,7 +143,5 @@ export const StatusDisplayText = {
 
 export const InspectionTaskType = {
   PrintGuide: 'INSP_PRINT_GUIDE',      // 打印导引单
-  CheckIn: 'INSP_CHECKIN',             // 签到
-  Complete: 'INSP_COMPLETE',           // 检查完成确认
   ReviewReport: 'INSP_REVIEW_REPORT'   // 查看报告
 };

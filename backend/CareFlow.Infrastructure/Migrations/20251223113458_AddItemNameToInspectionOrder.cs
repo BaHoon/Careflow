@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CareFlow.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class Updatetry : Migration
+    public partial class AddItemNameToInspectionOrder : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -498,11 +498,13 @@ namespace CareFlow.Infrastructure.Migrations
                     PatientId = table.Column<string>(type: "text", nullable: false),
                     Category = table.Column<int>(type: "integer", nullable: false),
                     PlannedStartTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    AssignedNurseId = table.Column<string>(type: "text", nullable: true),
                     ActualStartTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     ExecutorStaffId = table.Column<string>(type: "text", nullable: true),
                     ActualEndTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     CompleterNurseId = table.Column<string>(type: "text", nullable: true),
                     Status = table.Column<int>(type: "integer", nullable: false),
+                    StatusBeforeLocking = table.Column<int>(type: "integer", nullable: true),
                     IsRolledBack = table.Column<bool>(type: "boolean", nullable: false),
                     DataPayload = table.Column<string>(type: "text", nullable: false),
                     ResultPayload = table.Column<string>(type: "text", nullable: true),
@@ -520,6 +522,11 @@ namespace CareFlow.Infrastructure.Migrations
                         principalTable: "MedicalOrders",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_ExecutionTasks_Nurses_AssignedNurseId",
+                        column: x => x.AssignedNurseId,
+                        principalTable: "Nurses",
+                        principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_ExecutionTasks_Nurses_CompleterNurseId",
                         column: x => x.CompleterNurseId,
@@ -544,6 +551,7 @@ namespace CareFlow.Infrastructure.Migrations
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false),
                     ItemCode = table.Column<string>(type: "text", nullable: false),
+                    ItemName = table.Column<string>(type: "text", nullable: false),
                     RisLisId = table.Column<string>(type: "text", nullable: false),
                     Location = table.Column<string>(type: "text", nullable: false),
                     Source = table.Column<int>(type: "integer", nullable: false),
@@ -740,6 +748,11 @@ namespace CareFlow.Infrastructure.Migrations
                 name: "IX_Beds_WardId",
                 table: "Beds",
                 column: "WardId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ExecutionTasks_AssignedNurseId",
+                table: "ExecutionTasks",
+                column: "AssignedNurseId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ExecutionTasks_CompleterNurseId",

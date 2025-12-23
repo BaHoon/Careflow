@@ -27,7 +27,7 @@
           <el-select v-model="filterForm.inspectionStatus" placeholder="全部" clearable style="width: 120px">
             <el-option label="全部" value="" />
             <el-option label="待前往" value="Pending" />
-            <el-option label="检查中" value="InProgress" />
+
             <el-option label="已回病房" value="BackToWard" />
             <el-option label="报告已出" value="ReportCompleted" />
           </el-select>
@@ -441,8 +441,7 @@ const handleBatchPrint = () => {
 const getStatusText = (status) => {
   const statusMap = {
     'Pending': '待前往',
-    'InProgress': '检查中',
-    'BackToWard': '已回病房',
+    'ReportPending': '报告待出',
     'ReportCompleted': '报告已出',
     'Cancelled': '已取消'
   }
@@ -452,8 +451,7 @@ const getStatusText = (status) => {
 const getStatusType = (status) => {
   const typeMap = {
     'Pending': 'info',
-    'InProgress': 'warning',
-    'BackToWard': 'success',
+    'ReportPending': 'warning',
     'ReportCompleted': 'success',
     'Cancelled': 'danger'
   }

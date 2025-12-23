@@ -241,6 +241,7 @@ namespace CareFlow.Core.Models.Medical
     public class InspectionOrder : MedicalOrder
     {
         public string ItemCode { get; set; } = null!;         // 检查项目代码
+        public string ItemName { get; set; } = null!;         // 检查项目名称（如"血常规"、"头颅CT"等）
         public string RisLisId { get; set; } = null!;         // 申请单号
         public string Location { get; set; } = null!;         // 检查科室位置
         public InspectionSource Source { get; set; }          // 检查来源 (RIS/LIS)
