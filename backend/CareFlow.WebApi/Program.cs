@@ -5,6 +5,9 @@ using CareFlow.Application; // 引用应用层
 using CareFlow.Application.Services; // 引用应用层服务
 using CareFlow.Application.Interfaces;
 using CareFlow.Application.Services.Nursing;
+using CareFlow.Application.Services.Scheduling;
+using CareFlow.Application.Options;
+using CareFlow.WebApi.BackgroundServices;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -46,10 +49,7 @@ builder.Services.AddScoped<CareFlow.Application.Services.IMedicalOrderManager, C
 builder.Services.AddScoped<ICareFlowDbContext>(provider => 
     provider.GetRequiredService<ApplicationDbContext>());
 
-// 2. 注册任务生成器 (注意：这是个普通类，我们直接注册它自己)
-builder.Services.AddScoped<NursingTaskGenerator>();
-
-// 3. 注册体征服务 (接口 + 实现)
+// 注册体征服务 (接口 + 实现)
 builder.Services.AddScoped<IVitalSignService, VitalSignService>();
 
 // 配置 JWT 认证服务
@@ -74,6 +74,23 @@ builder.Services.AddInfrastructure(builder.Configuration);
 
 // [关键] 注册应用层服务
 builder.Services.AddApplication();
+
+// ============================================
+// 注册护理任务定时调度服务
+// ============================================
+
+// 1. 注册配置选项
+builder.Services.Configure<NursingScheduleOptions>(
+    builder.Configuration.GetSection(NursingScheduleOptions.SectionName));
+
+// 2. 注册业务服务（普通类）
+builder.Services.AddScoped<DailyTaskGeneratorService>();
+builder.Services.AddScoped<ShiftHandoverService>();
+builder.Services.AddScoped<TaskReminderService>();
+builder.Services.AddScoped<TaskDelayCalculator>();  // 新增：延迟计算服务
+
+// 3. 注册后台调度器（BackgroundService）
+builder.Services.AddHostedService<NursingTaskScheduler>();
 
 // [关键] 配置 CORS (跨域资源共享)
 // 允许你的前端 (Vue) 访问这个后端

@@ -61,6 +61,8 @@
                 :task="task"
                 :highlight="true"
                 @click="handleTaskClick"
+                @start-input="handleStartInput"
+                @view-detail="handleViewDetail"
               />
             </div>
           </div>
@@ -77,7 +79,7 @@
           </template>
           <div class="timeline-group">
             <div class="group-header due-soon-header">
-              <h3>临期任务 (30分钟内) ({{ groupedTasks.dueSoon.length }})</h3>
+              <h3>临期任务  ({{ groupedTasks.dueSoon.length }})</h3>
             </div>
             <div class="task-list">
               <TaskItem
@@ -86,6 +88,8 @@
                 :task="task"
                 :highlight="true"
                 @click="handleTaskClick"
+                @start-input="handleStartInput"
+                @view-detail="handleViewDetail"
               />
             </div>
           </div>
@@ -110,6 +114,8 @@
                 :key="task.id"
                 :task="task"
                 @click="handleTaskClick"
+                @start-input="handleStartInput"
+                @view-detail="handleViewDetail"
               />
             </div>
           </div>
@@ -134,6 +140,8 @@
                 :key="task.id"
                 :task="task"
                 @click="handleTaskClick"
+                @start-input="handleStartInput"
+                @view-detail="handleViewDetail"
               />
             </div>
           </div>
@@ -161,31 +169,63 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['task-click']);
+const emit = defineEmits(['task-click', 'start-input', 'view-detail']);
 
 // 任务统计
 const statistics = computed(() => {
   return {
-    overdueCount: props.tasks.filter(t => t.isOverdue).length,
-    dueSoonCount: props.tasks.filter(t => t.isDueSoon && !t.isOverdue).length,
-    pendingCount: props.tasks.filter(t => t.status === 'Pending' && !t.isOverdue && !t.isDueSoon).length,
-    completedCount: props.tasks.filter(t => t.status === 'Completed').length
+    // 超时任务：超出容忍期的未完成任务
+    overdueCount: props.tasks.filter(t => t.excessDelayMinutes > 0 && t.status !== 5).length,
+    // 临期任务：前一小时到容忍期内的待执行任务
+    dueSoonCount: props.tasks.filter(t => 
+      t.status === 3 && 
+      t.delayMinutes >= -60 && 
+      t.excessDelayMinutes <= 0
+    ).length,
+    // 待执行任务：还没到前一小时的任务
+    pendingCount: props.tasks.filter(t => 
+      t.status === 3 && 
+      t.delayMinutes < -60
+    ).length,
+    // 已完成任务
+    completedCount: props.tasks.filter(t => t.status === 5).length
   };
 });
 
 // 任务分组
 const groupedTasks = computed(() => {
   return {
-    overdue: props.tasks.filter(t => t.isOverdue && t.status !== 'Completed'),
-    dueSoon: props.tasks.filter(t => t.isDueSoon && !t.isOverdue && t.status !== 'Completed'),
-    pending: props.tasks.filter(t => t.status === 'Pending' && !t.isOverdue && !t.isDueSoon),
-    completed: props.tasks.filter(t => t.status === 'Completed')
+    // 超时任务：超出容忍期的未完成任务
+    overdue: props.tasks.filter(t => t.excessDelayMinutes > 0 && t.status !== 5),
+    // 临期任务：前一小时到容忍期内的待执行任务
+    dueSoon: props.tasks.filter(t => 
+      t.status === 3 && 
+      t.delayMinutes >= -60 && 
+      t.excessDelayMinutes <= 0
+    ),
+    // 待执行任务：还没到前一小时的任务
+    pending: props.tasks.filter(t => 
+      t.status === 3 && 
+      t.delayMinutes < -60
+    ),
+    // 已完成任务
+    completed: props.tasks.filter(t => t.status === 5)
   };
 });
 
 // 任务点击事件
 const handleTaskClick = (task) => {
   emit('task-click', task);
+};
+
+// 开始录入事件
+const handleStartInput = (task) => {
+  emit('start-input', task);
+};
+
+// 查看详情事件
+const handleViewDetail = (task) => {
+  emit('view-detail', task);
 };
 </script>
 

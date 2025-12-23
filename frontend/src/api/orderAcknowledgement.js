@@ -1,28 +1,32 @@
 import api from '../utils/api';
 
 /**
- * 医嘱签收相关API
+ * ==============================
+ * 【医嘱签收相关API】
+ * 
+ * 注意：患者列表和排班相关API已移至 api/patient.js
+ * 请使用以下导入：
+ * import { getPatientsWithPendingCount, getCurrentWard } from '@/api/patient'
+ * ==============================
  */
 
-/**
- * 获取科室患者未签收医嘱统计（用于红点标注）
- * @param {string} deptCode - 科室代码
- * @returns {Promise} 患者列表及未签收医嘱数量
- */
-export const getPendingOrdersSummary = (deptCode) => {
-  return api.get('/orders/acknowledgement/pending-summary', { 
-    params: { deptCode } 
-  });
-};
+// ==================== 待签收医嘱查询 ====================
 
 /**
  * 获取指定患者的待签收医嘱（包括新开和停止）
  * @param {string} patientId - 患者ID
- * @returns {Promise} 新开医嘱和停止医嘱列表
+ * @returns {Promise<Object>} 新开医嘱和停止医嘱列表
+ * @example
+ * {
+ *   newOrders: [...],
+ *   stoppedOrders: [...]
+ * }
  */
 export const getPatientPendingOrders = (patientId) => {
   return api.get(`/orders/acknowledgement/patient/${patientId}`);
 };
+
+// ==================== 医嘱签收操作 ====================
 
 /**
  * 批量签收医嘱

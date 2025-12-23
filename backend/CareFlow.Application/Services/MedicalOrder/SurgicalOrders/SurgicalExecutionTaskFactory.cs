@@ -56,7 +56,7 @@ namespace CareFlow.Application.Services
                         // 导航属性通常在Save时由EF自动处理，这里主要保证ID正确
                         
                         PlannedStartTime = order.ScheduleTime.Add(TalkOffset),
-                        Status = "Pending", // 或使用 ExecutionTaskStatus.Pending.ToString()
+                        Status = ExecutionTaskStatus.Pending,
                         CreatedAt = DateTime.UtcNow,
                         
                         DataPayload = JsonSerializer.Serialize(new
@@ -92,7 +92,7 @@ namespace CareFlow.Application.Services
                         PatientId = order.PatientId,
                         Category = TaskCategory.Duration, // 术前操作通常需要持续时间
                         PlannedStartTime = order.ScheduleTime.Add(OpOffset),
-                        Status = "Pending",
+                        Status = ExecutionTaskStatus.Pending,
                         CreatedAt = DateTime.UtcNow,
                         
                         DataPayload = JsonSerializer.Serialize(new
@@ -139,7 +139,7 @@ namespace CareFlow.Application.Services
                 PatientId = order.PatientId,
                 Category = TaskCategory.Verification, // 物品核对为核对类
                 PlannedStartTime = order.ScheduleTime.Add(SupplyOffset),
-                Status = "Pending",
+                Status = ExecutionTaskStatus.Pending,
                 CreatedAt = DateTime.UtcNow,
                 
                 DataPayload = JsonSerializer.Serialize(new

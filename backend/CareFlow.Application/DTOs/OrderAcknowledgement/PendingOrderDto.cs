@@ -85,6 +85,18 @@ public class PendingOrderDto
     /// </summary>
     public long? StopUntilTaskId { get; set; }
     
+    // === 退回医嘱特有字段 ===
+    
+    /// <summary>
+    /// 退回原因（仅退回医嘱）
+    /// </summary>
+    public string? RejectReason { get; set; }
+    
+    /// <summary>
+    /// 退回时间（仅退回医嘱）
+    /// </summary>
+    public DateTime? RejectTime { get; set; }
+    
     // === 检查医嘱特有字段 ===
     
     /// <summary>

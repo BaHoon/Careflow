@@ -22,24 +22,18 @@ namespace CareFlow.Application.Services
     public class SurgicalOrderTaskService : ISurgicalOrderTaskService
     {
         private readonly IRepository<ExecutionTask, long> _taskRepository;
-        private readonly IRepository<BarcodeIndex, string> _barcodeRepository;
         private readonly IRepository<SurgicalOrder, long> _surgicalOrderRepository;
-        private readonly IBarcodeService _barcodeService;
         private readonly ILogger<SurgicalOrderTaskService> _logger;
         private readonly IExecutionTaskFactory _taskFactory; // 注入工厂
 
         public SurgicalOrderTaskService(
             IRepository<ExecutionTask, long> taskRepository,
-            IRepository<BarcodeIndex, string> barcodeRepository,
             IRepository<SurgicalOrder, long> surgicalOrderRepository,
-            IBarcodeService barcodeService,
             ILogger<SurgicalOrderTaskService> logger,
             IExecutionTaskFactory taskFactory)
         {
             _taskRepository = taskRepository;
-            _barcodeRepository = barcodeRepository;
             _surgicalOrderRepository = surgicalOrderRepository;
-            _barcodeService = barcodeService;
             _logger = logger;
             _taskFactory = taskFactory;
         }
@@ -98,9 +92,6 @@ namespace CareFlow.Application.Services
                         // 保存任务获取ID
                         await _taskRepository.AddAsync(task);
                         savedTasks.Add(task);
-
-                        // 生成条形码
-                        await GenerateBarcodeForTask(task);
                     }
                     catch (Exception ex)
                     {
@@ -140,11 +131,14 @@ namespace CareFlow.Application.Services
 
             var pendingTasks = await _taskRepository.ListAsync(t => 
                 t.MedicalOrderId == orderId && 
-                t.Status == "Pending"); // 假设 Pending 是字符串
+                (t.Status == ExecutionTaskStatus.Applying || 
+                 t.Status == ExecutionTaskStatus.Applied || 
+                 t.Status == ExecutionTaskStatus.AppliedConfirmed || 
+                 t.Status == ExecutionTaskStatus.Pending));
 
             foreach (var task in pendingTasks)
             {
-                task.Status = "Cancelled";
+                task.Status = ExecutionTaskStatus.Stopped;
                 task.IsRolledBack = true;
                 task.ExceptionReason = reason;
                 task.LastModifiedAt = DateTime.UtcNow;
@@ -173,28 +167,15 @@ namespace CareFlow.Application.Services
         {
             var tasks = await _taskRepository.ListAsync(t => 
                 t.MedicalOrderId == orderId && 
-                (t.Status == "Pending" || t.Status == "InProgress"));
+                (t.Status == ExecutionTaskStatus.Applying || 
+                 t.Status == ExecutionTaskStatus.Applied || 
+                 t.Status == ExecutionTaskStatus.AppliedConfirmed || 
+                 t.Status == ExecutionTaskStatus.Pending || 
+                 t.Status == ExecutionTaskStatus.InProgress));
             return tasks.Any();
         }
 
-        private async Task GenerateBarcodeForTask(ExecutionTask task)
-        {
-            try
-            {
-                var barcodeIndex = new BarcodeIndex
-                {
-                    Id = $"Exec-{task.Id}", 
-                    TableName = "ExecutionTasks",
-                    RecordId = task.Id.ToString()
-                };
-                await _barcodeRepository.AddAsync(barcodeIndex);
-                // 如果需要生成物理图片: _barcodeService.Generate(barcodeIndex)...
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "为任务 {TaskId} 生成条形码失败", task.Id);
-            }
-        }
+
 
         #endregion
     }

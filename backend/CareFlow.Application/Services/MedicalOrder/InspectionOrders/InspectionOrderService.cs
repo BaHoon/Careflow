@@ -17,6 +17,7 @@ public class InspectionOrderService : IInspectionOrderService
     private readonly IRepository<InspectionOrder, long> _orderRepo;
     private readonly IRepository<Core.Models.Organization.Patient, string> _patientRepo;
     private readonly IRepository<Core.Models.Organization.Doctor, string> _doctorRepo;
+    private readonly IRepository<MedicalOrderStatusHistory, long> _statusHistoryRepository;
     private readonly IInspectionService _inspectionService;
     private readonly INurseAssignmentService _nurseAssignmentService;
 
@@ -25,6 +26,7 @@ public class InspectionOrderService : IInspectionOrderService
         IRepository<InspectionOrder, long> orderRepo,
         IRepository<Core.Models.Organization.Patient, string> patientRepo,
         IRepository<Core.Models.Organization.Doctor, string> doctorRepo,
+        IRepository<MedicalOrderStatusHistory, long> statusHistoryRepository,
         IInspectionService inspectionService,
         INurseAssignmentService nurseAssignmentService)
     {
@@ -32,6 +34,7 @@ public class InspectionOrderService : IInspectionOrderService
         _orderRepo = orderRepo;
         _patientRepo = patientRepo;
         _doctorRepo = doctorRepo;
+        _statusHistoryRepository = statusHistoryRepository;
         _inspectionService = inspectionService;
         _nurseAssignmentService = nurseAssignmentService;
     }
@@ -114,6 +117,20 @@ public class InspectionOrderService : IInspectionOrderService
                     };
 
                     await _orderRepo.AddAsync(order);
+                    
+                    // 插入初始状态历史记录
+                    var history = new MedicalOrderStatusHistory
+                    {
+                        MedicalOrderId = order.Id,
+                        FromStatus = OrderStatus.Draft,
+                        ToStatus = OrderStatus.PendingReceive,
+                        ChangedAt = DateTime.UtcNow,
+                        ChangedById = request.DoctorId,
+                        ChangedByType = "Doctor",
+                        Reason = "医生创建检查医嘱"
+                    };
+                    await _statusHistoryRepository.AddAsync(history);
+                    
                     createdOrders.Add(order.Id);
                     
                     // 分配负责护士
