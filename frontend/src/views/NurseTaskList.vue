@@ -53,8 +53,7 @@
       <TaskTimeline
         :tasks="filteredTasks"
         @task-click="handleTaskClick"
-        @start="handleTaskStart"
-        @complete="handleTaskComplete"
+        @start-input="handleStartInput"
         @view-detail="handleViewDetail"
       />
     </div>
@@ -120,6 +119,15 @@
         <el-button @click="detailDialogVisible = false">关闭</el-button>
       </template>
     </el-dialog>
+
+    <!-- 护理记录表单对话框 -->
+    <NursingRecordForm
+      v-model="recordDialogVisible"
+      :record-data="currentRecord"
+      :mode="recordDialogMode"
+      :current-nurse-id="getCurrentNurse()"
+      @submit-success="handleRecordSubmit"
+    />
   </div>
 </template>
 
@@ -128,7 +136,8 @@ import { ref, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Refresh } from '@element-plus/icons-vue';
 import TaskTimeline from '@/components/TaskTimeline.vue';
-import { getMyTasks } from '@/api/nursing';
+import NursingRecordForm from '@/components/NursingRecordForm.vue';
+import { getMyTasks, submitVitalSigns } from '@/api/nursing';
 
 // 数据状态
 const loading = ref(false);
@@ -140,6 +149,11 @@ const selectedPatient = ref('');
 const patientList = ref([]);
 const detailDialogVisible = ref(false);
 const currentTask = ref(null);
+
+// 护理记录表单相关状态
+const recordDialogVisible = ref(false);
+const recordDialogMode = ref('input'); // 'input' 或 'view'
+const currentRecord = ref({});
 
 // 当前护士信息（从localStorage获取）
 const getCurrentNurse = () => {
@@ -237,52 +251,47 @@ const handleTaskClick = (task) => {
   console.log('任务点击:', task);
 };
 
-// 开始任务
-const handleTaskStart = async (task) => {
-  try {
-    await ElMessageBox.confirm(
-      `确定开始执行任务：${task.patientName} - ${task.category}？`,
-      '开始任务',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'info'
-      }
-    );
-
-    // 这里应该调用后端API开始任务
-    ElMessage.success('任务已开始（功能待实现）');
-    loadTasks(); // 刷新列表
-  } catch (error) {
-    // 用户取消
-  }
-};
-
-// 完成任务
-const handleTaskComplete = async (task) => {
-  try {
-    await ElMessageBox.confirm(
-      `确定完成任务：${task.patientName} - ${task.category}？`,
-      '完成任务',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'success'
-      }
-    );
-
-    // 这里应该调用后端API完成任务
-    ElMessage.success('任务已完成（功能待实现）');
-    loadTasks(); // 刷新列表
-  } catch (error) {
-    // 用户取消
-  }
+// 开始录入护理记录
+const handleStartInput = (task) => {
+  currentRecord.value = task;
+  recordDialogMode.value = 'input';
+  recordDialogVisible.value = true;
 };
 
 // 查看详情
 const handleViewDetail = (task) => {
-  currentTask.value = task;
-  detailDialogVisible.value = true;
+  // 如果任务已完成，显示护理记录详情
+  if (task.status === 'Completed' || task.status === 5) {
+    currentRecord.value = task;
+    recordDialogMode.value = 'view';
+    recordDialogVisible.value = true;
+  } else {
+    // 否则显示任务详情
+    currentTask.value = task;
+    detailDialogVisible.value = true;
+  }
+};
+
+// 护理记录提交成功回调
+const handleRecordSubmit = async (formData) => {
+  try {
+    loading.value = true;
+    console.log('提交护理记录数据:', formData);
+    
+    // 调用后端API提交数据
+    await submitVitalSigns(formData);
+    
+    ElMessage.success('护理记录提交成功');
+    recordDialogVisible.value = false;
+    
+    // 刷新任务列表，更新任务状态
+    await loadTasks();
+  } catch (error) {
+    console.error('提交护理记录失败:', error);
+    ElMessage.error(error.response?.data?.message || error.message || '提交失败');
+  } finally {
+    loading.value = false;
+  }
 };
 
 // 格式化日期时间

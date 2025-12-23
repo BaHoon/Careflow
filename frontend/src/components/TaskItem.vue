@@ -52,23 +52,19 @@
     </div>
 
     <div class="task-actions">
+      <!-- 未完成的任务显示开始录入按钮 -->
       <el-button 
-        v-if="task.status === 'Pending'" 
+        v-if="task.status !== 'Completed' && task.status !== 5" 
         type="primary" 
         size="small"
-        @click.stop="handleStart"
+        :icon="Edit"
+        @click.stop="handleStartInput"
       >
-        开始执行
+        开始录入
       </el-button>
+      <!-- 已完成的任务显示查看详情按钮 -->
       <el-button 
-        v-if="task.status === 'Running'" 
-        type="success" 
-        size="small"
-        @click.stop="handleComplete"
-      >
-        完成任务
-      </el-button>
-      <el-button 
+        v-if="task.status === 'Completed' || task.status === 5" 
         size="small"
         @click.stop="handleViewDetail"
       >
@@ -88,7 +84,8 @@ import {
   Coffee,
   Document,
   VideoCamera,
-  Bell
+  Bell,
+  Edit
 } from '@element-plus/icons-vue';
 
 const props = defineProps({
@@ -102,7 +99,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['click', 'start', 'complete', 'view-detail']);
+const emit = defineEmits(['click', 'start-input', 'view-detail']);
 
 // 任务类别图标
 const categoryIcon = computed(() => {
@@ -169,12 +166,8 @@ const handleClick = () => {
   emit('click', props.task);
 };
 
-const handleStart = () => {
-  emit('start', props.task);
-};
-
-const handleComplete = () => {
-  emit('complete', props.task);
+const handleStartInput = () => {
+  emit('start-input', props.task);
 };
 
 const handleViewDetail = () => {

@@ -61,6 +61,8 @@
                 :task="task"
                 :highlight="true"
                 @click="handleTaskClick"
+                @start-input="handleStartInput"
+                @view-detail="handleViewDetail"
               />
             </div>
           </div>
@@ -86,6 +88,8 @@
                 :task="task"
                 :highlight="true"
                 @click="handleTaskClick"
+                @start-input="handleStartInput"
+                @view-detail="handleViewDetail"
               />
             </div>
           </div>
@@ -110,6 +114,8 @@
                 :key="task.id"
                 :task="task"
                 @click="handleTaskClick"
+                @start-input="handleStartInput"
+                @view-detail="handleViewDetail"
               />
             </div>
           </div>
@@ -134,6 +140,8 @@
                 :key="task.id"
                 :task="task"
                 @click="handleTaskClick"
+                @start-input="handleStartInput"
+                @view-detail="handleViewDetail"
               />
             </div>
           </div>
@@ -161,7 +169,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['task-click']);
+const emit = defineEmits(['task-click', 'start-input', 'view-detail']);
 
 // 任务统计
 const statistics = computed(() => {
@@ -208,6 +216,16 @@ const groupedTasks = computed(() => {
 // 任务点击事件
 const handleTaskClick = (task) => {
   emit('task-click', task);
+};
+
+// 开始录入事件
+const handleStartInput = (task) => {
+  emit('start-input', task);
+};
+
+// 查看详情事件
+const handleViewDetail = (task) => {
+  emit('view-detail', task);
 };
 </script>
 
