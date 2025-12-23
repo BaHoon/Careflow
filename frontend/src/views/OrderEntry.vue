@@ -6,7 +6,7 @@
         <div class="patient-info">
           <span class="name">{{ selectedPatient.name }}</span>
           <span class="detail">{{ selectedPatient.gender }} | {{ selectedPatient.age }}岁 | {{ selectedPatient.weight }}kg</span>
-          <span class="tag">护理级别: {{ selectedPatient.nursingGrade }}级</span>
+          <span class="tag">{{ getGradeText(selectedPatient.nursingGrade) }}</span>
         </div>
       </header>
 
@@ -47,7 +47,7 @@
                   <span class="p-info">{{ patient.gender }} {{ patient.age }}岁</span>
                 </div>
                 <div class="patient-meta">
-                  <span class="p-care">护理{{ patient.nursingGrade }}级</span>
+                  <span class="p-care">{{ getGradeText(patient.nursingGrade) }}</span>
                 </div>
               </div>
             </div>
@@ -672,12 +672,75 @@
               </div>
             </div>
 
+            <!-- 护理等级修改表单 -->
+            <div v-else-if="activeType === 'NursingGrade'" class="nursing-grade-form">
+              <div class="form-section">
+                <div class="section-header">
+                  <i class="el-icon-user"></i>
+                  <span>护理等级修改</span>
+                </div>
+                
+                <div class="current-grade-display" v-if="selectedPatient">
+                  <div class="info-row">
+                    <span class="label">当前护理等级：</span>
+                    <el-tag :type="getGradeTagType(selectedPatient.nursingGrade)" size="large">
+                      {{ getGradeText(selectedPatient.nursingGrade) }}
+                    </el-tag>
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <label class="required">新护理等级：</label>
+                  <el-radio-group v-model="nursingGradeForm.newGrade" size="large">
+                    <el-radio-button :label="0">
+                      <i class="el-icon-star-on"></i> 特级护理
+                    </el-radio-button>
+                    <el-radio-button :label="1">
+                      <i class="el-icon-medal"></i> 一级护理
+                    </el-radio-button>
+                    <el-radio-button :label="2">
+                      <i class="el-icon-user"></i> 二级护理
+                    </el-radio-button>
+                    <el-radio-button :label="3">
+                      <i class="el-icon-s-custom"></i> 三级护理
+                    </el-radio-button>
+                  </el-radio-group>
+                </div>
+
+                <div class="form-row">
+                  <label>修改原因：</label>
+                  <el-input
+                    v-model="nursingGradeForm.reason"
+                    type="textarea"
+                    :rows="3"
+                    placeholder="请输入护理等级修改原因（可选）"
+                    maxlength="200"
+                    show-word-limit
+                  />
+                </div>
+
+                <div class="form-actions" style="margin-top: 30px;">
+                  <el-button @click="resetNursingGradeForm" size="large">
+                    <i class="el-icon-refresh-left"></i> 重置
+                  </el-button>
+                  <el-button 
+                    type="primary" 
+                    @click="submitNursingGrade" 
+                    size="large"
+                    :disabled="!isNursingGradeFormValid"
+                  >
+                    <i class="el-icon-check"></i> 确认修改
+                  </el-button>
+                </div>
+              </div>
+            </div>
+
             <!-- 其他未知类型的占位符 -->
             <div v-else class="placeholder-form">
               正在开发 {{ activeType }} 的详细表单...
             </div>
 
-            <div class="form-actions">
+            <div class="form-actions" v-if="activeType !== 'NursingGrade'">
               <button @click="clearForm" class="btn-default">
                 <i class="el-icon-refresh-left"></i> 清空表单
               </button>
@@ -858,7 +921,8 @@ const types = [
   { label: '药物医嘱', val: 'MedicationOrder' },
   { label: '检查申请', val: 'InspectionOrder' },
   { label: '手术医嘱', val: 'SurgicalOrder' },
-  { label: '护理操作', val: 'OperationOrder' }
+  { label: '护理操作', val: 'OperationOrder' },
+  { label: '护理等级', val: 'NursingGrade' }
 ];
 
 // 检查医嘱的响应式数据  DONE
@@ -984,6 +1048,12 @@ const operationOptions = [
   { value: '心电监护', label: '心电监护' },
   { value: '吸氧', label: '术前吸氧' }
 ];
+
+// 护理等级修改表单
+const nursingGradeForm = reactive({
+  newGrade: null,  // 新的护理等级 0-特级 1-一级 2-二级 3-三级
+  reason: ''       // 修改原因
+});
 
 // 折叠状态
 const leftCollapsed = ref(false);
@@ -1728,28 +1798,17 @@ const initDefaultSurgicalDrugs = () => {
 
 // 加载医生列表
 const loadDoctorList = async () => {
-  try {
-    const response = await fetch('/api/staff/doctors');
-    if (response.ok) {
-      const data = await response.json();
-      doctorList.value = data.data || [];
-      
-      // 自动选择当前登录医生
-      if (currentUser.value?.staffId) {
-        surgicalOrder.surgeonId = currentUser.value.staffId;
-      }
-    }
-  } catch (error) {
-    console.error('加载医生列表失败:', error);
-    // 如果接口不可用，使用模拟数据
-    doctorList.value = [
-      { staffId: 'D001', name: '张医生', title: '主任医师' },
-      { staffId: 'D002', name: '李医生', title: '副主任医师' },
-      { staffId: 'D003', name: '王医生', title: '主治医师' }
-    ];
-    if (currentUser.value?.staffId) {
-      surgicalOrder.surgeonId = currentUser.value.staffId;
-    }
+  // 暂时使用模拟数据（API接口未实现）
+  console.log('加载医生列表（使用模拟数据）');
+  doctorList.value = [
+    { staffId: 'D001', name: '张医生', title: '主任医师' },
+    { staffId: 'D002', name: '李医生', title: '副主任医师' },
+    { staffId: 'D003', name: '王医生', title: '主治医师' }
+  ];
+  
+  // 自动选择当前登录医生
+  if (currentUser.value?.staffId) {
+    surgicalOrder.surgeonId = currentUser.value.staffId;
   }
 };
 
@@ -1871,6 +1930,133 @@ onMounted(async () => {
   } catch (error) {
     console.error('加载基础数据失败:', error);
     ElMessage.error('加载基础数据失败，部分功能可能不可用');
+  }
+});
+
+// ==================== 护理等级相关方法 ====================
+
+// 护理等级文本
+const getGradeText = (grade) => {
+  const gradeMap = {
+    0: '特级护理',
+    1: '一级护理',
+    2: '二级护理',
+    3: '三级护理'
+  };
+  return gradeMap[grade] || '未知';
+};
+
+// 护理等级标签类型
+const getGradeTagType = (grade) => {
+  const typeMap = {
+    0: 'danger',   // 特级-红色
+    1: 'warning',  // 一级-橙色
+    2: 'success',  // 二级-绿色
+    3: 'info'      // 三级-灰色
+  };
+  return typeMap[grade] || 'info';
+};
+
+// 护理等级表单验证
+const isNursingGradeFormValid = computed(() => {
+  return nursingGradeForm.newGrade !== null && 
+         selectedPatient.value &&
+         nursingGradeForm.newGrade !== selectedPatient.value.nursingGrade;
+});
+
+// 重置护理等级表单
+const resetNursingGradeForm = () => {
+  nursingGradeForm.newGrade = selectedPatient.value?.nursingGrade || null;
+  nursingGradeForm.reason = '';
+};
+
+// 提交护理等级修改
+const submitNursingGrade = async () => {
+  if (!selectedPatient.value) {
+    ElMessage.warning('请先选择患者');
+    return;
+  }
+
+  if (nursingGradeForm.newGrade === null) {
+    ElMessage.warning('请选择新的护理等级');
+    return;
+  }
+
+  if (nursingGradeForm.newGrade === selectedPatient.value.nursingGrade) {
+    ElMessage.warning('新护理等级与当前等级相同');
+    return;
+  }
+
+  try {
+    submitting.value = true;
+    
+    console.log('提交护理等级修改:', {
+      patientId: selectedPatient.value.id,
+      newGrade: nursingGradeForm.newGrade,
+      doctorId: currentUser.value.staffId
+    });
+    
+    // 调用API更新护理等级
+    const response = await fetch(`/api/patient/${selectedPatient.value.id}/nursing-grade`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        newGrade: nursingGradeForm.newGrade,
+        reason: nursingGradeForm.reason || '',
+        doctorId: currentUser.value.staffId
+      })
+    });
+
+    console.log('API响应状态:', response.status);
+
+    if (!response.ok) {
+      let errorMessage = '更新失败';
+      try {
+        const error = await response.json();
+        errorMessage = error.message || errorMessage;
+      } catch (e) {
+        const errorText = await response.text();
+        console.error('API错误响应:', errorText);
+        errorMessage = `服务器错误 (${response.status})`;
+      }
+      throw new Error(errorMessage);
+    }
+
+    const result = await response.json();
+    console.log('更新成功:', result);
+    
+    ElMessage.success(`护理等级已从 ${getGradeText(selectedPatient.value.nursingGrade)} 修改为 ${getGradeText(nursingGradeForm.newGrade)}`);
+    
+    // 更新本地患者数据
+    selectedPatient.value.nursingGrade = nursingGradeForm.newGrade;
+    const patientInList = patientList.value.find(p => p.id === selectedPatient.value.id);
+    if (patientInList) {
+      patientInList.nursingGrade = nursingGradeForm.newGrade;
+    }
+    
+    // 重置表单
+    resetNursingGradeForm();
+  } catch (error) {
+    console.error('更新护理等级失败:', error);
+    ElMessage.error('更新护理等级失败: ' + error.message);
+  } finally {
+    submitting.value = false;
+  }
+};
+
+// 监听选中患者变化，重置护理等级表单
+watch(selectedPatient, (newPatient) => {
+  if (newPatient && activeType.value === 'NursingGrade') {
+    resetNursingGradeForm();
+  }
+});
+
+// 监听Tab切换，初始化护理等级表单
+watch(activeType, (newType) => {
+  if (newType === 'NursingGrade' && selectedPatient.value) {
+    resetNursingGradeForm();
   }
 });
 </script>
@@ -2868,6 +3054,50 @@ onMounted(async () => {
 .cart-empty p {
   font-size: 0.85rem;
   margin: 0;
+}
+
+/* ==================== 护理等级表单样式 ==================== */
+.nursing-grade-form {
+  padding: 20px;
+}
+
+.current-grade-display {
+  background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%);
+  border-radius: var(--radius-medium);
+  padding: 20px;
+  margin-bottom: 30px;
+  border-left: 4px solid var(--primary-color);
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  font-size: 1.1rem;
+}
+
+.info-row .label {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.nursing-grade-form .el-radio-group {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.nursing-grade-form .el-radio-button {
+  flex: 1;
+  min-width: 140px;
+}
+
+.nursing-grade-form .form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-color);
 }
 
 /* ==================== 响应式调整 ==================== */
