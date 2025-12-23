@@ -259,6 +259,8 @@ const handleSubmitRecord = async (formData) => {
   try {
     loading.value = true;
     
+    console.log('📤 准备提交护理记录:', formData);
+    
     // 调用API提交数据
     await submitVitalSigns(formData);
     
@@ -273,7 +275,8 @@ const handleSubmitRecord = async (formData) => {
     console.log('✅ 护理记录提交成功');
   } catch (error) {
     console.error('❌ 提交护理记录失败:', error);
-    ElMessage.error(error.message || '提交失败，请重试');
+    console.error('错误详情:', error.response?.data);
+    ElMessage.error(error.response?.data?.message || error.message || '提交失败，请重试');
   } finally {
     loading.value = false;
   }

@@ -60,17 +60,39 @@ namespace CareFlow.WebApi.Controllers
         [HttpPost("tasks/submit")]
         public async Task<IActionResult> SubmitVitalSigns([FromBody] NursingTaskSubmissionDto dto)
         {
-            if (dto == null) return BadRequest("提交数据不能为空");
+            Console.WriteLine($"📥 收到提交请求: TaskId={dto?.TaskId}, NurseId={dto?.CurrentNurseId}");
+            
+            if (dto == null) 
+            {
+                Console.WriteLine("❌ DTO为空");
+                return BadRequest(new { message = "提交数据不能为空" });
+            }
+
+            // 验证必填字段
+            if (dto.TaskId == 0)
+            {
+                Console.WriteLine("❌ TaskId为0");
+                return BadRequest(new { message = "任务ID不能为空" });
+            }
+
+            if (string.IsNullOrEmpty(dto.CurrentNurseId))
+            {
+                Console.WriteLine("❌ CurrentNurseId为空");
+                return BadRequest(new { message = "护士ID不能为空" });
+            }
 
             try
             {
+                Console.WriteLine($"✅ 开始保存护理记录...");
                 await _vitalSignService.SubmitVitalSignsAsync(dto);
+                Console.WriteLine($"✅ 护理记录保存成功");
                 return Ok(new { message = "执行成功，数据已录入，任务状态已更新" });
             }
             catch (Exception ex)
             {
-                // 生产环境建议记录日志
-                return StatusCode(500, new { message = "提交失败", error = ex.Message });
+                Console.WriteLine($"❌ 保存失败: {ex.Message}");
+                Console.WriteLine($"堆栈: {ex.StackTrace}");
+                return StatusCode(500, new { message = "提交失败", error = ex.Message, details = ex.InnerException?.Message });
             }
         }
 
@@ -618,6 +640,31 @@ namespace CareFlow.WebApi.Controllers
                         assignedNurseName = assignedNurse?.Name;
                     }
                     
+                    // 如果任务已完成，获取体征数据
+                    object? vitalSigns = null;
+                    if (task.Status == ExecutionTaskStatus.Completed)
+                    {
+                        var vitalRecord = await _context.VitalSignsRecords
+                            .FirstOrDefaultAsync(v => v.NursingTaskId == task.Id);
+                        
+                        if (vitalRecord != null)
+                        {
+                            vitalSigns = new
+                            {
+                                temperature = vitalRecord.Temperature,
+                                tempType = vitalRecord.TempType,
+                                pulse = vitalRecord.Pulse,
+                                respiration = vitalRecord.Respiration,
+                                sysBp = vitalRecord.SysBp,
+                                diaBp = vitalRecord.DiaBp,
+                                spo2 = vitalRecord.Spo2,
+                                painScore = vitalRecord.PainScore,
+                                weight = vitalRecord.Weight,
+                                intervention = vitalRecord.Intervention
+                            };
+                        }
+                    }
+                    
                     taskDtos.Add(new NurseTaskDto
                     {
                         Id = task.Id,
@@ -631,6 +678,7 @@ namespace CareFlow.WebApi.Controllers
                         Status = task.Status,
                         AssignedNurseId = task.AssignedNurseId,
                         AssignedNurseName = assignedNurseName,
+                        VitalSigns = vitalSigns,  // 添加体征数据
                         
                         // 延迟状态字段
                         DelayMinutes = delayStatus.DelayMinutes,

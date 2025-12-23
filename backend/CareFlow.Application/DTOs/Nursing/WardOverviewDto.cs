@@ -144,4 +144,9 @@ public class NurseTaskDto
     /// 是否临期（30分钟内，向后兼容）
     /// </summary>
     public bool IsDueSoon { get; set; }
+    
+    /// <summary>
+    /// 体征数据（仅已完成的护理任务有此数据）
+    /// </summary>
+    public object? VitalSigns { get; set; }
 }

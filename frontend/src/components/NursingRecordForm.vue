@@ -23,25 +23,25 @@
       <el-row :gutter="20">
         <el-col :span="12">
           <el-form-item label="计划时间">
-            <span class="info-text">{{ formatDateTime(recordData.scheduledTime) }}</span>
+            <span class="info-text">{{ formatDateTime(recordData.plannedStartTime || recordData.scheduledTime) }}</span>
           </el-form-item>
         </el-col>
         <el-col :span="12">
           <el-form-item label="任务类型">
-            <el-tag :type="recordData.taskType === 'Routine' ? 'primary' : 'warning'">
-              {{ recordData.taskType === 'Routine' ? '常规测量' : '复测' }}
+            <el-tag :type="(recordData.category === 'Routine' || recordData.taskType === 'Routine') ? 'primary' : 'warning'">
+              {{ (recordData.category === 'Routine' || recordData.taskType === 'Routine') ? '常规测量' : '复测' }}
             </el-tag>
           </el-form-item>
         </el-col>
       </el-row>
 
-      <el-form-item label="录入时间" prop="executionTime">
+      <el-form-item label="录入时间" prop="executionTime" required>
         <el-date-picker
           v-model="formData.executionTime"
           type="datetime"
           placeholder="选择录入时间"
           format="YYYY-MM-DD HH:mm"
-          value-format="YYYY-MM-DD HH:mm:ss"
+          value-format="YYYY-MM-DDTHH:mm:ss"
           style="width: 100%"
         />
       </el-form-item>
@@ -54,7 +54,7 @@
 
       <el-row :gutter="20">
         <el-col :span="12">
-          <el-form-item label="体温 (℃)" prop="temperature">
+          <el-form-item label="体温 (℃)" prop="temperature" required>
             <el-input-number
               v-model="formData.temperature"
               :min="35"
@@ -66,7 +66,7 @@
           </el-form-item>
         </el-col>
         <el-col :span="12">
-          <el-form-item label="测温方式" prop="tempType">
+          <el-form-item label="测温方式" prop="tempType" required>
             <el-select v-model="formData.tempType" style="width: 100%">
               <el-option label="腋温" value="腋温" />
               <el-option label="口温" value="口温" />
@@ -78,7 +78,7 @@
 
       <el-row :gutter="20">
         <el-col :span="12">
-          <el-form-item label="脉搏 (次/分)" prop="pulse">
+          <el-form-item label="脉搏 (次/分)" prop="pulse" required>
             <el-input-number
               v-model="formData.pulse"
               :min="40"
@@ -88,7 +88,7 @@
           </el-form-item>
         </el-col>
         <el-col :span="12">
-          <el-form-item label="呼吸 (次/分)" prop="respiration">
+          <el-form-item label="呼吸 (次/分)" prop="respiration" required>
             <el-input-number
               v-model="formData.respiration"
               :min="10"
@@ -101,7 +101,7 @@
 
       <el-row :gutter="20">
         <el-col :span="12">
-          <el-form-item label="收缩压 (mmHg)" prop="sysBp">
+          <el-form-item label="收缩压(mmHg)" prop="sysBp" required>
             <el-input-number
               v-model="formData.sysBp"
               :min="60"
@@ -111,7 +111,7 @@
           </el-form-item>
         </el-col>
         <el-col :span="12">
-          <el-form-item label="舒张压 (mmHg)" prop="diaBp">
+          <el-form-item label="舒张压(mmHg)" prop="diaBp" required>
             <el-input-number
               v-model="formData.diaBp"
               :min="30"
@@ -124,7 +124,7 @@
 
       <el-row :gutter="20">
         <el-col :span="12">
-          <el-form-item label="血氧 (%)" prop="spo2">
+          <el-form-item label="血氧 (%)" prop="spo2" required>
             <el-input-number
               v-model="formData.spo2"
               :min="0"
@@ -153,13 +153,73 @@
         <span>护理笔记（可选）</span>
       </el-divider>
 
-      <el-form-item label="笔记内容">
+      <el-row :gutter="20">
+        <el-col :span="12">
+          <el-form-item label="意识状态">
+            <el-select v-model="formData.consciousness" placeholder="选择意识状态" style="width: 100%">
+              <el-option label="清醒" value="清醒" />
+              <el-option label="嗜睡" value="嗜睡" />
+              <el-option label="昏迷" value="昏迷" />
+              <el-option label="谵妄" value="谵妄" />
+            </el-select>
+          </el-form-item>
+        </el-col>
+        <el-col :span="12">
+          <el-form-item label="皮肤状况">
+            <el-select v-model="formData.skinCondition" placeholder="选择皮肤状况" style="width: 100%">
+              <el-option label="完好" value="完好" />
+              <el-option label="苍白" value="苍白" />
+              <el-option label="发绀" value="发绀" />
+              <el-option label="黄染" value="黄染" />
+              <el-option label="压疮" value="压疮" />
+            </el-select>
+          </el-form-item>
+        </el-col>
+      </el-row>
+
+      <el-row :gutter="20">
+        <el-col :span="12">
+          <el-form-item label="入量 (ml)">
+            <el-input-number
+              v-model="formData.intakeVolume"
+              :min="0"
+              :max="5000"
+              placeholder="饮水、输液等"
+              style="width: 100%"
+            />
+          </el-form-item>
+        </el-col>
+        <el-col :span="12">
+          <el-form-item label="出量 (ml)">
+            <el-input-number
+              v-model="formData.outputVolume"
+              :min="0"
+              :max="5000"
+              placeholder="尿量、引流液等"
+              style="width: 100%"
+            />
+          </el-form-item>
+        </el-col>
+      </el-row>
+
+      <el-form-item label="病情观察">
         <el-input
           v-model="formData.noteContent"
           type="textarea"
-          :rows="4"
-          placeholder="记录护理观察、特殊情况等..."
+          :rows="3"
+          placeholder="记录患者病情观察、特殊情况等..."
           maxlength="500"
+          show-word-limit
+        />
+      </el-form-item>
+
+      <el-form-item label="健康教育">
+        <el-input
+          v-model="formData.healthEducation"
+          type="textarea"
+          :rows="2"
+          placeholder="记录对患者的健康教育内容..."
+          maxlength="300"
           show-word-limit
         />
       </el-form-item>
@@ -170,47 +230,47 @@
       <!-- 任务信息 -->
       <el-descriptions title="任务信息" :column="2" border>
         <el-descriptions-item label="计划时间">
-          {{ formatDateTime(recordData.scheduledTime) }}
+          {{ formatDateTime(recordData.plannedStartTime || recordData.scheduledTime) }}
         </el-descriptions-item>
         <el-descriptions-item label="任务类型">
-          <el-tag :type="recordData.taskType === 'Routine' ? 'primary' : 'warning'">
-            {{ recordData.taskType === 'Routine' ? '常规测量' : '复测' }}
+          <el-tag :type="recordData.category === 'Routine' || recordData.taskType === 'Routine' ? 'primary' : 'warning'">
+            {{ (recordData.category === 'Routine' || recordData.taskType === 'Routine') ? '常规测量' : '复测' }}
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="录入时间">
-          {{ formatDateTime(recordData.executeTime) }}
+          {{ formatDateTime(recordData.actualStartTime || recordData.executeTime) || '未知' }}
         </el-descriptions-item>
         <el-descriptions-item label="录入护士">
-          {{ recordData.executorNurse || '未知' }}
+          {{ recordData.assignedNurseName || recordData.executorNurse || '未知' }}
         </el-descriptions-item>
       </el-descriptions>
 
       <!-- 生命体征 -->
       <el-descriptions title="生命体征" :column="2" border class="mt-20">
         <el-descriptions-item label="体温">
-          {{ vitalSignsData.temperature }}℃ ({{ vitalSignsData.tempType }})
+          {{ vitalSignsData.temperature || '-' }}℃ ({{ vitalSignsData.tempType || vitalSignsData.temp_type || '-' }})
         </el-descriptions-item>
         <el-descriptions-item label="脉搏">
-          {{ vitalSignsData.pulse }} 次/分
+          {{ vitalSignsData.pulse || '-' }} 次/分
         </el-descriptions-item>
         <el-descriptions-item label="呼吸">
-          {{ vitalSignsData.respiration }} 次/分
+          {{ vitalSignsData.respiration || '-' }} 次/分
         </el-descriptions-item>
         <el-descriptions-item label="血压">
-          {{ vitalSignsData.sysBp }}/{{ vitalSignsData.diaBp }} mmHg
+          {{ vitalSignsData.sysBp || vitalSignsData.sys_bp || '-' }}/{{ vitalSignsData.diaBp || vitalSignsData.dia_bp || '-' }} mmHg
         </el-descriptions-item>
         <el-descriptions-item label="血氧">
-          {{ vitalSignsData.spo2 }}%
+          {{ vitalSignsData.spo2 || '-' }}%
         </el-descriptions-item>
         <el-descriptions-item label="疼痛评分">
-          {{ vitalSignsData.painScore }} 分
+          {{ vitalSignsData.painScore || vitalSignsData.pain_score || '0' }} 分
         </el-descriptions-item>
       </el-descriptions>
 
       <!-- 护理笔记 -->
-      <div v-if="vitalSignsData.noteContent" class="mt-20">
+      <div v-if="vitalSignsData.noteContent || vitalSignsData.note_content" class="mt-20">
         <el-divider content-position="left">护理笔记</el-divider>
-        <div class="note-content">{{ vitalSignsData.noteContent }}</div>
+        <div class="note-content">{{ vitalSignsData.noteContent || vitalSignsData.note_content }}</div>
       </div>
     </div>
 
@@ -266,11 +326,25 @@ const dialogTitle = computed(() => {
   return isViewMode.value ? '查看护理记录' : '录入护理记录';
 });
 
+// 获取中国当前时间（ISO 8601格式）
+const getChinaTime = () => {
+  const now = new Date();
+  // 格式化为本地时间的ISO格式：2025-12-23T15:45:00
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+};
+
 // 表单数据
 const formData = ref({
   taskId: 0,
   currentNurseId: '',
-  executionTime: new Date().toISOString().slice(0, 19).replace('T', ' '),
+  executionTime: getChinaTime(),
+  // 生命体征（必填）
   temperature: 36.5,
   tempType: '腋温',
   pulse: 80,
@@ -279,18 +353,45 @@ const formData = ref({
   diaBp: 80,
   spo2: 98,
   painScore: 0,
-  noteContent: ''
+  weight: null,
+  intervention: '',
+  // 护理笔记（可选）
+  consciousness: '清醒',
+  skinCondition: '完好',
+  intakeVolume: null,
+  outputVolume: null,
+  noteContent: '',
+  healthEducation: ''
 });
 
-// 查看模式的体征数据（从recordData解析）
-const vitalSignsData = computed(() => {
-  if (!props.recordData.dataPayload) return {};
-  try {
-    return JSON.parse(props.recordData.dataPayload);
-  } catch {
-    return {};
+// 查看模式的体征数据（从 API 获取）
+const vitalSignsData = ref({});
+
+// 加载体征数据
+const loadVitalSignsData = async () => {
+  const taskId = props.recordData.id;
+  if (!taskId) {
+    console.warn('未找到任务ID');
+    return;
   }
-});
+  
+  try {
+    // TODO: 这里需要调用后端 API 获取 VitalSignsRecord 数据
+    // const response = await getVitalSignsByTaskId(taskId);
+    // vitalSignsData.value = response.data;
+    
+    // 临时方案：从 recordData 中获取（如果有的话）
+    if (props.recordData.vitalSigns) {
+      vitalSignsData.value = props.recordData.vitalSigns;
+    } else {
+      vitalSignsData.value = {};
+      console.log('⚠️ 未找到体征数据');
+    }
+  } catch (error) {
+    console.error('加载体征数据失败:', error);
+    vitalSignsData.value = {};
+  }
+};
 
 // 表单验证规则
 const formRules = {
@@ -324,11 +425,23 @@ const formRules = {
 };
 
 // 监听对话框打开，初始化表单数据
-watch(() => props.modelValue, (newVal) => {
-  if (newVal && !isViewMode.value) {
-    resetForm();
-    formData.value.taskId = props.recordData.id;
-    formData.value.currentNurseId = props.currentNurseId;
+watch(() => props.modelValue, async (newVal) => {
+  if (newVal) {
+    console.log('📋 NursingRecordForm 接收数据:', props.recordData);
+    console.log('  - plannedStartTime:', props.recordData.plannedStartTime);
+    console.log('  - scheduledTime:', props.recordData.scheduledTime);
+    console.log('  - category:', props.recordData.category);
+    console.log('  - taskType:', props.recordData.taskType);
+    
+    if (isViewMode.value) {
+      // 查看模式：加载体征数据
+      await loadVitalSignsData();
+    } else {
+      // 录入模式：重置表单
+      resetForm();
+      formData.value.taskId = props.recordData.id;
+      formData.value.currentNurseId = props.currentNurseId;
+    }
   }
 });
 
@@ -337,7 +450,8 @@ const resetForm = () => {
   formData.value = {
     taskId: 0,
     currentNurseId: '',
-    executionTime: new Date().toISOString().slice(0, 19).replace('T', ' '),
+    executionTime: getChinaTime(),
+    // 生命体征（必填）
     temperature: 36.5,
     tempType: '腋温',
     pulse: 80,
@@ -346,7 +460,15 @@ const resetForm = () => {
     diaBp: 80,
     spo2: 98,
     painScore: 0,
-    noteContent: ''
+    weight: null,
+    intervention: '',
+    // 护理笔记（可选）
+    consciousness: '清醒',
+    skinCondition: '完好',
+    intakeVolume: null,
+    outputVolume: null,
+    noteContent: '',
+    healthEducation: ''
   };
 };
 
@@ -366,10 +488,49 @@ const handleSubmit = async () => {
     await formRef.value.validate();
     submitting.value = true;
     
+    // 构造提交数据，确保字段名与后端DTO匹配
+    const submitData = {
+      taskId: formData.value.taskId,
+      currentNurseId: formData.value.currentNurseId,
+      executionTime: formData.value.executionTime,
+      // 生命体征
+      temperature: parseFloat(formData.value.temperature),
+      tempType: formData.value.tempType,
+      pulse: parseInt(formData.value.pulse),
+      respiration: parseInt(formData.value.respiration),
+      sysBp: parseInt(formData.value.sysBp),
+      diaBp: parseInt(formData.value.diaBp),
+      spo2: parseFloat(formData.value.spo2),
+      painScore: parseInt(formData.value.painScore),
+      weight: formData.value.weight ? parseFloat(formData.value.weight) : null,
+      intervention: formData.value.intervention || '',
+      // 护理笔记（可选）
+      consciousness: formData.value.consciousness || null,
+      pupilLeft: null,  // 暂未实现
+      pupilRight: null, // 暂未实现
+      skinCondition: formData.value.skinCondition || null,
+      pipeCareData: null, // 暂未实现
+      intakeVolume: formData.value.intakeVolume ? parseFloat(formData.value.intakeVolume) : null,
+      intakeType: formData.value.intakeVolume ? '口服+输液' : null,
+      outputVolume: formData.value.outputVolume ? parseFloat(formData.value.outputVolume) : null,
+      outputType: formData.value.outputVolume ? '尿液+引流' : null,
+      noteContent: formData.value.noteContent || null,
+      healthEducation: formData.value.healthEducation || null
+    };
+    
+    console.log('📋 提交数据详情:');
+    console.log('  TaskId:', submitData.taskId, typeof submitData.taskId);
+    console.log('  CurrentNurseId:', submitData.currentNurseId, typeof submitData.currentNurseId);
+    console.log('  ExecutionTime:', submitData.executionTime, typeof submitData.executionTime);
+    console.log('  Temperature:', submitData.temperature, typeof submitData.temperature);
+    console.log('  Pulse:', submitData.pulse, typeof submitData.pulse);
+    console.log('  完整数据:', JSON.stringify(submitData, null, 2));
+    
     // 触发提交事件
-    emit('submit-success', formData.value);
+    emit('submit-success', submitData);
     
   } catch (error) {
+    console.error('表单验证失败:', error);
     ElMessage.warning('请完整填写必填项');
   } finally {
     submitting.value = false;
@@ -380,13 +541,12 @@ const handleSubmit = async () => {
 const formatDateTime = (datetime) => {
   if (!datetime) return '';
   const date = new Date(datetime);
-  return date.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day} ${hours}:${minutes}`;
 };
 </script>
 
