@@ -15,14 +15,14 @@ namespace CareFlow.WebApi.Controllers
     public class NursingController : ControllerBase
     {
         private readonly IVitalSignService _vitalSignService;
-        private readonly NursingTaskGenerator _taskGenerator;
+        private readonly DailyTaskGeneratorService _taskGenerator;
         private readonly ApplicationDbContext _context;
         private readonly TaskDelayCalculator _delayCalculator;
 
         // 构造函数注入服务
         public NursingController(
             IVitalSignService vitalSignService, 
-            NursingTaskGenerator taskGenerator,
+            DailyTaskGeneratorService taskGenerator,
             ApplicationDbContext context,
             TaskDelayCalculator delayCalculator)
         {
@@ -33,21 +33,18 @@ namespace CareFlow.WebApi.Controllers
         }
 
         /// <summary>
-        /// [管理端/定时任务] 生成今日护理任务
+        /// [管理端/定时任务] 生成今日护理任务（为所有在院患者根据护理等级生成）
         /// </summary>
-        /// <param name="deptId">科室ID (如 DEPT001)</param>
         /// <returns></returns>
         [HttpPost("tasks/generate")]
-        public async Task<IActionResult> GenerateDailyTasks(string deptId)
+        public async Task<IActionResult> GenerateDailyTasks()
         {
             try
             {
-                // 生成今天的任务
-                var today = DateOnly.FromDateTime(DateTime.Now);
+                // 为所有在院患者生成今天的任务（根据护理等级）
+                await _taskGenerator.GenerateTodayTasksAsync();
                 
-                await _taskGenerator.GenerateDailyTasksAsync(deptId, today);
-                
-                return Ok(new { message = $"科室 {deptId} 的 {today} 护理任务已生成" });
+                return Ok(new { message = "今日护理任务已生成" });
             }
             catch (Exception ex)
             {
@@ -426,11 +423,12 @@ namespace CareFlow.WebApi.Controllers
                 var currentTime = DateTime.UtcNow;
                 var allTasks = new List<NurseTaskDto>();
 
-                // 1. 查询护理任务 (NursingTask)
+                // 1. 查询护理任务 (NursingTask) - 只查询分配给当前护士的任务
                 var nursingTasksQuery = _context.NursingTasks
                     .Include(nt => nt.Patient)
                     .Where(nt => nt.ScheduledTime >= startOfDay &&
                                  nt.ScheduledTime < endOfDay &&
+                                 nt.AssignedNurseId == nurseId && // 只查询分配给当前护士的任务
                                  bedIds.Contains(nt.Patient.BedId));
 
                 if (status.HasValue)
@@ -444,6 +442,15 @@ namespace CareFlow.WebApi.Controllers
                 {
                     var delayStatus = _delayCalculator.CalculateNursingTaskDelay(task, currentTime);
                     
+                    // 获取负责护士信息
+                    string? assignedNurseName = null;
+                    if (!string.IsNullOrEmpty(task.AssignedNurseId))
+                    {
+                        var assignedNurse = await _context.Nurses
+                            .FirstOrDefaultAsync(n => n.Id == task.AssignedNurseId);
+                        assignedNurseName = assignedNurse?.Name;
+                    }
+                    
                     allTasks.Add(new NurseTaskDto
                     {
                         Id = task.Id,
@@ -455,6 +462,8 @@ namespace CareFlow.WebApi.Controllers
                         PlannedStartTime = task.ScheduledTime,
                         ActualStartTime = task.ExecuteTime,
                         Status = task.Status,
+                        AssignedNurseId = task.AssignedNurseId,
+                        AssignedNurseName = assignedNurseName,
                         
                         // 延迟状态字段
                         DelayMinutes = delayStatus.DelayMinutes,
@@ -470,12 +479,15 @@ namespace CareFlow.WebApi.Controllers
                 }
 
                 // 2. 查询医嘱执行任务 (ExecutionTask)
+                // 医嘱执行任务：查询该护士已经开始执行的任务 (ExecutorStaffId == nurseId)
+                // 或者待执行的任务（任何护士都可以执行）TODO：这里后续需要修改权限逻辑
                 var executionTasksQuery = _context.ExecutionTasks
                     .Include(et => et.Patient)
                     .Include(et => et.MedicalOrder)
                     .Where(et => et.PlannedStartTime >= startOfDay &&
                                  et.PlannedStartTime < endOfDay &&
-                                 bedIds.Contains(et.Patient.BedId));
+                                 bedIds.Contains(et.Patient.BedId) &&
+                                 (et.ExecutorStaffId == nurseId || et.ExecutorStaffId == null)); // 我执行的或待执行的
 
                 if (status.HasValue)
                 {
@@ -487,6 +499,15 @@ namespace CareFlow.WebApi.Controllers
                 foreach (var task in executionTasks)
                 {
                     var delayStatus = _delayCalculator.CalculateExecutionTaskDelay(task, currentTime);
+                    
+                    // 获取执行护士信息（如果已有执行人）
+                    string? executorNurseName = null;
+                    if (!string.IsNullOrEmpty(task.ExecutorStaffId))
+                    {
+                        var executorNurse = await _context.Nurses
+                            .FirstOrDefaultAsync(n => n.Id == task.ExecutorStaffId);
+                        executorNurseName = executorNurse?.Name;
+                    }
                     
                     allTasks.Add(new NurseTaskDto
                     {
@@ -503,6 +524,8 @@ namespace CareFlow.WebApi.Controllers
                         Status = task.Status,
                         DataPayload = task.DataPayload,
                         ResultPayload = task.ResultPayload,
+                        AssignedNurseId = task.ExecutorStaffId, // 医嘱执行任务使用ExecutorStaffId
+                        AssignedNurseName = executorNurseName,
                         
                         // 延迟状态字段
                         DelayMinutes = delayStatus.DelayMinutes,
@@ -535,6 +558,106 @@ namespace CareFlow.WebApi.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "获取任务列表失败", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// [护士端] 获取指定患者的所有护理任务（护理记录功能使用）
+        /// </summary>
+        /// <param name="patientId">患者ID</param>
+        /// <param name="date">查询日期（可选，默认今天）</param>
+        /// <returns></returns>
+        [HttpGet("patient-nursing-tasks")]
+        public async Task<IActionResult> GetPatientNursingTasks(string patientId, DateTime? date = null)
+        {
+            try
+            {
+                // 使用中国时区处理日期
+                var chinaTimeZone = TimeZoneInfo.FindSystemTimeZoneById("China Standard Time");
+                var targetDate = date ?? TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, chinaTimeZone);
+                
+                // 获取当天中国时间的开始和结束（转换为UTC用于数据库查询）
+                var chinaDateOnly = DateOnly.FromDateTime(targetDate);
+                var chinaStartOfDay = chinaDateOnly.ToDateTime(TimeOnly.MinValue);
+                var chinaEndOfDay = chinaDateOnly.AddDays(1).ToDateTime(TimeOnly.MinValue);
+                
+                // 转换为UTC时间（数据库存储的是UTC）
+                var startOfDay = TimeZoneInfo.ConvertTimeToUtc(chinaStartOfDay, chinaTimeZone);
+                var endOfDay = TimeZoneInfo.ConvertTimeToUtc(chinaEndOfDay, chinaTimeZone);
+
+                var currentTime = DateTime.UtcNow;
+
+                // 查询该患者的所有护理任务
+                var nursingTasks = await _context.NursingTasks
+                    .Include(nt => nt.Patient)
+                    .Where(nt => nt.PatientId == patientId &&
+                                 nt.ScheduledTime >= startOfDay &&
+                                 nt.ScheduledTime < endOfDay)
+                    .OrderBy(nt => nt.ScheduledTime)
+                    .ToListAsync();
+
+                // 打印调试信息
+                Console.WriteLine($"查询到患者 {patientId} 的任务数: {nursingTasks.Count}");
+                foreach (var task in nursingTasks)
+                {
+                    Console.WriteLine($"  任务ID: {task.Id}, 时间: {task.ScheduledTime}, 负责人: {task.AssignedNurseId}");
+                }
+
+                var taskDtos = new List<NurseTaskDto>();
+
+                foreach (var task in nursingTasks)
+                {
+                    var delayStatus = _delayCalculator.CalculateNursingTaskDelay(task, currentTime);
+                    
+                    // 获取负责护士信息
+                    string? assignedNurseName = null;
+                    if (!string.IsNullOrEmpty(task.AssignedNurseId))
+                    {
+                        var assignedNurse = await _context.Nurses
+                            .FirstOrDefaultAsync(n => n.Id == task.AssignedNurseId);
+                        assignedNurseName = assignedNurse?.Name;
+                    }
+                    
+                    taskDtos.Add(new NurseTaskDto
+                    {
+                        Id = task.Id,
+                        TaskSource = "NursingTask",
+                        PatientId = task.PatientId,
+                        PatientName = task.Patient?.Name ?? "未知",
+                        BedId = task.Patient?.BedId ?? "未知",
+                        Category = task.TaskType,
+                        PlannedStartTime = task.ScheduledTime,
+                        ActualStartTime = task.ExecuteTime,
+                        Status = task.Status,
+                        AssignedNurseId = task.AssignedNurseId,
+                        AssignedNurseName = assignedNurseName,
+                        
+                        // 延迟状态字段
+                        DelayMinutes = delayStatus.DelayMinutes,
+                        AllowedDelayMinutes = delayStatus.AllowedDelayMinutes,
+                        ExcessDelayMinutes = delayStatus.ExcessDelayMinutes,
+                        SeverityLevel = delayStatus.SeverityLevel,
+                        
+                        IsOverdue = task.Status == ExecutionTaskStatus.Pending && delayStatus.ExcessDelayMinutes > 0,
+                        IsDueSoon = task.Status == ExecutionTaskStatus.Pending && 
+                                    task.ScheduledTime >= currentTime && 
+                                    task.ScheduledTime <= currentTime.AddMinutes(30)
+                    });
+                }
+
+                return Ok(new
+                {
+                    patientId,
+                    date = targetDate.Date,
+                    tasks = taskDtos,
+                    totalCount = taskDtos.Count,
+                    pendingCount = taskDtos.Count(t => t.Status == ExecutionTaskStatus.Pending),
+                    completedCount = taskDtos.Count(t => t.Status == ExecutionTaskStatus.Completed)
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "获取患者护理任务失败", error = ex.Message });
             }
         }
     }

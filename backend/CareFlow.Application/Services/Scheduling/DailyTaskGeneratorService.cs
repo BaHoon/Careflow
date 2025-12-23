@@ -64,16 +64,18 @@ public class DailyTaskGeneratorService
 
             _logger.LogInformation("✅ 查询到 {Count} 个在院患者", patients.Count);
 
-            // 2. 解析配置的时段
-            var timeSlots = ParseTimeSlots(_options.DailyTaskGeneration.TaskTimeSlots);
-            _logger.LogInformation("⏰ 配置的时段: {Slots}", string.Join(", ", timeSlots.Select(t => t.ToString(@"hh\:mm"))));
-
-            // 3. 生成任务
+            // 2. 生成任务（根据护理等级）
             var tasksToCreate = new List<NursingTask>();
             var assignmentErrors = 0;
 
             foreach (var patient in patients)
             {
+                // 根据护理等级获取时间点
+                var timeSlots = GetTimeSlotsByGrade((NursingGrade)patient.NursingGrade);
+                
+                _logger.LogDebug("📋 患者 {PatientId} 护理等级 {Grade}，生成 {Count} 个时段", 
+                    patient.Id, (NursingGrade)patient.NursingGrade, timeSlots.Count);
+
                 foreach (var timeSlot in timeSlots)
                 {
                     // 组合成完整的中国时间
@@ -153,22 +155,38 @@ public class DailyTaskGeneratorService
     }
 
     /// <summary>
-    /// 解析时间字符串为 TimeSpan 列表
+    /// 根据护理等级返回时间点
     /// </summary>
-    private List<TimeSpan> ParseTimeSlots(List<string> timeSlotStrings)
+    private List<TimeSpan> GetTimeSlotsByGrade(NursingGrade grade)
     {
-        var result = new List<TimeSpan>();
-        foreach (var timeStr in timeSlotStrings)
+        return grade switch
         {
-            if (TimeSpan.TryParse(timeStr, out var timeSpan))
-            {
-                result.Add(timeSpan);
-            }
-            else
-            {
-                _logger.LogWarning("⚠️ 无效的时段配置: {TimeStr}", timeStr);
-            }
-        }
-        return result;
+            // 三级护理: 每日1次 (14:00)
+            NursingGrade.Grade3 => new List<TimeSpan> { 
+                new(14, 0, 0) 
+            },
+
+            // 二级护理: 每日2次 (08:00, 16:00)
+            NursingGrade.Grade2 => new List<TimeSpan> { 
+                new(8, 0, 0), 
+                new(16, 0, 0) 
+            },
+
+            // 一级护理: 每日3次 (08:00, 16:00, 20:00)
+            NursingGrade.Grade1 => new List<TimeSpan> { 
+                new(8, 0, 0), 
+                new(16, 0, 0),
+                new(20, 0, 0)
+            },
+
+            // 特级护理: 每2小时一次，24小时不间断，逢双数整点 (00:00, 02:00, 04:00, 06:00, 08:00, 10:00, 12:00, 14:00, 16:00, 18:00, 20:00, 22:00)
+            NursingGrade.Special => new List<TimeSpan> { 
+                new(0, 0, 0), new(2, 0, 0), new(4, 0, 0), new(6, 0, 0),
+                new(8, 0, 0), new(10, 0, 0), new(12, 0, 0), new(14, 0, 0),
+                new(16, 0, 0), new(18, 0, 0), new(20, 0, 0), new(22, 0, 0)
+            },
+
+            _ => new List<TimeSpan>() // 默认不生成
+        };
     }
 }

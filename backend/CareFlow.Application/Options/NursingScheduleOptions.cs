@@ -45,8 +45,10 @@ public class DailyTaskGenerationOptions
     public string TriggerTime { get; set; } = "00:00";
 
     /// <summary>
-    /// 任务时段配置 (格式: ["08:00", "12:00", "16:00", "20:00"])
+    /// [已废弃] 任务时段配置 - 现已改为根据患者护理等级自动生成时间点
+    /// 保留此配置以便未来可能的需求
     /// </summary>
+    [Obsolete("现已根据护理等级自动生成时间点，不再使用此配置")]
     public List<string> TaskTimeSlots { get; set; } = new()
     {
         "08:00",

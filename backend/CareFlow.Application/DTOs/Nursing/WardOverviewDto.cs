@@ -90,6 +90,16 @@ public class NurseTaskDto
     public string PatientName { get; set; } = string.Empty;
     public string BedId { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// 负责护士ID
+    /// </summary>
+    public string? AssignedNurseId { get; set; }
+    
+    /// <summary>
+    /// 负责护士姓名
+    /// </summary>
+    public string? AssignedNurseName { get; set; }
     public DateTime PlannedStartTime { get; set; }
     public DateTime? ActualStartTime { get; set; }
     public DateTime? ActualEndTime { get; set; }

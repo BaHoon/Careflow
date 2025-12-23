@@ -49,10 +49,7 @@ builder.Services.AddScoped<CareFlow.Application.Services.IMedicalOrderManager, C
 builder.Services.AddScoped<ICareFlowDbContext>(provider => 
     provider.GetRequiredService<ApplicationDbContext>());
 
-// 2. 注册任务生成器 (注意：这是个普通类，我们直接注册它自己)
-builder.Services.AddScoped<NursingTaskGenerator>();
-
-// 3. 注册体征服务 (接口 + 实现)
+// 注册体征服务 (接口 + 实现)
 builder.Services.AddScoped<IVitalSignService, VitalSignService>();
 
 // 配置 JWT 认证服务

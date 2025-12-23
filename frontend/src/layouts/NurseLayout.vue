@@ -53,6 +53,15 @@
           <el-icon><Operation /></el-icon>
           <span>医嘱测试</span>
         </router-link>
+        
+        <router-link 
+          to="/nurse/nursing-record" 
+          class="nav-item"
+          active-class="active"
+        >
+          <el-icon><Notebook /></el-icon>
+          <span>护理记录</span>
+        </router-link>
       </nav>
       
       <!-- 用户信息 -->
