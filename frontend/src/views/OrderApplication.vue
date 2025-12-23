@@ -654,7 +654,7 @@ const handleSingleApply = async (item) => {
     } else {
       response = await submitInspectionApplication({
         nurseId: currentNurse.staffId,  // ✅ 使用 staffId 字段
-        orderIds: [item.relatedId],
+        taskIds: [item.relatedId],  // ✅ 使用 taskIds 而不是 orderIds
         isUrgent: item.isUrgent,
         remarks: item.remarks || ''
       });
@@ -723,7 +723,7 @@ const handleBatchApply = async () => {
     } else {
       response = await submitInspectionApplication({
         nurseId: currentNurse.staffId,  // ✅ 使用 staffId 字段
-        orderIds: selectedItems.map(item => item.relatedId),
+        taskIds: selectedItems.map(item => item.relatedId),  // ✅ 使用 taskIds 而不是 orderIds
         isUrgent: hasUrgent,
         remarks: '批量申请'
       });

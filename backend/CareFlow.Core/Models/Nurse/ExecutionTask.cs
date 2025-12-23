@@ -25,6 +25,13 @@ public class ExecutionTask : EntityBase<long>
     // 1. 计划时间
     public DateTime PlannedStartTime { get; set; }
 
+    /// <summary>
+    /// 计划责任护士 (任务创建时分配的执行人)
+    /// </summary>
+    public string? AssignedNurseId { get; set; }
+    [ForeignKey("AssignedNurseId")]
+    public Nurse? AssignedNurse { get; set; }
+
     // 2. 开始执行 (对于所有类别：扫码时刻)
     public DateTime? ActualStartTime { get; set; }
     /// <summary>
@@ -47,6 +54,14 @@ public class ExecutionTask : EntityBase<long>
 
     // 状态
     public ExecutionTaskStatus Status { get; set; } = ExecutionTaskStatus.Pending;
+    
+    /// <summary>
+    /// 任务被停嘱锁定前的原始状态
+    /// 用于医生下达停嘱时保存任务的当前状态，便于护士拒绝停嘱时恢复
+    /// 仅在任务状态为 OrderStopping 时有值
+    /// </summary>
+    public ExecutionTaskStatus? StatusBeforeLocking { get; set; }
+    
     public bool IsRolledBack { get; set; } = false; // 是否已回滚
     
     /// <summary>

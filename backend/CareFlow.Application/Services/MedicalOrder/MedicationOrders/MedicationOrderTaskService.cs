@@ -14,24 +14,18 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
 {
     private readonly IRepository<ExecutionTask, long> _taskRepository;
     private readonly IRepository<HospitalTimeSlot, int> _timeSlotRepository;
-    private readonly IRepository<BarcodeIndex, string> _barcodeRepository;
     private readonly IRepository<MedicationOrder, long> _medicationOrderRepository;
-    private readonly IBarcodeService _barcodeService;
     private readonly ILogger<MedicationOrderTaskService> _logger;
 
     public MedicationOrderTaskService(
         IRepository<ExecutionTask, long> taskRepository,
         IRepository<HospitalTimeSlot, int> timeSlotRepository,
-        IRepository<BarcodeIndex, string> barcodeRepository,
         IRepository<MedicationOrder, long> medicationOrderRepository,
-        IBarcodeService barcodeService,
         ILogger<MedicationOrderTaskService> logger)
     {
         _taskRepository = taskRepository;
         _timeSlotRepository = timeSlotRepository;
-        _barcodeRepository = barcodeRepository;
         _medicationOrderRepository = medicationOrderRepository;
-        _barcodeService = barcodeService;
         _logger = logger;
     }
 
@@ -117,13 +111,10 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
                         // 先保存任务以获得ID
                         await _taskRepository.AddAsync(task);
                         savedTaskCount++;
-                        
-                        // 为任务生成条形码索引
-                        await GenerateBarcodeForTask(task);
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "保存执行任务或生成条形码时发生错误，任务计划时间: {PlannedTime}", 
+                        _logger.LogError(ex, "保存执行任务时发生错误，任务计划时间: {PlannedTime}", 
                             task.PlannedStartTime);
                         // 继续处理其他任务，不让单个任务的失败影响整体流程
                     }
@@ -884,38 +875,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
     /// <summary>
     /// 为执行任务生成条形码索引
     /// </summary>
-    private async Task GenerateBarcodeForTask(ExecutionTask task)
-    {
-        try
-        {
-            var barcodeIndex = new BarcodeIndex
-            {
-                Id = $"ExecutionTasks-{task.Id}", // 使用表名和ID作为唯一标识
-                TableName = "ExecutionTasks",
-                RecordId = task.Id.ToString()
-            };
 
-            // 生成条形码并保存到文件系统
-            var barcodeResult = await _barcodeService.GenerateAndSaveBarcodeAsync(barcodeIndex, saveToFile: true);
-            
-            // 更新条形码索引信息
-            barcodeIndex.ImagePath = barcodeResult.FilePath;
-            barcodeIndex.ImageSize = barcodeResult.FileSize;
-            barcodeIndex.ImageMimeType = barcodeResult.MimeType;
-            barcodeIndex.ImageGeneratedAt = barcodeResult.GeneratedAt;
-
-            // 保存条形码索引到数据库
-            await _barcodeRepository.AddAsync(barcodeIndex);
-            
-            _logger.LogDebug("已为ExecutionTask {TaskId} 生成条形码索引和图片文件 {FilePath}", 
-                task.Id, barcodeResult.FilePath ?? "内存中");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "为ExecutionTask {TaskId} 生成条形码时发生错误", task.Id);
-            // 条形码生成失败不应该影响任务的正常创建，所以这里只记录错误
-        }
-    }
 
     /// <summary>
     /// 根据用药途径获取任务分类

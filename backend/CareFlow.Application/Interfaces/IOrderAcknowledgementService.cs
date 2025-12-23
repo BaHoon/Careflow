@@ -1,4 +1,5 @@
 using CareFlow.Application.DTOs.OrderAcknowledgement;
+using CareFlow.Core.Models.Nursing;
 
 namespace CareFlow.Application.Interfaces;
 
@@ -37,4 +38,19 @@ public interface IOrderAcknowledgementService
     /// <param name="request">退回请求（包含护士ID、医嘱ID列表和退回原因）</param>
     /// <returns>退回结果</returns>
     Task<RejectOrdersResponseDto> RejectOrdersAsync(RejectOrdersRequestDto request);
+    
+    /// <summary>
+    /// 护士拒绝停嘱
+    /// 将医嘱从 PendingStop 状态恢复为 InProgress，
+    /// 并将关联的 OrderStopping 状态任务恢复为锁定前的原始状态
+    /// </summary>
+    /// <param name="request">拒绝停嘱请求（包含护士ID、医嘱ID列表和拒绝原因）</param>
+    /// <returns>拒绝停嘱结果，包含恢复的任务列表</returns>
+    Task<RejectStopOrderResponseDto> RejectStopOrderAsync(RejectStopOrderRequestDto request);
+    
+    /// <summary>
+    /// 为任务生成条形码
+    /// </summary>
+    /// <param name="task">执行任务</param>
+    Task GenerateBarcodeForTaskAsync(ExecutionTask task);
 }

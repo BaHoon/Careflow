@@ -15,6 +15,9 @@ namespace CareFlow.Core.Enums
         DataCollection = 4,
 
         // 5. 核对类 (如：取药) -> 扫描任务，逐个扫描药品码后结束
-        Verification = 5
+        Verification = 5,
+
+        // 6. 申请打印类 (如：检查申请) -> 提交申请，打印导引单后结束
+        ApplicationWithPrint = 6
     }
 }

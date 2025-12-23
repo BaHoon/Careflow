@@ -145,8 +145,8 @@ public class OrderApplicationController : ControllerBase
     {
         try
         {
-            _logger.LogInformation("🔬 提交检查申请，护士: {NurseId}, 医嘱数: {Count}, 加急: {IsUrgent}",
-                request.NurseId, request.OrderIds.Count, request.IsUrgent);
+            _logger.LogInformation("🔬 提交检查申请，护士: {NurseId}, 任务数: {Count}, 加急: {IsUrgent}",
+                request.NurseId, request.TaskIds.Count, request.IsUrgent);
             
             if (!ModelState.IsValid)
             {

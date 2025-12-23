@@ -25,4 +25,36 @@ public class InspectionRequestResult
     /// Key: 医嘱ID, Value: 预约号
     /// </summary>
     public Dictionary<long, string> AppointmentNumbers { get; set; } = new();
+    
+    /// <summary>
+    /// 预约详细信息（用于生成任务）
+    /// Key: 医嘱ID, Value: 预约详情
+    /// </summary>
+    public Dictionary<long, AppointmentDetail> AppointmentDetails { get; set; } = new();
+}
+
+/// <summary>
+/// 预约详细信息
+/// </summary>
+public class AppointmentDetail
+{
+    /// <summary>
+    /// 预约号
+    /// </summary>
+    public string AppointmentNumber { get; set; } = null!;
+    
+    /// <summary>
+    /// 预约时间
+    /// </summary>
+    public DateTime AppointmentTime { get; set; }
+    
+    /// <summary>
+    /// 预约地点
+    /// </summary>
+    public string AppointmentPlace { get; set; } = null!;
+    
+    /// <summary>
+    /// 注意事项（可选，如空腹、憋尿等）
+    /// </summary>
+    public string? Precautions { get; set; }
 }
