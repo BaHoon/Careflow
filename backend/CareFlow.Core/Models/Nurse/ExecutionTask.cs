@@ -47,6 +47,14 @@ public class ExecutionTask : EntityBase<long>
 
     // 状态
     public ExecutionTaskStatus Status { get; set; } = ExecutionTaskStatus.Pending;
+    
+    /// <summary>
+    /// 任务被停嘱锁定前的原始状态
+    /// 用于医生下达停嘱时保存任务的当前状态，便于护士拒绝停嘱时恢复
+    /// 仅在任务状态为 OrderStopping 时有值
+    /// </summary>
+    public ExecutionTaskStatus? StatusBeforeLocking { get; set; }
+    
     public bool IsRolledBack { get; set; } = false; // 是否已回滚
     
     /// <summary>

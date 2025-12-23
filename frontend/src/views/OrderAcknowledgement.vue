@@ -791,105 +791,106 @@ const acknowledgeBatchInternal = async (orderIds) => {
 };
 
 // 处理签收结果（弹窗提示）
+// 【暂时注释】签收后弹窗逻辑
 const handleAcknowledgeResult = async (result) => {
-  if (!result.needTodayAction) {
-    return;
-  }
+  // if (!result.needTodayAction) {
+  //   return;
+  // }
 
-  // 查找对应的医嘱详情
-  const order = [...pendingOrders.value.newOrders, ...pendingOrders.value.stoppedOrders]
-    .find(o => o.orderId === result.orderId);
+  // // 查找对应的医嘱详情
+  // const order = [...pendingOrders.value.newOrders, ...pendingOrders.value.stoppedOrders]
+  //   .find(o => o.orderId === result.orderId);
 
-  // 药品医嘱：询问是否立即申请药品
-  if (result.actionType === 'RequestMedication') {
-    try {
-      // 构建详细的医嘱信息
-      let orderInfo = '';
-      if (order) {
-        // 构建药品明细列表
-        let itemsHtml = '';
-        if (order.items && order.items.length > 0) {
-          itemsHtml = '<div style="margin-bottom: 8px;"><strong>药品明细：</strong></div>';
-          order.items.forEach((item, idx) => {
-            itemsHtml += `
-              <div style="margin-left: 20px; margin-bottom: 6px; padding: 8px; background: #fff; border-left: 3px solid #409eff; border-radius: 4px;">
-                <div>${idx + 1}. ${item.drugName || '未知药品'}</div>
-                <div style="font-size: 13px; color: #666; margin-top: 4px;">
-                  规格: ${item.specification || '未知'} | 剂量: ${item.dosage || '未知'}
-                  ${item.note ? `<br/>备注: ${item.note}` : ''}
-                </div>
-              </div>
-            `;
-          });
-        }
-        
-        orderInfo = `
-          <div style="text-align: left; margin-top: 10px; padding: 15px; background: #f5f7fa; border-radius: 6px; font-size: 14px;">
-            <div style="margin-bottom: 8px;"><strong>医嘱内容：</strong>${order.displayText || '未知'}</div>
-            ${itemsHtml}
-            <div style="margin-bottom: 8px;"><strong>给药途径：</strong>${getUsageRouteText(order.usageRoute) || '未知'}</div>
-            <div style="margin-bottom: 8px;"><strong>时间策略：</strong>${getTimingStrategyText(order) || '未知'}</div>
-            <div style="margin-bottom: 8px;"><strong>开始时间：</strong>${order.startTime ? formatDateTime(order.startTime) : '未设置'}</div>
-            <div style="margin-bottom: 8px;"><strong>计划结束：</strong>${order.plantEndTime ? formatDateTime(order.plantEndTime) : '未设置'}</div>
-            ${order.remarks ? `<div style="margin-bottom: 8px;"><strong>备注：</strong>${order.remarks}</div>` : ''}
-          </div>
-        `;
-      }
+  // // 药品医嘱：询问是否立即申请药品
+  // if (result.actionType === 'RequestMedication') {
+  //   try {
+  //     // 构建详细的医嘱信息
+  //     let orderInfo = '';
+  //     if (order) {
+  //       // 构建药品明细列表
+  //       let itemsHtml = '';
+  //       if (order.items && order.items.length > 0) {
+  //         itemsHtml = '<div style="margin-bottom: 8px;"><strong>药品明细：</strong></div>';
+  //         order.items.forEach((item, idx) => {
+  //           itemsHtml += `
+  //             <div style="margin-left: 20px; margin-bottom: 6px; padding: 8px; background: #fff; border-left: 3px solid #409eff; border-radius: 4px;">
+  //               <div>${idx + 1}. ${item.drugName || '未知药品'}</div>
+  //               <div style="font-size: 13px; color: #666; margin-top: 4px;">
+  //                 规格: ${item.specification || '未知'} | 剂量: ${item.dosage || '未知'}
+  //                 ${item.note ? `<br/>备注: ${item.note}` : ''}
+  //               </div>
+  //             </div>
+  //           `;
+  //         });
+  //       }
+  //       
+  //       orderInfo = `
+  //         <div style="text-align: left; margin-top: 10px; padding: 15px; background: #f5f7fa; border-radius: 6px; font-size: 14px;">
+  //           <div style="margin-bottom: 8px;"><strong>医嘱内容：</strong>${order.displayText || '未知'}</div>
+  //           ${itemsHtml}
+  //           <div style="margin-bottom: 8px;"><strong>给药途径：</strong>${getUsageRouteText(order.usageRoute) || '未知'}</div>
+  //           <div style="margin-bottom: 8px;"><strong>时间策略：</strong>${getTimingStrategyText(order) || '未知'}</div>
+  //           <div style="margin-bottom: 8px;"><strong>开始时间：</strong>${order.startTime ? formatDateTime(order.startTime) : '未设置'}</div>
+  //           <div style="margin-bottom: 8px;"><strong>计划结束：</strong>${order.plantEndTime ? formatDateTime(order.plantEndTime) : '未设置'}</div>
+  //           ${order.remarks ? `<div style="margin-bottom: 8px;"><strong>备注：</strong>${order.remarks}</div>` : ''}
+  //         </div>
+  //       `;
+  //     }
 
-      await ElMessageBox.confirm(
-        `该医嘱今日需要执行，是否立即向药房申请药品？${orderInfo}`,
-        '提示',
-        {
-          confirmButtonText: '立即申请',
-          cancelButtonText: '稍后申请',
-          type: 'info',
-          dangerouslyUseHTMLString: true,
-          customClass: 'order-action-confirm'
-        }
-      );
-      
-      // TODO: 阶段三实现 - 调用申请药品接口
-      // await requestMedicationImmediately({ orderId: result.orderId });
-      ElMessage.info('药品申请功能待阶段三实现');
-    } catch {
-      // 用户选择稍后申请
-    }
-  }
-  // 检查医嘱：询问是否立即申请检查
-  else if (result.actionType === 'RequestInspection') {
-    try {
-      // 构建详细的医嘱信息
-      const orderInfo = order ? `
-        <div style="text-align: left; margin-top: 10px; padding: 15px; background: #f5f7fa; border-radius: 6px; font-size: 14px;">
-          <div style="margin-bottom: 8px;"><strong>医嘱内容：</strong>${order.displayText || '未知'}</div>
-          <div style="margin-bottom: 8px;"><strong>检查项目代码：</strong>${order.itemCode || '未知'}</div>
-          <div style="margin-bottom: 8px;"><strong>检查地点：</strong>${order.location || '未知'}</div>
-          ${order.remarks ? `<div style="margin-bottom: 8px;"><strong>备注：</strong>${order.remarks}</div>` : ''}
-          <div style="margin-top: 10px; padding: 8px; background: #fff3cd; border-radius: 4px; font-size: 13px;">
-            💡 提示：如需特殊准备（空腹、憋尿等），请查看完整医嘱详情
-          </div>
-        </div>
-      ` : '';
+  //     await ElMessageBox.confirm(
+  //       `该医嘱今日需要执行，是否立即向药房申请药品？${orderInfo}`,
+  //       '提示',
+  //       {
+  //         confirmButtonText: '立即申请',
+  //         cancelButtonText: '稍后申请',
+  //         type: 'info',
+  //         dangerouslyUseHTMLString: true,
+  //         customClass: 'order-action-confirm'
+  //       }
+  //     );
+  //     
+  //     // TODO: 阶段三实现 - 调用申请药品接口
+  //     // await requestMedicationImmediately({ orderId: result.orderId });
+  //     ElMessage.info('药品申请功能待阶段三实现');
+  //   } catch {
+  //     // 用户选择稍后申请
+  //   }
+  // }
+  // // 检查医嘱：询问是否立即申请检查
+  // else if (result.actionType === 'RequestInspection') {
+  //   try {
+  //     // 构建详细的医嘱信息
+  //     const orderInfo = order ? `
+  //       <div style="text-align: left; margin-top: 10px; padding: 15px; background: #f5f7fa; border-radius: 6px; font-size: 14px;">
+  //         <div style="margin-bottom: 8px;"><strong>医嘱内容：</strong>${order.displayText || '未知'}</div>
+  //         <div style="margin-bottom: 8px;"><strong>检查项目代码：</strong>${order.itemCode || '未知'}</div>
+  //         <div style="margin-bottom: 8px;"><strong>检查地点：</strong>${order.location || '未知'}</div>
+  //         ${order.remarks ? `<div style="margin-bottom: 8px;"><strong>备注：</strong>${order.remarks}</div>` : ''}
+  //         <div style="margin-top: 10px; padding: 8px; background: #fff3cd; border-radius: 4px; font-size: 13px;">
+  //           💡 提示：如需特殊准备（空腹、憋尿等），请查看完整医嘱详情
+  //         </div>
+  //       </div>
+  //     ` : '';
 
-      await ElMessageBox.confirm(
-        `是否立即向检查站申请检查？${orderInfo}`,
-        '提示',
-        {
-          confirmButtonText: '立即申请',
-          cancelButtonText: '稍后申请',
-          type: 'info',
-          dangerouslyUseHTMLString: true,
-          customClass: 'order-action-confirm'
-        }
-      );
-      
-      // TODO: 阶段三实现 - 调用申请检查接口
-      // await requestInspection({ orderId: result.orderId });
-      ElMessage.info('检查申请功能待阶段三实现');
-    } catch {
-      // 用户选择稍后申请
-    }
-  }
+  //     await ElMessageBox.confirm(
+  //       `是否立即向检查站申请检查？${orderInfo}`,
+  //       '提示',
+  //       {
+  //         confirmButtonText: '立即申请',
+  //         cancelButtonText: '稍后申请',
+  //         type: 'info',
+  //         dangerouslyUseHTMLString: true,
+  //         customClass: 'order-action-confirm'
+  //       }
+  //     );
+  //     
+  //     // TODO: 阶段三实现 - 调用申请检查接口
+  //     // await requestInspection({ orderId: result.orderId });
+  //     ElMessage.info('检查申请功能待阶段三实现');
+  //   } catch {
+  //     // 用户选择稍后申请
+  //   }
+  // }
 };
 
 // ==================== 停止医嘱签收 ====================
