@@ -5,6 +5,7 @@ using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models.Medical;
 using CareFlow.Core.Models.Nursing;
 using CareFlow.Core.Models.Organization;
+using CareFlow.Core.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using MedicalOrderEntity = CareFlow.Core.Models.Medical.MedicalOrder;
@@ -22,10 +23,12 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
     private readonly IRepository<Doctor, string> _doctorRepository;
     private readonly IRepository<Drug, string> _drugRepository;
     private readonly IRepository<MedicalOrderStatusHistory, long> _statusHistoryRepository;
+    private readonly IRepository<BarcodeIndex, string> _barcodeRepository;
     private readonly IMedicationOrderTaskService _medicationTaskService;
     private readonly IInspectionService _inspectionTaskService;
     private readonly ISurgicalOrderTaskService _surgicalTaskService;
     private readonly INurseAssignmentService _nurseAssignmentService;
+    private readonly IBarcodeService _barcodeService;
     private readonly ILogger<OrderAcknowledgementService> _logger;
 
     public OrderAcknowledgementService(
@@ -35,10 +38,12 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
         IRepository<Doctor, string> doctorRepository,
         IRepository<Drug, string> drugRepository,
         IRepository<MedicalOrderStatusHistory, long> statusHistoryRepository,
+        IRepository<BarcodeIndex, string> barcodeRepository,
         IMedicationOrderTaskService medicationTaskService,
         IInspectionService inspectionTaskService,
         ISurgicalOrderTaskService surgicalTaskService,
         INurseAssignmentService nurseAssignmentService,
+        IBarcodeService barcodeService,
         ILogger<OrderAcknowledgementService> logger)
     {
         _orderRepository = orderRepository;
@@ -47,10 +52,12 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
         _doctorRepository = doctorRepository;
         _drugRepository = drugRepository;
         _statusHistoryRepository = statusHistoryRepository;
+        _barcodeRepository = barcodeRepository;
         _medicationTaskService = medicationTaskService;
         _inspectionTaskService = inspectionTaskService;
         _surgicalTaskService = surgicalTaskService;
         _nurseAssignmentService = nurseAssignmentService;
+        _barcodeService = barcodeService;
         _logger = logger;
     }
 
@@ -502,21 +509,43 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
 
             if (responsibleNurse != null)
             {
-                task.ExecutorStaffId = responsibleNurse;
+                task.AssignedNurseId = responsibleNurse;
                 assignedCount++;
-                _logger.LogInformation("任务 {TaskId} 分配给护士 {NurseId}", task.Id, responsibleNurse);
+                _logger.LogInformation("任务 {TaskId} 分配计划责任护士 {NurseId}", task.Id, responsibleNurse);
             }
             else
             {
                 unassignedCount++;
-                _logger.LogWarning("任务 {TaskId} 计划时间 {Time} 无排班护士，责任护士留空",
+                _logger.LogWarning("任务 {TaskId} 计划时间 {Time} 无排班护士，计划责任护士留空",
                     task.Id, task.PlannedStartTime);
             }
 
             await _taskRepository.UpdateAsync(task);
         }
 
-        // 4. 检查今天是否有任务需要执行
+        // 4. 为每个任务生成条形码索引和图片
+        int barcodeSuccessCount = 0;
+        int barcodeFailCount = 0;
+        
+        foreach (var task in tasks)
+        {
+            try
+            {
+                await GenerateBarcodeForTaskAsync(task);
+                barcodeSuccessCount++;
+            }
+            catch (Exception ex)
+            {
+                barcodeFailCount++;
+                _logger.LogError(ex, "为任务 {TaskId} 生成条形码失败", task.Id);
+                // 条形码生成失败不应阻断签收流程
+            }
+        }
+        
+        _logger.LogInformation("条形码生成完成: 成功 {Success}, 失败 {Failed}", 
+            barcodeSuccessCount, barcodeFailCount);
+
+        // 5. 检查今天是否有任务需要执行
         var today = DateTime.Today;
         var todayTasks = tasks.Where(t => t.PlannedStartTime.Date == today).ToList();
 
@@ -535,7 +564,7 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
             }
         };
 
-        // 5. 判断需要的操作类型
+        // 6. 判断需要的操作类型
         result.ActionType = DetermineActionType(order, todayTasks);
 
         _logger.LogInformation("任务生成完成: 总计 {Total}, 今日 {Today}, 已分配 {Assigned}, 未分配 {Unassigned}",
@@ -842,5 +871,41 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
             Dosage = item.Dosage,
             Note = item.Note
         }).ToList();
+    }
+
+    /// <summary>
+    /// 为任务生成条形码索引和图片（签收医嘱时调用）
+    /// </summary>
+    private async Task GenerateBarcodeForTaskAsync(ExecutionTask task)
+    {
+        try
+        {
+            var barcodeIndex = new BarcodeIndex
+            {
+                Id = $"ExecutionTasks-{task.Id}",
+                TableName = "ExecutionTasks",
+                RecordId = task.Id.ToString()
+            };
+
+            // 生成条形码并保存到文件系统
+            var barcodeResult = await _barcodeService.GenerateAndSaveBarcodeAsync(barcodeIndex, saveToFile: true);
+            
+            // 更新条形码索引信息
+            barcodeIndex.ImagePath = barcodeResult.FilePath;
+            barcodeIndex.ImageSize = barcodeResult.FileSize;
+            barcodeIndex.ImageMimeType = barcodeResult.MimeType;
+            barcodeIndex.ImageGeneratedAt = barcodeResult.GeneratedAt;
+
+            // 保存条形码索引到数据库
+            await _barcodeRepository.AddAsync(barcodeIndex);
+            
+            _logger.LogDebug("已为ExecutionTask {TaskId} 生成条形码索引和图片文件 {FilePath}", 
+                task.Id, barcodeResult.FilePath ?? "内存中");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "为ExecutionTask {TaskId} 生成条形码时发生错误", task.Id);
+            throw; // 重新抛出异常，让调用方处理
+        }
     }
 }

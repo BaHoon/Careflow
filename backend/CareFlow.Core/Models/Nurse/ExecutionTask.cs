@@ -25,6 +25,13 @@ public class ExecutionTask : EntityBase<long>
     // 1. 计划时间
     public DateTime PlannedStartTime { get; set; }
 
+    /// <summary>
+    /// 计划责任护士 (任务创建时分配的执行人)
+    /// </summary>
+    public string? AssignedNurseId { get; set; }
+    [ForeignKey("AssignedNurseId")]
+    public Nurse? AssignedNurse { get; set; }
+
     // 2. 开始执行 (对于所有类别：扫码时刻)
     public DateTime? ActualStartTime { get; set; }
     /// <summary>

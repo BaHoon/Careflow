@@ -29,8 +29,6 @@ public class InspectionOrderTaskService : IInspectionService
     private readonly IRepository<Doctor, string> _doctorRepo;
     private readonly IRepository<Nurse, string> _nurseRepo;
     private readonly IRepository<ExecutionTask, long> _taskRepo;
-    private readonly IRepository<BarcodeIndex, string> _barcodeRepo;
-    private readonly IBarcodeService _barcodeService;
 
     public InspectionOrderTaskService(
         IRepository<InspectionOrder, long> orderRepo,
@@ -38,9 +36,7 @@ public class InspectionOrderTaskService : IInspectionService
         IRepository<Patient, string> patientRepo,
         IRepository<Doctor, string> doctorRepo,
         IRepository<Nurse, string> nurseRepo,
-        IRepository<ExecutionTask, long> taskRepo,
-        IRepository<BarcodeIndex, string> barcodeRepo,
-        IBarcodeService barcodeService)
+        IRepository<ExecutionTask, long> taskRepo)
     {
         _orderRepo = orderRepo;
         _reportRepo = reportRepo;
@@ -48,8 +44,6 @@ public class InspectionOrderTaskService : IInspectionService
         _doctorRepo = doctorRepo;
         _nurseRepo = nurseRepo;
         _taskRepo = taskRepo;
-        _barcodeRepo = barcodeRepo;
-        _barcodeService = barcodeService;
     }
 
     // ===== 检查医嘱状态管理(内部使用) =====
@@ -311,11 +305,10 @@ public class InspectionOrderTaskService : IInspectionService
             CreateCheckCompleteTask(order, appointmentTime.AddMinutes(30))
         };
         
-        // 保存任务到数据库并为每个任务生成条形码
+        // 保存任务到数据库
         foreach (var task in tasks)
         {
             await _taskRepo.AddAsync(task);
-            await GenerateBarcodeForTask(task);
         }
     }
     
@@ -477,37 +470,6 @@ public class InspectionOrderTaskService : IInspectionService
         // 保存任务到数据库
         await _taskRepo.AddAsync(task);
         
-        // 生成条形码
-        await GenerateBarcodeForTask(task);
-        
         return task;
-    }
-    
-    /// <summary>
-    /// 为执行任务生成条形码索引
-    /// </summary>
-    private async Task GenerateBarcodeForTask(ExecutionTask task)
-    {
-        try
-        {
-            var barcodeIndex = new BarcodeIndex
-            {
-                Id = $"ExecutionTasks-{task.Id}", // 使用表名和ID作为唯一标识
-                TableName = "ExecutionTasks",
-                RecordId = task.Id.ToString()
-            };
-
-            // 保存条形码索引到数据库
-            await _barcodeRepo.AddAsync(barcodeIndex);
-            
-            // 生成条形码图片（可选，如果需要立即生成图片的话）
-            // var barcodeBytes = await _barcodeService.GenerateBarcodeAsync(barcodeIndex);
-            // 这里可以选择保存到文件系统或其他地方
-        }
-        catch (Exception)
-        {
-            // 条形码生成失败不应该影响任务的正常创建，所以这里只记录错误
-            // 如果有日志系统，可以记录: LogError(ex, "为ExecutionTask {TaskId} 生成条形码时发生错误", task.Id);
-        }
     }
 }
