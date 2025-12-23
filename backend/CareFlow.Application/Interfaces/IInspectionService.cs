@@ -1,4 +1,7 @@
 using CareFlow.Application.DTOs.Inspection;
+using CareFlow.Application.DTOs.OrderApplication;
+using CareFlow.Core.Models.Medical;
+using CareFlow.Core.Models.Nursing;
 
 namespace CareFlow.Application.Interfaces;
 
@@ -20,21 +23,6 @@ public interface IInspectionService
     Task<InspectionOrderDetailDto> GetInspectionOrderDetailAsync(long orderId);
     
     /// <summary>
-    /// 病房护士发送检查申请到检查站
-    /// </summary>
-    Task SendInspectionRequestAsync(SendInspectionRequestDto dto);
-    
-    /// <summary>
-    /// 检查站护士查看待处理的检查申请列表
-    /// </summary>
-    Task<List<InspectionRequestDto>> GetPendingRequestsAsync(string inspectionStationId);
-    
-    /// <summary>
-    /// 检查站护士创建预约(自动生成3个执行任务)
-    /// </summary>
-    Task CreateAppointmentAsync(CreateAppointmentDto dto);
-    
-    /// <summary>
     /// 统一扫码处理(根据任务类型自动处理)
     /// </summary>
     Task<object> ProcessScanAsync(SingleScanDto dto);
@@ -50,4 +38,21 @@ public interface IInspectionService
     /// 获取检查报告详情
     /// </summary>
     Task<InspectionReportDetailDto> GetInspectionReportDetailAsync(long reportId);
+    
+    // ===== 任务生成相关 =====
+    
+    /// <summary>
+    /// 生成检查申请任务（签收时调用）
+    /// </summary>
+    /// <param name="order">检查医嘱</param>
+    /// <returns>申请任务</returns>
+    Task<ExecutionTask> GenerateApplicationTaskAsync(InspectionOrder order);
+    
+    /// <summary>
+    /// 根据预约信息生成执行任务（预约确认后调用）
+    /// </summary>
+    /// <param name="orderId">检查医嘱ID</param>
+    /// <param name="appointmentDetail">预约详情</param>
+    /// <returns>生成的执行任务列表（打印导引单、患者签到、检查完成）</returns>
+    Task<List<ExecutionTask>> GenerateExecutionTasksAsync(long orderId, AppointmentDetail appointmentDetail);
 }

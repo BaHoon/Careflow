@@ -5,7 +5,7 @@ using CareFlow.Core.Models.Medical;
 using CareFlow.Core.Models.Nursing;
 using Microsoft.AspNetCore.Mvc;
 using CareFlow.Application.DTOs.Common;
-using CareFlow.Application.DTOs.SurgicalOrder;
+using CareFlow.Application.DTOs.SurgicalOrders;
 
 namespace CareFlow.WebApi.Controllers;
 

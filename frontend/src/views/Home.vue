@@ -2,11 +2,11 @@
   <div class="home-container">
     <main class="content">
       <h1>工作台 Dashboard</h1>
-      <p class="dept-info">当前科室：{{ currentUser.deptName || '未分配' }}</p>
+      <p class="dept-info">当前科室：{{ currentDeptName }}</p>
 
       <div class="cards">
         <template v-if="currentUser.role === 'Doctor'">
-          <div class="card clickable" @click="router.push('/order-entry')">
+          <div class="card clickable" @click="router.push('/doctor/order-entry')">
             <h3>✍️ 开具新医嘱</h3>
             <p>为所管辖患者下达长期或临时医嘱</p>
             <div class="card-badge doctor">医生权限</div>
@@ -37,6 +37,13 @@
             <div class="card-badge admin">管理权限</div>
           </div>
         </template>
+
+        <!-- 临时测试按钮（所有角色可见） -->
+        <div class="card clickable test-card" @click="router.push('/inspection')">
+          <h3>🔬 查看检查类医嘱</h3>
+          <p>检查医嘱管理页面（临时测试用）</p>
+          <div class="card-badge test">测试</div>
+        </div>
       </div>
     </main>
   </div>
@@ -47,16 +54,40 @@
 .card-badge.doctor { background: #409eff; }
 .card-badge.nurse { background: #67c23a; }
 .card-badge.admin { background: #f56c6c; }
+.card-badge.test { background: #e6a23c; }
+
+.test-card {
+  border: 2px dashed #e6a23c;
+  opacity: 0.9;
+}
 
 .dept-info { color: #909399; font-size: 0.9rem; margin-bottom: 20px; }
 </style>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
-const currentUser = ref({ fullName: '', role: '' });
+const currentUser = ref({ fullName: '', role: '', deptCode: '' });
+
+// 科室代码到名称的映射
+const deptNameMap = {
+  'IM': '内科',
+  'SUR': '外科',
+  'PED': '儿科',
+  'OB': '妇产科',
+  'ICU': '重症医学科',
+  'ER': '急诊科'
+};
+
+// 计算当前科室名称
+const currentDeptName = computed(() => {
+  if (!currentUser.value.deptCode) {
+    return '未分配';
+  }
+  return deptNameMap[currentUser.value.deptCode] || currentUser.value.deptCode;
+});
 
 onMounted(() => {
   // 从 LocalStorage 读取用户信息

@@ -3,8 +3,8 @@
     class="task-item" 
     :class="{ 
       'task-highlight': highlight,
-      'task-overdue': task.isOverdue,
-      'task-due-soon': task.isDueSoon && !task.isOverdue
+      'task-overdue': task.excessDelayMinutes > 0 && task.status !== 'Completed',
+      'task-due-soon': task.status === 'Pending' && task.delayMinutes >= -60 && task.excessDelayMinutes <= 0
     }"
     @click="handleClick"
   >
@@ -28,11 +28,15 @@
       <div class="task-time">
         <el-icon><Clock /></el-icon>
         <span>计划时间：{{ formatTime(task.plannedStartTime) }}</span>
-        <span v-if="task.isOverdue" class="overdue-text">
-          (已超时 {{ getOverdueMinutes }}分钟)
+        <!-- 只在超时任务和临期任务显示延迟信息 -->
+        <span v-if="task.excessDelayMinutes > 0 && task.status !== 'Completed'" class="overdue-text">
+          (超出容忍期 {{ task.excessDelayMinutes }}分钟)
         </span>
-        <span v-else-if="task.isDueSoon" class="due-soon-text">
-          (还有 {{ getDueMinutes }}分钟)
+        <span v-else-if="task.delayMinutes > 0 && task.delayMinutes >= -60 && task.status === 'Pending'" class="delay-text">
+          (延迟 {{ task.delayMinutes }}分钟，容忍期内)
+        </span>
+        <span v-else-if="task.delayMinutes < 0 && task.delayMinutes >= -60 && task.status === 'Pending'" class="due-soon-text">
+          (还有 {{ Math.abs(task.delayMinutes) }}分钟)
         </span>
       </div>
 
@@ -48,23 +52,30 @@
     </div>
 
     <div class="task-actions">
+      <!-- 未完成且未取消的任务显示开始录入按钮 -->
       <el-button 
-        v-if="task.status === 'Pending'" 
+        v-if="task.status !== 'Completed' && task.status !== 5 && task.status !== 'Cancelled' && task.status !== 9" 
         type="primary" 
         size="small"
-        @click.stop="handleStart"
+        :icon="Edit"
+        @click.stop="handleStartInput"
       >
-        开始执行
+        开始录入
       </el-button>
+      <!-- 未完成且未取消的任务显示取消按钮 -->
       <el-button 
-        v-if="task.status === 'Running'" 
-        type="success" 
+        v-if="task.status === 'Pending' || task.status === 3" 
+        type="danger" 
+        plain
         size="small"
-        @click.stop="handleComplete"
+        :icon="Close"
+        @click.stop="handleCancelTask"
       >
-        完成任务
+        取消任务
       </el-button>
+      <!-- 已完成的任务显示查看详情按钮 -->
       <el-button 
+        v-if="task.status === 'Completed' || task.status === 5" 
         size="small"
         @click.stop="handleViewDetail"
       >
@@ -84,8 +95,12 @@ import {
   Coffee,
   Document,
   VideoCamera,
-  Bell
+  Bell,
+  Edit,
+  Close
 } from '@element-plus/icons-vue';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import { cancelNursingTask } from '@/api/nursing';
 
 const props = defineProps({
   task: {
@@ -98,7 +113,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['click', 'start', 'complete', 'view-detail']);
+const emit = defineEmits(['click', 'start-input', 'view-detail', 'task-cancelled']);
 
 // 任务类别图标
 const categoryIcon = computed(() => {
@@ -126,26 +141,42 @@ const categoryText = computed(() => {
 
 // 状态标签类型
 const statusTagType = computed(() => {
+  const status = props.task.status;
   const typeMap = {
     'Pending': 'warning',
+    3: 'warning',
     'Running': 'primary',
+    4: 'primary',
     'Completed': 'success',
+    5: 'success',
     'Skipped': 'info',
-    'Cancelled': 'danger'
+    8: 'info',
+    'Cancelled': 'danger',
+    9: 'danger',
+    'Stopped': 'danger',
+    7: 'danger'
   };
-  return typeMap[props.task.status] || 'info';
+  return typeMap[status] || 'info';
 });
 
 // 状态文本
 const statusText = computed(() => {
+  const status = props.task.status;
   const textMap = {
     'Pending': '待执行',
+    3: '待执行',
     'Running': '执行中',
+    4: '执行中',
     'Completed': '已完成',
+    5: '已完成',
     'Skipped': '已跳过',
-    'Cancelled': '已取消'
+    8: '已跳过',
+    'Cancelled': '已取消',
+    9: '已取消',
+    'Stopped': '已停止',
+    7: '已停止'
   };
-  return textMap[props.task.status] || props.task.status;
+  return textMap[status] || status;
 });
 
 // 格式化时间
@@ -160,37 +191,77 @@ const formatTime = (dateString) => {
   });
 };
 
-// 超时分钟数
-const getOverdueMinutes = computed(() => {
-  if (!props.task.isOverdue) return 0;
-  const now = new Date();
-  const planned = new Date(props.task.plannedStartTime);
-  return Math.floor((now - planned) / 1000 / 60);
-});
-
-// 距离到期分钟数
-const getDueMinutes = computed(() => {
-  if (!props.task.isDueSoon) return 0;
-  const now = new Date();
-  const planned = new Date(props.task.plannedStartTime);
-  return Math.floor((planned - now) / 1000 / 60);
-});
-
 // 事件处理
 const handleClick = () => {
   emit('click', props.task);
 };
 
-const handleStart = () => {
-  emit('start', props.task);
-};
-
-const handleComplete = () => {
-  emit('complete', props.task);
+const handleStartInput = () => {
+  emit('start-input', props.task);
 };
 
 const handleViewDetail = () => {
   emit('view-detail', props.task);
+};
+
+// 获取当前护士ID
+const getCurrentNurseId = () => {
+  const userInfo = localStorage.getItem('userInfo');
+  if (userInfo) {
+    const user = JSON.parse(userInfo);
+    return user.staffId;
+  }
+  return null;
+};
+
+// 取消任务
+const handleCancelTask = async () => {
+  try {
+    // 弹出输入框要求填写取消理由
+    const { value: cancelReason } = await ElMessageBox.prompt(
+      '请填写取消任务的理由',
+      '确认取消',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        inputType: 'textarea',
+        inputPlaceholder: '请输入取消理由...',
+        inputValidator: (value) => {
+          if (!value || value.trim().length === 0) {
+            return '取消理由不能为空';
+          }
+          return true;
+        },
+      }
+    );
+
+    const nurseId = getCurrentNurseId();
+    if (!nurseId) {
+      ElMessage.error('未找到护士信息');
+      return;
+    }
+
+    // 验证taskId
+    const taskId = props.task.id;
+    console.log('取消任务 - taskId:', taskId, 'task对象:', props.task, '理由:', cancelReason);
+    
+    if (!taskId) {
+      ElMessage.error('任务ID无效');
+      return;
+    }
+
+    // 调用API取消任务
+    await cancelNursingTask(taskId, nurseId, cancelReason);
+    ElMessage.success('任务已取消');
+    
+    // 通知父组件刷新数据
+    emit('task-cancelled', taskId);
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('取消任务失败:', error);
+      ElMessage.error(error.response?.data?.message || '取消任务失败');
+    }
+  }
 };
 </script>
 
@@ -266,8 +337,13 @@ const handleViewDetail = () => {
   font-weight: 600;
 }
 
-.due-soon-text {
+.delay-text {
   color: #e6a23c;
+  font-weight: 500;
+}
+
+.due-soon-text {
+  color: #409eff;
   font-weight: 600;
 }
 

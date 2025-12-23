@@ -1,25 +1,12 @@
 <template>
   <div class="order-container">
-    <nav class="navbar">
-      <div class="logo">
-        <i class="el-icon-s-order"></i> CareFlow | 医嘱开具工作台
-      </div>
-      <div class="user-info">
-        <span class="user-name">{{ currentUser.fullName }}</span>
-        <span class="user-role">({{ currentUser.role }})</span>
-        <button @click="$router.push('/home')" class="btn-back">
-          <i class="el-icon-back"></i> 返回首页
-        </button>
-      </div>
-    </nav>
-
     <main class="order-layout">
       <header class="patient-context" v-if="selectedPatient">
         <div class="patient-badge">{{ selectedPatient.bedId }}</div>
         <div class="patient-info">
           <span class="name">{{ selectedPatient.name }}</span>
           <span class="detail">{{ selectedPatient.gender }} | {{ selectedPatient.age }}岁 | {{ selectedPatient.weight }}kg</span>
-          <span class="tag">护理级别: {{ selectedPatient.nursingGrade }}级</span>
+          <span class="tag">{{ getGradeText(selectedPatient.nursingGrade) }}</span>
         </div>
       </header>
 
@@ -60,7 +47,7 @@
                   <span class="p-info">{{ patient.gender }} {{ patient.age }}岁</span>
                 </div>
                 <div class="patient-meta">
-                  <span class="p-care">护理{{ patient.nursingGrade }}级</span>
+                  <span class="p-care">{{ getGradeText(patient.nursingGrade) }}</span>
                 </div>
               </div>
             </div>
@@ -366,11 +353,644 @@
               </div>
             </div>
 
+<!-- 检查医嘱表单 - 完善版 -->
+                    <div v-else-if="activeType === 'InspectionOrder'" class="inspection-form">
+                      <!-- 检查类别选择 -->
+                      <div class="form-section">
+                        <div class="section-header">
+                          <i class="el-icon-folder-opened"></i>
+                          <span>检查类别</span>
+                        </div>
+                        
+                        <div class="form-row">
+                          <label class="required">检查大类</label>
+                          <el-radio-group v-model="inspectionOrder.category" @change="handleCategoryChange">
+                            <el-radio-button label="LAB">化验检查</el-radio-button>
+                            <el-radio-button label="IMAGING">影像检查</el-radio-button>
+                            <el-radio-button label="FUNCTION">功能检查</el-radio-button>
+                            <el-radio-button label="ENDOSCOPY">内窥镜检查</el-radio-button>
+                            <el-radio-button label="PATHOLOGY">病理检查</el-radio-button>
+                          </el-radio-group>
+                        </div>
+                      </div>
+
+                      <!-- 检查项目选择 -->
+                      <div class="form-section" v-if="inspectionOrder.category">
+                        <div class="section-header">
+                          <i class="el-icon-document-checked"></i>
+                          <span>检查项目</span>
+                          <span class="section-tip">（可多选，每项单独开具一条医嘱）</span>
+                        </div>
+
+                        <!-- 化验检查项目 -->
+                        <div v-if="inspectionOrder.category === 'LAB'">
+                          <div class="inspection-group">
+                            <div class="group-title">血液检验</div>
+                            <el-checkbox-group v-model="inspectionOrder.selectedItems">
+                              <el-checkbox label="LAB_BLOOD_ROUTINE">血常规</el-checkbox>
+                              <el-checkbox label="LAB_BLOOD_BIOCHEM">生化全套</el-checkbox>
+                              <el-checkbox label="LAB_BLOOD_GLUCOSE">血糖</el-checkbox>
+                              <el-checkbox label="LAB_BLOOD_LIPID">血脂四项</el-checkbox>
+                              <el-checkbox label="LAB_LIVER_FUNCTION">肝功能</el-checkbox>
+                              <el-checkbox label="LAB_KIDNEY_FUNCTION">肾功能</el-checkbox>
+                              <el-checkbox label="LAB_ELECTROLYTE">电解质</el-checkbox>
+                              <el-checkbox label="LAB_COAGULATION">凝血功能</el-checkbox>
+                              <el-checkbox label="LAB_BLOOD_GAS">血气分析</el-checkbox>
+                              <el-checkbox label="LAB_THYROID">甲状腺功能</el-checkbox>
+                              <el-checkbox label="LAB_CARDIAC_MARKER">心肌标志物</el-checkbox>
+                              <el-checkbox label="LAB_TUMOR_MARKER">肿瘤标志物</el-checkbox>
+                              <el-checkbox label="LAB_BLOOD_OTHER">其他</el-checkbox>
+                            </el-checkbox-group>
+                            <el-input
+                              v-if="inspectionOrder.selectedItems.includes('LAB_BLOOD_OTHER')"
+                              v-model="inspectionOrder.customItems.LAB_BLOOD_OTHER"
+                              placeholder="请输入其他血液检验项目"
+                              style="margin-top: 10px;"
+                            />
+                          </div>
+
+                          <div class="inspection-group">
+                            <div class="group-title">体液检验</div>
+                            <el-checkbox-group v-model="inspectionOrder.selectedItems">
+                              <el-checkbox label="LAB_URINE_ROUTINE">尿常规</el-checkbox>
+                              <el-checkbox label="LAB_STOOL_ROUTINE">大便常规</el-checkbox>
+                              <el-checkbox label="LAB_STOOL_OB">大便隐血</el-checkbox>
+                              <el-checkbox label="LAB_SPUTUM">痰培养+药敏</el-checkbox>
+                              <el-checkbox label="LAB_FLUID_OTHER">其他</el-checkbox>
+                            </el-checkbox-group>
+                            <el-input
+                              v-if="inspectionOrder.selectedItems.includes('LAB_FLUID_OTHER')"
+                              v-model="inspectionOrder.customItems.LAB_FLUID_OTHER"
+                              placeholder="请输入其他体液检验项目"
+                              style="margin-top: 10px;"
+                            />
+                          </div>
+
+                          <div class="inspection-group">
+                            <div class="group-title">免疫检验</div>
+                            <el-checkbox-group v-model="inspectionOrder.selectedItems">
+                              <el-checkbox label="LAB_HBV">乙肝五项</el-checkbox>
+                              <el-checkbox label="LAB_HIV">HIV抗体</el-checkbox>
+                              <el-checkbox label="LAB_SYPHILIS">梅毒抗体</el-checkbox>
+                              <el-checkbox label="LAB_HCV">丙肝抗体</el-checkbox>
+                              <el-checkbox label="LAB_CRP">C反应蛋白</el-checkbox>
+                              <el-checkbox label="LAB_RF">类风湿因子</el-checkbox>
+                              <el-checkbox label="LAB_IMMUNE_OTHER">其他</el-checkbox>
+                            </el-checkbox-group>
+                            <el-input
+                              v-if="inspectionOrder.selectedItems.includes('LAB_IMMUNE_OTHER')"
+                              v-model="inspectionOrder.customItems.LAB_IMMUNE_OTHER"
+                              placeholder="请输入其他免疫检验项目"
+                              style="margin-top: 10px;"
+                            />
+                          </div>
+                        </div>
+
+                        <!-- 影像检查项目 -->
+                        <div v-if="inspectionOrder.category === 'IMAGING'">
+                          <div class="inspection-group">
+                            <div class="group-title">X线检查</div>
+                            <el-checkbox-group v-model="inspectionOrder.selectedItems">
+                              <el-checkbox label="XRAY_CHEST">胸部X线</el-checkbox>
+                              <el-checkbox label="XRAY_ABDOMEN">腹部X线</el-checkbox>
+                              <el-checkbox label="XRAY_SPINE">脊柱X线</el-checkbox>
+                              <el-checkbox label="XRAY_LIMB">四肢X线</el-checkbox>
+                              <el-checkbox label="XRAY_OTHER">其他</el-checkbox>
+                            </el-checkbox-group>
+                            <el-input
+                              v-if="inspectionOrder.selectedItems.includes('XRAY_OTHER')"
+                              v-model="inspectionOrder.customItems.XRAY_OTHER"
+                              placeholder="请输入其他X线检查项目"
+                              style="margin-top: 10px;"
+                            />
+                          </div>
+
+                          <div class="inspection-group">
+                            <div class="group-title">CT检查</div>
+                            <el-checkbox-group v-model="inspectionOrder.selectedItems">
+                              <el-checkbox label="CT_HEAD">头颅CT</el-checkbox>
+                              <el-checkbox label="CT_CHEST">胸部CT</el-checkbox>
+                              <el-checkbox label="CT_ABDOMEN">腹部CT</el-checkbox>
+                              <el-checkbox label="CT_PELVIS">盆腔CT</el-checkbox>
+                              <el-checkbox label="CT_SPINE">脊柱CT</el-checkbox>
+                              <el-checkbox label="CT_CTA">CT血管造影</el-checkbox>
+                              <el-checkbox label="CT_OTHER">其他</el-checkbox>
+                            </el-checkbox-group>
+                            <el-input
+                              v-if="inspectionOrder.selectedItems.includes('CT_OTHER')"
+                              v-model="inspectionOrder.customItems.CT_OTHER"
+                              placeholder="请输入其他CT检查项目"
+                              style="margin-top: 10px;"
+                            />
+                          </div>
+
+                          <div class="inspection-group">
+                            <div class="group-title">MRI检查</div>
+                            <el-checkbox-group v-model="inspectionOrder.selectedItems">
+                              <el-checkbox label="MRI_HEAD">头颅MRI</el-checkbox>
+                              <el-checkbox label="MRI_SPINE">脊柱MRI</el-checkbox>
+                              <el-checkbox label="MRI_JOINT">关节MRI</el-checkbox>
+                              <el-checkbox label="MRI_ABDOMEN">腹部MRI</el-checkbox>
+                              <el-checkbox label="MRI_MRA">磁共振血管造影</el-checkbox>
+                              <el-checkbox label="MRI_OTHER">其他</el-checkbox>
+                            </el-checkbox-group>
+                            <el-input
+                              v-if="inspectionOrder.selectedItems.includes('MRI_OTHER')"
+                              v-model="inspectionOrder.customItems.MRI_OTHER"
+                              placeholder="请输入其他MRI检查项目"
+                              style="margin-top: 10px;"
+                            />
+                          </div>
+
+                          <div class="inspection-group">
+                            <div class="group-title">超声检查</div>
+                            <el-checkbox-group v-model="inspectionOrder.selectedItems">
+                              <el-checkbox label="US_ABDOMEN">腹部超声</el-checkbox>
+                              <el-checkbox label="US_CARDIAC">心脏超声</el-checkbox>
+                              <el-checkbox label="US_THYROID">甲状腺超声</el-checkbox>
+                              <el-checkbox label="US_BREAST">乳腺超声</el-checkbox>
+                              <el-checkbox label="US_VASCULAR">血管超声</el-checkbox>
+                              <el-checkbox label="US_OBSTETRIC">产科超声</el-checkbox>
+                              <el-checkbox label="US_OTHER">其他</el-checkbox>
+                            </el-checkbox-group>
+                            <el-input
+                              v-if="inspectionOrder.selectedItems.includes('US_OTHER')"
+                              v-model="inspectionOrder.customItems.US_OTHER"
+                              placeholder="请输入其他超声检查项目"
+                              style="margin-top: 10px;"
+                            />
+                          </div>
+
+                          <div class="form-row" style="margin-top: 15px;">
+                            <label>检查部位</label>
+                            <el-input
+                              v-model="inspectionOrder.location"
+                              placeholder="请输入具体检查部位，如：头部、胸部、腹部、左膝关节等"
+                            />
+                          </div>
+
+                          <div class="form-row">
+                            <label>对比剂使用</label>
+                            <el-radio-group v-model="inspectionOrder.contrastAgent">
+                              <el-radio label="NONE">不使用</el-radio>
+                              <el-radio label="PLAIN">平扫</el-radio>
+                              <el-radio label="ENHANCED">增强扫描</el-radio>
+                              <el-radio label="PLAIN_ENHANCED">平扫+增强</el-radio>
+                            </el-radio-group>
+                          </div>
+                        </div>
+
+                        <!-- 功能检查项目 -->
+                        <div v-if="inspectionOrder.category === 'FUNCTION'">
+                          <div class="inspection-group">
+                            <el-checkbox-group v-model="inspectionOrder.selectedItems">
+                              <el-checkbox label="ECG">常规心电图</el-checkbox>
+                              <el-checkbox label="ECG_24H">24小时动态心电图</el-checkbox>
+                              <el-checkbox label="EXERCISE_ECG">运动心电图</el-checkbox>
+                              <el-checkbox label="EEG">脑电图</el-checkbox>
+                              <el-checkbox label="EMG">肌电图</el-checkbox>
+                              <el-checkbox label="PFT">肺功能检查</el-checkbox>
+                              <el-checkbox label="ABPM">24小时动态血压</el-checkbox>
+                              <el-checkbox label="TCD">经颅多普勒</el-checkbox>
+                              <el-checkbox label="SLEEP_MONITOR">睡眠监测</el-checkbox>
+                              <el-checkbox label="FUNCTION_OTHER">其他</el-checkbox>
+                            </el-checkbox-group>
+                            <el-input
+                              v-if="inspectionOrder.selectedItems.includes('FUNCTION_OTHER')"
+                              v-model="inspectionOrder.customItems.FUNCTION_OTHER"
+                              placeholder="请输入其他功能检查项目"
+                              style="margin-top: 10px;"
+                            />
+                          </div>
+                        </div>
+
+                        <!-- 内窥镜检查项目 -->
+                        <div v-if="inspectionOrder.category === 'ENDOSCOPY'">
+                          <div class="inspection-group">
+                            <el-checkbox-group v-model="inspectionOrder.selectedItems">
+                              <el-checkbox label="ENDO_GASTROSCOPY">胃镜检查</el-checkbox>
+                              <el-checkbox label="ENDO_COLONOSCOPY">肠镜检查</el-checkbox>
+                              <el-checkbox label="ENDO_BRONCHOSCOPY">支气管镜</el-checkbox>
+                              <el-checkbox label="ENDO_LARYNGOSCOPY">喉镜检查</el-checkbox>
+                              <el-checkbox label="ENDO_CYSTOSCOPY">膀胱镜检查</el-checkbox>
+                              <el-checkbox label="ENDO_HYSTEROSCOPY">宫腔镜检查</el-checkbox>
+                              <el-checkbox label="ENDO_ARTHROSCOPY">关节镜检查</el-checkbox>
+                              <el-checkbox label="ENDO_OTHER">其他</el-checkbox>
+                            </el-checkbox-group>
+                            <el-input
+                              v-if="inspectionOrder.selectedItems.includes('ENDO_OTHER')"
+                              v-model="inspectionOrder.customItems.ENDO_OTHER"
+                              placeholder="请输入其他内窥镜检查项目"
+                              style="margin-top: 10px;"
+                            />
+                          </div>
+
+                          <div class="form-row" style="margin-top: 15px;">
+                            <label>麻醉方式</label>
+                            <el-radio-group v-model="inspectionOrder.anesthesiaType">
+                              <el-radio label="NONE">不麻醉</el-radio>
+                              <el-radio label="LOCAL">局部麻醉</el-radio>
+                              <el-radio label="CONSCIOUS_SEDATION">清醒镇静</el-radio>
+                              <el-radio label="GENERAL">全身麻醉</el-radio>
+                            </el-radio-group>
+                          </div>
+                        </div>
+
+                        <!-- 病理检查项目 -->
+                        <div v-if="inspectionOrder.category === 'PATHOLOGY'">
+                          <div class="inspection-group">
+                            <el-checkbox-group v-model="inspectionOrder.selectedItems">
+                              <el-checkbox label="PATH_BIOPSY">组织活检</el-checkbox>
+                              <el-checkbox label="PATH_CYTOLOGY">细胞学检查</el-checkbox>
+                              <el-checkbox label="PATH_FROZEN">冰冻切片</el-checkbox>
+                              <el-checkbox label="PATH_IMMUNOHISTO">免疫组化</el-checkbox>
+                              <el-checkbox label="PATH_MOLECULAR">分子病理</el-checkbox>
+                              <el-checkbox label="PATH_OTHER">其他</el-checkbox>
+                            </el-checkbox-group>
+                            <el-input
+                              v-if="inspectionOrder.selectedItems.includes('PATH_OTHER')"
+                              v-model="inspectionOrder.customItems.PATH_OTHER"
+                              placeholder="请输入其他病理检查项目"
+                              style="margin-top: 10px;"
+                            />
+                          </div>
+
+                          <div class="form-row" style="margin-top: 15px;">
+                            <label>标本来源</label>
+                            <el-input
+                              v-model="inspectionOrder.specimenSource"
+                              placeholder="请输入标本来源部位"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- 附加信息 -->
+                      <div class="form-section" v-if="inspectionOrder.selectedItems.length > 0">
+                        <div class="section-header">
+                          <i class="el-icon-warning-outline"></i>
+                          <span>附加信息</span>
+                        </div>
+
+                        <div class="form-row">
+                          <label class="required">临床诊断</label>
+                          <el-input
+                            v-model="inspectionOrder.clinicalDiagnosis"
+                            placeholder="请输入临床诊断，如：高血压、糖尿病等"
+                            maxlength="200"
+                            show-word-limit
+                          />
+                        </div>
+
+                        <div class="form-row">
+                          <label>检查目的</label>
+                          <el-radio-group v-model="inspectionOrder.purpose">
+                            <el-radio label="SCREENING">筛查</el-radio>
+                            <el-radio label="DIAGNOSIS">诊断</el-radio>
+                            <el-radio label="RECHECK">复查</el-radio>
+                            <el-radio label="PREOP">术前检查</el-radio>
+                          </el-radio-group>
+                        </div>
+
+                        <div class="form-row">
+                          <label>备注</label>
+                          <el-input
+                            v-model="inspectionOrder.remarks"
+                            type="textarea"
+                            :rows="2"
+                            placeholder="其他需要说明的事项（检查注意事项将在预约确认后返回）"
+                            maxlength="500"
+                            show-word-limit
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+            <!-- 手术医嘱表单 -->
+            <div v-else-if="activeType === 'SurgicalOrder'" class="surgical-form">
+              <!-- 手术基本信息 -->
+              <div class="form-section">
+                <div class="section-header">
+                  <i class="el-icon-scissors"></i>
+                  <span>手术基本信息</span>
+                </div>
+                
+                <div class="form-row">
+                  <label class="required">手术名称：</label>
+                  <el-input 
+                    v-model="surgicalOrder.surgeryName"
+                    placeholder="请输入手术名称，如：阑尾切除术、胆囊切除术"
+                    clearable
+                  />
+                </div>
+
+                <div class="form-row">
+                  <label class="required">麻醉方式：</label>
+                  <el-select 
+                    v-model="surgicalOrder.anesthesiaType"
+                    placeholder="请选择麻醉方式"
+                    style="width: 100%"
+                  >
+                    <el-option
+                      v-for="item in anesthesiaOptions"
+                      :key="item.value"
+                      :label="item.label"
+                      :value="item.value"
+                    />
+                  </el-select>
+                </div>
+
+                <div class="form-row">
+                  <label class="required">切口部位：</label>
+                  <el-input 
+                    v-model="surgicalOrder.incisionSite"
+                    placeholder="请输入切口部位，如：右下腹、脐部"
+                    clearable
+                  />
+                </div>
+              </div>
+
+              <!-- 医生信息 -->
+              <div class="form-section">
+                <div class="section-header">
+                  <i class="el-icon-user"></i>
+                  <span>医生信息</span>
+                </div>
+                
+                <div class="form-row">
+                  <label class="required">主刀医生：</label>
+                  <el-select 
+                    v-model="surgicalOrder.surgeonId"
+                    placeholder="请选择主刀医生"
+                    filterable
+                    style="width: 100%"
+                  >
+                    <el-option
+                      v-for="doctor in doctorList"
+                      :key="doctor.staffId"
+                      :label="`${doctor.name} (${doctor.title || '医师'})`"
+                      :value="doctor.staffId"
+                    />
+                  </el-select>
+                </div>
+              </div>
+
+              <!-- 术前准备 -->
+              <div class="form-section">
+                <div class="section-header">
+                  <i class="el-icon-document-checked"></i>
+                  <span>术前准备</span>
+                </div>
+                
+                <div class="form-row">
+                  <label>术前宣讲：</label>
+                  <div class="custom-multi-select">
+                    <el-checkbox-group v-model="surgicalOrder.requiredTalk" class="checkbox-grid">
+                      <el-checkbox
+                        v-for="item in talkOptions"
+                        :key="item.value"
+                        :label="item.value"
+                      >
+                        {{ item.label }}
+                      </el-checkbox>
+                    </el-checkbox-group>
+                    <div class="custom-input-row">
+                      <el-input
+                        v-model="customTalkInput"
+                        placeholder="输入其他术前宣讲事项，按回车添加"
+                        @keyup.enter="addCustomTalk"
+                        clearable
+                        style="flex: 1"
+                      >
+                        <template #append>
+                          <el-button @click="addCustomTalk" :disabled="!customTalkInput.trim()">添加</el-button>
+                        </template>
+                      </el-input>
+                    </div>
+                    <div v-if="customTalkItems.length" class="custom-tags">
+                      <el-tag
+                        v-for="item in customTalkItems"
+                        :key="item"
+                        closable
+                        @close="removeCustomTalk(item)"
+                        type="info"
+                      >
+                        {{ item }}
+                      </el-tag>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <label>术前操作：</label>
+                  <div class="custom-multi-select">
+                    <el-checkbox-group v-model="surgicalOrder.requiredOperation" class="checkbox-grid">
+                      <el-checkbox
+                        v-for="item in operationOptions"
+                        :key="item.value"
+                        :label="item.value"
+                      >
+                        {{ item.label }}
+                      </el-checkbox>
+                    </el-checkbox-group>
+                    <div class="custom-input-row">
+                      <el-input
+                        v-model="customOperationInput"
+                        placeholder="输入其他术前操作，按回车添加"
+                        @keyup.enter="addCustomOperation"
+                        clearable
+                        style="flex: 1"
+                      >
+                        <template #append>
+                          <el-button @click="addCustomOperation" :disabled="!customOperationInput.trim()">添加</el-button>
+                        </template>
+                      </el-input>
+                    </div>
+                    <div v-if="customOperationItems.length" class="custom-tags">
+                      <el-tag
+                        v-for="item in customOperationItems"
+                        :key="item"
+                        closable
+                        @close="removeCustomOperation(item)"
+                        type="info"
+                      >
+                        {{ item }}
+                      </el-tag>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 手术药品 -->
+              <div class="form-section">
+                <div class="section-header">
+                  <i class="el-icon-medicine-box"></i>
+                  <span>手术药品</span>
+                </div>
+                <div class="drug-group-box">
+                  <div class="drug-group-header">
+                    <span>手术药品配置</span>
+                    <button @click="addSurgicalItem" class="btn-icon-text">
+                      + 添加药品
+                    </button>
+                  </div>
+                  <div v-for="(item, index) in surgicalOrder.items" :key="index" class="drug-item-row">
+                    <div class="item-index">{{ index + 1 }}</div>
+                    <el-select 
+                      v-model="item.drugId" 
+                      filterable 
+                      placeholder="搜索药品名称/简拼/条码"
+                      class="drug-select"
+                    >
+                      <el-option 
+                        v-for="d in drugDict" 
+                        :key="d.id" 
+                        :label="`${d.genericName} [${d.specification}]`" 
+                        :value="d.id"
+                      >
+                        <div class="drug-option">
+                          <span class="drug-name">{{ d.genericName }}</span>
+                          <span class="drug-spec">{{ d.specification }}</span>
+                        </div>
+                      </el-option>
+                    </el-select>
+                    <el-input 
+                      v-model="item.dosage" 
+                      placeholder="剂量 (如 0.5g)" 
+                      class="dosage-input"
+                      style="width: 120px"
+                    />
+                    <el-input 
+                      v-model="item.note" 
+                      placeholder="备注 (可选)" 
+                      class="note-input"
+                      style="width: 140px"
+                    />
+                    <button 
+                      @click="removeSurgicalItem(index)" 
+                      class="btn-icon-danger"
+                      :disabled="surgicalOrder.items.length === 1"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 手术安排 -->
+              <div class="form-section">
+                <div class="section-header">
+                  <i class="el-icon-time"></i>
+                  <span>手术安排</span>
+                </div>
+                
+                <div class="form-row">
+                  <label class="required">手术时间：</label>
+                  <el-date-picker
+                    v-model="surgicalOrder.scheduleTime"
+                    type="datetime"
+                    placeholder="选择手术日期和时间"
+                    format="YYYY-MM-DD HH:mm"
+                    value-format="YYYY-MM-DDTHH:mm:ss"
+                    :disabled-date="disablePastDates"
+                  />
+                </div>
+              </div>
+
+              <!-- 备注信息 -->
+              <div class="form-section">
+                <div class="form-row">
+                  <label>备注：</label>
+                  <el-input 
+                    v-model="surgicalOrder.remarks"
+                    type="textarea"
+                    :rows="3"
+                    placeholder="填写术前准备、注意事项等"
+                    maxlength="300"
+                    show-word-limit
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- 操作医嘱表单 -->
+            <div v-else-if="activeType === 'OperationOrder'" class="operation-form">
+              <!-- 操作基本信息 -->
+              <div class="placeholder-form">
+                ⚠️ 操作医嘱表单开发中
+                <br>需实现上述个字段的表单组件
+              </div>
+            </div>
+
+            <!-- 护理等级修改表单 -->
+            <div v-else-if="activeType === 'NursingGrade'" class="nursing-grade-form">
+              <div class="form-section">
+                <div class="section-header">
+                  <i class="el-icon-user"></i>
+                  <span>护理等级修改</span>
+                </div>
+                
+                <div class="current-grade-display" v-if="selectedPatient">
+                  <div class="info-row">
+                    <span class="label">当前护理等级：</span>
+                    <el-tag :type="getGradeTagType(selectedPatient.nursingGrade)" size="large">
+                      {{ getGradeText(selectedPatient.nursingGrade) }}
+                    </el-tag>
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <label class="required">新护理等级：</label>
+                  <el-radio-group v-model="nursingGradeForm.newGrade" size="large">
+                    <el-radio-button :label="0">
+                      <i class="el-icon-star-on"></i> 特级护理
+                    </el-radio-button>
+                    <el-radio-button :label="1">
+                      <i class="el-icon-medal"></i> 一级护理
+                    </el-radio-button>
+                    <el-radio-button :label="2">
+                      <i class="el-icon-user"></i> 二级护理
+                    </el-radio-button>
+                    <el-radio-button :label="3">
+                      <i class="el-icon-s-custom"></i> 三级护理
+                    </el-radio-button>
+                  </el-radio-group>
+                </div>
+
+                <div class="form-row">
+                  <label>修改原因：</label>
+                  <el-input
+                    v-model="nursingGradeForm.reason"
+                    type="textarea"
+                    :rows="3"
+                    placeholder="请输入护理等级修改原因（可选）"
+                    maxlength="200"
+                    show-word-limit
+                  />
+                </div>
+
+                <div class="form-actions" style="margin-top: 30px;">
+                  <el-button @click="resetNursingGradeForm" size="large">
+                    <i class="el-icon-refresh-left"></i> 重置
+                  </el-button>
+                  <el-button 
+                    type="primary" 
+                    @click="submitNursingGrade" 
+                    size="large"
+                    :disabled="!isNursingGradeFormValid"
+                  >
+                    <i class="el-icon-check"></i> 确认修改
+                  </el-button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 其他未知类型的占位符 -->
             <div v-else class="placeholder-form">
               正在开发 {{ activeType }} 的详细表单...
             </div>
 
-            <div class="form-actions">
+            <div class="form-actions" v-if="activeType !== 'NursingGrade'">
               <button @click="clearForm" class="btn-default">
                 <i class="el-icon-refresh-left"></i> 清空表单
               </button>
@@ -401,8 +1021,8 @@
               <div v-for="(o, idx) in orderCart" :key="idx" class="cart-item-compact">
                 <!-- 精简摘要 -->
                 <div class="order-summary-line">
-                  <el-tag :type="o.isLongTerm ? 'primary' : 'warning'" size="small">
-                    {{ o.isLongTerm ? '长期' : '临时' }}
+                  <el-tag :type="getOrderTagType(o)" size="small">
+                    {{ getOrderTypeLabel(o) }}
                   </el-tag>
                   <span class="order-title">{{ getOrderSummary(o) }}</span>
                   <button @click="toggleOrderDetail(idx)" class="btn-detail">
@@ -413,24 +1033,70 @@
                   </button>
                 </div>
                 
-                <!-- 基本信息（始终显示） -->
-                <div class="order-basic-info">
+                <!-- 基本信息（始终显示） - 仅药品医嘱显示 -->
+                <div v-if="o.orderType === 'MedicationOrder'" class="order-basic-info">
+                  <span class="info-item">{{ getRouteName(o.usageRoute) }}</span>
+                </div>
+                <!-- 检查医嘱基本信息 -->
+                <div class="order-basic-info" v-else-if="o.orderType === 'InspectionOrder'">
+                  <!-- 检查医嘱无需显示用药途径 -->
+                </div>
+                
+                <!-- 手术医嘱基本信息 -->
+                <div v-else-if="o.orderType === 'SurgicalOrder'" class="order-basic-info">
+                  <span class="info-item">🕐 {{ formatDateTime(o.scheduleTime) }}</span>
+                  <span class="info-item">💉 {{ o.anesthesiaType }}</span>
+                </div>
+
+                <div class="order-basic-info" v-else>
                   <span class="info-item">{{ getRouteName(o.usageRoute) }}</span>
                 </div>
 
                 <!-- 详细信息（可展开） -->
                 <div v-show="expandedOrders.includes(idx)" class="order-detail-expand">
-                  <div class="detail-section">
-                    <div class="detail-label">药品明细：</div>
-                    <div v-for="(item, i) in o.items" :key="i" class="detail-value">
-                      {{ i + 1 }}. {{ getDrugName(item.drugId) }} {{ item.dosage }}
-                      <span v-if="item.note" class="note-text">({{ item.note }})</span>
+                  <!-- 检查医嘱详细信息 -->
+                  <template v-if="o.orderType === 'InspectionOrder'">
+                    <div class="detail-section">
+                      <div class="detail-label">检查项目：</div>
+                      <div class="detail-value">{{ o.itemName || o.itemCode }}</div>
                     </div>
-                  </div>
-                  <div class="detail-section">
-                    <div class="detail-label">时间策略：</div>
-                    <div class="detail-value">{{ getStrategyDescription(o) }}</div>
-                  </div>
+                    
+                    <div class="detail-section" v-if="o.remarks">
+                      <div class="detail-label">备注：</div>
+                      <div class="detail-value">{{ o.remarks }}</div>
+                    </div>
+                  </template>
+                  
+                  <!-- 药品医嘱详细信息 -->
+                  <template v-else-if="o.orderType === 'MedicationOrder'">
+                    <div class="detail-section">
+                      <div class="detail-label">药品明细：</div>
+                      <div v-for="(item, i) in o.items" :key="i" class="detail-value">
+                        {{ i + 1 }}. {{ getDrugName(item.drugId) }} {{ item.dosage }}
+                        <span v-if="item.note" class="note-text">({{ item.note }})</span>
+                      </div>
+                    </div>
+                    <div class="detail-section">
+                      <div class="detail-label">时间策略：</div>
+                      <div class="detail-value">{{ getStrategyDescription(o) }}</div>
+                    </div>
+                  </template>
+                  <!-- 手术医嘱详细信息 --> 
+                  <template v-else-if="o.orderType === 'SurgicalOrder'">
+                    <div class="detail-section">
+                      <div class="detail-label">切口部位：</div>
+                      <div class="detail-value">{{ o.incisionSite }}</div>
+                    </div>
+                    <div class="detail-section">
+                      <div class="detail-label">主刀医生：</div>
+                      <div class="detail-value">{{ o.surgeonId }}</div>
+                    </div>
+                    <div v-if="o.remarks" class="detail-section">
+                      <div class="detail-label">备注：</div>
+                      <div class="detail-value">{{ o.remarks }}</div>
+                    </div>
+                  </template> 
+
                 </div>
               </div>
 
@@ -471,7 +1137,10 @@ import { ElMessage } from 'element-plus';
 import { getPatientList } from '../api/patient';
 import { getDrugList } from '../api/drug';
 import { getTimeSlots } from '../api/hospitalConfig';
-import { batchCreateOrders } from '../api/medicationOrder';
+import { batchCreateMedicationOrders } from '../api/medicationOrder';
+import { batchCreateInspectionOrders } from '../api/inspectionOrder';
+import { batchCreateSurgicalOrders } from '../api/surgicalOrder';
+import { batchCreateOperationOrders } from '../api/operationOrder';
 import { toBeijingTimeISO } from '../utils/timezone';
 
 // 当前用户信息（从localStorage获取登录信息）
@@ -501,10 +1170,57 @@ const selectedPatient = ref(null); // 初始为空，从患者列表选择
 const types = [
   { label: '药物医嘱', val: 'MedicationOrder' },
   { label: '检查申请', val: 'InspectionOrder' },
-  { label: '手术/操作', val: 'SurgicalOrder' }
+  { label: '手术医嘱', val: 'SurgicalOrder' },
+  { label: '护理操作', val: 'OperationOrder' },
+  { label: '护理等级', val: 'NursingGrade' }
 ];
 
-// 核心医嘱对象（完全对应后端 MedicationOrder.cs 结构）
+// 检查医嘱的响应式数据 - 完善版
+const inspectionOrder = reactive({
+  category: '',              // 检查大类：LAB/IMAGING/FUNCTION/ENDOSCOPY/PATHOLOGY
+  selectedItems: [],         // 已选择的检查项目列表（多选）
+  customItems: {},           // 自定义"其他"项目的内容
+  
+  // 影像检查相关
+  location: '',              // 检查部位
+  contrastAgent: 'NONE',     // 对比剂使用
+  
+  // 内窥镜检查相关
+  anesthesiaType: 'NONE',    // 麻醉方式
+  
+  // 病理检查相关
+  specimenSource: '',        // 标本来源
+  
+  // 通用字段
+  clinicalDiagnosis: '',     // 临床诊断（必填）
+  purpose: 'DIAGNOSIS',      // 检查目的
+  remarks: ''                // 备注（注意事项将在预约确认后返回）
+});
+
+// 手术医嘱的响应式数据
+const surgicalOrder = reactive({
+  surgeryName: '',           // 手术名称
+  anesthesiaType: '',        // 麻醉方式
+  incisionSite: '',          // 切口部位
+  surgeonId: '',             // 主刀医生ID
+  scheduleTime: null,        // 手术时间
+  requiredTalk: [],          // 术前宣讲（多选）
+  requiredOperation: [],     // 术前操作（多选）
+  items: [{ drugId: '', dosage: '', note: '' }],  // 手术药品
+  remarks: ''                // 备注
+});
+
+// 操作医嘱的响应式数据
+// 参考DTO: DTOs/OperationOrders/BatchCreateOperationOrderDto.cs
+// const operationOrder = reactive({
+//   operationCode: '',         // 操作代码
+//   operationName: '',         // 操作名称
+//   targetSite: '',            // 操作部位（可选）
+//   scheduledTime: null,       // 执行时间
+//   remarks: ''                // 备注
+// });
+
+// 药品医嘱响应式数据
 const currentOrder = reactive({
   // 基础信息
   isLongTerm: true,  // 医嘱类型：true=长期，false=临时
@@ -566,9 +1282,53 @@ const submitting = ref(false);
 const patientList = ref([]);
 const patientSearch = ref('');
 
+// 医生列表
+const doctorList = ref([]);
+
+// 麻醉方式选项
+const anesthesiaOptions = [
+  { value: '全身麻醉', label: '全身麻醉' },
+  { value: '局部麻醉', label: '局部麻醉' },
+  { value: '硬膜外麻醉', label: '硬膜外麻醉' },
+  { value: '脊髓麻醉', label: '脊髓麻醉' },
+  { value: '联合麻醉', label: '联合麻醉' }
+];
+
+// 术前宣讲选项
+const talkOptions = [
+  { value: '更换手术服', label: '更换手术服' },
+  { value: '摘除配饰', label: '摘除配饰（首饰、手表等）' },
+  { value: '术前禁食', label: '术前禁食禁饮' },
+  { value: '排空膀胱', label: '排空膀胱' },
+  { value: '术前洗浴', label: '术前洗浴' },
+  { value: '备皮', label: '手术区域备皮' }
+];
+
+// 术前操作选项
+const operationOptions = [
+  { value: '术前针注射', label: '术前针注射' },
+  { value: '留置针埋置', label: '留置针埋置' },
+  { value: '采血', label: '采血检查' },
+  { value: '导尿管', label: '导尿管置入' },
+  { value: '心电监护', label: '心电监护' },
+  { value: '吸氧', label: '术前吸氧' }
+];
+
+// 护理等级修改表单
+const nursingGradeForm = reactive({
+  newGrade: null,  // 新的护理等级 0-特级 1-一级 2-二级 3-三级
+  reason: ''       // 修改原因
+});
+
 // 折叠状态
 const leftCollapsed = ref(false);
 const rightCollapsed = ref(false);
+
+// 术前宣讲和术前操作的自定义输入
+const customTalkInput = ref('');
+const customOperationInput = ref('');
+const customTalkItems = ref([]);
+const customOperationItems = ref([]);
 
 // 医嘱详情展开状态
 const expandedOrders = ref([]);
@@ -594,21 +1354,42 @@ const gridTemplateColumns = computed(() => {
 });
 
 // 计算属性：表单验证（基础版本，步骤5会完善）
+// TODO: 为其他医嘱类型添加表单验证逻辑
+
 const isFormValid = computed(() => {
-  // 基础校验
-  if (!currentOrder.items.some(i => i.drugId && i.dosage)) return false;
-  if (!currentOrder.usageRoute) return false;
-  if (!currentOrder.timingStrategy) return false;
-  if (!currentOrder.plantEndTime) return false;
+  // 根据医嘱类型进行不同的表单验证
+  if (activeType.value === 'OperationOrder') {
+    // TODO: 操作医嘱验证：操作代码、操作名称、执行时间为必填
+    return false; // 暂时返回false，等待实现操作医嘱验证逻辑
+  } else if (activeType.value === 'InspectionOrder') {
+    // 检查医嘱验证 - 完善版
+    if (!selectedPatient.value) return false;
+    if (!inspectionOrder.category) return false;
+    if (inspectionOrder.selectedItems.length === 0) return false;
+    if (!inspectionOrder.clinicalDiagnosis) return false;
+    return true;
+  } else if (activeType.value === 'SurgicalOrder') {
+    // 手术医嘱验证
+    if (!surgicalOrder.surgeryName) return false;
+    if (!surgicalOrder.anesthesiaType) return false;
+    if (!surgicalOrder.incisionSite) return false;
+    if (!surgicalOrder.surgeonId) return false;
+    if (!surgicalOrder.scheduleTime) return false;
+    return true;
+  } else {
+    // 药品医嘱验证（原有逻辑）
+    if (!currentOrder.items.some(i => i.drugId && i.dosage)) return false;
+    if (!currentOrder.usageRoute) return false;
+    if (!currentOrder.timingStrategy) return false;
+    if (!currentOrder.plantEndTime) return false;
 
-  // 策略特定校验（简化版）
-  const strategy = currentOrder.timingStrategy.toUpperCase();
-  
-  if (strategy === 'SPECIFIC' && !currentOrder.startTime) return false;
-  if (strategy === 'CYCLIC' && (!currentOrder.startTime || !currentOrder.intervalHours)) return false;
-  if (strategy === 'SLOTS' && (!currentOrder.startTime || currentOrder.smartSlotsMask <= 0)) return false;
+    const strategy = currentOrder.timingStrategy.toUpperCase();
+    if (strategy === 'SPECIFIC' && !currentOrder.startTime) return false;
+    if (strategy === 'CYCLIC' && (!currentOrder.startTime || !currentOrder.intervalHours)) return false;
+    if (strategy === 'SLOTS' && (!currentOrder.startTime || currentOrder.smartSlotsMask <= 0)) return false;
 
-  return true;
+    return true;
+  }
 });
 
 // 计算属性：根据医嘱类型返回可用策略
@@ -784,32 +1565,274 @@ const removeDrug = (index) => {
   }
 };
 
+// 手术药品增删
+const addSurgicalItem = () => {
+  surgicalOrder.items.push({ drugId: '', dosage: '', note: '' });
+};
+
+const removeSurgicalItem = (index) => {
+  if (surgicalOrder.items.length > 1) {
+    surgicalOrder.items.splice(index, 1);
+  }
+};
+
+// 添加自定义术前宣讲
+const addCustomTalk = () => {
+  const value = customTalkInput.value.trim();
+  if (value && !surgicalOrder.requiredTalk.includes(value) && !customTalkItems.value.includes(value)) {
+    customTalkItems.value.push(value);
+    surgicalOrder.requiredTalk.push(value);
+    customTalkInput.value = '';
+  }
+};
+
+// 移除自定义术前宣讲
+const removeCustomTalk = (item) => {
+  const index = customTalkItems.value.indexOf(item);
+  if (index > -1) {
+    customTalkItems.value.splice(index, 1);
+  }
+  const reqIndex = surgicalOrder.requiredTalk.indexOf(item);
+  if (reqIndex > -1) {
+    surgicalOrder.requiredTalk.splice(reqIndex, 1);
+  }
+};
+
+// 添加自定义术前操作
+const addCustomOperation = () => {
+  const value = customOperationInput.value.trim();
+  if (value && !surgicalOrder.requiredOperation.includes(value) && !customOperationItems.value.includes(value)) {
+    customOperationItems.value.push(value);
+    surgicalOrder.requiredOperation.push(value);
+    customOperationInput.value = '';
+  }
+};
+
+// 移除自定义术前操作
+const removeCustomOperation = (item) => {
+  const index = customOperationItems.value.indexOf(item);
+  if (index > -1) {
+    customOperationItems.value.splice(index, 1);
+  }
+  const reqIndex = surgicalOrder.requiredOperation.indexOf(item);
+  if (reqIndex > -1) {
+    surgicalOrder.requiredOperation.splice(reqIndex, 1);
+  }
+};
+
+// 检查项目选择处理
+// 检查类别切换时清空已选项目
+const handleCategoryChange = () => {
+  inspectionOrder.selectedItems = [];
+  inspectionOrder.customItems = {};
+  inspectionOrder.specimenType = '';
+  inspectionOrder.samplingRequirements = [];
+  inspectionOrder.location = '';
+  inspectionOrder.contrastAgent = 'NONE';
+  inspectionOrder.anesthesiaType = 'NONE';
+  inspectionOrder.specimenSource = '';
+};
+
+// 获取检查项目的显示名称
+const getInspectionItemName = (itemCode) => {
+  const inspectionNames = {
+    // 化验检查
+    'LAB_BLOOD_ROUTINE': '血常规',
+    'LAB_BLOOD_BIOCHEM': '生化全套',
+    'LAB_BLOOD_GLUCOSE': '血糖',
+    'LAB_BLOOD_LIPID': '血脂四项',
+    'LAB_LIVER_FUNCTION': '肝功能',
+    'LAB_KIDNEY_FUNCTION': '肾功能',
+    'LAB_ELECTROLYTE': '电解质',
+    'LAB_COAGULATION': '凝血功能',
+    'LAB_BLOOD_GAS': '血气分析',
+    'LAB_THYROID': '甲状腺功能',
+    'LAB_CARDIAC_MARKER': '心肌标志物',
+    'LAB_TUMOR_MARKER': '肿瘤标志物',
+    'LAB_URINE_ROUTINE': '尿常规',
+    'LAB_STOOL_ROUTINE': '大便常规',
+    'LAB_STOOL_OB': '大便隐血',
+    'LAB_SPUTUM': '痰培养+药敏',
+    'LAB_HBV': '乙肝五项',
+    'LAB_HIV': 'HIV抗体',
+    'LAB_SYPHILIS': '梅毒抗体',
+    'LAB_HCV': '丙肝抗体',
+    'LAB_CRP': 'C反应蛋白',
+    'LAB_RF': '类风湿因子',
+    
+    // X线检查
+    'XRAY_CHEST': '胸部X线',
+    'XRAY_ABDOMEN': '腹部X线',
+    'XRAY_SPINE': '脊柱X线',
+    'XRAY_LIMB': '四肢X线',
+    
+    // CT检查
+    'CT_HEAD': '头颅CT',
+    'CT_CHEST': '胸部CT',
+    'CT_ABDOMEN': '腹部CT',
+    'CT_PELVIS': '盆腔CT',
+    'CT_SPINE': '脊柱CT',
+    'CT_CTA': 'CT血管造影',
+    
+    // MRI检查
+    'MRI_HEAD': '头颅MRI',
+    'MRI_SPINE': '脊柱MRI',
+    'MRI_JOINT': '关节MRI',
+    'MRI_ABDOMEN': '腹部MRI',
+    'MRI_MRA': '磁共振血管造影',
+    
+    // 超声检查
+    'US_ABDOMEN': '腹部超声',
+    'US_CARDIAC': '心脏超声',
+    'US_THYROID': '甲状腺超声',
+    'US_BREAST': '乳腺超声',
+    'US_VASCULAR': '血管超声',
+    'US_OBSTETRIC': '产科超声',
+    
+    // 功能检查
+    'ECG': '常规心电图',
+    'ECG_24H': '24小时动态心电图',
+    'EXERCISE_ECG': '运动心电图',
+    'EEG': '脑电图',
+    'EMG': '肌电图',
+    'PFT': '肺功能检查',
+    'ABPM': '24小时动态血压',
+    'TCD': '经颅多普勒',
+    'SLEEP_MONITOR': '睡眠监测',
+    
+    // 内窥镜检查
+    'ENDO_GASTROSCOPY': '胃镜检查',
+    'ENDO_COLONOSCOPY': '肠镜检查',
+    'ENDO_BRONCHOSCOPY': '支气管镜',
+    'ENDO_LARYNGOSCOPY': '喉镜检查',
+    'ENDO_CYSTOSCOPY': '膀胱镜检查',
+    'ENDO_HYSTEROSCOPY': '宫腔镜检查',
+    'ENDO_ARTHROSCOPY': '关节镜检查',
+    
+    // 病理检查
+    'PATH_BIOPSY': '组织活检',
+    'PATH_CYTOLOGY': '细胞学检查',
+    'PATH_FROZEN': '冰冻切片',
+    'PATH_IMMUNOHISTO': '免疫组化',
+    'PATH_MOLECULAR': '分子病理'
+  };
+  
+  // 如果是"其他"项目，使用自定义输入的内容
+  if (itemCode.endsWith('_OTHER') && inspectionOrder.customItems[itemCode]) {
+    return inspectionOrder.customItems[itemCode];
+  }
+  
+  return inspectionNames[itemCode] || itemCode;
+};
+
 // 表单操作
+
+// TODO: 清空表单时需根据医嘱类型清空对应的数据
 const clearForm = () => {
-  currentOrder.items = [{ drugId: '', dosage: '', note: '' }];
-  currentOrder.usageRoute = 20;
-  currentOrder.timingStrategy = '';
-  currentOrder.startTime = null;
-  currentOrder.plantEndTime = null;
-  currentOrder.intervalHours = null;
-  currentOrder.intervalDays = 1;
-  currentOrder.smartSlotsMask = 0;
-  currentOrder.remarks = '';
+  if (activeType.value === 'OperationOrder') {
+    // TODO: 清空操作医嘱表单
+
+  } else if (activeType.value === 'InspectionOrder') {
+    // 清空检查医嘱表单
+    inspectionOrder.category = '';
+    inspectionOrder.selectedItems = [];
+    inspectionOrder.customItems = {};
+    inspectionOrder.specimenType = '';
+    inspectionOrder.samplingRequirements = [];
+    inspectionOrder.location = '';
+    inspectionOrder.contrastAgent = 'NONE';
+    inspectionOrder.anesthesiaType = 'NONE';
+    inspectionOrder.specimenSource = '';
+    inspectionOrder.clinicalDiagnosis = '';
+    inspectionOrder.purpose = 'DIAGNOSIS';
+    inspectionOrder.remarks = '';
+  } else if (activeType.value === 'SurgicalOrder') {
+    // 清空手术医嘱表单
+    surgicalOrder.surgeryName = '';
+    surgicalOrder.anesthesiaType = '';
+    surgicalOrder.incisionSite = '';
+    surgicalOrder.surgeonId = '';
+    surgicalOrder.scheduleTime = null;
+    surgicalOrder.requiredTalk = [];
+    surgicalOrder.requiredOperation = [];
+    surgicalOrder.items = getDefaultSurgicalItems();
+    surgicalOrder.remarks = '';
+    // 清空自定义输入
+    customTalkInput.value = '';
+    customOperationInput.value = '';
+    customTalkItems.value = [];
+    customOperationItems.value = [];
+  } else {
+    // 清空药品医嘱表单（原有逻辑）
+    currentOrder.items = [{ drugId: '', dosage: '', note: '' }];
+    currentOrder.usageRoute = 20;
+    currentOrder.timingStrategy = '';
+    currentOrder.startTime = null;
+    currentOrder.plantEndTime = null;
+    currentOrder.intervalHours = null;
+    currentOrder.intervalDays = 1;
+    currentOrder.smartSlotsMask = 0;
+    currentOrder.remarks = '';
+  }
   ElMessage.success('表单已清空');
 };
 
+// 暂存医嘱到待提交清单
 const addToCart = () => {
   if (!isFormValid.value) {
     ElMessage.warning('请完善必填项后再暂存');
     return;
   }
   
-  // 深拷贝当前医嘱到暂存区
-  orderCart.value.push(JSON.parse(JSON.stringify({
-    ...currentOrder,
-    orderType: activeType.value,
-    patientId: selectedPatient.value.id
-  })));
+  // 根据医嘱类型暂存对应数据
+  if (activeType.value === 'OperationOrder') {
+    // TODO: 暂存操作医嘱
+    ElMessage.warning('操作类医嘱表单开发中');
+    return;
+  } else if (activeType.value === 'InspectionOrder') {
+    // 暂存检查医嘱 - 为每个选中的项目创建一条医嘱
+    let hasError = false;
+    
+    inspectionOrder.selectedItems.forEach(itemCode => {
+      // 如果是"其他"项目，检查是否填写了自定义内容
+      if (itemCode.endsWith('_OTHER') && !inspectionOrder.customItems[itemCode]) {
+        ElMessage.warning('请填写"其他"项目的具体内容');
+        hasError = true;
+        return;
+      }
+      
+    orderCart.value.push({
+      orderType: 'InspectionOrder',
+        itemCode: itemCode,
+        itemName: getInspectionItemName(itemCode),
+        category: inspectionOrder.category,
+        location: inspectionOrder.location,
+        contrastAgent: inspectionOrder.contrastAgent,
+        anesthesiaType: inspectionOrder.anesthesiaType,
+        specimenSource: inspectionOrder.specimenSource,
+        clinicalDiagnosis: inspectionOrder.clinicalDiagnosis,
+        purpose: inspectionOrder.purpose,
+        remarks: inspectionOrder.remarks,
+      patientId: selectedPatient.value.id
+    });
+    });
+    
+    if (hasError) return;
+  } else if (activeType.value === 'SurgicalOrder') {
+    // 暂存手术医嘱
+    orderCart.value.push({
+      ...JSON.parse(JSON.stringify(surgicalOrder)),
+      orderType: 'SurgicalOrder',
+      patientId: selectedPatient.value.id
+    });
+  } else {
+    // 暂存药品医嘱（原有逻辑）
+    orderCart.value.push({
+      ...JSON.parse(JSON.stringify(currentOrder)),
+      orderType: 'MedicationOrder',
+      patientId: selectedPatient.value.id
+    });
+  }
   
   ElMessage.success('医嘱已暂存到待提交清单');
   clearForm();
@@ -830,72 +1853,177 @@ const submitAll = async () => {
   
   submitting.value = true;
   try {
-    // 构造批量提交请求（将时间转换为北京时间ISO格式）
-    const requestData = {
-      patientId: selectedPatient.value?.id,
-      doctorId: currentUser.value.staffId, // 从登录信息获取员工ID
-      orders: orderCart.value.map(order => ({
-        isLongTerm: order.isLongTerm,
-        timingStrategy: order.timingStrategy?.toUpperCase(), // 🔥 确保策略为全大写
-        // 🔥 关键：添加北京时区标识 (+08:00)
-        startTime: toBeijingTimeISO(order.startTime),
-        plantEndTime: toBeijingTimeISO(order.plantEndTime),
-        intervalHours: order.intervalHours,
-        intervalDays: order.intervalDays,
-        smartSlotsMask: order.smartSlotsMask,
-        usageRoute: order.usageRoute,
-        remarks: order.remarks,
-        items: order.items
-      }))
-    };
+    // 🔥 按医嘱类型分组
+    const medicationOrders = orderCart.value.filter(o => o.orderType === 'MedicationOrder' || !o.orderType);
+    const inspectionOrders = orderCart.value.filter(o => o.orderType === 'InspectionOrder');
+    const surgicalOrders = orderCart.value.filter(o => o.orderType === 'SurgicalOrder');
+    const operationOrders = orderCart.value.filter(o => o.orderType === 'OperationOrder');
 
-    // 🔥 调试信息：详细输出存储对象
-    console.log('==================== 医嘱提交调试信息 ====================');
-    console.log('📊 提交数据总览:');
-    console.log('  - 患者ID:', requestData.patientId);
-    console.log('  - 医生ID:', requestData.doctorId);
-    console.log('  - 医嘱数量:', requestData.orders.length);
-    console.log('\n📝 每条医嘱详情:');
-    requestData.orders.forEach((order, index) => {
-      console.log(`\n  医嘱 ${index + 1}:`);
-      console.log('    类型:', order.isLongTerm ? '长期医嘱' : '临时医嘱');
-      console.log('    时间策略:', order.timingStrategy);
-      console.log('    开始时间:', order.startTime);
-      console.log('    计划结束时间:', order.plantEndTime);
-      console.log('    用药途径:', order.usageRoute);
-      console.log('    间隔小时:', order.intervalHours);
-      console.log('    间隔天数:', order.intervalDays);
-      console.log('    智能时段掩码:', order.smartSlotsMask);
-      console.log('    备注:', order.remarks);
-      console.log('    💊 药品项目 (items):', order.items);
-      console.log('      - 项目数量:', order.items?.length || 0);
-      if (order.items && order.items.length > 0) {
-        order.items.forEach((item, itemIndex) => {
-          console.log(`      项目 ${itemIndex + 1}:`, {
-            drugId: item.drugId,
-            drugName: item.drugName,
-            dosage: item.dosage,
-            note: item.note
-          });
-        });
-      } else {
-        console.log('      ⚠️ 警告: items 为空或未定义!');
+    const results = [];
+    let successCount = 0;
+    let errorMessages = [];
+
+    // 💊 提交药品医嘱
+    if (medicationOrders.length > 0) {
+      const requestData = {
+        patientId: selectedPatient.value?.id,
+        doctorId: currentUser.value.staffId,
+        orders: medicationOrders.map(order => ({
+          isLongTerm: order.isLongTerm,
+          timingStrategy: order.timingStrategy?.toUpperCase(),
+          startTime: toBeijingTimeISO(order.startTime),
+          plantEndTime: toBeijingTimeISO(order.plantEndTime),
+          intervalHours: order.intervalHours,
+          intervalDays: order.intervalDays,
+          smartSlotsMask: order.smartSlotsMask,
+          usageRoute: order.usageRoute,
+          remarks: order.remarks,
+          items: order.items
+        }))
+      };
+
+      console.log('💊 提交药品医嘱:', requestData);
+      
+      try {
+        const response = await batchCreateMedicationOrders(requestData);
+        if (response.success) {
+          successCount += medicationOrders.length;
+          results.push(`药品医嘱: ${medicationOrders.length}条成功`);
+        } else {
+          errorMessages.push(`药品医嘱失败: ${response.message}`);
+          if (response.errors) errorMessages.push(...response.errors);
+        }
+      } catch (error) {
+        errorMessages.push(`药品医嘱提交异常: ${error.message}`);
       }
-    });
-    console.log('\n📤 完整请求数据 (JSON):');
-    console.log(JSON.stringify(requestData, null, 2));
-    console.log('========================================================\n');
-    
-    const response = await batchCreateOrders(requestData);
-    
-    if (response.success) {
-      ElMessage.success(response.message || `成功提交 ${orderCart.value.length} 条医嘱`);
+    }
+
+    // TODO：检查是否正确调用检查医嘱的API和数据结构
+
+    // 🔍 提交检查医嘱
+    if (inspectionOrders.length > 0) {
+      const requestData = {
+        PatientId: selectedPatient.value?.id,
+        DoctorId: currentUser.value.staffId,
+        Orders: inspectionOrders.map(order => {
+          const orderData = {
+            ItemCode: order.itemCode,
+            ItemName: order.itemName  // 添加项目名称
+          };
+          
+          // 添加备注
+          if (order.remarks) {
+            orderData.Remarks = order.remarks;
+          }
+          
+          return orderData;
+        })
+      };
+
+      console.log('🔍 提交检查医嘱:', requestData);
+      console.log('🔍 检查医嘱数据详情:', JSON.stringify(requestData, null, 2));
+      
+      try {
+        const response = await batchCreateInspectionOrders(requestData);
+        if (response.success) {
+          successCount += inspectionOrders.length;
+          results.push(`检查医嘱: ${inspectionOrders.length}条成功`);
+        } else {
+          errorMessages.push(`检查医嘱失败: ${response.message}`);
+          if (response.errors) errorMessages.push(...response.errors);
+        }
+      } catch (error) {
+        console.error('❌ 检查医嘱提交详细错误:', error);
+        console.error('❌ 错误响应:', error.response?.data);
+        errorMessages.push(`检查医嘱提交异常: ${error.response?.data?.message || error.message}`);
+        if (error.response?.data?.errors) {
+          errorMessages.push(...Object.values(error.response.data.errors).flat());
+        }
+      }
+    }
+
+    // 🔪 提交手术医嘱
+    if (surgicalOrders.length > 0) {
+      const requestData = {
+        patientId: selectedPatient.value?.id,
+        doctorId: currentUser.value.staffId,
+        orders: surgicalOrders.map(order => ({
+          surgeryName: order.surgeryName,
+          anesthesiaType: order.anesthesiaType,
+          incisionSite: order.incisionSite,
+          surgeonId: order.surgeonId,
+          scheduleTime: toBeijingTimeISO(order.scheduleTime),
+          requiredTalk: order.requiredTalk || [],
+          requiredOperation: order.requiredOperation || [],
+          items: order.items || [],
+          remarks: order.remarks
+        }))
+      };
+
+      console.log('🔪 提交手术医嘱:', requestData);
+      
+      try {
+        const response = await batchCreateSurgicalOrders(requestData);
+        if (response.success) {
+          successCount += surgicalOrders.length;
+          results.push(`手术医嘱: ${surgicalOrders.length}条成功`);
+        } else {
+          errorMessages.push(`手术医嘱失败: ${response.message}`);
+          if (response.errors) errorMessages.push(...response.errors);
+        }
+      } catch (error) {
+        errorMessages.push(`手术医嘱提交异常: ${error.message}`);
+      }
+    }
+
+    // ⚙️ 提交操作医嘱
+    if (operationOrders.length > 0) {
+      const requestData = {
+        patientId: selectedPatient.value?.id,
+        doctorId: currentUser.value.staffId,
+        orders: operationOrders.map(order => ({
+          operationCode: order.operationCode,
+          operationName: order.operationName,
+          targetSite: order.targetSite || null,
+          scheduledTime: toBeijingTimeISO(order.scheduledTime),
+          remarks: order.remarks || null
+        }))
+      };
+
+      console.log('⚙️ 提交操作医嘱:', requestData);
+      
+      try {
+        const response = await batchCreateOperationOrders(requestData);
+        if (response.success) {
+          successCount += operationOrders.length;
+          results.push(`操作医嘱: ${operationOrders.length}条成功`);
+        } else {
+          errorMessages.push(`操作医嘱失败: ${response.message}`);
+          if (response.errors) errorMessages.push(...response.errors);
+        }
+      } catch (error) {
+        errorMessages.push(`操作医嘱提交异常: ${error.message}`);
+      }
+    }
+
+    // 📢 显示结果
+    if (errorMessages.length === 0) {
+      ElMessage.success(`✅ 成功提交 ${successCount} 条医嘱\n${results.join('\n')}`);
       orderCart.value = [];
       expandedOrders.value = [];
     } else {
-      ElMessage.error(response.message || '提交失败');
-      if (response.errors && response.errors.length > 0) {
-        console.error('提交错误:', response.errors);
+      const successMsg = successCount > 0 ? `成功 ${successCount} 条, ` : '';
+      ElMessage.warning(`${successMsg}失败 ${errorMessages.length} 项\n${errorMessages.slice(0, 3).join('\n')}`);
+      // 移除成功的医嘱
+      if (successCount > 0) {
+        orderCart.value = orderCart.value.filter(order => {
+          const type = order.orderType || 'MedicationOrder';
+          if (type === 'MedicationOrder' && medicationOrders.length > 0) return false;
+          if (type === 'InspectionOrder' && inspectionOrders.length > 0) return false;
+          if (type === 'SurgicalOrder' && surgicalOrders.length > 0) return false;
+          if (type === 'OperationOrder' && operationOrders.length > 0) return false;
+          return true;
+        });
       }
     }
   } catch (error) {
@@ -1012,6 +2140,52 @@ const formatDate = (datetime) => {
   return `${year}-${month}-${day}`;
 };
 
+const getOrderTagType = (order) => {
+  if (order.orderType === 'SurgicalOrder') {
+    return order.surgeryType === 'Emergency' ? 'danger' : 'success';
+  }
+  return order.isLongTerm ? 'primary' : 'warning';
+};
+
+const getOrderTypeLabel = (order) => {
+  if (order.orderType === 'SurgicalOrder') {
+    return '手术';
+  } else if (order.orderType === 'InspectionOrder') {
+    return '检查';
+  } else if (order.orderType === 'OperationOrder') {
+    return '操作';
+  }
+  return order.isLongTerm ? '长期' : '临时';
+};
+
+// 获取默认手术药品
+const getDefaultSurgicalItems = () => {
+  return [
+    { drugId: '', dosage: '', note: '' }
+  ];
+};
+
+// 初始化手术药品（空白行）
+const initDefaultSurgicalDrugs = () => {
+  surgicalOrder.items = getDefaultSurgicalItems();
+};
+
+// 加载医生列表
+const loadDoctorList = async () => {
+  // 暂时使用模拟数据（API接口未实现）
+  console.log('加载医生列表（使用模拟数据）');
+  doctorList.value = [
+    { staffId: 'D001', name: '张医生', title: '主任医师' },
+    { staffId: 'D002', name: '李医生', title: '副主任医师' },
+    { staffId: 'D003', name: '王医生', title: '主治医师' }
+  ];
+  
+  // 自动选择当前登录医生
+  if (currentUser.value?.staffId) {
+    surgicalOrder.surgeonId = currentUser.value.staffId;
+  }
+};
+
 // 加载患者列表的函数（根据当前医生的科室过滤）
 const loadPatientList = async () => {
   try {
@@ -1057,9 +2231,23 @@ const getRouteName = (routeId) => {
 // getFreqDescription 已移除，改用 getStrategyLabel
 
 const getOrderSummary = (order) => {
-  const drugNames = order.items.map(i => getDrugName(i.drugId)).join('+');
-  const strategyLabel = getStrategyLabel(order.timingStrategy);
-  return `${drugNames} (${strategyLabel})`;
+  // 判断医嘱类型
+  if (order.orderType === 'SurgicalOrder') {
+    // 手术医嘱摘要
+    return order.surgeryName;
+  } 
+  else if (order.orderType === 'InspectionOrder') {
+    return order.itemName || order.itemCode || '检查';
+  } 
+  else if (order.orderType === 'OperationOrder') {
+    // 操作医嘱摘要 (未实现)
+    return '操作医嘱';
+  } else {
+    // 药品医嘱摘要
+    const drugNames = order.items.map(i => getDrugName(i.drugId)).join('+');
+    const strategyLabel = getStrategyLabel(order.timingStrategy);
+    return `${drugNames} (${strategyLabel})`;
+  }
 };
 
 const getStrategyDescription = (order) => {
@@ -1106,10 +2294,143 @@ onMounted(async () => {
     // 加载患者列表
     await loadPatientList();
     
+    // 加载医生列表
+    await loadDoctorList();
+    
+    // 初始化手术常用药品（在药品字典加载完成后）
+    initDefaultSurgicalDrugs();
+    
     ElMessage.success('基础数据加载完成');
   } catch (error) {
     console.error('加载基础数据失败:', error);
     ElMessage.error('加载基础数据失败，部分功能可能不可用');
+  }
+});
+
+// ==================== 护理等级相关方法 ====================
+
+// 护理等级文本
+const getGradeText = (grade) => {
+  const gradeMap = {
+    0: '特级护理',
+    1: '一级护理',
+    2: '二级护理',
+    3: '三级护理'
+  };
+  return gradeMap[grade] || '未知';
+};
+
+// 护理等级标签类型
+const getGradeTagType = (grade) => {
+  const typeMap = {
+    0: 'danger',   // 特级-红色
+    1: 'warning',  // 一级-橙色
+    2: 'success',  // 二级-绿色
+    3: 'info'      // 三级-灰色
+  };
+  return typeMap[grade] || 'info';
+};
+
+// 护理等级表单验证
+const isNursingGradeFormValid = computed(() => {
+  return nursingGradeForm.newGrade !== null && 
+         selectedPatient.value &&
+         nursingGradeForm.newGrade !== selectedPatient.value.nursingGrade;
+});
+
+// 重置护理等级表单
+const resetNursingGradeForm = () => {
+  nursingGradeForm.newGrade = selectedPatient.value?.nursingGrade || null;
+  nursingGradeForm.reason = '';
+};
+
+// 提交护理等级修改
+const submitNursingGrade = async () => {
+  if (!selectedPatient.value) {
+    ElMessage.warning('请先选择患者');
+    return;
+  }
+
+  if (nursingGradeForm.newGrade === null) {
+    ElMessage.warning('请选择新的护理等级');
+    return;
+  }
+
+  if (nursingGradeForm.newGrade === selectedPatient.value.nursingGrade) {
+    ElMessage.warning('新护理等级与当前等级相同');
+    return;
+  }
+
+  try {
+    submitting.value = true;
+    
+    console.log('提交护理等级修改:', {
+      patientId: selectedPatient.value.id,
+      newGrade: nursingGradeForm.newGrade,
+      doctorId: currentUser.value.staffId
+    });
+    
+    // 调用API更新护理等级
+    const response = await fetch(`/api/patient/${selectedPatient.value.id}/nursing-grade`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        newGrade: nursingGradeForm.newGrade,
+        reason: nursingGradeForm.reason || '',
+        doctorId: currentUser.value.staffId
+      })
+    });
+
+    console.log('API响应状态:', response.status);
+
+    if (!response.ok) {
+      let errorMessage = '更新失败';
+      try {
+        const error = await response.json();
+        errorMessage = error.message || errorMessage;
+      } catch (e) {
+        const errorText = await response.text();
+        console.error('API错误响应:', errorText);
+        errorMessage = `服务器错误 (${response.status})`;
+      }
+      throw new Error(errorMessage);
+    }
+
+    const result = await response.json();
+    console.log('更新成功:', result);
+    
+    ElMessage.success(`护理等级已从 ${getGradeText(selectedPatient.value.nursingGrade)} 修改为 ${getGradeText(nursingGradeForm.newGrade)}`);
+    
+    // 更新本地患者数据
+    selectedPatient.value.nursingGrade = nursingGradeForm.newGrade;
+    const patientInList = patientList.value.find(p => p.id === selectedPatient.value.id);
+    if (patientInList) {
+      patientInList.nursingGrade = nursingGradeForm.newGrade;
+    }
+    
+    // 重置表单
+    resetNursingGradeForm();
+  } catch (error) {
+    console.error('更新护理等级失败:', error);
+    ElMessage.error('更新护理等级失败: ' + error.message);
+  } finally {
+    submitting.value = false;
+  }
+};
+
+// 监听选中患者变化，重置护理等级表单
+watch(selectedPatient, (newPatient) => {
+  if (newPatient && activeType.value === 'NursingGrade') {
+    resetNursingGradeForm();
+  }
+});
+
+// 监听Tab切换，初始化护理等级表单
+watch(activeType, (newType) => {
+  if (newType === 'NursingGrade' && selectedPatient.value) {
+    resetNursingGradeForm();
   }
 });
 </script>
@@ -1138,65 +2459,11 @@ onMounted(async () => {
   --radius-round: 20px;
 }
 
-/* ==================== 顶部导航栏 ==================== */
-.navbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.8rem 2rem;
-  background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
-  color: white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.logo {
-  font-size: 1.3rem;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-
-.user-name {
-  font-weight: 600;
-  font-size: 1rem;
-}
-
-.user-role {
-  color: #ecf0f1;
-  font-size: 0.9rem;
-}
-
-.btn-back {
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: white;
-  padding: 8px 16px;
-  border-radius: var(--radius-small);
-  cursor: pointer;
-  transition: all 0.3s;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 0.9rem;
-}
-
-.btn-back:hover {
-  background: rgba(255, 255, 255, 0.3);
-  transform: translateY(-1px);
-}
-
 /* ==================== 主布局 ==================== */
 .order-layout {
   padding: 20px;
   background: var(--bg-page);
-  min-height: calc(100vh - 60px);
+  min-height: 100%;
 }
 
 /* 患者上下文卡片 */
@@ -1301,6 +2568,28 @@ onMounted(async () => {
   font-size: 1.1rem;
 }
 
+/* ==================== 操作医嘱表单样式 ==================== */
+.operation-form .section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 15px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.operation-form .form-row {
+  margin-bottom: 15px;
+}
+
+.operation-form .tip-text {
+  display: inline-block;
+  margin-left: 10px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
 /* ==================== 表单分组 ==================== */
 .form-section {
   margin-bottom: 25px;
@@ -1386,6 +2675,21 @@ onMounted(async () => {
   border-radius: var(--radius-small);
 }
 
+/* 手术必备物列表样式 */
+.surgical-items-list {
+  margin-bottom: 15px;
+}
+
+.item-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+  align-items: center;
+  padding: 10px;
+  background: white;
+  border-radius: var(--radius-small);
+}
+
 .item-index {
   width: 30px;
   height: 30px;
@@ -1429,6 +2733,47 @@ onMounted(async () => {
   grid-template-columns: repeat(2, 1fr);
   gap: 15px;
   margin-top: 10px;
+}
+
+/* 自定义多选框样式 */
+.custom-multi-select {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-small);
+}
+
+.checkbox-grid :deep(.el-checkbox) {
+  margin-right: 0;
+}
+
+.custom-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.custom-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-small);
+  min-height: 36px;
+}
+
+.custom-tags .el-tag {
+  margin: 0;
 }
 
 .grid-item {
@@ -2085,6 +3430,50 @@ onMounted(async () => {
   margin: 0;
 }
 
+/* ==================== 护理等级表单样式 ==================== */
+.nursing-grade-form {
+  padding: 20px;
+}
+
+.current-grade-display {
+  background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%);
+  border-radius: var(--radius-medium);
+  padding: 20px;
+  margin-bottom: 30px;
+  border-left: 4px solid var(--primary-color);
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  font-size: 1.1rem;
+}
+
+.info-row .label {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.nursing-grade-form .el-radio-group {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.nursing-grade-form .el-radio-button {
+  flex: 1;
+  min-width: 140px;
+}
+
+.nursing-grade-form .form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-color);
+}
+
 /* ==================== 响应式调整 ==================== */
 @media (max-width: 1600px) {
   .patient-panel:not(.collapsed) {
@@ -2156,10 +3545,141 @@ onMounted(async () => {
   opacity: 0.6;
 }
 
+/* 多选框全展示样式 */
+.multi-select-full :deep(.el-select__tags) {
+  flex-wrap: nowrap !important;
+  overflow: hidden;
+}
+
+.multi-select-full :deep(.el-tag) {
+  max-width: none !important;
+  flex-shrink: 0;
+}
+
+.multi-select-full :deep(.el-select__tags-text) {
+  white-space: nowrap;
+}
+
+/* ==================== 检查医嘱表单样式 ==================== */
+.inspection-form {
+  padding: 20px;
+}
+
+.inspection-group {
+  margin-bottom: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.group-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.inspection-group :deep(.el-checkbox-group) {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.inspection-group :deep(.el-checkbox) {
+  margin: 0;
+  padding: 8px 12px;
+  background: white;
+  border: 1px solid #e1e4e8;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.inspection-group :deep(.el-checkbox:hover) {
+  background: #f0f7ff;
+  border-color: #409eff;
+}
+
+.inspection-group :deep(.el-checkbox.is-checked) {
+  background: linear-gradient(135deg, #e8f4ff 0%, #f0f8ff 100%);
+  border-color: #409eff;
+  box-shadow: 0 2px 4px rgba(64, 158, 255, 0.1);
+}
+
+.inspection-group :deep(.el-checkbox__label) {
+  font-size: 0.9rem;
+  color: #495057;
+  padding-left: 8px;
+}
+
+.section-tip {
+  font-size: 0.85rem;
+  color: #6c757d;
+  font-weight: normal;
+  margin-left: 8px;
+}
+
+.form-row :deep(.el-radio-group) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.form-row :deep(.el-radio) {
+  margin: 0;
+  padding: 8px 16px;
+  background: white;
+  border: 1px solid #e1e4e8;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.form-row :deep(.el-radio:hover) {
+  background: #f0f7ff;
+  border-color: #409eff;
+}
+
+.form-row :deep(.el-radio.is-checked) {
+  background: linear-gradient(135deg, #e8f4ff 0%, #f0f8ff 100%);
+  border-color: #409eff;
+}
+
+.form-row :deep(.el-radio-button__inner) {
+  border-radius: 6px !important;
+  padding: 10px 20px;
+  font-weight: 500;
+}
+
+.form-row :deep(.el-checkbox-group .el-checkbox) {
+  background: white;
+  border: 1px solid #e1e4e8;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-right: 10px;
+  margin-bottom: 10px;
+  transition: all 0.2s;
+}
+
+.form-row :deep(.el-checkbox-group .el-checkbox:hover) {
+  background: #f0f7ff;
+  border-color: #409eff;
+}
+
+.form-row :deep(.el-checkbox-group .el-checkbox.is-checked) {
+  background: linear-gradient(135deg, #e8f4ff 0%, #f0f8ff 100%);
+  border-color: #409eff;
+}
+
 /* ==================== 响应式调整 ==================== */
 @media (max-width: 1400px) {
   .main-content {
     grid-template-columns: 1fr 340px;
+  }
+  
+  .inspection-group :deep(.el-checkbox-group) {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   }
 }
 
@@ -2170,6 +3690,10 @@ onMounted(async () => {
   
   .cart-area {
     max-height: 500px;
+  }
+  
+  .inspection-group :deep(.el-checkbox-group) {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   }
 }
 </style>

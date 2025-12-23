@@ -21,6 +21,7 @@ public class InspectionGuideDto
     public string PatientName { get; set; } = null!;
     public string PatientId { get; set; } = null!;
     public string ItemCode { get; set; } = null!;
+    public string ItemName { get; set; } = null!;
     public DateTime? AppointmentTime { get; set; }
     public string? AppointmentPlace { get; set; }
     public string? Precautions { get; set; }
@@ -38,6 +39,7 @@ public class InspectionOrderDetailDto
     public string DoctorId { get; set; } = null!;
     public string DoctorName { get; set; } = null!;
     public string ItemCode { get; set; } = null!;
+    public string ItemName { get; set; } = null!;
     public string RisLisId { get; set; } = null!;
     public string Location { get; set; } = null!;
     public InspectionSource Source { get; set; }
@@ -49,7 +51,7 @@ public class InspectionOrderDetailDto
     
     public DateTime? CheckStartTime { get; set; }
     public DateTime? CheckEndTime { get; set; }
-    public DateTime? BackToWardTime { get; set; }
+    public DateTime? ReportPendingTime { get; set; }
     public DateTime? ReportTime { get; set; }
     
     public DateTime CreateTime { get; set; }
@@ -65,6 +67,7 @@ public class NurseInspectionBoardDto
     public string PatientName { get; set; } = null!;
     public string BedNumber { get; set; } = null!;
     public string ItemCode { get; set; } = null!;
+    public string ItemName { get; set; } = null!;
     public DateTime? AppointmentTime { get; set; }
     public InspectionOrderStatus Status { get; set; }
     public string StatusDisplay { get; set; } = null!;  // 状态的中文显示
