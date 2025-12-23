@@ -444,28 +444,6 @@
                               style="margin-top: 10px;"
                             />
                           </div>
-
-                          <div class="form-row" style="margin-top: 15px;">
-                            <label>标本类型</label>
-                            <el-radio-group v-model="inspectionOrder.specimenType">
-                              <el-radio label="VENOUS_BLOOD">静脉血</el-radio>
-                              <el-radio label="ARTERIAL_BLOOD">动脉血</el-radio>
-                              <el-radio label="URINE">尿液</el-radio>
-                              <el-radio label="STOOL">大便</el-radio>
-                              <el-radio label="SPUTUM">痰液</el-radio>
-                              <el-radio label="OTHER">其他</el-radio>
-                            </el-radio-group>
-                          </div>
-
-                          <div class="form-row">
-                            <label>采样要求</label>
-                            <el-checkbox-group v-model="inspectionOrder.samplingRequirements">
-                              <el-checkbox label="FASTING">空腹（禁食8-12小时）</el-checkbox>
-                              <el-checkbox label="POSTPRANDIAL_2H">餐后2小时</el-checkbox>
-                              <el-checkbox label="MORNING_FIRST">晨起第一次</el-checkbox>
-                              <el-checkbox label="CLEAN_CATCH">清洁中段尿</el-checkbox>
-                            </el-checkbox-group>
-                          </div>
                         </div>
 
                         <!-- 影像检查项目 -->
@@ -1139,10 +1117,6 @@ const inspectionOrder = reactive({
   selectedItems: [],         // 已选择的检查项目列表（多选）
   customItems: {},           // 自定义"其他"项目的内容
   
-  // 化验检查相关
-  specimenType: '',          // 标本类型
-  samplingRequirements: [],  // 采样要求（多选）
-  
   // 影像检查相关
   location: '',              // 检查部位
   contrastAgent: 'NONE',     // 对比剂使用
@@ -1762,8 +1736,6 @@ const addToCart = () => {
         itemCode: itemCode,
         itemName: getInspectionItemName(itemCode),
         category: inspectionOrder.category,
-        specimenType: inspectionOrder.specimenType,
-        samplingRequirements: [...inspectionOrder.samplingRequirements],
         location: inspectionOrder.location,
         contrastAgent: inspectionOrder.contrastAgent,
         anesthesiaType: inspectionOrder.anesthesiaType,
