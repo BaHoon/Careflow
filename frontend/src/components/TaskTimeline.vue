@@ -167,20 +167,20 @@ const emit = defineEmits(['task-click']);
 const statistics = computed(() => {
   return {
     // 超时任务：超出容忍期的未完成任务
-    overdueCount: props.tasks.filter(t => t.excessDelayMinutes > 0 && t.status !== 'Completed').length,
+    overdueCount: props.tasks.filter(t => t.excessDelayMinutes > 0 && t.status !== 5).length,
     // 临期任务：前一小时到容忍期内的待执行任务
     dueSoonCount: props.tasks.filter(t => 
-      t.status === 'Pending' && 
+      t.status === 3 && 
       t.delayMinutes >= -60 && 
       t.excessDelayMinutes <= 0
     ).length,
     // 待执行任务：还没到前一小时的任务
     pendingCount: props.tasks.filter(t => 
-      t.status === 'Pending' && 
+      t.status === 3 && 
       t.delayMinutes < -60
     ).length,
     // 已完成任务
-    completedCount: props.tasks.filter(t => t.status === 'Completed').length
+    completedCount: props.tasks.filter(t => t.status === 5).length
   };
 });
 
@@ -188,20 +188,20 @@ const statistics = computed(() => {
 const groupedTasks = computed(() => {
   return {
     // 超时任务：超出容忍期的未完成任务
-    overdue: props.tasks.filter(t => t.excessDelayMinutes > 0 && t.status !== 'Completed'),
+    overdue: props.tasks.filter(t => t.excessDelayMinutes > 0 && t.status !== 5),
     // 临期任务：前一小时到容忍期内的待执行任务
     dueSoon: props.tasks.filter(t => 
-      t.status === 'Pending' && 
+      t.status === 3 && 
       t.delayMinutes >= -60 && 
       t.excessDelayMinutes <= 0
     ),
     // 待执行任务：还没到前一小时的任务
     pending: props.tasks.filter(t => 
-      t.status === 'Pending' && 
+      t.status === 3 && 
       t.delayMinutes < -60
     ),
     // 已完成任务
-    completed: props.tasks.filter(t => t.status === 'Completed')
+    completed: props.tasks.filter(t => t.status === 5)
   };
 });
 
