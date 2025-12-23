@@ -1,8 +1,10 @@
 using CareFlow.Application.Interfaces;
 using CareFlow.Application.DTOs.Nursing; 
 using CareFlow.Core.Models.Nursing;
+using CareFlow.Core.Models.Organization;
 using CareFlow.Core.Enums; 
 using Microsoft.EntityFrameworkCore;
+using System.Linq;
 
 namespace CareFlow.Application.Services.Nursing
 {
@@ -185,6 +187,123 @@ namespace CareFlow.Application.Services.Nursing
                     reasons.Add($"{rule.Desc}({value})");
                 }
             }
+        }
+
+        /// <summary>
+        /// 取消护理任务
+        /// </summary>
+        /// <param name="taskId">任务ID</param>
+        /// <param name="nurseId">操作护士ID</param>
+        /// <param name="cancelReason">取消理由</param>
+        public async Task CancelNursingTaskAsync(long taskId, string nurseId, string cancelReason)
+        {
+            Console.WriteLine($"📝 VitalSignService.CancelNursingTaskAsync - TaskId: {taskId}, NurseId: {nurseId}, Reason: {cancelReason}");
+            
+            var task = await _context.Set<NursingTask>().FindAsync(taskId);
+            if (task == null)
+            {
+                Console.WriteLine($"❌ 未找到任务 {taskId}");
+                throw new Exception($"未找到ID为 {taskId} 的护理任务");
+            }
+
+            Console.WriteLine($"📌 任务当前状态: {task.Status}");
+            
+            // 只有待执行的任务才能取消
+            if (task.Status != ExecutionTaskStatus.Pending)
+            {
+                Console.WriteLine($"❌ 任务状态不是Pending，无法取消");
+                throw new Exception($"任务状态为 {task.Status}，无法取消");
+            }
+
+            // 更新任务状态为已取消
+            task.Status = ExecutionTaskStatus.Cancelled;
+            task.ExecuteTime = DateTime.UtcNow; // 记录取消时间
+            task.ExecutorNurseId = nurseId; // 记录取消操作的护士
+            task.CancelReason = cancelReason; // 记录取消理由
+
+            Console.WriteLine($"✅ 准备保存，任务状态更新为 Cancelled");
+            await _context.SaveChangesAsync();
+            Console.WriteLine($"✅ 保存成功");
+        }
+
+        /// <summary>
+        /// 添加护理记录补充说明
+        /// </summary>
+        public async Task<SupplementDto> AddSupplementAsync(AddSupplementDto dto)
+        {
+            Console.WriteLine($"📝 添加补充说明 - TaskId: {dto.NursingTaskId}, NurseId: {dto.SupplementNurseId}");
+            
+            // 验证任务是否存在且已完成
+            var task = await _context.Set<NursingTask>().FindAsync(dto.NursingTaskId);
+            if (task == null)
+            {
+                throw new Exception($"未找到ID为 {dto.NursingTaskId} 的护理任务");
+            }
+            
+            if (task.Status != ExecutionTaskStatus.Completed)
+            {
+                throw new Exception("只能对已完成的护理记录添加补充说明");
+            }
+            
+            // 创建补充记录
+            var supplement = new NursingRecordSupplement
+            {
+                NursingTaskId = dto.NursingTaskId,
+                SupplementNurseId = dto.SupplementNurseId,
+                SupplementTime = DateTime.UtcNow,
+                Content = dto.Content,
+                SupplementType = dto.SupplementType
+            };
+            
+            await _context.Set<NursingRecordSupplement>().AddAsync(supplement);
+            await _context.SaveChangesAsync();
+            
+            // 获取护士姓名
+            var nurse = await _context.Set<Nurse>().FindAsync(dto.SupplementNurseId);
+            
+            Console.WriteLine($"✅ 补充说明保存成功 - ID: {supplement.Id}");
+            
+            return new SupplementDto
+            {
+                Id = supplement.Id,
+                NursingTaskId = supplement.NursingTaskId,
+                SupplementNurseId = supplement.SupplementNurseId,
+                SupplementNurseName = nurse?.Name ?? "未知",
+                SupplementTime = supplement.SupplementTime,
+                Content = supplement.Content,
+                SupplementType = supplement.SupplementType
+            };
+        }
+
+        /// <summary>
+        /// 获取护理记录的补充说明列表
+        /// </summary>
+        public async Task<List<SupplementDto>> GetSupplementsAsync(long nursingTaskId)
+        {
+            var supplements = await _context.Set<NursingRecordSupplement>()
+                .Where(s => s.NursingTaskId == nursingTaskId)
+                .OrderBy(s => s.SupplementTime)
+                .ToListAsync();
+            
+            var result = new List<SupplementDto>();
+            
+            foreach (var supplement in supplements)
+            {
+                var nurse = await _context.Set<Nurse>().FindAsync(supplement.SupplementNurseId);
+                
+                result.Add(new SupplementDto
+                {
+                    Id = supplement.Id,
+                    NursingTaskId = supplement.NursingTaskId,
+                    SupplementNurseId = supplement.SupplementNurseId,
+                    SupplementNurseName = nurse?.Name ?? "未知",
+                    SupplementTime = supplement.SupplementTime,
+                    Content = supplement.Content,
+                    SupplementType = supplement.SupplementType
+                });
+            }
+            
+            return result;
         }
     }
 }

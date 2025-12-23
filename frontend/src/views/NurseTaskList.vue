@@ -55,6 +55,7 @@
         @task-click="handleTaskClick"
         @start-input="handleStartInput"
         @view-detail="handleViewDetail"
+        @task-cancelled="handleTaskCancelled"
       />
     </div>
 
@@ -292,6 +293,12 @@ const handleRecordSubmit = async (formData) => {
   } finally {
     loading.value = false;
   }
+};
+
+// 处理任务取消事件
+const handleTaskCancelled = async (taskId) => {
+  // 刷新任务列表
+  await loadTasks();
 };
 
 // 格式化日期时间

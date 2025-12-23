@@ -85,6 +85,15 @@
               >
                 开始录入
               </el-button>
+              <el-button 
+                type="danger" 
+                plain
+                size="default"
+                @click="handleCancelTask(record)"
+                :icon="Close"
+              >
+                取消任务
+              </el-button>
             </div>
           </div>
         </div>
@@ -159,14 +168,77 @@
           </div>
         </div>
       </el-tab-pane>
+
+      <!-- 已取消Tab -->
+      <el-tab-pane name="cancelled">
+        <template #label>
+          <span class="tab-label">
+            <el-icon color="#f56c6c"><Close /></el-icon>
+            <span>已取消 ({{ cancelledRecords.length }})</span>
+          </span>
+        </template>
+        
+        <div class="record-list">
+          <el-empty 
+            v-if="cancelledRecords.length === 0" 
+            description="暂无已取消记录"
+            :image-size="100"
+          />
+          <div 
+            v-for="record in cancelledRecords" 
+            :key="record.id"
+            class="record-card cancelled-card"
+          >
+            <div class="record-header">
+              <div class="record-time">
+                <el-icon><Clock /></el-icon>
+                <span class="time-text">{{ formatTime(record.plannedStartTime || record.scheduledTime) }}</span>
+              </div>
+              <el-tag type="danger" size="small" effect="plain">
+                已取消
+              </el-tag>
+            </div>
+            
+            <div class="record-body">
+              <div class="record-info">
+                <span class="record-type">{{ (record.category || record.taskType) === 'Routine' ? '常规测量' : '复测' }}</span>
+                <span v-if="record.description" class="record-desc">{{ record.description }}</span>
+              </div>
+              
+              <div class="record-meta">
+                <div class="meta-item" v-if="record.assignedNurseName || record.assignedNurseId">
+                  <span class="meta-label">负责护士:</span>
+                  <span class="meta-value">
+                    {{ record.assignedNurseName || record.assignedNurseId }}
+                    <span v-if="isMyTask(record)" style="color: #409eff;">(我)</span>
+                  </span>
+                </div>
+                <div class="meta-item" v-if="record.executeTime">
+                  <span class="meta-label">取消时间:</span>
+                  <span class="meta-value">{{ formatDateTime(record.executeTime) }}</span>
+                </div>
+                <div class="meta-item" v-if="record.executorNurseName || record.executorNurseId || record.executorNurse">
+                  <span class="meta-label">取消护士:</span>
+                  <span class="meta-value">{{ record.executorNurseName || record.executorNurseId || record.executorNurse }}</span>
+                </div>
+                <div class="meta-item" v-if="record.cancelReason">
+                  <span class="meta-label">取消理由:</span>
+                  <span class="meta-value">{{ record.cancelReason }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </el-tab-pane>
     </el-tabs>
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue';
-import { Clock, Check, Edit, View } from '@element-plus/icons-vue';
-
+import { Clock, Check, Edit, View, Close } from '@element-plus/icons-vue';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import { cancelNursingTask } from '@/api/nursing';
 const props = defineProps({
   records: {
     type: Array,
@@ -178,7 +250,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['start-input', 'view-detail', 'date-change']);
+const emit = defineEmits(['start-input', 'view-detail', 'date-change', 'task-cancelled']);
 
 // 获取当前登录护士ID
 const getCurrentNurseId = () => {
@@ -234,6 +306,22 @@ const completedRecords = computed(() => {
     });
 });
 
+// 已取消记录（状态为 Cancelled = 9，从现在到过去排列）
+const cancelledRecords = computed(() => {
+  // 先根据ID去重
+  const uniqueRecords = Array.from(
+    new Map(props.records.map(r => [r.id, r])).values()
+  );
+  
+  return uniqueRecords
+    .filter(r => r.status === 9 || r.status === 'Cancelled') // Cancelled
+    .sort((a, b) => {
+      const timeA = new Date(b.executeTime || b.plannedStartTime || b.scheduledTime);
+      const timeB = new Date(a.executeTime || a.plannedStartTime || a.scheduledTime);
+      return timeA - timeB;
+    });
+});
+
 // 方法
 const handleDateChange = (value) => {
   emit('date-change', value);
@@ -245,6 +333,41 @@ const handleStartInput = (record) => {
 
 const handleViewDetail = (record) => {
   emit('view-detail', record);
+};
+
+// 取消任务
+const handleCancelTask = async (record) => {
+  try {
+    // 弹出输入框要求填写取消理由
+    const { value: cancelReason } = await ElMessageBox.prompt(
+      '请填写取消任务的理由',
+      '确认取消',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        inputType: 'textarea',
+        inputPlaceholder: '请输入取消理由...',
+        inputValidator: (value) => {
+          if (!value || value.trim().length === 0) {
+            return '取消理由不能为空';
+          }
+          return true;
+        },
+      }
+    );
+
+    // 调用API取消任务
+    await cancelNursingTask(record.id, currentNurseId.value, cancelReason);
+    ElMessage.success('任务已取消');
+    
+    // 通知父组件刷新数据
+    emit('task-cancelled', record.id);
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('取消任务失败:', error);
+      ElMessage.error(error.response?.data?.message || '取消任务失败');
+    }
+  }
 };
 
 // 判断是否是我负责的任务
@@ -518,5 +641,15 @@ const getRecordStatusText = (record) => {
 .record-actions .el-button {
   border-radius: 6px;
   font-weight: 500;
+}
+
+/* 已取消卡片样式 */
+.cancelled-card {
+  border-left: 4px solid #f56c6c;
+  background: #fef0f0;
+}
+
+.cancelled-card:hover {
+  box-shadow: 0 4px 12px rgba(245, 108, 108, 0.15);
 }
 </style>

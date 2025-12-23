@@ -31,6 +31,7 @@
           @start-input="handleStartInput"
           @view-detail="handleViewDetail"
           @date-change="handleDateChange"
+          @task-cancelled="handleTaskCancelled"
         />
       </div>
     </div>
@@ -168,6 +169,16 @@ const handleDateChange = (date) => {
   selectedDate.value = date;
   if (selectedPatient.value) {
     loadNursingRecords(selectedPatient.value.patientId, date);
+  }
+};
+
+/**
+ * 处理任务取消事件
+ */
+const handleTaskCancelled = async (taskId) => {
+  // 重新加载当前选中患者的记录
+  if (selectedPatient.value) {
+    await loadNursingRecords(selectedPatient.value.patientId, selectedDate.value);
   }
 };
 

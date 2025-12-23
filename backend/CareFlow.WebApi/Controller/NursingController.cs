@@ -97,6 +97,76 @@ namespace CareFlow.WebApi.Controllers
         }
 
         /// <summary>
+        /// [护士端] 取消护理任务
+        /// </summary>
+        /// <param name="taskId">任务ID</param>
+        /// <param name="nurseId">护士ID</param>
+        /// <param name="cancelReason">取消理由</param>
+        /// <returns></returns>
+        [HttpPost("tasks/{taskId}/cancel")]
+        public async Task<IActionResult> CancelNursingTask(long taskId, [FromQuery] string nurseId, [FromQuery] string? cancelReason = null)
+        {
+            Console.WriteLine($"🔵 收到取消任务请求 - TaskId: {taskId}, NurseId: {nurseId}, Reason: {cancelReason}");
+            
+            if (string.IsNullOrEmpty(nurseId))
+            {
+                Console.WriteLine($"❌ 护士ID为空");
+                return BadRequest(new { message = "护士ID不能为空" });
+            }
+
+            try
+            {
+                await _vitalSignService.CancelNursingTaskAsync(taskId, nurseId, cancelReason ?? "未填写取消理由");
+                Console.WriteLine($"✅ 任务 {taskId} 取消成功");
+                return Ok(new { message = "任务已取消" });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ 取消任务失败: {ex.Message}");
+                Console.WriteLine($"堆栈: {ex.StackTrace}");
+                return StatusCode(500, new { message = "取消任务失败", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// [护士端] 添加护理记录补充说明
+        /// </summary>
+        /// <param name="dto">补充说明数据</param>
+        /// <returns></returns>
+        [HttpPost("tasks/supplement")]
+        public async Task<IActionResult> AddSupplement([FromBody] AddSupplementDto dto)
+        {
+            try
+            {
+                var result = await _vitalSignService.AddSupplementAsync(dto);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "添加补充说明失败", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// [护士端] 获取护理记录的补充说明列表
+        /// </summary>
+        /// <param name="taskId">护理任务ID</param>
+        /// <returns></returns>
+        [HttpGet("tasks/{taskId}/supplements")]
+        public async Task<IActionResult> GetSupplements(long taskId)
+        {
+            try
+            {
+                var supplements = await _vitalSignService.GetSupplementsAsync(taskId);
+                return Ok(supplements);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "获取补充说明失败", error = ex.Message });
+            }
+        }
+
+        /// <summary>
         /// [护士端] 获取病区床位概览
         /// </summary>
         /// <param name="wardId">病区ID（可选）</param>
@@ -473,6 +543,74 @@ namespace CareFlow.WebApi.Controllers
                         assignedNurseName = assignedNurse?.Name;
                     }
                     
+                    // 获取实际执行护士信息
+                    string? executorNurseName = null;
+                    if (!string.IsNullOrEmpty(task.ExecutorNurseId))
+                    {
+                        var executorNurse = await _context.Nurses
+                            .FirstOrDefaultAsync(n => n.Id == task.ExecutorNurseId);
+                        executorNurseName = executorNurse?.Name;
+                    }
+                    
+                    // 如果任务已完成，获取体征数据和护理笔记，并序列化为ResultPayload
+                    string? resultPayload = null;
+                    if (task.Status == ExecutionTaskStatus.Completed)
+                    {
+                        Console.WriteLine($"🔍 任务 {task.Id} 已完成，查询护理数据...");
+                        
+                        var vitalRecord = await _context.VitalSignsRecords
+                            .FirstOrDefaultAsync(v => v.NursingTaskId == task.Id);
+                        
+                        Console.WriteLine($"  体征记录: {(vitalRecord != null ? "找到" : "未找到")}");
+                        
+                        var careNote = await _context.NursingCareNotes
+                            .FirstOrDefaultAsync(n => n.NursingTaskId == task.Id);
+                        
+                        Console.WriteLine($"  护理笔记: {(careNote != null ? "找到" : "未找到")}");
+                        
+                        if (vitalRecord != null)
+                        {
+                            var resultData = new Dictionary<string, object?>
+                            {
+                                ["temperature"] = vitalRecord.Temperature,
+                                ["tempType"] = vitalRecord.TempType,
+                                ["pulse"] = vitalRecord.Pulse,
+                                ["respiration"] = vitalRecord.Respiration,
+                                ["sysBp"] = vitalRecord.SysBp,
+                                ["diaBp"] = vitalRecord.DiaBp,
+                                ["spo2"] = vitalRecord.Spo2,
+                                ["painScore"] = vitalRecord.PainScore,
+                                ["weight"] = vitalRecord.Weight > 0 ? vitalRecord.Weight : null,
+                                ["intervention"] = !string.IsNullOrEmpty(vitalRecord.Intervention) ? vitalRecord.Intervention : null
+                            };
+                            
+                            // 添加护理笔记数据（如果有）
+                            if (careNote != null)
+                            {
+                                Console.WriteLine($"  添加护理笔记数据:");
+                                Console.WriteLine($"    Consciousness: {careNote.Consciousness}");
+                                Console.WriteLine($"    SkinCondition: {careNote.SkinCondition}");
+                                Console.WriteLine($"    Content: {careNote.Content}");
+                                Console.WriteLine($"    IntakeVolume: {careNote.IntakeVolume}");
+                                Console.WriteLine($"    OutputVolume: {careNote.OutputVolume}");
+                                
+                                resultData["consciousness"] = careNote.Consciousness;
+                                resultData["skinCondition"] = careNote.SkinCondition;
+                                resultData["intakeVolume"] = careNote.IntakeVolume > 0 ? careNote.IntakeVolume : null;
+                                resultData["intakeType"] = !string.IsNullOrEmpty(careNote.IntakeType) ? careNote.IntakeType : null;
+                                resultData["outputVolume"] = careNote.OutputVolume > 0 ? careNote.OutputVolume : null;
+                                resultData["outputType"] = !string.IsNullOrEmpty(careNote.OutputType) ? careNote.OutputType : null;
+                                resultData["noteContent"] = !string.IsNullOrEmpty(careNote.Content) ? careNote.Content : null;
+                                resultData["healthEducation"] = !string.IsNullOrEmpty(careNote.HealthEducation) ? careNote.HealthEducation : null;
+                            }
+                            
+                            resultPayload = System.Text.Json.JsonSerializer.Serialize(resultData);
+                            Console.WriteLine($"  序列化后的ResultPayload: {resultPayload}");
+                        }
+                    }
+                    
+                    Console.WriteLine($"📋 任务 {task.Id}: ExecutorNurseId={task.ExecutorNurseId}, ExecutorNurseName={executorNurseName}");
+                    
                     allTasks.Add(new NurseTaskDto
                     {
                         Id = task.Id,
@@ -486,6 +624,9 @@ namespace CareFlow.WebApi.Controllers
                         Status = task.Status,
                         AssignedNurseId = task.AssignedNurseId,
                         AssignedNurseName = assignedNurseName,
+                        ExecutorNurseId = task.ExecutorNurseId,  // 添加实际执行护士
+                        ExecutorNurseName = executorNurseName,    // 添加实际执行护士名称
+                        ResultPayload = resultPayload,             // 添加护理数据
                         
                         // 延迟状态字段
                         DelayMinutes = delayStatus.DelayMinutes,
@@ -640,28 +781,55 @@ namespace CareFlow.WebApi.Controllers
                         assignedNurseName = assignedNurse?.Name;
                     }
                     
-                    // 如果任务已完成，获取体征数据
-                    object? vitalSigns = null;
+                    // 获取实际执行护士信息
+                    string? executorNurseName = null;
+                    if (!string.IsNullOrEmpty(task.ExecutorNurseId))
+                    {
+                        var executorNurse = await _context.Nurses
+                            .FirstOrDefaultAsync(n => n.Id == task.ExecutorNurseId);
+                        executorNurseName = executorNurse?.Name;
+                    }
+                    
+                    // 如果任务已完成，获取体征数据和护理笔记，并序列化为ResultPayload
+                    string? resultPayload = null;
                     if (task.Status == ExecutionTaskStatus.Completed)
                     {
                         var vitalRecord = await _context.VitalSignsRecords
                             .FirstOrDefaultAsync(v => v.NursingTaskId == task.Id);
                         
+                        var careNote = await _context.NursingCareNotes
+                            .FirstOrDefaultAsync(n => n.NursingTaskId == task.Id);
+                        
                         if (vitalRecord != null)
                         {
-                            vitalSigns = new
+                            var resultData = new Dictionary<string, object?>
                             {
-                                temperature = vitalRecord.Temperature,
-                                tempType = vitalRecord.TempType,
-                                pulse = vitalRecord.Pulse,
-                                respiration = vitalRecord.Respiration,
-                                sysBp = vitalRecord.SysBp,
-                                diaBp = vitalRecord.DiaBp,
-                                spo2 = vitalRecord.Spo2,
-                                painScore = vitalRecord.PainScore,
-                                weight = vitalRecord.Weight,
-                                intervention = vitalRecord.Intervention
+                                ["temperature"] = vitalRecord.Temperature,
+                                ["tempType"] = vitalRecord.TempType,
+                                ["pulse"] = vitalRecord.Pulse,
+                                ["respiration"] = vitalRecord.Respiration,
+                                ["sysBp"] = vitalRecord.SysBp,
+                                ["diaBp"] = vitalRecord.DiaBp,
+                                ["spo2"] = vitalRecord.Spo2,
+                                ["painScore"] = vitalRecord.PainScore,
+                                ["weight"] = vitalRecord.Weight > 0 ? vitalRecord.Weight : null,
+                                ["intervention"] = !string.IsNullOrEmpty(vitalRecord.Intervention) ? vitalRecord.Intervention : null
                             };
+                            
+                            // 添加护理笔记数据（如果有）
+                            if (careNote != null)
+                            {
+                                resultData["consciousness"] = careNote.Consciousness;
+                                resultData["skinCondition"] = careNote.SkinCondition;
+                                resultData["intakeVolume"] = careNote.IntakeVolume > 0 ? careNote.IntakeVolume : null;
+                                resultData["intakeType"] = !string.IsNullOrEmpty(careNote.IntakeType) ? careNote.IntakeType : null;
+                                resultData["outputVolume"] = careNote.OutputVolume > 0 ? careNote.OutputVolume : null;
+                                resultData["outputType"] = !string.IsNullOrEmpty(careNote.OutputType) ? careNote.OutputType : null;
+                                resultData["noteContent"] = !string.IsNullOrEmpty(careNote.Content) ? careNote.Content : null;
+                                resultData["healthEducation"] = !string.IsNullOrEmpty(careNote.HealthEducation) ? careNote.HealthEducation : null;
+                            }
+                            
+                            resultPayload = System.Text.Json.JsonSerializer.Serialize(resultData);
                         }
                     }
                     
@@ -678,7 +846,9 @@ namespace CareFlow.WebApi.Controllers
                         Status = task.Status,
                         AssignedNurseId = task.AssignedNurseId,
                         AssignedNurseName = assignedNurseName,
-                        VitalSigns = vitalSigns,  // 添加体征数据
+                        ExecutorNurseId = task.ExecutorNurseId,
+                        ExecutorNurseName = executorNurseName,
+                        ResultPayload = resultPayload,
                         
                         // 延迟状态字段
                         DelayMinutes = delayStatus.DelayMinutes,

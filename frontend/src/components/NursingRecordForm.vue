@@ -241,7 +241,7 @@
           {{ formatDateTime(recordData.actualStartTime || recordData.executeTime) || '未知' }}
         </el-descriptions-item>
         <el-descriptions-item label="录入护士">
-          {{ recordData.assignedNurseName || recordData.executorNurse || '未知' }}
+          {{ recordData.executorNurseName || recordData.assignedNurseName || recordData.executorNurse || '未知' }}
         </el-descriptions-item>
       </el-descriptions>
 
@@ -268,9 +268,98 @@
       </el-descriptions>
 
       <!-- 护理笔记 -->
-      <div v-if="vitalSignsData.noteContent || vitalSignsData.note_content" class="mt-20">
-        <el-divider content-position="left">护理笔记</el-divider>
-        <div class="note-content">{{ vitalSignsData.noteContent || vitalSignsData.note_content }}</div>
+      <el-descriptions title="护理笔记" :column="2" border class="mt-20">
+        <!-- 意识状态 - 有值才显示 -->
+        <el-descriptions-item v-if="vitalSignsData.consciousness" label="意识状态">
+          {{ vitalSignsData.consciousness }}
+        </el-descriptions-item>
+        <!-- 皮肤状况 - 有值才显示 -->
+        <el-descriptions-item v-if="vitalSignsData.skinCondition || vitalSignsData.skin_condition" label="皮肤状况">
+          {{ vitalSignsData.skinCondition || vitalSignsData.skin_condition }}
+        </el-descriptions-item>
+        <!-- 入量 - 有值才显示 -->
+        <el-descriptions-item v-if="vitalSignsData.intakeVolume || vitalSignsData.intake_volume" label="入量">
+          {{ vitalSignsData.intakeVolume || vitalSignsData.intake_volume }} ml
+          <span v-if="vitalSignsData.intakeType || vitalSignsData.intake_type" class="sub-info">
+            ({{ vitalSignsData.intakeType || vitalSignsData.intake_type }})
+          </span>
+        </el-descriptions-item>
+        <!-- 出量 - 有值才显示 -->
+        <el-descriptions-item v-if="vitalSignsData.outputVolume || vitalSignsData.output_volume" label="出量">
+          {{ vitalSignsData.outputVolume || vitalSignsData.output_volume }} ml
+          <span v-if="vitalSignsData.outputType || vitalSignsData.output_type" class="sub-info">
+            ({{ vitalSignsData.outputType || vitalSignsData.output_type }})
+          </span>
+        </el-descriptions-item>
+        <!-- 体重 - 有值才显示 -->
+        <el-descriptions-item v-if="vitalSignsData.weight" label="体重">
+          {{ vitalSignsData.weight }} kg
+        </el-descriptions-item>
+        <!-- 干预措施 - 有值才显示 -->
+        <el-descriptions-item v-if="vitalSignsData.intervention" label="干预措施" :span="2">
+          {{ vitalSignsData.intervention }}
+        </el-descriptions-item>
+        <!-- 病情观察 - 始终显示 -->
+        <el-descriptions-item label="病情观察" :span="2">
+          <div class="note-content">
+            {{ vitalSignsData.noteContent || vitalSignsData.note_content || '无' }}
+          </div>
+        </el-descriptions-item>
+        <!-- 健康教育 - 有值才显示 -->
+        <el-descriptions-item v-if="vitalSignsData.healthEducation || vitalSignsData.health_education" label="健康教育" :span="2">
+          <div class="note-content">
+            {{ vitalSignsData.healthEducation || vitalSignsData.health_education }}
+          </div>
+        </el-descriptions-item>
+      </el-descriptions>
+
+      <!-- 补充说明区域 -->
+      <div class="supplement-section" v-if="isViewMode">
+        <el-divider content-position="left">
+          <el-icon><EditPen /></el-icon>
+          <span>补充说明</span>
+        </el-divider>
+        
+        <!-- 补充说明列表 -->
+        <div v-if="supplements.length > 0" class="supplement-list">
+          <div v-for="supplement in supplements" :key="supplement.id" class="supplement-item">
+            <div class="supplement-header">
+              <el-tag size="small" :type="supplement.supplementType === 'Correction' ? 'warning' : 'info'">
+                {{ supplement.supplementType === 'Correction' ? '更正' : '补充' }}
+              </el-tag>
+              <span class="supplement-nurse">{{ supplement.supplementNurseName }}</span>
+              <span class="supplement-time">{{ formatDateTime(supplement.supplementTime) }}</span>
+            </div>
+            <div class="supplement-content">{{ supplement.content }}</div>
+          </div>
+        </div>
+        
+        <!-- 添加补充说明表单 -->
+        <div class="add-supplement">
+          <el-form :model="supplementForm" label-width="100px">
+            <el-form-item label="补充类型">
+              <el-radio-group v-model="supplementForm.supplementType">
+                <el-radio label="Addition">补充信息</el-radio>
+                <el-radio label="Correction">更正错误</el-radio>
+              </el-radio-group>
+            </el-form-item>
+            <el-form-item label="补充内容">
+              <el-input
+                v-model="supplementForm.content"
+                type="textarea"
+                :rows="3"
+                placeholder="请输入补充说明内容..."
+                maxlength="500"
+                show-word-limit
+              />
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" @click="handleAddSupplement" :loading="supplementing">
+                提交补充说明
+              </el-button>
+            </el-form-item>
+          </el-form>
+        </div>
       </div>
     </div>
 
@@ -286,9 +375,10 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, reactive } from 'vue';
 import { InfoFilled, Compass, EditPen } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
+import { addSupplement, getSupplements } from '@/api/nursing';
 
 const props = defineProps({
   modelValue: {
@@ -314,6 +404,14 @@ const emit = defineEmits(['update:modelValue', 'submit-success']);
 
 const formRef = ref(null);
 const submitting = ref(false);
+
+// 补充说明相关状态
+const supplements = ref([]);
+const supplementForm = reactive({
+  content: '',
+  supplementType: 'Addition'
+});
+const supplementing = ref(false);
 
 const visible = computed({
   get: () => props.modelValue,
@@ -376,17 +474,49 @@ const loadVitalSignsData = async () => {
   }
   
   try {
-    // TODO: 这里需要调用后端 API 获取 VitalSignsRecord 数据
+    console.log('📋 加载体征数据，recordData:', props.recordData);
+    
+    // 方案1: 如果有 vitalSigns 字段，直接使用
+    if (props.recordData.vitalSigns) {
+      vitalSignsData.value = props.recordData.vitalSigns;
+      console.log('✅ 从 vitalSigns 字段加载数据');
+      return;
+    }
+    
+    // 方案2: 从 resultPayload 解析（后端返回的JSON字符串）
+    if (props.recordData.resultPayload) {
+      try {
+        const payload = typeof props.recordData.resultPayload === 'string' 
+          ? JSON.parse(props.recordData.resultPayload) 
+          : props.recordData.resultPayload;
+        vitalSignsData.value = payload;
+        console.log('✅ 从 resultPayload 解析数据:', payload);
+        return;
+      } catch (parseError) {
+        console.error('解析 resultPayload 失败:', parseError);
+      }
+    }
+    
+    // 方案3: 从 dataPayload 解析（可能是任务参数）
+    if (props.recordData.dataPayload) {
+      try {
+        const payload = typeof props.recordData.dataPayload === 'string' 
+          ? JSON.parse(props.recordData.dataPayload) 
+          : props.recordData.dataPayload;
+        vitalSignsData.value = payload;
+        console.log('✅ 从 dataPayload 解析数据:', payload);
+        return;
+      } catch (parseError) {
+        console.error('解析 dataPayload 失败:', parseError);
+      }
+    }
+    
+    // TODO: 方案4：调用后端 API 获取 VitalSignsRecord 数据
     // const response = await getVitalSignsByTaskId(taskId);
     // vitalSignsData.value = response.data;
     
-    // 临时方案：从 recordData 中获取（如果有的话）
-    if (props.recordData.vitalSigns) {
-      vitalSignsData.value = props.recordData.vitalSigns;
-    } else {
-      vitalSignsData.value = {};
-      console.log('⚠️ 未找到体征数据');
-    }
+    console.log('⚠️ 未找到体征数据');
+    vitalSignsData.value = {};
   } catch (error) {
     console.error('加载体征数据失败:', error);
     vitalSignsData.value = {};
@@ -434,8 +564,9 @@ watch(() => props.modelValue, async (newVal) => {
     console.log('  - taskType:', props.recordData.taskType);
     
     if (isViewMode.value) {
-      // 查看模式：加载体征数据
+      // 查看模式：加载体征数据和补充说明
       await loadVitalSignsData();
+      await loadSupplements();
     } else {
       // 录入模式：重置表单
       resetForm();
@@ -444,6 +575,57 @@ watch(() => props.modelValue, async (newVal) => {
     }
   }
 });
+
+// 加载补充说明列表
+const loadSupplements = async () => {
+  if (!props.recordData.id) return;
+
+  try {
+    // 注意：api 拦截器已返回 response.data，因此这里直接使用返回值
+    const result = await getSupplements(props.recordData.id);
+    supplements.value = result || [];
+  } catch (error) {
+    console.error('加载补充说明失败:', error);
+    supplements.value = [];
+  }
+};
+
+// 提交补充说明
+const handleAddSupplement = async () => {
+  if (!supplementForm.content.trim()) {
+    ElMessage.warning('请输入补充内容');
+    return;
+  }
+  
+  try {
+    supplementing.value = true;
+
+    const data = {
+      nursingTaskId: props.recordData.id,
+      supplementNurseId: props.currentNurseId,
+      content: supplementForm.content,
+      supplementType: supplementForm.supplementType
+    };
+
+    // API 返回已创建的补充说明对象
+    await addSupplement(data);
+
+    ElMessage.success('补充说明已添加');
+
+    // 重置表单
+    supplementForm.content = '';
+    supplementForm.supplementType = 'Addition';
+
+    // 重新加载补充说明列表
+    await loadSupplements();
+
+  } catch (error) {
+    console.error('添加补充说明失败:', error);
+    ElMessage.error(error?.message || '添加补充说明失败');
+  } finally {
+    supplementing.value = false;
+  }
+};
 
 // 重置表单
 const resetForm = () => {
@@ -558,6 +740,8 @@ const formatDateTime = (datetime) => {
 
 .view-mode {
   padding: 10px 0;
+  max-height: 70vh;
+  overflow-y: auto;
 }
 
 .mt-20 {
@@ -565,17 +749,63 @@ const formatDateTime = (datetime) => {
 }
 
 .note-content {
-  padding: 16px;
+  padding: 12px 16px;
   background: #f5f7fa;
   border-radius: 4px;
   line-height: 1.8;
   color: #606266;
   white-space: pre-wrap;
+  min-height: 40px;
+}
+
+.sub-info {
+  color: #909399;
+  font-size: 12px;
+  margin-left: 4px;
 }
 
 .dialog-footer {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+}
+
+/* 自定义 descriptions 样式 */
+:deep(.el-descriptions__title) {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 12px;
+}
+
+:deep(.el-descriptions__label) {
+  font-weight: 500;
+}
+
+/* 补充说明样式 */
+.supplement-item {
+  padding: 12px;
+  background: #f5f7fa;
+  border-radius: 4px;
+  margin-bottom: 12px;
+}
+
+.supplement-item:last-child {
+  margin-bottom: 0;
+}
+
+.supplement-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: #909399;
+}
+
+.supplement-content {
+  color: #606266;
+  line-height: 1.6;
+  white-space: pre-wrap;
 }
 </style>
