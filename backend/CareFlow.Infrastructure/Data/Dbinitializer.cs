@@ -3,6 +3,7 @@ using CareFlow.Core.Models.Medical;
 using CareFlow.Core.Models.Nursing;
 using CareFlow.Core.Models.Organization;
 using CareFlow.Core.Models.Space;
+using CareFlow.Core.Utils;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
@@ -642,7 +643,8 @@ namespace CareFlow.Infrastructure.Data
             context.SaveChanges();
 
             // --- 预置各种类型的医疗医嘱 ---
-            var currentTime = DateTime.UtcNow;
+            // 使用中国时间
+            var currentTime = TimeZoneHelper.GetChinaTimeNow();
 
             // 1. 药品医嘱 (MedicationOrder)
             // 1. 药品医嘱 (MedicationOrder)
@@ -791,31 +793,306 @@ namespace CareFlow.Infrastructure.Data
             context.MedicationOrders.AddRange(medicationOrders);
             context.SaveChanges();
 
-            // 2. 操作医嘱 (OperationOrder)
-            var operationOrders = new OperationOrder[]
+            // 2. 操作医嘱 (OperationOrder) - 全面的测试数据
+            // 使用 TimeZoneHelper 处理时区，确保时间正确
+            // 重要：所有时间都使用中国时间，直接存储到数据库
+            var chinaTimeNow = TimeZoneHelper.GetChinaTimeNow();
+            var chinaTimeToday = chinaTimeNow.Date;
+            
+            var operationOrders = new List<OperationOrder>();
+
+            // ==========================================
+            // Immediate 类操作（即刻执行，扫码即完成）
+            // ==========================================
+            
+            // OP001 - 更换引流袋：长期医嘱，1天2次
+            operationOrders.Add(new OperationOrder
             {
-                new OperationOrder
-                {
-                    PatientId = "P001", DoctorId = "D001", NurseId = "N001",
-                    CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(3),
-                    OrderType = "OperationOrder", Status = OrderStatus.Accepted, IsLongTerm = true,
-                    OpId = "OP001", Normal = true, FrequencyType = "每天", FrequencyValue = "3次"
-                },
-                new OperationOrder
-                {
-                    PatientId = "P003", DoctorId = "D002", NurseId = "N002",
-                    CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(2),
-                    OrderType = "OperationOrder", Status = OrderStatus.Accepted, IsLongTerm = true,
-                    OpId = "OP002", Normal = true, FrequencyType = "持续", FrequencyValue = "24小时"
-                },
-                new OperationOrder
-                {
-                    PatientId = "P004", DoctorId = "D002", NurseId = "N001",
-                    CreateTime = currentTime.AddHours(-2), PlantEndTime = currentTime.AddHours(1),
-                    OrderType = "OperationOrder", Status = OrderStatus.InProgress, IsLongTerm = false,
-                    OpId = "OP003", Normal = true, FrequencyType = "一次性", FrequencyValue = "1次"
-                }
-            };
+                PatientId = "P001", DoctorId = "D001", NurseId = "N001",
+                CreateTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday.AddDays(-1)),
+                PlantEndTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday.AddDays(3)),
+                OrderType = "OperationOrder", Status = "Accepted", IsLongTerm = true,
+                OpId = "OP001", Normal = true, FrequencyType = "1天2次", FrequencyValue = "08:00,20:00",
+                EndTime = null
+            });
+
+            // OP004 - 更换敷料：长期医嘱，1天1次
+            operationOrders.Add(new OperationOrder
+            {
+                PatientId = "P002", DoctorId = "D001", NurseId = "N004",
+                CreateTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday.AddDays(-1)),
+                PlantEndTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday.AddDays(2)),
+                OrderType = "OperationOrder", Status = "Accepted", IsLongTerm = true,
+                OpId = "OP004", Normal = true, FrequencyType = "1天1次", FrequencyValue = "10:00",
+                EndTime = null
+            });
+
+            // OP005 - 导尿：临时医嘱，一次性，立即执行
+            operationOrders.Add(new OperationOrder
+            {
+                PatientId = "P003", DoctorId = "D002", NurseId = "N002",
+                CreateTime = TimeZoneHelper.StoreChinaTime(chinaTimeNow.AddHours(-1)),
+                PlantEndTime = TimeZoneHelper.StoreChinaTime(chinaTimeNow.AddHours(1)),
+                OrderType = "OperationOrder", Status = "InProgress", IsLongTerm = false,
+                OpId = "OP005", Normal = true, FrequencyType = "一次性", FrequencyValue = "立即",
+                EndTime = null
+            });
+
+            // OP008 - 口腔护理：长期医嘱，1天3次
+            operationOrders.Add(new OperationOrder
+            {
+                PatientId = "P001", DoctorId = "D001", NurseId = "N003",
+                CreateTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday),
+                PlantEndTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday.AddDays(5)),
+                OrderType = "OperationOrder", Status = "Accepted", IsLongTerm = true,
+                OpId = "OP008", Normal = true, FrequencyType = "1天3次", FrequencyValue = "08:00,14:00,20:00",
+                EndTime = null
+            });
+
+            // OP009 - 会阴护理：长期医嘱，1天2次
+            operationOrders.Add(new OperationOrder
+            {
+                PatientId = "P002", DoctorId = "D001", NurseId = "N004",
+                CreateTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday),
+                PlantEndTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday.AddDays(3)),
+                OrderType = "OperationOrder", Status = "Accepted", IsLongTerm = true,
+                OpId = "OP009", Normal = true, FrequencyType = "1天2次", FrequencyValue = "09:00,21:00",
+                EndTime = null
+            });
+
+            // OP010 - 皮肤护理：长期医嘱，1天1次
+            operationOrders.Add(new OperationOrder
+            {
+                PatientId = "P003", DoctorId = "D002", NurseId = "N002",
+                CreateTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday),
+                PlantEndTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday.AddDays(7)),
+                OrderType = "OperationOrder", Status = "Accepted", IsLongTerm = true,
+                OpId = "OP010", Normal = true, FrequencyType = "1天1次", FrequencyValue = "15:00",
+                EndTime = null
+            });
+
+            // OP015 - 翻身拍背：长期医嘱，1天4次
+            operationOrders.Add(new OperationOrder
+            {
+                PatientId = "P004", DoctorId = "D002", NurseId = "N001",
+                CreateTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday),
+                PlantEndTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday.AddDays(3)),
+                OrderType = "OperationOrder", Status = "Accepted", IsLongTerm = true,
+                OpId = "OP015", Normal = true, FrequencyType = "1天4次", FrequencyValue = "08:00,12:00,16:00,20:00",
+                EndTime = null
+            });
+
+            // ==========================================
+            // Duration 类操作（持续执行，需要开始和结束时间）
+            // ==========================================
+            
+            // OP002 - 持续吸氧：长期医嘱，1天1次
+            operationOrders.Add(new OperationOrder
+            {
+                PatientId = "P003", DoctorId = "D002", NurseId = "N002",
+                CreateTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday.AddDays(-1)),
+                PlantEndTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday.AddDays(2)),
+                OrderType = "OperationOrder", Status = "Accepted", IsLongTerm = true,
+                OpId = "OP002", Normal = true, FrequencyType = "1天1次", FrequencyValue = "08:00",
+                EndTime = null
+            });
+
+            // OP006 - 鼻饲：长期医嘱，1天3次
+            operationOrders.Add(new OperationOrder
+            {
+                PatientId = "P001", DoctorId = "D001", NurseId = "N001",
+                CreateTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday),
+                PlantEndTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday.AddDays(5)),
+                OrderType = "OperationOrder", Status = "Accepted", IsLongTerm = true,
+                OpId = "OP006", Normal = true, FrequencyType = "1天3次", FrequencyValue = "07:00,12:00,18:00",
+                EndTime = null
+            });
+
+            // OP007 - 雾化吸入：长期医嘱，1天2次
+            operationOrders.Add(new OperationOrder
+            {
+                PatientId = "P002", DoctorId = "D001", NurseId = "N003",
+                CreateTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday),
+                PlantEndTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday.AddDays(3)),
+                OrderType = "OperationOrder", Status = "Accepted", IsLongTerm = true,
+                OpId = "OP007", Normal = true, FrequencyType = "1天2次", FrequencyValue = "09:00,15:00",
+                EndTime = null
+            });
+
+            // OP011 - 持续心电监护：长期医嘱，1天1次
+            operationOrders.Add(new OperationOrder
+            {
+                PatientId = "P003", DoctorId = "D002", NurseId = "N002",
+                CreateTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday),
+                PlantEndTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday.AddDays(2)),
+                OrderType = "OperationOrder", Status = "Accepted", IsLongTerm = true,
+                OpId = "OP011", Normal = true, FrequencyType = "1天1次", FrequencyValue = "00:00",
+                EndTime = null
+            });
+
+            // OP012 - 持续导尿：长期医嘱，1天1次
+            operationOrders.Add(new OperationOrder
+            {
+                PatientId = "P004", DoctorId = "D002", NurseId = "N001",
+                CreateTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday),
+                PlantEndTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday.AddDays(5)),
+                OrderType = "OperationOrder", Status = "Accepted", IsLongTerm = true,
+                OpId = "OP012", Normal = true, FrequencyType = "1天1次", FrequencyValue = "08:00",
+                EndTime = null
+            });
+
+            // OP013 - 持续胃肠减压：长期医嘱，1天1次
+            operationOrders.Add(new OperationOrder
+            {
+                PatientId = "P005", DoctorId = "D001", NurseId = "N005",
+                CreateTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday),
+                PlantEndTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday.AddDays(3)),
+                OrderType = "OperationOrder", Status = "Accepted", IsLongTerm = true,
+                OpId = "OP013", Normal = true, FrequencyType = "1天1次", FrequencyValue = "10:00",
+                EndTime = null
+            });
+
+            // OP014 - 持续静脉输液：长期医嘱，1天2次
+            operationOrders.Add(new OperationOrder
+            {
+                PatientId = "P006", DoctorId = "D002", NurseId = "N007",
+                CreateTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday),
+                PlantEndTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday.AddDays(2)),
+                OrderType = "OperationOrder", Status = "Accepted", IsLongTerm = true,
+                OpId = "OP014", Normal = true, FrequencyType = "1天2次", FrequencyValue = "08:00,14:00",
+                EndTime = null
+            });
+
+            // ==========================================
+            // ResultPending 类操作（需要等待结果，录入结果后完成）
+            // ==========================================
+            
+            // OP003 - 血糖监测：长期医嘱，1天3次
+            operationOrders.Add(new OperationOrder
+            {
+                PatientId = "P002", DoctorId = "D001", NurseId = "N004",
+                CreateTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday),
+                PlantEndTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday.AddDays(7)),
+                OrderType = "OperationOrder", Status = "Accepted", IsLongTerm = true,
+                OpId = "OP003", Normal = true, FrequencyType = "1天3次", FrequencyValue = "07:00,12:00,18:00",
+                EndTime = null
+            });
+
+            // OP016 - 血压监测：长期医嘱，1天2次
+            operationOrders.Add(new OperationOrder
+            {
+                PatientId = "P001", DoctorId = "D001", NurseId = "N001",
+                CreateTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday),
+                PlantEndTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday.AddDays(5)),
+                OrderType = "OperationOrder", Status = "Accepted", IsLongTerm = true,
+                OpId = "OP016", Normal = true, FrequencyType = "1天2次", FrequencyValue = "08:00,20:00",
+                EndTime = null
+            });
+
+            // OP017 - 体温监测：长期医嘱，1天4次
+            operationOrders.Add(new OperationOrder
+            {
+                PatientId = "P003", DoctorId = "D002", NurseId = "N002",
+                CreateTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday),
+                PlantEndTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday.AddDays(3)),
+                OrderType = "OperationOrder", Status = "Accepted", IsLongTerm = true,
+                OpId = "OP017", Normal = true, FrequencyType = "1天4次", FrequencyValue = "06:00,12:00,18:00,22:00",
+                EndTime = null
+            });
+
+            // OP018 - 尿量监测：长期医嘱，1天1次
+            operationOrders.Add(new OperationOrder
+            {
+                PatientId = "P004", DoctorId = "D002", NurseId = "N001",
+                CreateTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday),
+                PlantEndTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday.AddDays(5)),
+                OrderType = "OperationOrder", Status = "Accepted", IsLongTerm = true,
+                OpId = "OP018", Normal = true, FrequencyType = "1天1次", FrequencyValue = "08:00",
+                EndTime = null
+            });
+
+            // OP019 - 意识状态评估：长期医嘱，1天2次
+            operationOrders.Add(new OperationOrder
+            {
+                PatientId = "P005", DoctorId = "D001", NurseId = "N005",
+                CreateTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday),
+                PlantEndTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday.AddDays(3)),
+                OrderType = "OperationOrder", Status = "Accepted", IsLongTerm = true,
+                OpId = "OP019", Normal = true, FrequencyType = "1天2次", FrequencyValue = "08:00,20:00",
+                EndTime = null
+            });
+
+            // OP020 - 疼痛评估：长期医嘱，1天3次
+            operationOrders.Add(new OperationOrder
+            {
+                PatientId = "P006", DoctorId = "D002", NurseId = "N007",
+                CreateTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday),
+                PlantEndTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday.AddDays(5)),
+                OrderType = "OperationOrder", Status = "Accepted", IsLongTerm = true,
+                OpId = "OP020", Normal = true, FrequencyType = "1天3次", FrequencyValue = "08:00,14:00,20:00",
+                EndTime = null
+            });
+
+            // ==========================================
+            // 特殊场景测试：不同频次类型
+            // ==========================================
+            
+            // 2天1次：每2天执行一次
+            operationOrders.Add(new OperationOrder
+            {
+                PatientId = "P001", DoctorId = "D001", NurseId = "N001",
+                CreateTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday),
+                PlantEndTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday.AddDays(7)),
+                OrderType = "OperationOrder", Status = "Accepted", IsLongTerm = true,
+                OpId = "OP001", Normal = true, FrequencyType = "2天1次", FrequencyValue = "10:00",
+                EndTime = null
+            });
+
+            // 临时医嘱：一次性，指定时间执行（未来时间）
+            var futureTime = chinaTimeToday.AddHours(14).AddMinutes(30); // 今天14:30
+            operationOrders.Add(new OperationOrder
+            {
+                PatientId = "P002", DoctorId = "D001", NurseId = "N004",
+                CreateTime = TimeZoneHelper.StoreChinaTime(chinaTimeNow),
+                PlantEndTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday.AddDays(1)),
+                OrderType = "OperationOrder", Status = "Accepted", IsLongTerm = false,
+                OpId = "OP003", Normal = true, FrequencyType = "一次性", FrequencyValue = "14:30",
+                EndTime = null
+            });
+
+            // 临时医嘱：一次性，立即执行
+            operationOrders.Add(new OperationOrder
+            {
+                PatientId = "P003", DoctorId = "D002", NurseId = "N002",
+                CreateTime = TimeZoneHelper.StoreChinaTime(chinaTimeNow.AddHours(-1)),
+                PlantEndTime = TimeZoneHelper.StoreChinaTime(chinaTimeNow.AddHours(1)),
+                OrderType = "OperationOrder", Status = "InProgress", IsLongTerm = false,
+                OpId = "OP005", Normal = true, FrequencyType = "一次性", FrequencyValue = "立即",
+                EndTime = null
+            });
+
+            // 长期医嘱：1天1次，但时间已过（用于测试时间过滤）
+            operationOrders.Add(new OperationOrder
+            {
+                PatientId = "P004", DoctorId = "D002", NurseId = "N001",
+                CreateTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday.AddDays(-2)),
+                PlantEndTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday.AddDays(3)),
+                OrderType = "OperationOrder", Status = "Accepted", IsLongTerm = true,
+                OpId = "OP002", Normal = true, FrequencyType = "1天1次", FrequencyValue = "08:00",
+                EndTime = null
+            });
+
+            // 长期医嘱：1天3次，部分时间已过（用于测试时间过滤）
+            operationOrders.Add(new OperationOrder
+            {
+                PatientId = "P005", DoctorId = "D001", NurseId = "N005",
+                CreateTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday.AddDays(-1)),
+                PlantEndTime = TimeZoneHelper.StoreChinaTime(chinaTimeToday.AddDays(2)),
+                OrderType = "OperationOrder", Status = "Accepted", IsLongTerm = true,
+                OpId = "OP003", Normal = true, FrequencyType = "1天3次", FrequencyValue = "06:00,12:00,18:00",
+                EndTime = null
+            });
+
             context.OperationOrders.AddRange(operationOrders);
             
             // 3. 检查医嘱 (InspectionOrder)
