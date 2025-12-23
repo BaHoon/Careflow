@@ -782,6 +782,10 @@ const acknowledgeBatchInternal = async (orderIds) => {
       await handleAcknowledgeResult(item);
     }
 
+    // 清除选择状态
+    selectAllNew.value = false;
+    pendingOrders.value.newOrders.forEach(o => o.selected = false);
+
     // 刷新列表
     await refreshCurrentView();
   } catch (error) {
@@ -936,6 +940,10 @@ const acknowledgeStoppedBatchInternal = async (orderIds) => {
       }
     }
 
+    // 清除选择状态
+    selectAllStopped.value = false;
+    pendingOrders.value.stoppedOrders.forEach(o => o.selected = false);
+
     // 刷新列表
     await refreshCurrentView();
   } catch (error) {
@@ -1016,6 +1024,10 @@ const rejectBatchInternal = async (orderIds) => {
     }
 
     ElMessage.success(result.message);
+
+    // 清除选择状态
+    selectAllNew.value = false;
+    pendingOrders.value.newOrders.forEach(o => o.selected = false);
 
     // 刷新列表
     await refreshCurrentView();
