@@ -77,4 +77,21 @@ public interface IMedicalOrderQueryService
     ///    - 护士拒绝停嘱 → 医嘱状态恢复为 InProgress，任务恢复为 StatusBeforeLocking
     /// </remarks>
     Task<StopOrderResponseDto> StopOrderAsync(StopOrderRequestDto request);
+
+    /// <summary>
+    /// 重新提交已退回的医嘱
+    /// </summary>
+    /// <param name="orderId">医嘱ID</param>
+    /// <param name="doctorId">医生ID</param>
+    /// <returns>操作结果</returns>
+    Task<bool> ResubmitRejectedOrderAsync(long orderId, string doctorId);
+
+    /// <summary>
+    /// 撤销已退回的医嘱
+    /// </summary>
+    /// <param name="orderId">医嘱ID</param>
+    /// <param name="doctorId">医生ID</param>
+    /// <param name="cancelReason">撤销原因</param>
+    /// <returns>操作结果</returns>
+    Task<bool> CancelRejectedOrderAsync(long orderId, string doctorId, string cancelReason);
 }

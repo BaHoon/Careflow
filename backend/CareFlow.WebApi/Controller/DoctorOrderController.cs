@@ -206,4 +206,110 @@ public class DoctorOrderController : ControllerBase
             });
         }
     }
+
+    /// <summary>
+    /// 重新提交已退回的医嘱
+    /// </summary>
+    /// <param name="request">重新提交请求</param>
+    /// <returns>操作结果</returns>
+    /// <remarks>
+    /// 业务逻辑：
+    /// 1. 验证医嘱状态（只有 Rejected 可重新提交）
+    /// 2. 验证操作人（只有开单医生才能重新提交）
+    /// 3. 医嘱状态改为 PendingReceive（重新进入护士待签收列表）
+    /// 4. 记录状态变更历史
+    /// </remarks>
+    [HttpPost("{orderId}/resubmit")]
+    public async Task<ActionResult> ResubmitRejectedOrder(
+        long orderId,
+        [FromBody] ResubmitOrderRequest request)
+    {
+        try
+        {
+            if (orderId <= 0)
+            {
+                return BadRequest(new { message = "医嘱ID无效" });
+            }
+
+            if (string.IsNullOrWhiteSpace(request.DoctorId))
+            {
+                return BadRequest(new { message = "医生ID不能为空" });
+            }
+
+            _logger.LogInformation("接收重新提交医嘱请求: 医嘱 {OrderId}, 医生 {DoctorId}",
+                orderId, request.DoctorId);
+
+            var result = await _queryService.ResubmitRejectedOrderAsync(orderId, request.DoctorId);
+
+            _logger.LogInformation("✅ 重新提交成功: 医嘱 {OrderId}", orderId);
+            return Ok(new { success = true, message = "重新提交成功" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ 重新提交医嘱失败: {OrderId}", orderId);
+            return StatusCode(500, new { success = false, message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// 撤销已退回的医嘱
+    /// </summary>
+    /// <param name="request">撤销请求</param>
+    /// <returns>操作结果</returns>
+    /// <remarks>
+    /// 业务逻辑：
+    /// 1. 验证医嘱状态（只有 Rejected 可撤销）
+    /// 2. 验证操作人（只有开单医生才能撤销）
+    /// 3. 医嘱状态改为 Cancelled（不可恢复）
+    /// 4. 记录撤销原因和状态变更历史
+    /// </remarks>
+    [HttpPost("{orderId}/cancel")]
+    public async Task<ActionResult> CancelRejectedOrder(
+        long orderId,
+        [FromBody] CancelOrderRequest request)
+    {
+        try
+        {
+            if (orderId <= 0)
+            {
+                return BadRequest(new { message = "医嘱ID无效" });
+            }
+
+            if (string.IsNullOrWhiteSpace(request.DoctorId))
+            {
+                return BadRequest(new { message = "医生ID不能为空" });
+            }
+
+            if (string.IsNullOrWhiteSpace(request.CancelReason))
+            {
+                return BadRequest(new { message = "撤销原因不能为空" });
+            }
+
+            _logger.LogInformation("接收撤销医嘱请求: 医嘱 {OrderId}, 医生 {DoctorId}, 原因: {Reason}",
+                orderId, request.DoctorId, request.CancelReason);
+
+            var result = await _queryService.CancelRejectedOrderAsync(
+                orderId, request.DoctorId, request.CancelReason);
+
+            _logger.LogInformation("✅ 撤销成功: 医嘱 {OrderId}", orderId);
+            return Ok(new { success = true, message = "撤销成功" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ 撤销医嘱失败: {OrderId}", orderId);
+            return StatusCode(500, new { success = false, message = ex.Message });
+        }
+    }
+}
+
+// DTO类定义
+public class ResubmitOrderRequest
+{
+    public string DoctorId { get; set; } = string.Empty;
+}
+
+public class CancelOrderRequest
+{
+    public string DoctorId { get; set; } = string.Empty;
+    public string CancelReason { get; set; } = string.Empty;
 }

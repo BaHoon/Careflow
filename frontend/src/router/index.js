@@ -18,6 +18,7 @@ import OrderApplication from '../views/OrderApplication.vue'
 
 // 医生子页面
 import OrderEntry from '../views/OrderEntry.vue'
+import DoctorOrderView from '../views/DoctorOrderView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -90,6 +91,12 @@ const router = createRouter({
           name: 'order-entry',
           component: OrderEntry,
           meta: { title: '医嘱开具' }
+        },
+        {
+          path: 'order-query', // 相对路径，实际路径为 /doctor/order-query
+          name: 'doctor-order-query',
+          component: DoctorOrderView,
+          meta: { title: '医嘱查询' }
         }
       ]
     }

@@ -405,13 +405,26 @@ public class OrderApplicationService : IOrderApplicationService
             foreach (var taskId in request.TaskIds)
             {
                 var applicationTask = await _taskRepository.GetByIdAsync(taskId);
-                if (applicationTask != null && applicationTask.Status == ExecutionTaskStatus.Applied)
+                if (applicationTask == null)
                 {
-                    applicationTask.Status = ExecutionTaskStatus.AppliedConfirmed;
-                    applicationTask.LastModifiedAt = DateTime.UtcNow;
-                    await _taskRepository.UpdateAsync(applicationTask);
-                    _logger.LogInformation("✅ 申请任务 {TaskId} 状态已更新为 AppliedConfirmed", taskId);
+                    _logger.LogWarning("⚠️ 申请任务 {TaskId} 不存在，无法更新状态", taskId);
+                    errors.Add($"申请任务 {taskId} 不存在");
+                    continue;
                 }
+
+                // 严格验证：只有Applied状态的任务才能更新为AppliedConfirmed
+                if (applicationTask.Status != ExecutionTaskStatus.Applied)
+                {
+                    _logger.LogWarning("⚠️ 申请任务 {TaskId} 状态为 {Status}，不是Applied状态，无法确认", 
+                        taskId, applicationTask.Status);
+                    errors.Add($"申请任务 {taskId} 状态为 {applicationTask.Status}，必须为Applied状态才能确认");
+                    continue;
+                }
+
+                applicationTask.Status = ExecutionTaskStatus.AppliedConfirmed;
+                applicationTask.LastModifiedAt = DateTime.UtcNow;
+                await _taskRepository.UpdateAsync(applicationTask);
+                _logger.LogInformation("✅ 申请任务 {TaskId} 状态已更新为 AppliedConfirmed", taskId);
             }
 
             // 4. 预约成功后，生成任务、分配护士、生成条形码

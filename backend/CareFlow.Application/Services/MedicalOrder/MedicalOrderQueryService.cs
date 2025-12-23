@@ -27,6 +27,7 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
     private readonly IRepository<Doctor, string> _doctorRepository;
     private readonly IRepository<Nurse, string> _nurseRepository;
     private readonly IRepository<Drug, string> _drugRepository;
+    private readonly IRepository<MedicalOrderStatusHistory, long> _statusHistoryRepository;
     private readonly ILogger<MedicalOrderQueryService> _logger;
 
     public MedicalOrderQueryService(
@@ -40,6 +41,7 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
         IRepository<Doctor, string> doctorRepository,
         IRepository<Nurse, string> nurseRepository,
         IRepository<Drug, string> drugRepository,
+        IRepository<MedicalOrderStatusHistory, long> statusHistoryRepository,
         ILogger<MedicalOrderQueryService> logger)
     {
         _orderRepository = orderRepository;
@@ -52,6 +54,7 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
         _doctorRepository = doctorRepository;
         _nurseRepository = nurseRepository;
         _drugRepository = drugRepository;
+        _statusHistoryRepository = statusHistoryRepository;
         _logger = logger;
     }
 
@@ -278,14 +281,16 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
                 return response;
             }
 
-            // 6. 筛选需要锁定的任务：停止节点之后的所有未完成任务
+            // 6. 筛选需要锁定的任务：停止节点之后的所有待申请、已申请、就绪、待执行状态的任务
             var tasksToLock = allTasks
                 .Skip(stopAfterIndex + 1) // 跳过停止节点及之前的任务
-                .Where(t => t.Status != ExecutionTaskStatus.Completed 
-                         && t.Status != ExecutionTaskStatus.Stopped)
+                .Where(t => t.Status == ExecutionTaskStatus.Applying 
+                         || t.Status == ExecutionTaskStatus.Applied
+                         || t.Status == ExecutionTaskStatus.AppliedConfirmed
+                         || t.Status == ExecutionTaskStatus.Pending)
                 .ToList();
 
-            _logger.LogInformation("需要锁定 {LockCount} 个任务", tasksToLock.Count);
+            _logger.LogInformation("需要锁定 {LockCount} 个任务（状态: 待申请/已申请/就绪/待执行）", tasksToLock.Count);
 
             // 7. 锁定任务：保存原状态 → 改为 OrderStopping
             var lockedTasks = new List<LockedTaskDto>();
@@ -316,6 +321,8 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
             }
 
             // 8. 更新医嘱状态：InProgress/Accepted → PendingStop
+            var previousStatus = order.Status;
+            
             order.Status = OrderStatus.PendingStop;
             order.StopReason = request.StopReason;
             order.StopOrderTime = DateTime.UtcNow;
@@ -324,6 +331,22 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
             await _orderRepository.UpdateAsync(order);
 
             _logger.LogInformation("✅ 医嘱状态更新为 PendingStop");
+
+            // 插入状态历史记录
+            var history = new MedicalOrderStatusHistory
+            {
+                MedicalOrderId = order.Id,
+                FromStatus = previousStatus,
+                ToStatus = OrderStatus.PendingStop,
+                ChangedAt = DateTime.UtcNow,
+                ChangedById = request.DoctorId,
+                ChangedByType = "Doctor",
+                Reason = $"医生下达停嘱指令: {request.StopReason}"
+            };
+            await _statusHistoryRepository.AddAsync(history);
+            
+            _logger.LogInformation("✅ 已记录状态变更历史: {FromStatus} → {ToStatus}",
+                previousStatus, OrderStatus.PendingStop);
 
             // 9. 返回成功响应
             response.Success = true;
@@ -545,6 +568,147 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
 
             default:
                 return "医嘱";
+        }
+    }
+
+    /// <summary>
+    /// 重新提交已退回的医嘱
+    /// 医嘱状态: Rejected → PendingReceive
+    /// </summary>
+    public async Task<bool> ResubmitRejectedOrderAsync(long orderId, string doctorId)
+    {
+        _logger.LogInformation("========== 医生重新提交已退回医嘱 ==========");
+        _logger.LogInformation("医嘱ID: {OrderId}, 医生ID: {DoctorId}", orderId, doctorId);
+
+        try
+        {
+            // 1. 查询医嘱
+            var order = await _orderRepository.GetByIdAsync(orderId);
+            if (order == null)
+            {
+                _logger.LogWarning("医嘱 {OrderId} 不存在", orderId);
+                throw new Exception($"医嘱 {orderId} 不存在");
+            }
+
+            // 2. 验证状态
+            if (order.Status != OrderStatus.Rejected)
+            {
+                _logger.LogWarning("医嘱 {OrderId} 状态为 {Status}，只能重新提交已退回的医嘱", orderId, order.Status);
+                throw new Exception($"医嘱状态为 {order.Status}，只能重新提交已退回的医嘱");
+            }
+
+            // 3. 验证操作人
+            if (order.DoctorId != doctorId)
+            {
+                _logger.LogWarning("医生 {DoctorId} 无权操作医嘱 {OrderId}（开单医生: {OriginalDoctorId}）",
+                    doctorId, orderId, order.DoctorId);
+                throw new Exception("只有开单医生才能重新提交医嘱");
+            }
+
+            var previousStatus = order.Status;
+
+            // 4. 更新状态为 PendingReceive
+            order.Status = OrderStatus.PendingReceive;
+            order.ResubmittedAt = DateTime.UtcNow;
+            
+            await _orderRepository.UpdateAsync(order);
+
+            _logger.LogInformation("✅ 医嘱 {OrderId} 状态已从 Rejected 更新为 PendingReceive", orderId);
+
+            // 5. 插入状态历史记录
+            var history = new MedicalOrderStatusHistory
+            {
+                MedicalOrderId = order.Id,
+                FromStatus = previousStatus,
+                ToStatus = OrderStatus.PendingReceive,
+                ChangedAt = DateTime.UtcNow,
+                ChangedById = doctorId,
+                ChangedByType = "Doctor",
+                Reason = "医生重新提交已退回的医嘱"
+            };
+            await _statusHistoryRepository.AddAsync(history);
+
+            _logger.LogInformation("✅ 已记录状态变更历史");
+            _logger.LogInformation("========== 重新提交完成 ==========");
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ 重新提交医嘱失败: {OrderId}", orderId);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// 撤销已退回的医嘱
+    /// 医嘱状态: Rejected → Cancelled
+    /// </summary>
+    public async Task<bool> CancelRejectedOrderAsync(long orderId, string doctorId, string cancelReason)
+    {
+        _logger.LogInformation("========== 医生撤销已退回医嘱 ==========");
+        _logger.LogInformation("医嘱ID: {OrderId}, 医生ID: {DoctorId}, 原因: {Reason}",
+            orderId, doctorId, cancelReason);
+
+        try
+        {
+            // 1. 查询医嘱
+            var order = await _orderRepository.GetByIdAsync(orderId);
+            if (order == null)
+            {
+                _logger.LogWarning("医嘱 {OrderId} 不存在", orderId);
+                throw new Exception($"医嘱 {orderId} 不存在");
+            }
+
+            // 2. 验证状态
+            if (order.Status != OrderStatus.Rejected)
+            {
+                _logger.LogWarning("医嘱 {OrderId} 状态为 {Status}，只能撤销已退回的医嘱", orderId, order.Status);
+                throw new Exception($"医嘱状态为 {order.Status}，只能撤销已退回的医嘱");
+            }
+
+            // 3. 验证操作人
+            if (order.DoctorId != doctorId)
+            {
+                _logger.LogWarning("医生 {DoctorId} 无权操作医嘱 {OrderId}（开单医生: {OriginalDoctorId}）",
+                    doctorId, orderId, order.DoctorId);
+                throw new Exception("只有开单医生才能撤销医嘱");
+            }
+
+            var previousStatus = order.Status;
+
+            // 4. 更新状态为 Cancelled
+            order.Status = OrderStatus.Cancelled;
+            order.CancelReason = cancelReason;
+            order.CancelledAt = DateTime.UtcNow;
+            order.CancelledByDoctorId = doctorId;
+            
+            await _orderRepository.UpdateAsync(order);
+
+            _logger.LogInformation("✅ 医嘱 {OrderId} 状态已从 Rejected 更新为 Cancelled", orderId);
+
+            // 5. 插入状态历史记录
+            var history = new MedicalOrderStatusHistory
+            {
+                MedicalOrderId = order.Id,
+                FromStatus = previousStatus,
+                ToStatus = OrderStatus.Cancelled,
+                ChangedAt = DateTime.UtcNow,
+                ChangedById = doctorId,
+                ChangedByType = "Doctor",
+                Reason = $"医生撤销医嘱: {cancelReason}"
+            };
+            await _statusHistoryRepository.AddAsync(history);
+
+            _logger.LogInformation("✅ 已记录状态变更历史");
+            _logger.LogInformation("========== 撤销完成 ==========");
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ 撤销医嘱失败: {OrderId}", orderId);
+            throw;
         }
     }
 }

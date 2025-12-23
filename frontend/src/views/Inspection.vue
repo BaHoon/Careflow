@@ -146,8 +146,10 @@
         <!-- 分页 -->
         <div class="pagination-container">
           <el-pagination
-            v-model:current-page="pagination.currentPage"
-            v-model:page-size="pagination.pageSize"
+            :current-page="pagination.currentPage"
+            @update:current-page="pagination.currentPage = $event"
+            :page-size="pagination.pageSize"
+            @update:page-size="pagination.pageSize = $event"
             :page-sizes="[10, 20, 50, 100]"
             :total="total"
             layout="total, sizes, prev, pager, next, jumper"

@@ -329,6 +329,14 @@
                 >
                   批量签收 ({{ selectedStoppedCount }})
                 </el-button>
+                <el-button 
+                  type="danger" 
+                  :disabled="selectedStoppedCount === 0"
+                  @click="rejectStoppedBatch"
+                  class="action-btn"
+                >
+                  批量退回 ({{ selectedStoppedCount }})
+                </el-button>
               </div>
             </div>
 
@@ -380,6 +388,13 @@
                 >
                   签收
                 </el-button>
+                <el-button 
+                  type="danger"
+                  @click="rejectStoppedOne(order)"
+                  class="action-btn-small"
+                >
+                  退回
+                </el-button>
               </div>
             </div>
           </div>
@@ -408,6 +423,7 @@ import {
   getPatientPendingOrders,
   acknowledgeOrders,
   rejectOrders,
+  rejectStopOrders,
   requestMedicationImmediately,
   requestInspection,
   cancelMedicationRequest
@@ -978,12 +994,12 @@ const handleStoppedOrderWithPendingRequests = async (result) => {
 
 // ==================== 退回逻辑 ====================
 
-// 单条退回
+// 单条退回（新开医嘱）
 const rejectOne = async (order) => {
   await rejectBatchInternal([order.orderId]);
 };
 
-// 批量退回
+// 批量退回（新开医嘱）
 const rejectBatch = async () => {
   const selectedIds = pendingOrders.value.newOrders
     .filter(o => o.selected)
@@ -997,7 +1013,26 @@ const rejectBatch = async () => {
   await rejectBatchInternal(selectedIds);
 };
 
-// 退回核心逻辑
+// 单条退回（停止医嘱）
+const rejectStoppedOne = async (order) => {
+  await rejectStoppedBatchInternal([order.orderId]);
+};
+
+// 批量退回（停止医嘱）
+const rejectStoppedBatch = async () => {
+  const selectedIds = pendingOrders.value.stoppedOrders
+    .filter(o => o.selected)
+    .map(o => o.orderId);
+  
+  if (selectedIds.length === 0) {
+    ElMessage.warning('请至少选择一条医嘱');
+    return;
+  }
+
+  await rejectStoppedBatchInternal(selectedIds);
+};
+
+// 退回核心逻辑（新开医嘱）
 const rejectBatchInternal = async (orderIds) => {
   try {
     // 弹窗输入退回原因
@@ -1037,6 +1072,50 @@ const rejectBatchInternal = async (orderIds) => {
       return;
     }
     console.error('退回失败:', error);
+    ElMessage.error(error.message || '退回失败');
+  }
+};
+
+// 退回核心逻辑（停止医嘱）
+const rejectStoppedBatchInternal = async (orderIds) => {
+  try {
+    // 弹窗输入拒绝原因
+    const { value: reason } = await ElMessageBox.prompt(
+      '请输入拒绝停止医嘱的原因（该医嘱将恢复为执行中状态）',
+      '拒绝停止医嘱',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        inputPattern: /\S+/,
+        inputErrorMessage: '拒绝原因不能为空'
+      }
+    );
+
+    const result = await rejectStopOrders({
+      nurseId: currentNurse.value.staffId,
+      orderIds: orderIds,
+      rejectReason: reason
+    });
+
+    if (!result.success) {
+      ElMessage.error(result.message || '退回失败');
+      return;
+    }
+
+    ElMessage.success(result.message);
+
+    // 清除选择状态
+    selectAllStopped.value = false;
+    pendingOrders.value.stoppedOrders.forEach(o => o.selected = false);
+
+    // 刷新列表
+    await refreshCurrentView();
+  } catch (error) {
+    if (error === 'cancel') {
+      // 用户取消
+      return;
+    }
+    console.error('退回停止医嘱失败:', error);
     ElMessage.error(error.message || '退回失败');
   }
 };

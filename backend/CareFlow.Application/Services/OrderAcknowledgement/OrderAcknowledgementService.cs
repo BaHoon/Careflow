@@ -83,11 +83,11 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
 
             foreach (var patient in patients)
             {
-                // 2. 统计该患者的未签收医嘱数量（状态为PendingReceive、Rejected或PendingStop）
+                // 2. 统计该患者的未签收医嘱数量（状态为PendingReceive或PendingStop）
+                // 注意：已退回（Rejected）的医嘱不计入待签收数量，等待医生修改后重新提交
                 var unacknowledgedCount = await _orderRepository.GetQueryable()
                     .Where(o => o.PatientId == patient.Id && 
                                (o.Status == OrderStatus.PendingReceive || 
-                                o.Status == OrderStatus.Rejected ||
                                 o.Status == OrderStatus.PendingStop))
                     .CountAsync();
 
@@ -125,13 +125,13 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
 
         try
         {
-            // 查询所有待签收的医嘱（包括新开、退回和停止）
+            // 查询所有待签收的医嘱（包括新开和停止）
+            // 注意：已退回（Rejected）的医嘱不应再显示在护士列表中，等待医生修改后重新提交
             var pendingOrders = await _orderRepository.GetQueryable()
                 .Include(o => o.Doctor)
                 .Include(o => o.Patient)
                 .Where(o => o.PatientId == patientId && 
                            (o.Status == OrderStatus.PendingReceive || 
-                            o.Status == OrderStatus.Rejected ||
                             o.Status == OrderStatus.PendingStop))
                 .OrderByDescending(o => o.CreateTime)
                 .ToListAsync();
@@ -272,9 +272,9 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
                     continue;
                 }
 
-                if (order.Status != OrderStatus.PendingReceive && order.Status != OrderStatus.Rejected)
+                if (order.Status != OrderStatus.PendingReceive)
                 {
-                    errors.Add($"医嘱 {orderId} 状态为 {order.Status}，不允许退回");
+                    errors.Add($"医嘱 {orderId} 状态为 {order.Status}，只能退回 PendingReceive 状态的医嘱");
                     continue;
                 }
 
@@ -327,7 +327,7 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
 
     /// <summary>
     /// 护士拒绝停嘱
-    /// 医嘱状态: PendingStop → InProgress
+    /// 医嘱状态: PendingStop → 停止前的原始状态（通过历史记录查询）
     /// 任务状态: OrderStopping → 锁定前的原始状态
     /// </summary>
     public async Task<RejectStopOrderResponseDto> RejectStopOrderAsync(
@@ -366,10 +366,29 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
                     continue;
                 }
 
-                var previousStatus = order.Status;
+                var currentStatus = order.Status;
                 
-                // 2. 恢复医嘱状态为 InProgress
-                order.Status = OrderStatus.InProgress;
+                // 2. 查询历史记录表，获取变为 PendingStop 之前的状态
+                var lastHistory = await _statusHistoryRepository.GetQueryable()
+                    .Where(h => h.MedicalOrderId == order.Id && h.ToStatus == OrderStatus.PendingStop)
+                    .OrderByDescending(h => h.ChangedAt)
+                    .FirstOrDefaultAsync();
+                
+                OrderStatus statusToRestore;
+                if (lastHistory != null)
+                {
+                    statusToRestore = lastHistory.FromStatus;
+                    _logger.LogInformation("从历史记录获取停止前状态: {FromStatus}", statusToRestore);
+                }
+                else
+                {
+                    // 如果没有找到历史记录，默认恢复为 InProgress
+                    statusToRestore = OrderStatus.InProgress;
+                    _logger.LogWarning("未找到医嘱 {OrderId} 的停止前状态历史记录，默认恢复为 InProgress", orderId);
+                }
+                
+                // 3. 恢复医嘱状态到停止前的状态
+                order.Status = statusToRestore;
                 order.StopRejectReason = request.RejectReason;
                 order.StopRejectedAt = DateTime.UtcNow;
                 order.StopRejectedByNurseId = request.NurseId;
@@ -380,14 +399,15 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
                 
                 await _orderRepository.UpdateAsync(order);
                 
-                _logger.LogInformation("✅ 医嘱 {OrderId} 状态已从 PendingStop 恢复为 InProgress", orderId);
+                _logger.LogInformation("✅ 医嘱 {OrderId} 状态已从 PendingStop 恢复为 {RestoredStatus}", 
+                    orderId, statusToRestore);
                 
-                // 3. 插入状态历史记录
+                // 4. 插入状态历史记录
                 var history = new MedicalOrderStatusHistory
                 {
                     MedicalOrderId = order.Id,
-                    FromStatus = previousStatus,
-                    ToStatus = OrderStatus.InProgress,
+                    FromStatus = currentStatus,
+                    ToStatus = statusToRestore,
                     ChangedAt = DateTime.UtcNow,
                     ChangedById = request.NurseId,
                     ChangedByType = "Nurse",
