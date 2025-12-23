@@ -149,4 +149,71 @@ public class PatientController : ControllerBase
             return StatusCode(500, new { message = "获取患者详情失败: " + ex.Message });
         }
     }
+
+    /// <summary>
+    /// 更新患者护理等级
+    /// </summary>
+    /// <param name="patientId">患者ID</param>
+    /// <param name="request">更新请求</param>
+    [HttpPut("{patientId}/nursing-grade")]
+    public async Task<IActionResult> UpdateNursingGrade(
+        string patientId,
+        [FromBody] UpdateNursingGradeRequest request)
+    {
+        try
+        {
+            _logger.LogInformation("更新患者护理等级，患者ID: {PatientId}, 新等级: {NewGrade}", patientId, request.NewGrade);
+
+            var patient = await _patientRepository.GetByIdAsync(patientId);
+            if (patient == null)
+            {
+                return NotFound(new { message = $"未找到ID为 {patientId} 的患者" });
+            }
+
+            var oldGrade = patient.NursingGrade;
+            patient.NursingGrade = (CareFlow.Core.Enums.NursingGrade)request.NewGrade;
+            
+            await _patientRepository.UpdateAsync(patient);
+
+            _logger.LogInformation("患者 {PatientId} 护理等级已从 {OldGrade} 更新为 {NewGrade}，操作医生: {DoctorId}", 
+                patientId, oldGrade, patient.NursingGrade, request.DoctorId);
+
+            return Ok(new 
+            { 
+                message = "护理等级更新成功",
+                data = new
+                {
+                    patientId = patient.Id,
+                    oldGrade = (int)oldGrade,
+                    newGrade = (int)patient.NursingGrade
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "更新患者护理等级失败，ID: {PatientId}", patientId);
+            return StatusCode(500, new { message = "更新护理等级失败: " + ex.Message });
+        }
+    }
+}
+
+/// <summary>
+/// 更新护理等级请求
+/// </summary>
+public class UpdateNursingGradeRequest
+{
+    /// <summary>
+    /// 新的护理等级 (0=特级, 1=一级, 2=二级, 3=三级)
+    /// </summary>
+    public int NewGrade { get; set; }
+
+    /// <summary>
+    /// 修改原因
+    /// </summary>
+    public string? Reason { get; set; }
+
+    /// <summary>
+    /// 操作医生ID
+    /// </summary>
+    public string DoctorId { get; set; } = string.Empty;
 }
