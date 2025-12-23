@@ -186,5 +186,42 @@ namespace CareFlow.Application.Services.Nursing
                 }
             }
         }
+
+        /// <summary>
+        /// 取消护理任务
+        /// </summary>
+        /// <param name="taskId">任务ID</param>
+        /// <param name="nurseId">操作护士ID</param>
+        /// <param name="cancelReason">取消理由</param>
+        public async Task CancelNursingTaskAsync(long taskId, string nurseId, string cancelReason)
+        {
+            Console.WriteLine($"📝 VitalSignService.CancelNursingTaskAsync - TaskId: {taskId}, NurseId: {nurseId}, Reason: {cancelReason}");
+            
+            var task = await _context.Set<NursingTask>().FindAsync(taskId);
+            if (task == null)
+            {
+                Console.WriteLine($"❌ 未找到任务 {taskId}");
+                throw new Exception($"未找到ID为 {taskId} 的护理任务");
+            }
+
+            Console.WriteLine($"📌 任务当前状态: {task.Status}");
+            
+            // 只有待执行的任务才能取消
+            if (task.Status != ExecutionTaskStatus.Pending)
+            {
+                Console.WriteLine($"❌ 任务状态不是Pending，无法取消");
+                throw new Exception($"任务状态为 {task.Status}，无法取消");
+            }
+
+            // 更新任务状态为已取消
+            task.Status = ExecutionTaskStatus.Cancelled;
+            task.ExecuteTime = DateTime.UtcNow; // 记录取消时间
+            task.ExecutorNurseId = nurseId; // 记录取消操作的护士
+            task.CancelReason = cancelReason; // 记录取消理由
+
+            Console.WriteLine($"✅ 准备保存，任务状态更新为 Cancelled");
+            await _context.SaveChangesAsync();
+            Console.WriteLine($"✅ 保存成功");
+        }
     }
 }

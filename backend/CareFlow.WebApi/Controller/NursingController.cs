@@ -97,6 +97,38 @@ namespace CareFlow.WebApi.Controllers
         }
 
         /// <summary>
+        /// [护士端] 取消护理任务
+        /// </summary>
+        /// <param name="taskId">任务ID</param>
+        /// <param name="nurseId">护士ID</param>
+        /// <param name="cancelReason">取消理由</param>
+        /// <returns></returns>
+        [HttpPost("tasks/{taskId}/cancel")]
+        public async Task<IActionResult> CancelNursingTask(long taskId, [FromQuery] string nurseId, [FromQuery] string? cancelReason = null)
+        {
+            Console.WriteLine($"🔵 收到取消任务请求 - TaskId: {taskId}, NurseId: {nurseId}, Reason: {cancelReason}");
+            
+            if (string.IsNullOrEmpty(nurseId))
+            {
+                Console.WriteLine($"❌ 护士ID为空");
+                return BadRequest(new { message = "护士ID不能为空" });
+            }
+
+            try
+            {
+                await _vitalSignService.CancelNursingTaskAsync(taskId, nurseId, cancelReason ?? "未填写取消理由");
+                Console.WriteLine($"✅ 任务 {taskId} 取消成功");
+                return Ok(new { message = "任务已取消" });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ 取消任务失败: {ex.Message}");
+                Console.WriteLine($"堆栈: {ex.StackTrace}");
+                return StatusCode(500, new { message = "取消任务失败", error = ex.Message });
+            }
+        }
+
+        /// <summary>
         /// [护士端] 获取病区床位概览
         /// </summary>
         /// <param name="wardId">病区ID（可选）</param>

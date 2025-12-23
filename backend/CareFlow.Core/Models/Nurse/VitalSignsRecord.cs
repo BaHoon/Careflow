@@ -53,7 +53,10 @@ public class NursingTask : EntityBase<long>
     public DateTime? ExecuteTime { get; set; }      // 实际执行时间
         
     // [用户需求] 实际执行护士 (可能和分配的不一样，比如帮忙代测)
-    public string? ExecutorNurseId { get; set; }    
+    public string? ExecutorNurseId { get; set; }
+    
+    // 取消理由（仅当Status=Cancelled时有值）
+    public string? CancelReason { get; set; }
 
     // --- 3. 任务元数据 ---
     public string TaskType { get; set; } = "Routine"; // Routine(常规), ReMeasure(复测)

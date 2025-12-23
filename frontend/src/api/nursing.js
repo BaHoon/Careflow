@@ -82,3 +82,30 @@ export const getVitalSignsHistory = (patientId, startDate = null, endDate = null
   
   return api.get('/Nursing/vitalsigns/history', { params });
 };
+
+/**
+ * 取消护理任务
+ * @param {number} taskId - 任务ID
+ * @param {string} nurseId - 护士ID
+ * @param {string} cancelReason - 取消理由
+ */
+export const cancelNursingTask = (taskId, nurseId, cancelReason = '') => {
+  console.log('调用cancelNursingTask API - taskId:', taskId, 'nurseId:', nurseId, 'reason:', cancelReason);
+  
+  if (!taskId) {
+    console.error('taskId is invalid:', taskId);
+    throw new Error('任务ID无效');
+  }
+  
+  if (!nurseId) {
+    console.error('nurseId is invalid:', nurseId);
+    throw new Error('护士ID无效');
+  }
+  
+  const url = `/Nursing/tasks/${taskId}/cancel`;
+  console.log('请求URL:', url, 'params:', { nurseId, cancelReason });
+  
+  return api.post(url, null, {
+    params: { nurseId, cancelReason }
+  });
+};

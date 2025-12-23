@@ -60,7 +60,10 @@ public enum ExecutionTaskStatus
     Stopped = 7,
     
     /// <summary>异常/拒绝 - 护士跳过执行或执行异常</summary>
-    Incomplete = 8
+    Incomplete = 8,
+    
+    /// <summary>已取消 - 护士手动取消任务</summary>
+    Cancelled = 9
 }
 
 /// <summary>

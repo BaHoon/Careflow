@@ -63,6 +63,7 @@
                 @click="handleTaskClick"
                 @start-input="handleStartInput"
                 @view-detail="handleViewDetail"
+                @task-cancelled="handleTaskCancelled"
               />
             </div>
           </div>
@@ -90,6 +91,7 @@
                 @click="handleTaskClick"
                 @start-input="handleStartInput"
                 @view-detail="handleViewDetail"
+                @task-cancelled="handleTaskCancelled"
               />
             </div>
           </div>
@@ -116,6 +118,7 @@
                 @click="handleTaskClick"
                 @start-input="handleStartInput"
                 @view-detail="handleViewDetail"
+                @task-cancelled="handleTaskCancelled"
               />
             </div>
           </div>
@@ -142,6 +145,7 @@
                 @click="handleTaskClick"
                 @start-input="handleStartInput"
                 @view-detail="handleViewDetail"
+                @task-cancelled="handleTaskCancelled"
               />
             </div>
           </div>
@@ -169,13 +173,18 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['task-click', 'start-input', 'view-detail']);
+const emit = defineEmits(['task-click', 'start-input', 'view-detail', 'task-cancelled']);
 
 // 任务统计
 const statistics = computed(() => {
   return {
-    // 超时任务：超出容忍期的未完成任务
-    overdueCount: props.tasks.filter(t => t.excessDelayMinutes > 0 && t.status !== 5).length,
+    // 超时任务：超出容忍期的未完成且未取消的任务
+    overdueCount: props.tasks.filter(t => 
+      t.excessDelayMinutes > 0 && 
+      t.status !== 5 && 
+      t.status !== 9 && 
+      t.status !== 'Cancelled'
+    ).length,
     // 临期任务：前一小时到容忍期内的待执行任务
     dueSoonCount: props.tasks.filter(t => 
       t.status === 3 && 
@@ -195,8 +204,13 @@ const statistics = computed(() => {
 // 任务分组
 const groupedTasks = computed(() => {
   return {
-    // 超时任务：超出容忍期的未完成任务
-    overdue: props.tasks.filter(t => t.excessDelayMinutes > 0 && t.status !== 5),
+    // 超时任务：超出容忍期的未完成且未取消的任务
+    overdue: props.tasks.filter(t => 
+      t.excessDelayMinutes > 0 && 
+      t.status !== 5 && 
+      t.status !== 9 && 
+      t.status !== 'Cancelled'
+    ),
     // 临期任务：前一小时到容忍期内的待执行任务
     dueSoon: props.tasks.filter(t => 
       t.status === 3 && 
@@ -226,6 +240,11 @@ const handleStartInput = (task) => {
 // 查看详情事件
 const handleViewDetail = (task) => {
   emit('view-detail', task);
+};
+
+// 任务取消事件
+const handleTaskCancelled = (taskId) => {
+  emit('task-cancelled', taskId);
 };
 </script>
 
