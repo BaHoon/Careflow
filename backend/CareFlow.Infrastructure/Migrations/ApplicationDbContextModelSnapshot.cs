@@ -685,9 +685,8 @@ namespace CareFlow.Infrastructure.Migrations
                     b.Property<DateTime>("ScheduledTime")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
 
                     b.Property<string>("TaskType")
                         .IsRequired()

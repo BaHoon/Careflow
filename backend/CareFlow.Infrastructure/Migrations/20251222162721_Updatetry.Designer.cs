@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CareFlow.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251222115156_InitCreate")]
-    partial class InitCreate
+    [Migration("20251222162721_Updatetry")]
+    partial class Updatetry
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -688,9 +688,8 @@ namespace CareFlow.Infrastructure.Migrations
                     b.Property<DateTime>("ScheduledTime")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
 
                     b.Property<string>("TaskType")
                         .IsRequired()

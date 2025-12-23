@@ -69,7 +69,7 @@ namespace CareFlow.Application.Services.Nursing
                         // 填入计算出的护士ID (如果没排班，这里可能是null，允许后续人工分配)
                         AssignedNurseId = assignedNurseId, 
                         
-                        Status = "Pending",
+                        Status = ExecutionTaskStatus.Pending,
                         TaskType = "Routine", // 标记为常规任务
                         Description = $"常规护理 (等级:{(NursingGrade)patient.NursingGrade})",
                         
@@ -96,27 +96,27 @@ namespace CareFlow.Application.Services.Nursing
             {
                 // 三级护理: 每日1次 (14:00)
                 NursingGrade.Grade3 => new List<TimeSpan> { 
-                    new(6, 0, 0) 
+                    new(14, 0, 0) 
                 },
 
                 // 二级护理: 每日2次 (08:00, 16:00)
                 NursingGrade.Grade2 => new List<TimeSpan> { 
-                    new(0, 0, 0), 
-                    new(8, 0, 0) 
+                    new(8, 0, 0), 
+                    new(16, 0, 0) 
                 },
 
                 // 一级护理: 每日3次 (08:00, 16:00, 20:00)
                 NursingGrade.Grade1 => new List<TimeSpan> { 
-                    new(0, 0, 0), 
-                    new(8, 0, 0),
-                    new(12, 0, 0)
+                    new(8, 0, 0), 
+                    new(16, 0, 0),
+                    new(20, 0, 0)
                 },
 
-                // 特级护理: 每2小时一次 (08:00, 10:00 ... )
+                // 特级护理: 每2小时一次，24小时不间断，逢双数整点 (08:00, 10:00, 12:00, 14:00, 16:00, 18:00, 20:00, 22:00, 00:00, 02:00, 04:00, 06:00)
                 NursingGrade.Special => new List<TimeSpan> { 
+                    new(0, 0, 0), new(2, 0, 0), new(4, 0, 0), new(6, 0, 0),
                     new(8, 0, 0), new(10, 0, 0), new(12, 0, 0), new(14, 0, 0),
-                    new(16, 0, 0), new(18, 0, 0), new(20, 0, 0), new(22, 0, 0),
-                    new(0, 0, 0), new(2, 0, 0), new(4, 0, 0), new(6, 0, 0)
+                    new(16, 0, 0), new(18, 0, 0), new(20, 0, 0), new(22, 0, 0)
                 },
 
                 _ => new List<TimeSpan>() // 默认不生成
