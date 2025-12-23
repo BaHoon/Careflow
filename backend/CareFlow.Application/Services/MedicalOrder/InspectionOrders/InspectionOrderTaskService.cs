@@ -17,10 +17,9 @@ namespace CareFlow.Application.Services.MedicalOrder;
 /// 检查类医嘱任务生成服务
 /// 业务流程：
 /// 1. 预约完成 → 病房护士打印导引单交给患者
-/// 2. 患者自行前往检查站
-/// 3. 患者到达 → 检查站护士扫码签到（系统自动更新状态为"检查中"）
-/// 4. 检查完成 → 检查站护士扫码确认（系统自动更新状态为"已回病房"）
-/// 5. 报告推送 → 病房护士查看报告（动态创建任务）
+/// 2. 患者自行前往检查站进行检查
+/// 3. 检查时间半小时后 → 系统自动从检查站获取报告
+/// 4. 报告到达 → 病房护士查看报告（动态创建任务）
 /// </summary>
 public class InspectionOrderTaskService : IInspectionService
 {
@@ -113,13 +112,8 @@ public class InspectionOrderTaskService : IInspectionService
         var tasks = new List<ExecutionTask>
         {
             // 任务1: 打印检查导引单（病房护士，预约后立即执行）
-            // CreatePrintGuideTask(order, appointmentDetail.AppointmentTime.AddMinutes(-30)),
-            
-            // 任务2: 患者检查签到（检查站护士，预约时间前5分钟）
-            CreatePatientCheckInTask(order, appointmentDetail.AppointmentTime.AddMinutes(-5)),
-            
-            // 任务3: 检查完成确认（检查站护士，预约时间后30分钟）
-            CreateCheckCompleteTask(order, appointmentDetail.AppointmentTime.AddMinutes(30))
+            CreatePrintGuideTask(order, appointmentDetail.AppointmentTime.AddMinutes(-30))
+            // 检查时间半小时后自动从检查站返回报告
         };
 
         // 保存任务到数据库
@@ -143,12 +137,7 @@ public class InspectionOrderTaskService : IInspectionService
         var timestamp = dto.Timestamp ?? DateTime.UtcNow;
         switch (dto.Status)
         {
-            case InspectionOrderStatus.InProgress:
-                order.CheckStartTime = timestamp;
-                break;
             case InspectionOrderStatus.ReportPending:
-                if (!order.CheckEndTime.HasValue)
-                    order.CheckEndTime = timestamp;
                 order.ReportPendingTime = timestamp;
                 break;
             case InspectionOrderStatus.ReportCompleted:
@@ -226,7 +215,7 @@ public class InspectionOrderTaskService : IInspectionService
         order.ReportId = report.Id.ToString();
         await _orderRepo.UpdateAsync(order);
 
-        // 步骤7完成后:检查站护士发送报告,自动生成"查看报告"任务
+        // 报告创建完成后，自动生成"查看报告"任务
         await CreateReportReviewTask(order, report.Id);
 
         return report.Id;
@@ -295,44 +284,7 @@ public class InspectionOrderTaskService : IInspectionService
             task.ExecutorStaffId = dto.NurseId;
             await _taskRepo.UpdateAsync(task);
 
-            return new { message = "✅ 导引单已打印", taskType = "print" };
-        }
-        else if (payload.Contains("INSP_CHECKIN"))
-        {
-            var order = await _orderRepo.GetByIdAsync(task.MedicalOrderId);
-            if (order != null)
-            {
-                order.InspectionStatus = InspectionOrderStatus.InProgress;
-                order.CheckStartTime = DateTime.UtcNow;
-                await _orderRepo.UpdateAsync(order);
-            }
-
-            task.Status = ExecutionTaskStatus.Completed;
-            task.ActualStartTime = DateTime.UtcNow;
-            task.ActualEndTime = DateTime.UtcNow;
-            task.ExecutorStaffId = dto.NurseId;
-            await _taskRepo.UpdateAsync(task);
-
-            return new { message = "✅ 签到成功,患者已开始检查", taskType = "checkin" };
-        }
-        else if (payload.Contains("INSP_COMPLETE"))
-        {
-            var order = await _orderRepo.GetByIdAsync(task.MedicalOrderId);
-            if (order != null)
-            {
-                order.InspectionStatus = InspectionOrderStatus.ReportPending;
-                order.CheckEndTime = DateTime.UtcNow;
-                order.ReportPendingTime = DateTime.UtcNow;
-                await _orderRepo.UpdateAsync(order);
-            }
-
-            task.Status = ExecutionTaskStatus.Completed;
-            task.ActualStartTime = DateTime.UtcNow;
-            task.ActualEndTime = DateTime.UtcNow;
-            task.ExecutorStaffId = dto.NurseId;
-            await _taskRepo.UpdateAsync(task);
-
-            return new { message = "✅ 检查完成,患者可返回病房", taskType = "complete" };
+            return new { message = "✅ 导引单已打印，患者可前往检查", taskType = "print" };
         }
 
         throw new Exception("未知的任务类型");
@@ -353,7 +305,6 @@ public class InspectionOrderTaskService : IInspectionService
         return status switch
         {
             InspectionOrderStatus.Pending => "待前往",
-            InspectionOrderStatus.InProgress => "检查中",
             InspectionOrderStatus.ReportPending => "报告待出",
             InspectionOrderStatus.ReportCompleted => "报告已出",
             InspectionOrderStatus.Cancelled => "已取消",
@@ -383,13 +334,8 @@ public class InspectionOrderTaskService : IInspectionService
         var tasks = new List<ExecutionTask>
         {
             // 任务1: 打印导引单（病房护士，预约完成后立即执行）
-            CreatePrintGuideTask(order, appointmentTime.AddMinutes(-60)),
-            
-            // 任务2: 检查站签到（检查站护士，扫码后自动完成）
-            CreatePatientCheckInTask(order, appointmentTime),
-            
-            // 任务3: 检查完成确认（检查站护士，扫码后自动完成）
-            CreateCheckCompleteTask(order, appointmentTime.AddMinutes(30))
+            CreatePrintGuideTask(order, appointmentTime.AddMinutes(-60))
+            // 检查时间半小时后自动从检查站返回报告
         };
         
         // 保存任务到数据库
@@ -439,7 +385,7 @@ public class InspectionOrderTaskService : IInspectionService
         {
             MedicalOrderId = order.Id,
             PatientId = order.PatientId,
-            Category = TaskCategory.Immediate,
+            Category = TaskCategory.ResultPending,  // 结果等待类：打印导引单后等待检查报告返回
             PlannedStartTime = plannedTime,
             Status = ExecutionTaskStatus.Pending,
             CreatedAt = DateTime.UtcNow,
@@ -453,70 +399,7 @@ public class InspectionOrderTaskService : IInspectionService
             })
         };
     }
-    
-    /// <summary>
-    /// 任务2: 检查站签到（检查站护士扫码）
-    /// </summary>
-    private ExecutionTask CreatePatientCheckInTask(InspectionOrder order, DateTime plannedTime)
-    {
-        return new ExecutionTask
-        {
-            MedicalOrderId = order.Id,
-            PatientId = order.PatientId,
-            Category = TaskCategory.DataCollection,
-            PlannedStartTime = plannedTime,
-            Status = ExecutionTaskStatus.Pending,
-            CreatedAt = DateTime.UtcNow,
-            DataPayload = JsonSerializer.Serialize(new
-            {
-                TaskType = "INSP_CHECKIN",
-                Title = "检查站签到",
-                Description = "患者到达检查站，请扫描导引单确认",
-                IsChecklist = false,
-                Items = new
-                {
-                    orderId = order.Id,
-                    patientId = order.PatientId,
-                    risLisId = order.RisLisId,
-                    qrCodeData = $"INSPECTION_{order.Id}_{order.PatientId}",
-                    scanRequired = true,
-                    autoComplete = true
-                }
-            })
-        };
-    }
-    
-    /// <summary>
-    /// 任务3: 检查完成确认（检查站护士扫码）
-    /// </summary>
-    private ExecutionTask CreateCheckCompleteTask(InspectionOrder order, DateTime plannedTime)
-    {
-        return new ExecutionTask
-        {
-            MedicalOrderId = order.Id,
-            PatientId = order.PatientId,
-            Category = TaskCategory.Immediate,
-            PlannedStartTime = plannedTime,
-            Status = ExecutionTaskStatus.Pending,
-            CreatedAt = DateTime.UtcNow,
-            DataPayload = JsonSerializer.Serialize(new
-            {
-                TaskType = "INSP_COMPLETE",
-                Title = "检查完成确认",
-                Description = "检查完成，请扫描确认患者可以离开",
-                IsChecklist = false,
-                Items = new
-                {
-                    orderId = order.Id,
-                    patientId = order.PatientId,
-                    risLisId = order.RisLisId,
-                    qrCodeData = $"INSPECTION_{order.Id}_{order.PatientId}",
-                    scanRequired = true,
-                    autoComplete = true
-                }
-            })
-        };
-    }
+
     
     /// <summary>
     /// 动态创建任务：查看检查报告（病房护士）

@@ -658,7 +658,7 @@
                             v-model="inspectionOrder.remarks"
                             type="textarea"
                             :rows="2"
-                            placeholder="其他需要说明的事项（检查注意事项由检查站返回）"
+                            placeholder="其他需要说明的事项（检查注意事项将在预约确认后返回）"
                             maxlength="500"
                             show-word-limit
                           />
@@ -1130,7 +1130,7 @@ const inspectionOrder = reactive({
   // 通用字段
   clinicalDiagnosis: '',     // 临床诊断（必填）
   purpose: 'DIAGNOSIS',      // 检查目的
-  remarks: ''                // 备注（注意事项由检查站返回，不在此填写）
+  remarks: ''                // 备注（注意事项将在预约确认后返回）
 });
 
 // 手术医嘱的响应式数据
