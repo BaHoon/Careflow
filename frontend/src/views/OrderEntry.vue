@@ -353,55 +353,325 @@
               </div>
             </div>
 
-<!-- 检查医嘱表单 DONE-->
+<!-- 检查医嘱表单 - 完善版 -->
                     <div v-else-if="activeType === 'InspectionOrder'" class="inspection-form">
+                      <!-- 检查类别选择 -->
                       <div class="form-section">
                         <div class="section-header">
-                          <i class="el-icon-document"></i>
-                          <span>检查信息</span>
+                          <i class="el-icon-folder-opened"></i>
+                          <span>检查类别</span>
                         </div>
                         
                         <div class="form-row">
-                          <label class="required">检查项目</label>
-                          <el-select 
-                            v-model="inspectionOrder.itemCode" 
-                            placeholder="请选择检查项目" 
-                            style="width: 100%"
-                            filterable
-                            @change="handleInspectionItemChange"
-                          >
-                            <el-option-group label="影像检查">
-                              <el-option label="CT检查" value="CT" />
-                              <el-option label="MRI检查（核磁共振）" value="MRI" />
-                              <el-option label="X光检查" value="XRAY" />
-                              <el-option label="DR检查（数字化X光）" value="DR" />
-                              <el-option label="PET-CT检查" value="PETCT" />
-                              <el-option label="DSA检查（数字减影血管造影）" value="DSA" />
-                            </el-option-group>
-                            <el-option-group label="超声检查">
-                              <el-option label="普通超声" value="US" />
-                              <el-option label="彩色多普勒超声" value="US_DOPPLER" />
-                              <el-option label="心脏超声" value="US_ECHO" />
-                            </el-option-group>
-                            <el-option-group label="内窥镜检查">
-                              <el-option label="胃镜检查" value="ENDO_GASTRO" />
-                              <el-option label="肠镜检查" value="ENDO_COLON" />
-                              <el-option label="支气管镜检查" value="ENDO_BRONCH" />
-                              <el-option label="喉镜检查" value="ENDO_LARYNX" />
-                              <el-option label="膀胱镜检查" value="ENDO_BLADDER" />
-                            </el-option-group>
-                            <el-option-group label="功能检查">
-                              <el-option label="心电图" value="ECG" />
-                              <el-option label="动态心电图（Holter）" value="ECG_HOLTER" />
-                              <el-option label="脑电图" value="EEG" />
-                              <el-option label="肌电图" value="EMG" />
-                              <el-option label="肺功能检查" value="PFT" />
-                            </el-option-group>
-                            <el-option-group label="病理检查">
-                              <el-option label="活检病理" value="PATH_BIOPSY" />
-                              <el-option label="细胞学检查" value="PATH_CYTOLOGY" />
-                            </el-option-group>
-                          </el-select>
+                          <label class="required">检查大类</label>
+                          <el-radio-group v-model="inspectionOrder.category" @change="handleCategoryChange">
+                            <el-radio-button label="LAB">化验检查</el-radio-button>
+                            <el-radio-button label="IMAGING">影像检查</el-radio-button>
+                            <el-radio-button label="FUNCTION">功能检查</el-radio-button>
+                            <el-radio-button label="ENDOSCOPY">内窥镜检查</el-radio-button>
+                            <el-radio-button label="PATHOLOGY">病理检查</el-radio-button>
+                          </el-radio-group>
+                        </div>
+                      </div>
+
+                      <!-- 检查项目选择 -->
+                      <div class="form-section" v-if="inspectionOrder.category">
+                        <div class="section-header">
+                          <i class="el-icon-document-checked"></i>
+                          <span>检查项目</span>
+                          <span class="section-tip">（可多选，每项单独开具一条医嘱）</span>
+                        </div>
+
+                        <!-- 化验检查项目 -->
+                        <div v-if="inspectionOrder.category === 'LAB'">
+                          <div class="inspection-group">
+                            <div class="group-title">血液检验</div>
+                            <el-checkbox-group v-model="inspectionOrder.selectedItems">
+                              <el-checkbox label="LAB_BLOOD_ROUTINE">血常规</el-checkbox>
+                              <el-checkbox label="LAB_BLOOD_BIOCHEM">生化全套</el-checkbox>
+                              <el-checkbox label="LAB_BLOOD_GLUCOSE">血糖</el-checkbox>
+                              <el-checkbox label="LAB_BLOOD_LIPID">血脂四项</el-checkbox>
+                              <el-checkbox label="LAB_LIVER_FUNCTION">肝功能</el-checkbox>
+                              <el-checkbox label="LAB_KIDNEY_FUNCTION">肾功能</el-checkbox>
+                              <el-checkbox label="LAB_ELECTROLYTE">电解质</el-checkbox>
+                              <el-checkbox label="LAB_COAGULATION">凝血功能</el-checkbox>
+                              <el-checkbox label="LAB_BLOOD_GAS">血气分析</el-checkbox>
+                              <el-checkbox label="LAB_THYROID">甲状腺功能</el-checkbox>
+                              <el-checkbox label="LAB_CARDIAC_MARKER">心肌标志物</el-checkbox>
+                              <el-checkbox label="LAB_TUMOR_MARKER">肿瘤标志物</el-checkbox>
+                              <el-checkbox label="LAB_BLOOD_OTHER">其他</el-checkbox>
+                            </el-checkbox-group>
+                            <el-input
+                              v-if="inspectionOrder.selectedItems.includes('LAB_BLOOD_OTHER')"
+                              v-model="inspectionOrder.customItems.LAB_BLOOD_OTHER"
+                              placeholder="请输入其他血液检验项目"
+                              style="margin-top: 10px;"
+                            />
+                          </div>
+
+                          <div class="inspection-group">
+                            <div class="group-title">体液检验</div>
+                            <el-checkbox-group v-model="inspectionOrder.selectedItems">
+                              <el-checkbox label="LAB_URINE_ROUTINE">尿常规</el-checkbox>
+                              <el-checkbox label="LAB_STOOL_ROUTINE">大便常规</el-checkbox>
+                              <el-checkbox label="LAB_STOOL_OB">大便隐血</el-checkbox>
+                              <el-checkbox label="LAB_SPUTUM">痰培养+药敏</el-checkbox>
+                              <el-checkbox label="LAB_FLUID_OTHER">其他</el-checkbox>
+                            </el-checkbox-group>
+                            <el-input
+                              v-if="inspectionOrder.selectedItems.includes('LAB_FLUID_OTHER')"
+                              v-model="inspectionOrder.customItems.LAB_FLUID_OTHER"
+                              placeholder="请输入其他体液检验项目"
+                              style="margin-top: 10px;"
+                            />
+                          </div>
+
+                          <div class="inspection-group">
+                            <div class="group-title">免疫检验</div>
+                            <el-checkbox-group v-model="inspectionOrder.selectedItems">
+                              <el-checkbox label="LAB_HBV">乙肝五项</el-checkbox>
+                              <el-checkbox label="LAB_HIV">HIV抗体</el-checkbox>
+                              <el-checkbox label="LAB_SYPHILIS">梅毒抗体</el-checkbox>
+                              <el-checkbox label="LAB_HCV">丙肝抗体</el-checkbox>
+                              <el-checkbox label="LAB_CRP">C反应蛋白</el-checkbox>
+                              <el-checkbox label="LAB_RF">类风湿因子</el-checkbox>
+                              <el-checkbox label="LAB_IMMUNE_OTHER">其他</el-checkbox>
+                            </el-checkbox-group>
+                            <el-input
+                              v-if="inspectionOrder.selectedItems.includes('LAB_IMMUNE_OTHER')"
+                              v-model="inspectionOrder.customItems.LAB_IMMUNE_OTHER"
+                              placeholder="请输入其他免疫检验项目"
+                              style="margin-top: 10px;"
+                            />
+                          </div>
+
+                          <div class="form-row" style="margin-top: 15px;">
+                            <label>标本类型</label>
+                            <el-radio-group v-model="inspectionOrder.specimenType">
+                              <el-radio label="VENOUS_BLOOD">静脉血</el-radio>
+                              <el-radio label="ARTERIAL_BLOOD">动脉血</el-radio>
+                              <el-radio label="URINE">尿液</el-radio>
+                              <el-radio label="STOOL">大便</el-radio>
+                              <el-radio label="SPUTUM">痰液</el-radio>
+                              <el-radio label="OTHER">其他</el-radio>
+                            </el-radio-group>
+                          </div>
+
+                          <div class="form-row">
+                            <label>采样要求</label>
+                            <el-checkbox-group v-model="inspectionOrder.samplingRequirements">
+                              <el-checkbox label="FASTING">空腹（禁食8-12小时）</el-checkbox>
+                              <el-checkbox label="POSTPRANDIAL_2H">餐后2小时</el-checkbox>
+                              <el-checkbox label="MORNING_FIRST">晨起第一次</el-checkbox>
+                              <el-checkbox label="CLEAN_CATCH">清洁中段尿</el-checkbox>
+                            </el-checkbox-group>
+                          </div>
+                        </div>
+
+                        <!-- 影像检查项目 -->
+                        <div v-if="inspectionOrder.category === 'IMAGING'">
+                          <div class="inspection-group">
+                            <div class="group-title">X线检查</div>
+                            <el-checkbox-group v-model="inspectionOrder.selectedItems">
+                              <el-checkbox label="XRAY_CHEST">胸部X线</el-checkbox>
+                              <el-checkbox label="XRAY_ABDOMEN">腹部X线</el-checkbox>
+                              <el-checkbox label="XRAY_SPINE">脊柱X线</el-checkbox>
+                              <el-checkbox label="XRAY_LIMB">四肢X线</el-checkbox>
+                              <el-checkbox label="XRAY_OTHER">其他</el-checkbox>
+                            </el-checkbox-group>
+                            <el-input
+                              v-if="inspectionOrder.selectedItems.includes('XRAY_OTHER')"
+                              v-model="inspectionOrder.customItems.XRAY_OTHER"
+                              placeholder="请输入其他X线检查项目"
+                              style="margin-top: 10px;"
+                            />
+                          </div>
+
+                          <div class="inspection-group">
+                            <div class="group-title">CT检查</div>
+                            <el-checkbox-group v-model="inspectionOrder.selectedItems">
+                              <el-checkbox label="CT_HEAD">头颅CT</el-checkbox>
+                              <el-checkbox label="CT_CHEST">胸部CT</el-checkbox>
+                              <el-checkbox label="CT_ABDOMEN">腹部CT</el-checkbox>
+                              <el-checkbox label="CT_PELVIS">盆腔CT</el-checkbox>
+                              <el-checkbox label="CT_SPINE">脊柱CT</el-checkbox>
+                              <el-checkbox label="CT_CTA">CT血管造影</el-checkbox>
+                              <el-checkbox label="CT_OTHER">其他</el-checkbox>
+                            </el-checkbox-group>
+                            <el-input
+                              v-if="inspectionOrder.selectedItems.includes('CT_OTHER')"
+                              v-model="inspectionOrder.customItems.CT_OTHER"
+                              placeholder="请输入其他CT检查项目"
+                              style="margin-top: 10px;"
+                            />
+                          </div>
+
+                          <div class="inspection-group">
+                            <div class="group-title">MRI检查</div>
+                            <el-checkbox-group v-model="inspectionOrder.selectedItems">
+                              <el-checkbox label="MRI_HEAD">头颅MRI</el-checkbox>
+                              <el-checkbox label="MRI_SPINE">脊柱MRI</el-checkbox>
+                              <el-checkbox label="MRI_JOINT">关节MRI</el-checkbox>
+                              <el-checkbox label="MRI_ABDOMEN">腹部MRI</el-checkbox>
+                              <el-checkbox label="MRI_MRA">磁共振血管造影</el-checkbox>
+                              <el-checkbox label="MRI_OTHER">其他</el-checkbox>
+                            </el-checkbox-group>
+                            <el-input
+                              v-if="inspectionOrder.selectedItems.includes('MRI_OTHER')"
+                              v-model="inspectionOrder.customItems.MRI_OTHER"
+                              placeholder="请输入其他MRI检查项目"
+                              style="margin-top: 10px;"
+                            />
+                          </div>
+
+                          <div class="inspection-group">
+                            <div class="group-title">超声检查</div>
+                            <el-checkbox-group v-model="inspectionOrder.selectedItems">
+                              <el-checkbox label="US_ABDOMEN">腹部超声</el-checkbox>
+                              <el-checkbox label="US_CARDIAC">心脏超声</el-checkbox>
+                              <el-checkbox label="US_THYROID">甲状腺超声</el-checkbox>
+                              <el-checkbox label="US_BREAST">乳腺超声</el-checkbox>
+                              <el-checkbox label="US_VASCULAR">血管超声</el-checkbox>
+                              <el-checkbox label="US_OBSTETRIC">产科超声</el-checkbox>
+                              <el-checkbox label="US_OTHER">其他</el-checkbox>
+                            </el-checkbox-group>
+                            <el-input
+                              v-if="inspectionOrder.selectedItems.includes('US_OTHER')"
+                              v-model="inspectionOrder.customItems.US_OTHER"
+                              placeholder="请输入其他超声检查项目"
+                              style="margin-top: 10px;"
+                            />
+                          </div>
+
+                          <div class="form-row" style="margin-top: 15px;">
+                            <label>检查部位</label>
+                            <el-input
+                              v-model="inspectionOrder.location"
+                              placeholder="请输入具体检查部位，如：头部、胸部、腹部、左膝关节等"
+                            />
+                          </div>
+
+                          <div class="form-row">
+                            <label>对比剂使用</label>
+                            <el-radio-group v-model="inspectionOrder.contrastAgent">
+                              <el-radio label="NONE">不使用</el-radio>
+                              <el-radio label="PLAIN">平扫</el-radio>
+                              <el-radio label="ENHANCED">增强扫描</el-radio>
+                              <el-radio label="PLAIN_ENHANCED">平扫+增强</el-radio>
+                            </el-radio-group>
+                          </div>
+                        </div>
+
+                        <!-- 功能检查项目 -->
+                        <div v-if="inspectionOrder.category === 'FUNCTION'">
+                          <div class="inspection-group">
+                            <el-checkbox-group v-model="inspectionOrder.selectedItems">
+                              <el-checkbox label="ECG">常规心电图</el-checkbox>
+                              <el-checkbox label="ECG_24H">24小时动态心电图</el-checkbox>
+                              <el-checkbox label="EXERCISE_ECG">运动心电图</el-checkbox>
+                              <el-checkbox label="EEG">脑电图</el-checkbox>
+                              <el-checkbox label="EMG">肌电图</el-checkbox>
+                              <el-checkbox label="PFT">肺功能检查</el-checkbox>
+                              <el-checkbox label="ABPM">24小时动态血压</el-checkbox>
+                              <el-checkbox label="TCD">经颅多普勒</el-checkbox>
+                              <el-checkbox label="SLEEP_MONITOR">睡眠监测</el-checkbox>
+                              <el-checkbox label="FUNCTION_OTHER">其他</el-checkbox>
+                            </el-checkbox-group>
+                            <el-input
+                              v-if="inspectionOrder.selectedItems.includes('FUNCTION_OTHER')"
+                              v-model="inspectionOrder.customItems.FUNCTION_OTHER"
+                              placeholder="请输入其他功能检查项目"
+                              style="margin-top: 10px;"
+                            />
+                          </div>
+                        </div>
+
+                        <!-- 内窥镜检查项目 -->
+                        <div v-if="inspectionOrder.category === 'ENDOSCOPY'">
+                          <div class="inspection-group">
+                            <el-checkbox-group v-model="inspectionOrder.selectedItems">
+                              <el-checkbox label="ENDO_GASTROSCOPY">胃镜检查</el-checkbox>
+                              <el-checkbox label="ENDO_COLONOSCOPY">肠镜检查</el-checkbox>
+                              <el-checkbox label="ENDO_BRONCHOSCOPY">支气管镜</el-checkbox>
+                              <el-checkbox label="ENDO_LARYNGOSCOPY">喉镜检查</el-checkbox>
+                              <el-checkbox label="ENDO_CYSTOSCOPY">膀胱镜检查</el-checkbox>
+                              <el-checkbox label="ENDO_HYSTEROSCOPY">宫腔镜检查</el-checkbox>
+                              <el-checkbox label="ENDO_ARTHROSCOPY">关节镜检查</el-checkbox>
+                              <el-checkbox label="ENDO_OTHER">其他</el-checkbox>
+                            </el-checkbox-group>
+                            <el-input
+                              v-if="inspectionOrder.selectedItems.includes('ENDO_OTHER')"
+                              v-model="inspectionOrder.customItems.ENDO_OTHER"
+                              placeholder="请输入其他内窥镜检查项目"
+                              style="margin-top: 10px;"
+                            />
+                          </div>
+
+                          <div class="form-row" style="margin-top: 15px;">
+                            <label>麻醉方式</label>
+                            <el-radio-group v-model="inspectionOrder.anesthesiaType">
+                              <el-radio label="NONE">不麻醉</el-radio>
+                              <el-radio label="LOCAL">局部麻醉</el-radio>
+                              <el-radio label="CONSCIOUS_SEDATION">清醒镇静</el-radio>
+                              <el-radio label="GENERAL">全身麻醉</el-radio>
+                            </el-radio-group>
+                          </div>
+                        </div>
+
+                        <!-- 病理检查项目 -->
+                        <div v-if="inspectionOrder.category === 'PATHOLOGY'">
+                          <div class="inspection-group">
+                            <el-checkbox-group v-model="inspectionOrder.selectedItems">
+                              <el-checkbox label="PATH_BIOPSY">组织活检</el-checkbox>
+                              <el-checkbox label="PATH_CYTOLOGY">细胞学检查</el-checkbox>
+                              <el-checkbox label="PATH_FROZEN">冰冻切片</el-checkbox>
+                              <el-checkbox label="PATH_IMMUNOHISTO">免疫组化</el-checkbox>
+                              <el-checkbox label="PATH_MOLECULAR">分子病理</el-checkbox>
+                              <el-checkbox label="PATH_OTHER">其他</el-checkbox>
+                            </el-checkbox-group>
+                            <el-input
+                              v-if="inspectionOrder.selectedItems.includes('PATH_OTHER')"
+                              v-model="inspectionOrder.customItems.PATH_OTHER"
+                              placeholder="请输入其他病理检查项目"
+                              style="margin-top: 10px;"
+                            />
+                          </div>
+
+                          <div class="form-row" style="margin-top: 15px;">
+                            <label>标本来源</label>
+                            <el-input
+                              v-model="inspectionOrder.specimenSource"
+                              placeholder="请输入标本来源部位"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- 附加信息 -->
+                      <div class="form-section" v-if="inspectionOrder.selectedItems.length > 0">
+                        <div class="section-header">
+                          <i class="el-icon-warning-outline"></i>
+                          <span>附加信息</span>
+                        </div>
+
+                        <div class="form-row">
+                          <label class="required">临床诊断</label>
+                          <el-input
+                            v-model="inspectionOrder.clinicalDiagnosis"
+                            placeholder="请输入临床诊断，如：高血压、糖尿病等"
+                            maxlength="200"
+                            show-word-limit
+                          />
+                        </div>
+
+                        <div class="form-row">
+                          <label>检查目的</label>
+                          <el-radio-group v-model="inspectionOrder.purpose">
+                            <el-radio label="SCREENING">筛查</el-radio>
+                            <el-radio label="DIAGNOSIS">诊断</el-radio>
+                            <el-radio label="RECHECK">复查</el-radio>
+                            <el-radio label="PREOP">术前检查</el-radio>
+                          </el-radio-group>
                         </div>
 
                         <div class="form-row">
@@ -410,7 +680,9 @@
                             v-model="inspectionOrder.remarks"
                             type="textarea"
                             :rows="2"
-                            placeholder="其他需要说明的事项"
+                            placeholder="其他需要说明的事项（检查注意事项由检查站返回）"
+                            maxlength="500"
+                            show-word-limit
                           />
                         </div>
                       </div>
@@ -861,11 +1133,30 @@ const types = [
   { label: '护理操作', val: 'OperationOrder' }
 ];
 
-// 检查医嘱的响应式数据  DONE
+// 检查医嘱的响应式数据 - 完善版
 const inspectionOrder = reactive({
-  itemCode: '',              // 检查项目代码（如 "CT_HEAD" "MRI_CHEST" 等）
-  itemName: '',              // 检查项目名称（用于显示）
-  remarks: ''                // 备注
+  category: '',              // 检查大类：LAB/IMAGING/FUNCTION/ENDOSCOPY/PATHOLOGY
+  selectedItems: [],         // 已选择的检查项目列表（多选）
+  customItems: {},           // 自定义"其他"项目的内容
+  
+  // 化验检查相关
+  specimenType: '',          // 标本类型
+  samplingRequirements: [],  // 采样要求（多选）
+  
+  // 影像检查相关
+  location: '',              // 检查部位
+  contrastAgent: 'NONE',     // 对比剂使用
+  
+  // 内窥镜检查相关
+  anesthesiaType: 'NONE',    // 麻醉方式
+  
+  // 病理检查相关
+  specimenSource: '',        // 标本来源
+  
+  // 通用字段
+  clinicalDiagnosis: '',     // 临床诊断（必填）
+  purpose: 'DIAGNOSIS',      // 检查目的
+  remarks: ''                // 备注（注意事项由检查站返回，不在此填写）
 });
 
 // 手术医嘱的响应式数据
@@ -1027,8 +1318,12 @@ const isFormValid = computed(() => {
     // TODO: 操作医嘱验证：操作代码、操作名称、执行时间为必填
     return false; // 暂时返回false，等待实现操作医嘱验证逻辑
   } else if (activeType.value === 'InspectionOrder') {
-    // 检查医嘱验证   DONE
-    return !!selectedPatient.value && !!inspectionOrder.itemCode;
+    // 检查医嘱验证 - 完善版
+    if (!selectedPatient.value) return false;
+    if (!inspectionOrder.category) return false;
+    if (inspectionOrder.selectedItems.length === 0) return false;
+    if (!inspectionOrder.clinicalDiagnosis) return false;
+    return true;
   } else if (activeType.value === 'SurgicalOrder') {
     // 手术医嘱验证
     if (!surgicalOrder.surgeryName) return false;
@@ -1282,35 +1577,108 @@ const removeCustomOperation = (item) => {
 };
 
 // 检查项目选择处理
-const handleInspectionItemChange = (itemCode) => {
-  if (!itemCode) return;
-  
-  // 根据检查类型自动设置名称
+// 检查类别切换时清空已选项目
+const handleCategoryChange = () => {
+  inspectionOrder.selectedItems = [];
+  inspectionOrder.customItems = {};
+  inspectionOrder.specimenType = '';
+  inspectionOrder.samplingRequirements = [];
+  inspectionOrder.location = '';
+  inspectionOrder.contrastAgent = 'NONE';
+  inspectionOrder.anesthesiaType = 'NONE';
+  inspectionOrder.specimenSource = '';
+};
+
+// 获取检查项目的显示名称
+const getInspectionItemName = (itemCode) => {
   const inspectionNames = {
-    'CT': 'CT检查',
-    'MRI': 'MRI检查',
-    'XRAY': 'X光检查',
-    'DR': 'DR检查',
-    'PETCT': 'PET-CT检查',
-    'DSA': 'DSA检查',
-    'US': '超声检查',
-    'US_DOPPLER': '彩色多普勒超声',
-    'US_ECHO': '心脏超声',
-    'ENDO_GASTRO': '胃镜检查',
-    'ENDO_COLON': '肠镜检查',
-    'ENDO_BRONCH': '支气管镜检查',
-    'ENDO_LARYNX': '喉镜检查',
-    'ENDO_BLADDER': '膀胱镜检查',
-    'ECG': '心电图',
-    'ECG_HOLTER': '动态心电图',
+    // 化验检查
+    'LAB_BLOOD_ROUTINE': '血常规',
+    'LAB_BLOOD_BIOCHEM': '生化全套',
+    'LAB_BLOOD_GLUCOSE': '血糖',
+    'LAB_BLOOD_LIPID': '血脂四项',
+    'LAB_LIVER_FUNCTION': '肝功能',
+    'LAB_KIDNEY_FUNCTION': '肾功能',
+    'LAB_ELECTROLYTE': '电解质',
+    'LAB_COAGULATION': '凝血功能',
+    'LAB_BLOOD_GAS': '血气分析',
+    'LAB_THYROID': '甲状腺功能',
+    'LAB_CARDIAC_MARKER': '心肌标志物',
+    'LAB_TUMOR_MARKER': '肿瘤标志物',
+    'LAB_URINE_ROUTINE': '尿常规',
+    'LAB_STOOL_ROUTINE': '大便常规',
+    'LAB_STOOL_OB': '大便隐血',
+    'LAB_SPUTUM': '痰培养+药敏',
+    'LAB_HBV': '乙肝五项',
+    'LAB_HIV': 'HIV抗体',
+    'LAB_SYPHILIS': '梅毒抗体',
+    'LAB_HCV': '丙肝抗体',
+    'LAB_CRP': 'C反应蛋白',
+    'LAB_RF': '类风湿因子',
+    
+    // X线检查
+    'XRAY_CHEST': '胸部X线',
+    'XRAY_ABDOMEN': '腹部X线',
+    'XRAY_SPINE': '脊柱X线',
+    'XRAY_LIMB': '四肢X线',
+    
+    // CT检查
+    'CT_HEAD': '头颅CT',
+    'CT_CHEST': '胸部CT',
+    'CT_ABDOMEN': '腹部CT',
+    'CT_PELVIS': '盆腔CT',
+    'CT_SPINE': '脊柱CT',
+    'CT_CTA': 'CT血管造影',
+    
+    // MRI检查
+    'MRI_HEAD': '头颅MRI',
+    'MRI_SPINE': '脊柱MRI',
+    'MRI_JOINT': '关节MRI',
+    'MRI_ABDOMEN': '腹部MRI',
+    'MRI_MRA': '磁共振血管造影',
+    
+    // 超声检查
+    'US_ABDOMEN': '腹部超声',
+    'US_CARDIAC': '心脏超声',
+    'US_THYROID': '甲状腺超声',
+    'US_BREAST': '乳腺超声',
+    'US_VASCULAR': '血管超声',
+    'US_OBSTETRIC': '产科超声',
+    
+    // 功能检查
+    'ECG': '常规心电图',
+    'ECG_24H': '24小时动态心电图',
+    'EXERCISE_ECG': '运动心电图',
     'EEG': '脑电图',
     'EMG': '肌电图',
     'PFT': '肺功能检查',
-    'PATH_BIOPSY': '活检病理',
-    'PATH_CYTOLOGY': '细胞学检查'
+    'ABPM': '24小时动态血压',
+    'TCD': '经颅多普勒',
+    'SLEEP_MONITOR': '睡眠监测',
+    
+    // 内窥镜检查
+    'ENDO_GASTROSCOPY': '胃镜检查',
+    'ENDO_COLONOSCOPY': '肠镜检查',
+    'ENDO_BRONCHOSCOPY': '支气管镜',
+    'ENDO_LARYNGOSCOPY': '喉镜检查',
+    'ENDO_CYSTOSCOPY': '膀胱镜检查',
+    'ENDO_HYSTEROSCOPY': '宫腔镜检查',
+    'ENDO_ARTHROSCOPY': '关节镜检查',
+    
+    // 病理检查
+    'PATH_BIOPSY': '组织活检',
+    'PATH_CYTOLOGY': '细胞学检查',
+    'PATH_FROZEN': '冰冻切片',
+    'PATH_IMMUNOHISTO': '免疫组化',
+    'PATH_MOLECULAR': '分子病理'
   };
   
-  inspectionOrder.itemName = inspectionNames[itemCode] || itemCode;
+  // 如果是"其他"项目，使用自定义输入的内容
+  if (itemCode.endsWith('_OTHER') && inspectionOrder.customItems[itemCode]) {
+    return inspectionOrder.customItems[itemCode];
+  }
+  
+  return inspectionNames[itemCode] || itemCode;
 };
 
 // 表单操作
@@ -1321,9 +1689,18 @@ const clearForm = () => {
     // TODO: 清空操作医嘱表单
 
   } else if (activeType.value === 'InspectionOrder') {
-    // 清空检查医嘱表单  DONE
-    inspectionOrder.itemCode = '';
-    inspectionOrder.itemName = '';
+    // 清空检查医嘱表单
+    inspectionOrder.category = '';
+    inspectionOrder.selectedItems = [];
+    inspectionOrder.customItems = {};
+    inspectionOrder.specimenType = '';
+    inspectionOrder.samplingRequirements = [];
+    inspectionOrder.location = '';
+    inspectionOrder.contrastAgent = 'NONE';
+    inspectionOrder.anesthesiaType = 'NONE';
+    inspectionOrder.specimenSource = '';
+    inspectionOrder.clinicalDiagnosis = '';
+    inspectionOrder.purpose = 'DIAGNOSIS';
     inspectionOrder.remarks = '';
   } else if (activeType.value === 'SurgicalOrder') {
     // 清空手术医嘱表单
@@ -1369,12 +1746,36 @@ const addToCart = () => {
     ElMessage.warning('操作类医嘱表单开发中');
     return;
   } else if (activeType.value === 'InspectionOrder') {
-    // 暂存检查医嘱  DONE
+    // 暂存检查医嘱 - 为每个选中的项目创建一条医嘱
+    let hasError = false;
+    
+    inspectionOrder.selectedItems.forEach(itemCode => {
+      // 如果是"其他"项目，检查是否填写了自定义内容
+      if (itemCode.endsWith('_OTHER') && !inspectionOrder.customItems[itemCode]) {
+        ElMessage.warning('请填写"其他"项目的具体内容');
+        hasError = true;
+        return;
+      }
+      
     orderCart.value.push({
       orderType: 'InspectionOrder',
-      ...inspectionOrder,
+        itemCode: itemCode,
+        itemName: getInspectionItemName(itemCode),
+        category: inspectionOrder.category,
+        specimenType: inspectionOrder.specimenType,
+        samplingRequirements: [...inspectionOrder.samplingRequirements],
+        location: inspectionOrder.location,
+        contrastAgent: inspectionOrder.contrastAgent,
+        anesthesiaType: inspectionOrder.anesthesiaType,
+        specimenSource: inspectionOrder.specimenSource,
+        clinicalDiagnosis: inspectionOrder.clinicalDiagnosis,
+        purpose: inspectionOrder.purpose,
+        remarks: inspectionOrder.remarks,
       patientId: selectedPatient.value.id
     });
+    });
+    
+    if (hasError) return;
   } else if (activeType.value === 'SurgicalOrder') {
     // 暂存手术医嘱
     orderCart.value.push({
@@ -1464,7 +1865,8 @@ const submitAll = async () => {
         DoctorId: currentUser.value.staffId,
         Orders: inspectionOrders.map(order => {
           const orderData = {
-            ItemCode: order.itemCode
+            ItemCode: order.itemCode,
+            ItemName: order.itemName  // 添加项目名称
           };
           
           // 添加备注
@@ -2956,10 +3358,126 @@ onMounted(async () => {
   white-space: nowrap;
 }
 
+/* ==================== 检查医嘱表单样式 ==================== */
+.inspection-form {
+  padding: 20px;
+}
+
+.inspection-group {
+  margin-bottom: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.group-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.inspection-group :deep(.el-checkbox-group) {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.inspection-group :deep(.el-checkbox) {
+  margin: 0;
+  padding: 8px 12px;
+  background: white;
+  border: 1px solid #e1e4e8;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.inspection-group :deep(.el-checkbox:hover) {
+  background: #f0f7ff;
+  border-color: #409eff;
+}
+
+.inspection-group :deep(.el-checkbox.is-checked) {
+  background: linear-gradient(135deg, #e8f4ff 0%, #f0f8ff 100%);
+  border-color: #409eff;
+  box-shadow: 0 2px 4px rgba(64, 158, 255, 0.1);
+}
+
+.inspection-group :deep(.el-checkbox__label) {
+  font-size: 0.9rem;
+  color: #495057;
+  padding-left: 8px;
+}
+
+.section-tip {
+  font-size: 0.85rem;
+  color: #6c757d;
+  font-weight: normal;
+  margin-left: 8px;
+}
+
+.form-row :deep(.el-radio-group) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.form-row :deep(.el-radio) {
+  margin: 0;
+  padding: 8px 16px;
+  background: white;
+  border: 1px solid #e1e4e8;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.form-row :deep(.el-radio:hover) {
+  background: #f0f7ff;
+  border-color: #409eff;
+}
+
+.form-row :deep(.el-radio.is-checked) {
+  background: linear-gradient(135deg, #e8f4ff 0%, #f0f8ff 100%);
+  border-color: #409eff;
+}
+
+.form-row :deep(.el-radio-button__inner) {
+  border-radius: 6px !important;
+  padding: 10px 20px;
+  font-weight: 500;
+}
+
+.form-row :deep(.el-checkbox-group .el-checkbox) {
+  background: white;
+  border: 1px solid #e1e4e8;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-right: 10px;
+  margin-bottom: 10px;
+  transition: all 0.2s;
+}
+
+.form-row :deep(.el-checkbox-group .el-checkbox:hover) {
+  background: #f0f7ff;
+  border-color: #409eff;
+}
+
+.form-row :deep(.el-checkbox-group .el-checkbox.is-checked) {
+  background: linear-gradient(135deg, #e8f4ff 0%, #f0f8ff 100%);
+  border-color: #409eff;
+}
+
 /* ==================== 响应式调整 ==================== */
 @media (max-width: 1400px) {
   .main-content {
     grid-template-columns: 1fr 340px;
+  }
+  
+  .inspection-group :deep(.el-checkbox-group) {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   }
 }
 
@@ -2970,6 +3488,10 @@ onMounted(async () => {
   
   .cart-area {
     max-height: 500px;
+  }
+  
+  .inspection-group :deep(.el-checkbox-group) {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   }
 }
 </style>

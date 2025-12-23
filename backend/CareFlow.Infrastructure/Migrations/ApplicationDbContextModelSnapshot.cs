@@ -474,6 +474,9 @@ namespace CareFlow.Infrastructure.Migrations
                     b.Property<DateTime?>("ActualStartTime")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("AssignedNurseId")
+                        .HasColumnType("text");
+
                     b.Property<int>("Category")
                         .HasColumnType("integer");
 
@@ -519,7 +522,12 @@ namespace CareFlow.Infrastructure.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("StatusBeforeLocking")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("AssignedNurseId");
 
                     b.HasIndex("CompleterNurseId");
 
@@ -981,6 +989,10 @@ namespace CareFlow.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("ItemName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("Location")
                         .IsRequired()
                         .HasColumnType("text");
@@ -1241,6 +1253,10 @@ namespace CareFlow.Infrastructure.Migrations
 
             modelBuilder.Entity("CareFlow.Core.Models.Nursing.ExecutionTask", b =>
                 {
+                    b.HasOne("CareFlow.Core.Models.Organization.Nurse", "AssignedNurse")
+                        .WithMany()
+                        .HasForeignKey("AssignedNurseId");
+
                     b.HasOne("CareFlow.Core.Models.Organization.Nurse", "CompleterNurse")
                         .WithMany()
                         .HasForeignKey("CompleterNurseId");
@@ -1260,6 +1276,8 @@ namespace CareFlow.Infrastructure.Migrations
                         .HasForeignKey("PatientId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("AssignedNurse");
 
                     b.Navigation("CompleterNurse");
 
