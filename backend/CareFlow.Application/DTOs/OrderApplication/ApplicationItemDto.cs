@@ -86,6 +86,41 @@ public class ApplicationItemDto
     public InspectionDetail? InspectionInfo { get; set; }
     
     /// <summary>
+    /// 时间策略类型（药品申请专用）：IMMEDIATE | SPECIFIC | CYCLIC | SLOTS
+    /// </summary>
+    public string? TimingStrategy { get; set; }
+    
+    /// <summary>
+    /// 用法途径（药品申请专用）
+    /// </summary>
+    public string? UsageRoute { get; set; }
+    
+    /// <summary>
+    /// 执行间隔小时数（仅 CYCLIC 策略使用）
+    /// </summary>
+    public decimal? IntervalHours { get; set; }
+    
+    /// <summary>
+    /// 间隔天数（仅 SLOTS 策略使用，1=每天，2=隔天）
+    /// </summary>
+    public int? IntervalDays { get; set; }
+    
+    /// <summary>
+    /// 时段位掩码（仅 SLOTS 策略使用）
+    /// </summary>
+    public int? SmartSlotsMask { get; set; }
+    
+    /// <summary>
+    /// 手术名称（手术类医嘱的药品申请专用）
+    /// </summary>
+    public string? SurgeryName { get; set; }
+    
+    /// <summary>
+    /// 手术排期时间（手术类医嘱的药品申请专用）
+    /// </summary>
+    public DateTime? SurgeryScheduleTime { get; set; }
+    
+    /// <summary>
     /// 是否加急
     /// </summary>
     public bool IsUrgent { get; set; }

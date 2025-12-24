@@ -17,6 +17,14 @@
           <el-icon><DocumentAdd /></el-icon>
           <span>医嘱开具</span>
         </router-link>
+        <router-link 
+          to="/doctor/order-query" 
+          class="nav-item"
+          active-class="active"
+        >
+          <el-icon><Search /></el-icon>
+          <span>医嘱查询</span>
+        </router-link>
       </nav>
       
       <!-- 用户信息 -->
@@ -59,6 +67,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   Document,
   DocumentAdd,
+  Search,
   ArrowDown,
   SwitchButton 
 } from '@element-plus/icons-vue'

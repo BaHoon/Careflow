@@ -51,7 +51,23 @@ export function usePatientData() {
     return { staffId: 'NUR001', fullName: '未登录', wardId: 'IM-W01' };
   };
 
+  /**
+   * 获取当前登录的医生信息
+   */
+  const getCurrentDoctor = () => {
+    try {
+      const userInfoStr = localStorage.getItem('userInfo');
+      if (userInfoStr) {
+        return JSON.parse(userInfoStr);
+      }
+    } catch (error) {
+      console.error('解析用户信息失败:', error);
+    }
+    return { staffId: 'DOC001', fullName: '未登录医生', wardId: 'IM-W01' };
+  };
+
   const currentNurse = ref(getCurrentNurse());
+  const currentDoctorWardId = ref(getCurrentDoctor().wardId);
 
   // ==================== 数据加载 ====================
   
@@ -110,9 +126,13 @@ export function usePatientData() {
 
   /**
    * 初始化患者数据（获取排班病区 + 加载患者列表）
+   * @param {string} deptCode - 科室代码（可选）
+   * @param {boolean} skipSchedule - 是否跳过排班检查（医生端使用）
    */
-  const initializePatientData = async (deptCode = null) => {
-    await fetchCurrentScheduledWard();
+  const initializePatientData = async (deptCode = null, skipSchedule = false) => {
+    if (!skipSchedule) {
+      await fetchCurrentScheduledWard();
+    }
     await loadPatientList(deptCode);
   };
 
@@ -223,6 +243,7 @@ export function usePatientData() {
     selectedPatients,
     enableMultiSelect,
     currentScheduledWardId,
+    currentDoctorWardId,
     currentNurse,
     loading,
     
@@ -232,6 +253,7 @@ export function usePatientData() {
     
     // 方法
     getCurrentNurse,
+    getCurrentDoctor,
     fetchCurrentScheduledWard,
     loadPatientList,
     initializePatientData,

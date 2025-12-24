@@ -63,6 +63,21 @@ public class PendingOrderDto
     public DateTime? StartTime { get; set; }
     
     /// <summary>
+    /// 执行间隔小时数（仅 CYCLIC 策略使用）
+    /// </summary>
+    public decimal? IntervalHours { get; set; }
+    
+    /// <summary>
+    /// 间隔天数（仅 SLOTS 策略使用）
+    /// </summary>
+    public int? IntervalDays { get; set; }
+    
+    /// <summary>
+    /// 时段位掩码（仅 SLOTS 策略使用）
+    /// </summary>
+    public int? SmartSlotsMask { get; set; }
+    
+    /// <summary>
     /// 计划结束时间
     /// </summary>
     public DateTime? PlantEndTime { get; set; }

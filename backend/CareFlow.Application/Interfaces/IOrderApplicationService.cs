@@ -58,4 +58,23 @@ public interface IOrderApplicationService
     /// <returns>撤销结果</returns>
     Task<ApplicationResponseDto> CancelInspectionApplicationAsync(
         List<long> orderIds, string nurseId, string? reason = null);
+    
+    /// <summary>
+    /// 申请退药（单个任务，AppliedConfirmed状态）
+    /// </summary>
+    /// <param name="taskId">任务ID</param>
+    /// <param name="nurseId">操作护士ID</param>
+    /// <param name="reason">退药原因</param>
+    /// <returns>退药申请结果</returns>
+    Task<ApplicationResponseDto> RequestReturnMedicationAsync(
+        long taskId, string nurseId, string? reason = null);
+    
+    /// <summary>
+    /// 确认退药（PendingReturn状态，护士确认执行退药）
+    /// </summary>
+    /// <param name="taskId">任务ID</param>
+    /// <param name="nurseId">操作护士ID</param>
+    /// <returns>退药确认结果</returns>
+    Task<ApplicationResponseDto> ConfirmReturnMedicationAsync(
+        long taskId, string nurseId);
 }

@@ -40,7 +40,7 @@ export const acknowledgeOrders = (data) => {
 };
 
 /**
- * 批量退回医嘱
+ * 批量退回医嘱（新开医嘱）
  * @param {Object} data - 退回数据
  * @param {string} data.nurseId - 护士ID
  * @param {Array<number>} data.orderIds - 医嘱ID列表
@@ -49,6 +49,19 @@ export const acknowledgeOrders = (data) => {
  */
 export const rejectOrders = (data) => {
   return api.post('/orders/acknowledgement/reject', data);
+};
+
+/**
+ * 拒绝停止医嘱（停止医嘱）
+ * 护士认为不应该停止该医嘱，将医嘱恢复为执行中状态
+ * @param {Object} data - 拒绝停嘱数据
+ * @param {string} data.nurseId - 护士ID
+ * @param {Array<number>} data.orderIds - 医嘱ID列表
+ * @param {string} data.rejectReason - 拒绝原因
+ * @returns {Promise} 拒绝停嘱结果
+ */
+export const rejectStopOrders = (data) => {
+  return api.post('/orders/acknowledgement/reject-stop', data);
 };
 
 // ==================== TODO: 阶段三实现以下API ====================
