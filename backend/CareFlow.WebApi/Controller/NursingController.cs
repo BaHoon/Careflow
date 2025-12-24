@@ -496,15 +496,18 @@ namespace CareFlow.WebApi.Controllers
                 var startOfDay = TimeZoneInfo.ConvertTimeToUtc(chinaStartOfDay, chinaTimeZone);
                 var endOfDay = TimeZoneInfo.ConvertTimeToUtc(chinaEndOfDay, chinaTimeZone);
 
-                // 获取护士所属科室
+                // 获取护士信息 - 支持通过 Id(简码如N001) 或 EmployeeNumber(工号如nurse001) 查询
                 var nurse = await _context.Nurses
                     .Include(n => n.Department)
-                    .FirstOrDefaultAsync(n => n.Id == nurseId);
+                    .FirstOrDefaultAsync(n => n.Id == nurseId || n.EmployeeNumber == nurseId);
 
                 if (nurse == null)
                 {
                     return NotFound(new { message = "护士不存在" });
                 }
+                
+                // 使用护士的 Id(简码) 进行后续查询
+                var nurseStaffId = nurse.Id;
 
                 // 获取该科室下所有病区的床位ID
                 var bedIds = await _context.Beds
@@ -521,7 +524,7 @@ namespace CareFlow.WebApi.Controllers
                     .Include(nt => nt.Patient)
                     .Where(nt => nt.ScheduledTime >= startOfDay &&
                                  nt.ScheduledTime < endOfDay &&
-                                 nt.AssignedNurseId == nurseId && // 只查询分配给当前护士的任务
+                                 nt.AssignedNurseId == nurseStaffId && // 使用简码进行查询
                                  bedIds.Contains(nt.Patient.BedId));
 
                 if (status.HasValue)
@@ -643,19 +646,29 @@ namespace CareFlow.WebApi.Controllers
                 }
 
                 // 2. 查询医嘱执行任务 (ExecutionTask)
-                // 医嘱执行任务：查询该护士已经开始执行的任务 (ExecutorStaffId == nurseId)
-                // 或者待执行的任务（任何护士都可以执行）TODO：这里后续需要修改权限逻辑
+                // 只查询分配给当前护士的任务 (AssignedNurseId == nurseStaffId)，与护理任务保持一致
                 var executionTasksQuery = _context.ExecutionTasks
                     .Include(et => et.Patient)
                     .Include(et => et.MedicalOrder)
                     .Where(et => et.PlannedStartTime >= startOfDay &&
                                  et.PlannedStartTime < endOfDay &&
-                                 bedIds.Contains(et.Patient.BedId) &&
-                                 (et.ExecutorStaffId == nurseId || et.ExecutorStaffId == null)); // 我执行的或待执行的
+                                 et.AssignedNurseId == nurseStaffId && // 使用简码进行查询
+                                 bedIds.Contains(et.Patient.BedId));
 
+                // 如果没有指定状态筛选，默认只返回需要显示的状态
                 if (status.HasValue)
                 {
                     executionTasksQuery = executionTasksQuery.Where(et => et.Status == status);
+                }
+                else
+                {
+                    // 默认只显示：AppliedConfirmed(2)、Pending(3)、InProgress(4)、Completed(5)
+                    executionTasksQuery = executionTasksQuery.Where(et => 
+                        et.Status == ExecutionTaskStatus.AppliedConfirmed ||
+                        et.Status == ExecutionTaskStatus.Pending ||
+                        et.Status == ExecutionTaskStatus.InProgress ||
+                        et.Status == ExecutionTaskStatus.Completed
+                    );
                 }
 
                 var executionTasks = await executionTasksQuery.ToListAsync();
@@ -664,7 +677,16 @@ namespace CareFlow.WebApi.Controllers
                 {
                     var delayStatus = _delayCalculator.CalculateExecutionTaskDelay(task, currentTime);
                     
-                    // 获取执行护士信息（如果已有执行人）
+                    // 获取责任护士信息
+                    string? assignedNurseName = null;
+                    if (!string.IsNullOrEmpty(task.AssignedNurseId))
+                    {
+                        var assignedNurse = await _context.Nurses
+                            .FirstOrDefaultAsync(n => n.Id == task.AssignedNurseId);
+                        assignedNurseName = assignedNurse?.Name;
+                    }
+                    
+                    // 获取实际执行护士信息（如果已有执行人）
                     string? executorNurseName = null;
                     if (!string.IsNullOrEmpty(task.ExecutorStaffId))
                     {
@@ -688,8 +710,10 @@ namespace CareFlow.WebApi.Controllers
                         Status = task.Status,
                         DataPayload = task.DataPayload,
                         ResultPayload = task.ResultPayload,
-                        AssignedNurseId = task.ExecutorStaffId, // 医嘱执行任务使用ExecutorStaffId
-                        AssignedNurseName = executorNurseName,
+                        AssignedNurseId = task.AssignedNurseId, // 使用责任护士
+                        AssignedNurseName = assignedNurseName,
+                        ExecutorNurseId = task.ExecutorStaffId,  // 添加实际执行护士
+                        ExecutorNurseName = executorNurseName,    // 添加实际执行护士名称
                         
                         // 延迟状态字段
                         DelayMinutes = delayStatus.DelayMinutes,
@@ -709,7 +733,9 @@ namespace CareFlow.WebApi.Controllers
 
                 return Ok(new
                 {
-                    nurseId,
+                    nurseId = nurseStaffId, // 返回护士简码
+                    employeeNumber = nurse.EmployeeNumber, // 返回工号
+                    nurseName = nurse.Name, // 返回护士姓名
                     date = targetDate.Date,
                     tasks = sortedTasks,
                     totalCount = sortedTasks.Count,

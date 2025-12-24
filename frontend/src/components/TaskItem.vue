@@ -118,11 +118,15 @@ const emit = defineEmits(['click', 'start-input', 'view-detail', 'task-cancelled
 // 任务类别图标
 const categoryIcon = computed(() => {
   const iconMap = {
+    // ExecutionTask 类别
     'Immediate': Coffee,
     'Duration': Coffee,
     'ResultPending': Document,
     'DataCollection': Bell,
-    'Verification': Check
+    'Verification': Check,
+    // NursingTask 类别
+    'Routine': Bell,
+    'ReMeasure': VideoCamera
   };
   return iconMap[props.task.category] || Document;
 });
@@ -130,11 +134,15 @@ const categoryIcon = computed(() => {
 // 任务类别文本
 const categoryText = computed(() => {
   const textMap = {
+    // ExecutionTask 类别
     'Immediate': '即刻执行',
     'Duration': '持续任务',
     'ResultPending': '结果待定',
     'DataCollection': '数据采集',
-    'Verification': '核对验证'
+    'Verification': '核对验证',
+    // NursingTask 类别
+    'Routine': '常规护理',
+    'ReMeasure': '复测任务'
   };
   return textMap[props.task.category] || props.task.category;
 });
@@ -143,18 +151,28 @@ const categoryText = computed(() => {
 const statusTagType = computed(() => {
   const status = props.task.status;
   const typeMap = {
+    'Applying': 'info',
+    0: 'info',
+    'Applied': 'info',
+    1: 'info',
+    'AppliedConfirmed': 'warning',
+    2: 'warning',
     'Pending': 'warning',
     3: 'warning',
+    'InProgress': 'primary',
     'Running': 'primary',
     4: 'primary',
     'Completed': 'success',
     5: 'success',
+    'OrderStopping': 'danger',
+    6: 'danger',
+    'Stopped': 'danger',
+    7: 'danger',
+    'Incomplete': 'info',
     'Skipped': 'info',
     8: 'info',
     'Cancelled': 'danger',
-    9: 'danger',
-    'Stopped': 'danger',
-    7: 'danger'
+    9: 'danger'
   };
   return typeMap[status] || 'info';
 });
@@ -163,18 +181,28 @@ const statusTagType = computed(() => {
 const statusText = computed(() => {
   const status = props.task.status;
   const textMap = {
+    'Applying': '待申请',
+    0: '待申请',
+    'Applied': '已申请',
+    1: '已申请',
+    'AppliedConfirmed': '已就绪',
+    2: '已就绪',
     'Pending': '待执行',
     3: '待执行',
+    'InProgress': '执行中',
     'Running': '执行中',
     4: '执行中',
     'Completed': '已完成',
     5: '已完成',
-    'Skipped': '已跳过',
-    8: '已跳过',
-    'Cancelled': '已取消',
-    9: '已取消',
+    'OrderStopping': '停止中',
+    6: '停止中',
     'Stopped': '已停止',
-    7: '已停止'
+    7: '已停止',
+    'Incomplete': '异常',
+    'Skipped': '已跳过',
+    8: '异常',
+    'Cancelled': '已取消',
+    9: '已取消'
   };
   return textMap[status] || status;
 });
