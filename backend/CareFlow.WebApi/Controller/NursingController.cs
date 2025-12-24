@@ -516,6 +516,10 @@ namespace CareFlow.WebApi.Controllers
                     .Select(b => b.Id)
                     .ToListAsync();
 
+                Console.WriteLine($"🔍 查询护士 {nurse.Name}(ID:{nurse.Id}, DeptCode:{nurse.DeptCode}) 的任务");
+                Console.WriteLine($"📋 查询范围 UTC: {startOfDay} 到 {endOfDay}");
+                Console.WriteLine($"🛏️  该科室床位数: {bedIds.Count}, 床位ID: {string.Join(",", bedIds)}");
+
                 var currentTime = DateTime.UtcNow;
                 var allTasks = new List<NurseTaskDto>();
 
@@ -673,6 +677,15 @@ namespace CareFlow.WebApi.Controllers
 
                 var executionTasks = await executionTasksQuery.ToListAsync();
 
+                Console.WriteLine($"✅ 查询到 {nursingTasks.Count} 个护理任务，{executionTasks.Count} 个执行任务");
+                if (executionTasks.Count == 0)
+                {
+                    Console.WriteLine($"⚠️  没有找到执行任务，检查查询条件:");
+                    Console.WriteLine($"   - AssignedNurseId == {nurseStaffId}");
+                    Console.WriteLine($"   - bedIds: {string.Join(",", bedIds)}");
+                    Console.WriteLine($"   - PlannedStartTime 范围: {startOfDay} 到 {endOfDay}");
+                }
+
                 foreach (var task in executionTasks)
                 {
                     var delayStatus = _delayCalculator.CalculateExecutionTaskDelay(task, currentTime);
@@ -695,6 +708,40 @@ namespace CareFlow.WebApi.Controllers
                         executorNurseName = executorNurse?.Name;
                     }
                     
+                    // 提取医嘱类型和标题信息（从DataPayload或MedicalOrder）
+                    string orderTypeName = "执行任务";
+                    string taskTitle = task.Category.ToString();
+                    
+                    if (task.MedicalOrder != null)
+                    {
+                        // 根据医嘱类型确定显示名称
+                        orderTypeName = task.MedicalOrder.OrderType switch
+                        {
+                            "MedicationOrder" => "药品医嘱",
+                            "SurgicalOrder" => "手术医嘱",
+                            "InspectionOrder" => "检查医嘱",
+                            "OperationOrder" => "操作医嘱",
+                            _ => "医嘱任务"
+                        };
+                        
+                        // 尝试从DataPayload解析标题
+                        if (!string.IsNullOrEmpty(task.DataPayload))
+                        {
+                            try
+                            {
+                                var payloadData = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(task.DataPayload);
+                                if (payloadData != null && payloadData.ContainsKey("title"))
+                                {
+                                    taskTitle = payloadData["title"].ToString() ?? taskTitle;
+                                }
+                            }
+                            catch
+                            {
+                                // 解析失败时保持默认值
+                            }
+                        }
+                    }
+                    
                     allTasks.Add(new NurseTaskDto
                     {
                         Id = task.Id,
@@ -714,6 +761,8 @@ namespace CareFlow.WebApi.Controllers
                         AssignedNurseName = assignedNurseName,
                         ExecutorNurseId = task.ExecutorStaffId,  // 添加实际执行护士
                         ExecutorNurseName = executorNurseName,    // 添加实际执行护士名称
+                        OrderTypeName = orderTypeName,            // 医嘱类型名称
+                        TaskTitle = taskTitle,                    // 任务标题
                         
                         // 延迟状态字段
                         DelayMinutes = delayStatus.DelayMinutes,
@@ -904,6 +953,326 @@ namespace CareFlow.WebApi.Controllers
             {
                 return StatusCode(500, new { message = "获取患者护理任务失败", error = ex.Message });
             }
+        }
+
+        // ==================== ExecutionTask 操作接口 ====================
+
+        /// <summary>
+        /// [护士端] 开始执行任务
+        /// </summary>
+        [HttpPost("execution-tasks/{id}/start")]
+        public async Task<IActionResult> StartExecutionTask(long id, [FromBody] StartExecutionTaskDto dto)
+        {
+            try
+            {
+                // 获取护士信息（支持工号或简码）
+                var nurse = await _context.Nurses
+                    .FirstOrDefaultAsync(n => n.Id == dto.NurseId || n.EmployeeNumber == dto.NurseId);
+                
+                if (nurse == null)
+                {
+                    return NotFound(new { message = "护士不存在" });
+                }
+                
+                var nurseStaffId = nurse.Id;
+
+                // 查询任务并加锁（使用 EF Core 的乐观并发）
+                var task = await _context.ExecutionTasks
+                    .Include(t => t.Patient)
+                    .Include(t => t.MedicalOrder)
+                    .FirstOrDefaultAsync(t => t.Id == id);
+
+                if (task == null)
+                {
+                    return NotFound(new { message = "任务不存在" });
+                }
+
+                // 状态校验：只能从 AppliedConfirmed 或 Pending 状态开始
+                if (task.Status != ExecutionTaskStatus.AppliedConfirmed && 
+                    task.Status != ExecutionTaskStatus.Pending)
+                {
+                    return BadRequest(new { message = $"任务状态不允许开始执行，当前状态: {task.Status}" });
+                }
+
+                // 并发校验：如果已有执行者，检查是否是同一个人
+                if (!string.IsNullOrEmpty(task.ExecutorStaffId) && task.ExecutorStaffId != nurseStaffId)
+                {
+                    var executor = await _context.Nurses.FindAsync(task.ExecutorStaffId);
+                    return BadRequest(new { message = $"任务已被 {executor?.Name} 开始执行" });
+                }
+
+                // 更新任务状态
+                task.ExecutorStaffId = nurseStaffId;
+                task.ActualStartTime = DateTime.UtcNow;
+                task.Status = ExecutionTaskStatus.InProgress;
+                task.LastModifiedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    message = "任务已开始",
+                    taskId = task.Id,
+                    status = task.Status,
+                    actualStartTime = task.ActualStartTime,
+                    executorName = nurse.Name
+                });
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return Conflict(new { message = "任务状态已被其他操作修改，请刷新后重试" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "开始任务失败", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// [护士端] 完成/结束执行任务
+        /// 业务流程：
+        /// 1. Immediate(即刻执行)：  Pending(3) → Completed(5)，一次点击确认完成
+        /// 2. Duration(持续任务)：    Pending(3) → InProgress(4)，然后 InProgress(4) → Completed(5)
+        /// 3. ResultPending(结果待定)：Pending(3) → InProgress(4)，然后 InProgress(4) → Completed(5) + ResultPayload
+        /// 4. 其他类别：TODO - 暂未实现
+        /// </summary>
+        [HttpPost("execution-tasks/{id}/complete")]
+        public async Task<IActionResult> CompleteExecutionTask(long id, [FromBody] CompleteExecutionTaskDto dto)
+        {
+            try
+            {
+                // 获取护士信息
+                var nurse = await _context.Nurses
+                    .FirstOrDefaultAsync(n => n.Id == dto.NurseId || n.EmployeeNumber == dto.NurseId);
+                
+                if (nurse == null)
+                {
+                    return NotFound(new { message = "护士不存在" });
+                }
+                
+                var nurseStaffId = nurse.Id;
+
+                // 查询任务
+                var task = await _context.ExecutionTasks
+                    .Include(t => t.Patient)
+                    .Include(t => t.MedicalOrder)
+                    .FirstOrDefaultAsync(t => t.Id == id);
+
+                if (task == null)
+                {
+                    return NotFound(new { message = "任务不存在" });
+                }
+
+                // 根据任务类别和当前状态决定转换路径
+                ExecutionTaskStatus targetStatus;
+                string actionDescription;
+
+                // ==================== Immediate 类别 ====================
+                if (task.Category == TaskCategory.Immediate)
+                {
+                    // 从 Pending(3) 直接到 Completed(5)
+                    if (task.Status != ExecutionTaskStatus.Pending && 
+                        task.Status != ExecutionTaskStatus.AppliedConfirmed)
+                    {
+                        return BadRequest(new { message = $"Immediate 任务只能从待执行或已确认状态完成，当前状态: {task.Status}" });
+                    }
+
+                    targetStatus = ExecutionTaskStatus.Completed;
+                    actionDescription = "已完成";
+                }
+                // ==================== Duration 类别 ====================
+                else if (task.Category == TaskCategory.Duration)
+                {
+                    // 从 Pending(3) 到 InProgress(4)，或从 InProgress(4) 到 Completed(5)
+                    if (task.Status == ExecutionTaskStatus.Pending || 
+                        task.Status == ExecutionTaskStatus.AppliedConfirmed)
+                    {
+                        targetStatus = ExecutionTaskStatus.InProgress;
+                        actionDescription = "已开始执行，待结束";
+                    }
+                    else if (task.Status == ExecutionTaskStatus.InProgress)
+                    {
+                        targetStatus = ExecutionTaskStatus.Completed;
+                        actionDescription = "已结束执行";
+                    }
+                    else
+                    {
+                        return BadRequest(new { message = $"Duration 任务状态不允许完成，当前状态: {task.Status}" });
+                    }
+                }
+                // ==================== ResultPending 类别 ====================
+                else if (task.Category == TaskCategory.ResultPending)
+                {
+                    // 从 Pending(3) 到 InProgress(4)，或从 InProgress(4) 到 Completed(5)（需要 ResultPayload）
+                    if (task.Status == ExecutionTaskStatus.Pending || 
+                        task.Status == ExecutionTaskStatus.AppliedConfirmed)
+                    {
+                        targetStatus = ExecutionTaskStatus.InProgress;
+                        actionDescription = "已开始执行，待录入结果";
+                    }
+                    else if (task.Status == ExecutionTaskStatus.InProgress)
+                    {
+                        // 需要验证 ResultPayload
+                        if (string.IsNullOrEmpty(dto.ResultPayload))
+                        {
+                            return BadRequest(new { message = "ResultPending 类别的任务完成时必须提供执行结果" });
+                        }
+                        
+                        targetStatus = ExecutionTaskStatus.Completed;
+                        actionDescription = "已完成并录入结果";
+                    }
+                    else
+                    {
+                        return BadRequest(new { message = $"ResultPending 任务状态不允许完成，当前状态: {task.Status}" });
+                    }
+                }
+                // ==================== Verification 类别（核对类） ====================
+                else if (task.Category == TaskCategory.Verification)
+                {
+                    // 从 Pending(3) 直接到 Completed(5)，一步完成
+                    if (task.Status != ExecutionTaskStatus.Pending && 
+                        task.Status != ExecutionTaskStatus.AppliedConfirmed)
+                    {
+                        return BadRequest(new { message = $"Verification 任务只能从待执行或已确认状态完成，当前状态: {task.Status}" });
+                    }
+
+                    targetStatus = ExecutionTaskStatus.Completed;
+                    actionDescription = "核对已完成";
+                }
+                // ==================== 其他类别（暂未实现） ====================
+                else
+                {
+                    // TODO: DataCollection, ApplicationWithPrint 的具体流程待定义
+                    return BadRequest(new { message = $"任务类别 {task.Category} 的完成流程暂未实现，请联系管理员" });
+                }
+
+                // 只有 InProgress 状态的任务需要检查执行者权限
+                if (task.Status == ExecutionTaskStatus.InProgress && task.ExecutorStaffId != nurseStaffId)
+                {
+                    return Forbid("只有任务执行者可以结束任务");
+                }
+
+                // 首次开始执行任务时，设置执行者和开始时间
+                if (task.Status == ExecutionTaskStatus.Pending || 
+                    task.Status == ExecutionTaskStatus.AppliedConfirmed)
+                {
+                    task.ExecutorStaffId = nurseStaffId;
+                    task.ActualStartTime = DateTime.UtcNow;
+                }
+
+                // 更新任务信息
+                if (!string.IsNullOrEmpty(dto.ResultPayload))
+                {
+                    task.ResultPayload = dto.ResultPayload;
+                }
+
+                // 如果转换到 Completed 状态，设置完成信息
+                if (targetStatus == ExecutionTaskStatus.Completed)
+                {
+                    task.ActualEndTime = DateTime.UtcNow;
+                    task.CompleterNurseId = nurseStaffId;
+                }
+
+                task.Status = targetStatus;
+                task.LastModifiedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    message = actionDescription,
+                    taskId = task.Id,
+                    category = task.Category.ToString(),
+                    status = task.Status,
+                    actualStartTime = task.ActualStartTime,
+                    actualEndTime = task.ActualEndTime,
+                    executorName = nurse.Name,
+                    nextAction = targetStatus == ExecutionTaskStatus.InProgress 
+                        ? (task.Category == TaskCategory.ResultPending ? "请点击\"结束任务\"并录入执行结果" : "请点击\"结束任务\"") 
+                        : "任务已完成"
+                });
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return Conflict(new { message = "任务状态已被其他操作修改，请刷新后重试" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "完成任务失败", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// [护士端] 取消执行任务
+        /// </summary>
+        [HttpPost("execution-tasks/{id}/cancel")]
+        public async Task<IActionResult> CancelExecutionTask(long id, [FromBody] CancelExecutionTaskDto dto)
+        {
+            try
+            {
+                // 获取护士信息
+                var nurse = await _context.Nurses
+                    .FirstOrDefaultAsync(n => n.Id == dto.NurseId || n.EmployeeNumber == dto.NurseId);
+                
+                if (nurse == null)
+                {
+                    return NotFound(new { message = "护士不存在" });
+                }
+
+                // 查询任务
+                var task = await _context.ExecutionTasks
+                    .Include(t => t.Patient)
+                    .FirstOrDefaultAsync(t => t.Id == id);
+
+                if (task == null)
+                {
+                    return NotFound(new { message = "任务不存在" });
+                }
+
+                // 状态校验：不能取消已完成或已取消的任务
+                if (task.Status == ExecutionTaskStatus.Completed || 
+                    task.Status == ExecutionTaskStatus.Cancelled ||
+                    task.Status == ExecutionTaskStatus.Stopped)
+                {
+                    return BadRequest(new { message = $"任务状态不允许取消，当前状态: {task.Status}" });
+                }
+
+                // 验证取消理由
+                if (string.IsNullOrWhiteSpace(dto.CancelReason))
+                {
+                    return BadRequest(new { message = "请填写取消理由" });
+                }
+
+                // 更新任务状态
+                task.Status = ExecutionTaskStatus.Cancelled;
+                task.ExceptionReason = dto.CancelReason;
+                task.LastModifiedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    message = "任务已取消",
+                    taskId = task.Id,
+                    status = task.Status,
+                    cancelReason = task.ExceptionReason
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "取消任务失败", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// 判断任务类别是否需要 ResultPayload
+        /// TODO: 待定义 DataCollection, Verification, ApplicationWithPrint 的流程
+        /// </summary>
+        private bool RequiresResultPayload(TaskCategory category)
+        {
+            return category == TaskCategory.ResultPending || 
+                   category == TaskCategory.DataCollection ||
+                   category == TaskCategory.Verification;
         }
     }
 }

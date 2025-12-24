@@ -3,7 +3,7 @@
     class="task-item" 
     :class="{ 
       'task-highlight': highlight,
-      'task-overdue': task.excessDelayMinutes > 0 && task.status !== 'Completed',
+      'task-overdue': task.excessDelayMinutes > 0 && task.status !== 'Completed' && task.status !== 5,
       'task-due-soon': task.status === 'Pending' && task.delayMinutes >= -60 && task.excessDelayMinutes <= 0
     }"
     @click="handleClick"
@@ -13,7 +13,11 @@
         <el-icon :size="18" class="task-icon">
           <component :is="categoryIcon" />
         </el-icon>
-        <span class="task-category">{{ categoryText }}</span>
+        <!-- ExecutionTask 显示医嘱类型和任务标题 -->
+        <span v-if="task.taskSource === 'ExecutionTask' && task.orderTypeName" class="task-order-type">
+          {{ task.orderTypeName }}
+        </span>
+        <span class="task-category">{{ displayTitle }}</span>
       </div>
       <el-tag :type="statusTagType" size="small">{{ statusText }}</el-tag>
     </div>
@@ -28,8 +32,8 @@
       <div class="task-time">
         <el-icon><Clock /></el-icon>
         <span>计划时间：{{ formatTime(task.plannedStartTime) }}</span>
-        <!-- 只在超时任务和临期任务显示延迟信息 -->
-        <span v-if="task.excessDelayMinutes > 0 && task.status !== 'Completed'" class="overdue-text">
+        <!-- 只在未完成的超时任务和临期任务显示延迟信息，已完成任务不显示 -->
+        <span v-if="task.excessDelayMinutes > 0 && task.status !== 'Completed' && task.status !== 5" class="overdue-text">
           (超出容忍期 {{ task.excessDelayMinutes }}分钟)
         </span>
         <span v-else-if="task.delayMinutes > 0 && task.delayMinutes >= -60 && task.status === 'Pending'" class="delay-text">
@@ -52,35 +56,93 @@
     </div>
 
     <div class="task-actions">
-      <!-- 未完成且未取消的任务显示开始录入按钮 -->
-      <el-button 
-        v-if="task.status !== 'Completed' && task.status !== 5 && task.status !== 'Cancelled' && task.status !== 9" 
-        type="primary" 
-        size="small"
-        :icon="Edit"
-        @click.stop="handleStartInput"
-      >
-        开始录入
-      </el-button>
-      <!-- 未完成且未取消的任务显示取消按钮 -->
-      <el-button 
-        v-if="task.status === 'Pending' || task.status === 3" 
-        type="danger" 
-        plain
-        size="small"
-        :icon="Close"
-        @click.stop="handleCancelTask"
-      >
-        取消任务
-      </el-button>
-      <!-- 已完成的任务显示查看详情按钮 -->
-      <el-button 
-        v-if="task.status === 'Completed' || task.status === 5" 
-        size="small"
-        @click.stop="handleViewDetail"
-      >
-        查看详情
-      </el-button>
+      <!-- ExecutionTask 的按钮逻辑 -->
+      <template v-if="task.taskSource === 'ExecutionTask'">
+        <!-- 
+          业务流程：
+          - Immediate(即刻执行)：Pending → Completed，显示"完成任务"
+          - Duration(持续任务)：Pending → InProgress → Completed，显示"完成"或"结束"
+          - ResultPending(结果待定)：Pending → InProgress → Completed，显示"完成"或"结束任务（需录入结果）"
+        -->
+        
+        <!-- AppliedConfirmed(2) 或 Pending(3)：显示根据category定制的"完成"按钮 -->
+        <el-button 
+          v-if="task.status === 2 || task.status === 'AppliedConfirmed' || task.status === 3 || task.status === 'Pending'" 
+          type="primary" 
+          size="small"
+          :icon="VideoPlay"
+          @click.stop="handleStartCompletion"
+        >
+          {{ getCompletionButtonLabel(task.category, false) }}
+        </el-button>
+
+        <!-- InProgress(4)：显示"结束任务"或"结束任务（需录入结果）" -->
+        <el-button 
+          v-if="task.status === 4 || task.status === 'InProgress'" 
+          type="success" 
+          size="small"
+          :icon="Check"
+          @click.stop="handleFinishTask"
+        >
+          {{ getCompletionButtonLabel(task.category, true) }}
+        </el-button>
+
+        <!-- 未完成状态显示"取消任务" -->
+        <el-button 
+          v-if="(task.status === 2 || task.status === 'AppliedConfirmed' || 
+                 task.status === 3 || task.status === 'Pending' || 
+                 task.status === 4 || task.status === 'InProgress')" 
+          type="danger" 
+          plain
+          size="small"
+          :icon="Close"
+          @click.stop="handleCancelExecution"
+        >
+          取消任务
+        </el-button>
+
+        <!-- Completed(5)：显示"查看详情" -->
+        <el-button 
+          v-if="task.status === 5 || task.status === 'Completed'" 
+          size="small"
+          @click.stop="handleViewDetail"
+        >
+          查看详情
+        </el-button>
+      </template>
+
+      <!-- NursingTask 的按钮逻辑（原有逻辑） -->
+      <template v-else-if="task.taskSource === 'NursingTask'">
+        <!-- 未完成且未取消的任务显示开始录入按钮 -->
+        <el-button 
+          v-if="task.status !== 'Completed' && task.status !== 5 && task.status !== 'Cancelled' && task.status !== 9" 
+          type="primary" 
+          size="small"
+          :icon="Edit"
+          @click.stop="handleStartInput"
+        >
+          开始录入
+        </el-button>
+        <!-- 未完成且未取消的任务显示取消按钮 -->
+        <el-button 
+          v-if="task.status === 'Pending' || task.status === 3" 
+          type="danger" 
+          plain
+          size="small"
+          :icon="Close"
+          @click.stop="handleCancelTask"
+        >
+          取消任务
+        </el-button>
+        <!-- 已完成的任务显示查看详情按钮 -->
+        <el-button 
+          v-if="task.status === 'Completed' || task.status === 5" 
+          size="small"
+          @click.stop="handleViewDetail"
+        >
+          查看详情
+        </el-button>
+      </template>
     </div>
   </div>
 </template>
@@ -97,10 +159,15 @@ import {
   VideoCamera,
   Bell,
   Edit,
-  Close
+  Close,
+  VideoPlay
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { cancelNursingTask } from '@/api/nursing';
+import { 
+  cancelNursingTask, 
+  completeExecutionTask, 
+  cancelExecutionTask 
+} from '@/api/nursing';
 
 const props = defineProps({
   task: {
@@ -114,6 +181,14 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['click', 'start-input', 'view-detail', 'task-cancelled']);
+
+// 显示标题（优先使用 taskTitle，否则使用类别文本）
+const displayTitle = computed(() => {
+  if (props.task.taskSource === 'ExecutionTask' && props.task.taskTitle) {
+    return props.task.taskTitle;
+  }
+  return categoryText.value;
+});
 
 // 任务类别图标
 const categoryIcon = computed(() => {
@@ -287,6 +362,393 @@ const handleCancelTask = async () => {
   } catch (error) {
     if (error !== 'cancel') {
       console.error('取消任务失败:', error);
+      ElMessage.error(error.response?.data?.message || '取消任务失败');
+    }
+  }
+};
+
+// ==================== ExecutionTask 事件处理 ====================
+
+// 解析药品医嘱的DataPayload
+const parseMedicationPayload = (payload) => {
+  let html = `<div style="font-size: 13px; line-height: 1.8;">`;
+  
+  if (payload.Title) {
+    html += `<p><strong>任务：</strong>${payload.Title}</p>`;
+  }
+  
+  if (payload.Description) {
+    html += `<p><strong>医嘱内容：</strong>${payload.Description}</p>`;
+  }
+  
+  // 解析药品信息
+  if (payload.MedicationInfo) {
+    const med = payload.MedicationInfo;
+    html += `<div style="margin-top: 8px; padding: 8px; background: #f0f9ff; border-left: 3px solid #409eff;">`;
+    html += `<p style="margin: 0; font-weight: 600; color: #409eff;">💊 药品信息</p>`;
+    if (med.DrugName) html += `<p style="margin: 4px 0;">药品名称：${med.DrugName}</p>`;
+    if (med.Specification) html += `<p style="margin: 4px 0;">规格：${med.Specification}</p>`;
+    if (med.Dosage) html += `<p style="margin: 4px 0;">剂量：${med.Dosage}</p>`;
+    if (med.Route) html += `<p style="margin: 4px 0;">途径：${med.Route}</p>`;
+    if (med.Frequency) html += `<p style="margin: 4px 0;">频次：${med.Frequency}</p>`;
+    html += `</div>`;
+  }
+  
+  // 解析核对项
+  if (payload.IsChecklist && payload.Items && Array.isArray(payload.Items)) {
+    html += `<div style="margin-top: 8px;">`;
+    html += `<p style="font-weight: 600; margin-bottom: 4px;">✓ 核对项目：</p>`;
+    html += `<ul style="margin: 0; padding-left: 20px;">`;
+    payload.Items.forEach((item, index) => {
+      if (item.text) {
+        const status = item.isChecked ? '✅' : '⬜';
+        const required = item.required ? '<span style="color: red;">*</span>' : '';
+        html += `<li>${status} ${item.text} ${required}</li>`;
+      }
+    });
+    html += `</ul></div>`;
+  }
+  
+  html += `</div>`;
+  return html;
+};
+
+// 解析通用DataPayload
+const parseDataPayload = (dataPayload) => {
+  if (!dataPayload) return '';
+  
+  try {
+    const payload = JSON.parse(dataPayload);
+    
+    // 如果是药品医嘱，使用专门的解析函数
+    if (payload.TaskType === 'MEDICATION_ADMINISTRATION') {
+      return parseMedicationPayload(payload);
+    }
+    
+    // 其他类型使用通用格式
+    let html = `<div style="font-size: 13px; line-height: 1.8;">`;
+    Object.entries(payload).forEach(([key, value]) => {
+      if (typeof value === 'object' && value !== null) {
+        html += `<p><strong>${key}:</strong></p>`;
+        html += `<pre style="margin: 4px 0; padding: 8px; background: #f5f5f5; border-radius: 4px; font-size: 12px;">${JSON.stringify(value, null, 2)}</pre>`;
+      } else {
+        html += `<p><strong>${key}:</strong> ${value}</p>`;
+      }
+    });
+    html += `</div>`;
+    return html;
+  } catch {
+    return `<pre style="font-size: 12px;">${dataPayload}</pre>`;
+  }
+};
+
+// 获取完成按钮标签
+const getCompletionButtonLabel = (category, isFinishing) => {
+  if (category === 'Immediate') {
+    return '完成任务';
+  } else if (category === 'Duration') {
+    return isFinishing ? '结束任务' : '完成任务';
+  } else if (category === 'ResultPending') {
+    return isFinishing ? '结束任务（需录入结果）' : '完成任务';
+  } else if (category === 'Verification') {
+    return '核对完成';
+  }
+  return isFinishing ? '结束任务' : '完成任务';
+};
+
+// 开始完成（第一阶段：Pending → Completed or InProgress）
+const handleStartCompletion = async () => {
+  try {
+    const category = props.task.category;
+    
+    // 解析任务详情
+    const taskDetails = parseDataPayload(props.task.dataPayload);
+
+    // 构建确认消息
+    let message = `<div style="text-align: left;">
+      <p><strong>任务信息：</strong></p>
+      <p>患者：${props.task.patientName} (${props.task.bedId})</p>
+      <p>类型：${props.task.orderTypeName || '执行任务'}</p>
+      <p>内容：${props.task.taskTitle || categoryText.value}</p>`;
+    
+    if (taskDetails) {
+      message += `<p style="margin-top: 10px;"><strong>详细信息：</strong></p>
+      <div style="background: #f5f5f5; padding: 12px; border-radius: 4px; max-height: 300px; overflow-y: auto;\">${taskDetails}</div>`;
+    }
+    
+    // Immediate 类别：直接完成
+    if (category === 'Immediate') {
+      message += `<p style="margin-top: 10px; color: #409eff;"><strong>确认完成此任务</strong></p></div>`;
+      
+      await ElMessageBox.confirm(
+        message,
+        '确认完成',
+        {
+          confirmButtonText: '确认完成',
+          cancelButtonText: '取消',
+          type: 'warning',
+          dangerouslyUseHTMLString: true
+        }
+      );
+    } 
+    // Verification 类别：直接完成（核对类）
+    else if (category === 'Verification') {
+      message += `<p style="margin-top: 10px; color: #409eff;"><strong>确认核对完成</strong></p></div>`;
+      
+      await ElMessageBox.confirm(
+        message,
+        '确认核对完成',
+        {
+          confirmButtonText: '确认核对完成',
+          cancelButtonText: '取消',
+          type: 'warning',
+          dangerouslyUseHTMLString: true
+        }
+      );
+    }
+    // Duration 和 ResultPending 类别：开始执行
+    else if (category === 'Duration' || category === 'ResultPending') {
+      message += `<p style="margin-top: 10px; color: #409eff;"><strong>确认开始执行</strong></p></div>`;
+      
+      await ElMessageBox.confirm(
+        message,
+        '确认开始执行',
+        {
+          confirmButtonText: '确认开始',
+          cancelButtonText: '取消',
+          type: 'info',
+          dangerouslyUseHTMLString: true
+        }
+      );
+    } else {
+      // TODO: 其他类别的处理
+      ElMessage.warning(`任务类别 ${category} 的流程暂未实现`);
+      return;
+    }
+
+    const nurseId = getCurrentNurseId();
+    if (!nurseId) {
+      ElMessage.error('未找到护士信息');
+      return;
+    }
+
+    const taskId = props.task.id;
+    if (!taskId) {
+      ElMessage.error('任务ID无效');
+      return;
+    }
+
+    // 调用API完成第一阶段（Immediate直接到Completed，Duration/ResultPending到InProgress）
+    const response = await completeExecutionTask(taskId, nurseId, null);
+    ElMessage.success(response.message || '任务已更新');
+    
+    // 通知父组件刷新数据
+    emit('task-cancelled', taskId);
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('开始完成任务失败:', error);
+      ElMessage.error(error.response?.data?.message || '操作失败');
+    }
+  }
+};
+
+// 结束任务（第二阶段：InProgress → Completed，可能需要录入结果）
+const handleFinishTask = async () => {
+  try {
+    const category = props.task.category;
+    let resultPayload = null;
+
+    // 解析任务详情
+    const taskDetails = parseDataPayload(props.task.dataPayload);
+
+    // 构建基础消息
+    let message = `<div style="text-align: left;">
+      <p><strong>任务信息：</strong></p>
+      <p>患者：${props.task.patientName} (${props.task.bedId})</p>
+      <p>类型：${props.task.orderTypeName || '执行任务'}</p>
+      <p>内容：${props.task.taskTitle || categoryText.value}</p>`;
+    
+    if (taskDetails) {
+      message += `<p style="margin-top: 10px;"><strong>详细信息：</strong></p>
+      <div style="background: #f5f5f5; padding: 12px; border-radius: 4px; max-height: 300px; overflow-y: auto;\">${taskDetails}</div>`;
+    }
+
+    // ResultPending 类别：需要录入结果
+    if (category === 'ResultPending') {
+      message += `<p style="margin-top: 10px; color: #e6a23c;"><strong>请在下方录入执行结果</strong></p></div>`;
+      
+      const { value } = await ElMessageBox.prompt(
+        message,
+        '结束任务并录入结果',
+        {
+          confirmButtonText: '确认完成',
+          cancelButtonText: '取消',
+          inputType: 'textarea',
+          inputPlaceholder: '请输入执行结果（JSON或文本格式）...',
+          inputValidator: (value) => {
+            if (!value || value.trim().length === 0) {
+              return '执行结果不能为空';
+            }
+            return true;
+          },
+          dangerouslyUseHTMLString: true
+        }
+      );
+      resultPayload = value;
+    } 
+    // Duration 类别：直接结束
+    else if (category === 'Duration') {
+      message += `<p style="margin-top: 10px; color: #409eff;"><strong>确认结束执行</strong></p></div>`;
+      
+      await ElMessageBox.confirm(
+        message,
+        '结束任务',
+        {
+          confirmButtonText: '确认完成',
+          cancelButtonText: '取消',
+          type: 'success',
+          dangerouslyUseHTMLString: true
+        }
+      );
+    } else {
+      // TODO: 其他类别的处理
+      ElMessage.warning(`任务类别 ${category} 的流程暂未实现`);
+      return;
+    }
+
+    const nurseId = getCurrentNurseId();
+    if (!nurseId) {
+      ElMessage.error('未找到护士信息');
+      return;
+    }
+
+    const taskId = props.task.id;
+    if (!taskId) {
+      ElMessage.error('任务ID无效');
+      return;
+    }
+
+    // 调用API结束任务
+    const response = await completeExecutionTask(taskId, nurseId, resultPayload);
+    ElMessage.success(response.message || '任务已完成');
+    
+    // 通知父组件刷新数据
+    emit('task-cancelled', taskId);
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('结束任务失败:', error);
+      ElMessage.error(error.response?.data?.message || '操作失败');
+    }
+  }
+};
+
+// 完成执行任务（已废弃，改为 handleStartCompletion 和 handleFinishTask）
+const handleCompleteExecution = async () => {
+  try {
+    const category = props.task.category;
+    let resultPayload = null;
+
+    // 根据任务类别判断是否需要录入结果
+    if (category === 'ResultPending' || category === 'DataCollection' || category === 'Verification') {
+      // 需要录入结果的任务类别，弹出输入框
+      const { value } = await ElMessageBox.prompt(
+        '请录入执行结果',
+        '完成任务',
+        {
+          confirmButtonText: '确认完成',
+          cancelButtonText: '取消',
+          inputType: 'textarea',
+          inputPlaceholder: '请输入执行结果（JSON格式或文本）...',
+          inputValidator: (value) => {
+            if (!value || value.trim().length === 0) {
+              return '执行结果不能为空';
+            }
+            return true;
+          }
+        }
+      );
+      resultPayload = value;
+    } else {
+      // Duration、Immediate 等类别，直接确认完成
+      await ElMessageBox.confirm(
+        '确认完成任务？',
+        '完成任务',
+        {
+          confirmButtonText: '确认完成',
+          cancelButtonText: '取消',
+          type: 'success'
+        }
+      );
+    }
+
+    const nurseId = getCurrentNurseId();
+    if (!nurseId) {
+      ElMessage.error('未找到护士信息');
+      return;
+    }
+
+    const taskId = props.task.id;
+    if (!taskId) {
+      ElMessage.error('任务ID无效');
+      return;
+    }
+
+    // 调用API完成任务
+    const response = await completeExecutionTask(taskId, nurseId, resultPayload);
+    ElMessage.success(response.message || '任务已完成');
+    
+    // 通知父组件刷新数据
+    emit('task-cancelled', taskId);
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('完成任务失败:', error);
+      ElMessage.error(error.response?.data?.message || '完成任务失败');
+    }
+  }
+};
+
+// 取消执行任务
+const handleCancelExecution = async () => {
+  try {
+    // 弹出输入框要求填写取消理由
+    const { value: cancelReason } = await ElMessageBox.prompt(
+      '请填写取消任务的理由',
+      '确认取消',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        inputType: 'textarea',
+        inputPlaceholder: '请输入取消理由...',
+        inputValidator: (value) => {
+          if (!value || value.trim().length === 0) {
+            return '取消理由不能为空';
+          }
+          return true;
+        }
+      }
+    );
+
+    const nurseId = getCurrentNurseId();
+    if (!nurseId) {
+      ElMessage.error('未找到护士信息');
+      return;
+    }
+
+    const taskId = props.task.id;
+    if (!taskId) {
+      ElMessage.error('任务ID无效');
+      return;
+    }
+
+    // 调用API取消任务
+    const response = await cancelExecutionTask(taskId, nurseId, cancelReason);
+    ElMessage.success(response.message || '任务已取消');
+    
+    // 通知父组件刷新数据
+    emit('task-cancelled', taskId);
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('取消执行任务失败:', error);
       ElMessage.error(error.response?.data?.message || '取消任务失败');
     }
   }
