@@ -776,6 +776,8 @@ const loadPatientPendingOrders = async (patientId) => {
 // 单条签收（新开医嘱）
 const acknowledgeOne = async (order) => {
   await acknowledgeBatchInternal([order.orderId]);
+  // 签收后刷新列表和数字徽章
+  await refreshAfterAction();
 };
 
 // 批量签收（新开医嘱）
@@ -790,6 +792,8 @@ const acknowledgeBatch = async () => {
   }
 
   await acknowledgeBatchInternal(selectedIds);
+  // 签收后刷新列表和数字徽章
+  await refreshAfterAction();
 };
 
 // 签收核心逻辑
@@ -815,9 +819,6 @@ const acknowledgeBatchInternal = async (orderIds) => {
     // 清除选择状态
     selectAllNew.value = false;
     pendingOrders.value.newOrders.forEach(o => o.selected = false);
-
-    // 刷新列表
-    await refreshCurrentView();
   } catch (error) {
     console.error('签收失败:', error);
     ElMessage.error(error.message || '签收失败');
@@ -932,6 +933,8 @@ const handleAcknowledgeResult = async (result) => {
 // 单条签收（停止医嘱）
 const acknowledgeStoppedOne = async (order) => {
   await acknowledgeStoppedBatchInternal([order.orderId]);
+  // 签收后刷新列表和数字徽章
+  await refreshAfterAction();
 };
 
 // 批量签收（停止医嘱）
@@ -946,6 +949,8 @@ const acknowledgeStoppedBatch = async () => {
   }
 
   await acknowledgeStoppedBatchInternal(selectedIds);
+  // 签收后刷新列表和数字徽章
+  await refreshAfterAction();
 };
 
 // 停止医嘱签收核心逻辑
@@ -973,9 +978,6 @@ const acknowledgeStoppedBatchInternal = async (orderIds) => {
     // 清除选择状态
     selectAllStopped.value = false;
     pendingOrders.value.stoppedOrders.forEach(o => o.selected = false);
-
-    // 刷新列表
-    await refreshCurrentView();
   } catch (error) {
     console.error('签收停止医嘱失败:', error);
     ElMessage.error(error.message || '签收失败');
@@ -1047,6 +1049,8 @@ const handleStoppedOrderWithPendingRequests = async (result) => {
 // 单条退回（新开医嘱）
 const rejectOne = async (order) => {
   await rejectBatchInternal([order.orderId]);
+  // 退回后刷新列表和数字徽章
+  await refreshAfterAction();
 };
 
 // 批量退回（新开医嘱）
@@ -1061,11 +1065,15 @@ const rejectBatch = async () => {
   }
 
   await rejectBatchInternal(selectedIds);
+  // 退回后刷新列表和数字徽章
+  await refreshAfterAction();
 };
 
 // 单条退回（停止医嘱）
 const rejectStoppedOne = async (order) => {
   await rejectStoppedBatchInternal([order.orderId]);
+  // 退回后刷新列表和数字徽章
+  await refreshAfterAction();
 };
 
 // 批量退回（停止医嘱）
@@ -1080,6 +1088,8 @@ const rejectStoppedBatch = async () => {
   }
 
   await rejectStoppedBatchInternal(selectedIds);
+  // 退回后刷新列表和数字徽章
+  await refreshAfterAction();
 };
 
 // 退回核心逻辑（新开医嘱）
@@ -1113,9 +1123,6 @@ const rejectBatchInternal = async (orderIds) => {
     // 清除选择状态
     selectAllNew.value = false;
     pendingOrders.value.newOrders.forEach(o => o.selected = false);
-
-    // 刷新列表
-    await refreshCurrentView();
   } catch (error) {
     if (error === 'cancel') {
       // 用户取消
@@ -1157,9 +1164,6 @@ const rejectStoppedBatchInternal = async (orderIds) => {
     // 清除选择状态
     selectAllStopped.value = false;
     pendingOrders.value.stoppedOrders.forEach(o => o.selected = false);
-
-    // 刷新列表
-    await refreshCurrentView();
   } catch (error) {
     if (error === 'cancel') {
       // 用户取消
@@ -1231,6 +1235,19 @@ const stopAutoRefresh = () => {
   }
 };
 
+// 签收/退回后的刷新逻辑（立即刷新患者列表和医嘱列表）
+const refreshAfterAction = async () => {
+  // 立即刷新患者列表（更新数字徽章）
+  await loadPatientList();
+  
+  // 根据选择模式刷新医嘱列表
+  if (enableMultiSelect.value && selectedPatients.value.length > 0) {
+    await loadSelectedPatientsOrders();
+  } else if (selectedPatient.value) {
+    await loadPatientPendingOrders(selectedPatient.value.patientId);
+  }
+};
+
 // 刷新当前视图（智能Diff更新，避免闪烁）
 const refreshCurrentView = async () => {
   await loadPatientListWithDiff();
@@ -1249,7 +1266,7 @@ const loadPatientListWithDiff = async () => {
     const deptCode = currentNurse.value.deptCode;
     if (!deptCode) return;
 
-    const newData = await getPendingOrdersSummary(deptCode);
+    const newData = await getPatientsWithPendingCount(deptCode);
     
     // Diff算法：对比新旧数据
     const oldMap = new Map(patientList.value.map(p => [p.patientId, p]));
