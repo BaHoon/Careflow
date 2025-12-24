@@ -1,5 +1,7 @@
 using CareFlow.Application.DTOs.OrderAcknowledgement;
 using CareFlow.Application.Interfaces;
+using CareFlow.Application.Services.MedicalOrder.OperationOrders;
+using CareFlow.Application.Services.MedicalOrder.SurgicalOrders;
 using CareFlow.Core.Enums;
 using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models.Medical;
@@ -27,6 +29,7 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
     private readonly IMedicationOrderTaskService _medicationTaskService;
     private readonly IInspectionService _inspectionTaskService;
     private readonly ISurgicalOrderTaskService _surgicalTaskService;
+    private readonly IOperationOrderTaskService _operationTaskService;
     private readonly INurseAssignmentService _nurseAssignmentService;
     private readonly IBarcodeService _barcodeService;
     private readonly ILogger<OrderAcknowledgementService> _logger;
@@ -42,6 +45,7 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
         IMedicationOrderTaskService medicationTaskService,
         IInspectionService inspectionTaskService,
         ISurgicalOrderTaskService surgicalTaskService,
+        IOperationOrderTaskService operationTaskService,
         INurseAssignmentService nurseAssignmentService,
         IBarcodeService barcodeService,
         ILogger<OrderAcknowledgementService> logger)
@@ -56,6 +60,7 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
         _medicationTaskService = medicationTaskService;
         _inspectionTaskService = inspectionTaskService;
         _surgicalTaskService = surgicalTaskService;
+        _operationTaskService = operationTaskService;
         _nurseAssignmentService = nurseAssignmentService;
         _barcodeService = barcodeService;
         _logger = logger;
@@ -717,8 +722,8 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
             }
             else if (order is OperationOrder operationOrder)
             {
-                // TODO: 阶段四实现 - 操作医嘱任务生成
-                _logger.LogWarning("操作医嘱任务生成尚未实现，医嘱ID: {OrderId}", order.Id);
+                tasks = await _operationTaskService.GenerateExecutionTasksAsync(operationOrder);
+                _logger.LogInformation("操作医嘱生成 {Count} 个任务", tasks.Count);
             }
             else
             {

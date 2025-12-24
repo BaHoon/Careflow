@@ -1,14 +1,16 @@
-using CareFlow.Application.Services;
+using CareFlow.Application.Services.MedicalOrder.OperationOrders;
+using CareFlow.Application.DTOs.OperationOrders;
 using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models;
 using CareFlow.Core.Models.Medical;
 using CareFlow.Core.Models.Nursing;
 using Microsoft.AspNetCore.Mvc;
-using CareFlow.Application.DTOs.Common;
-using CareFlow.Application.DTOs.OperationOrder;
 
 namespace CareFlow.WebApi.Controllers;
 
+/// <summary>
+/// 操作医嘱任务控制器（参照药品医嘱实现）
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class OperationOrderTaskController : ControllerBase
@@ -34,163 +36,217 @@ public class OperationOrderTaskController : ControllerBase
     }
 
     /// <summary>
-    /// 为指定的操作医嘱生成执行任务
+    /// 为指定的操作医嘱生成执行任务（参照药品医嘱实现）
     /// </summary>
-    /// <param name="orderId">操作医嘱ID</param>
-    [HttpPost("{orderId}/generate")]
-    public async Task<IActionResult> GenerateTasks(long orderId)
+    [HttpPost("generate")]
+    public async Task<IActionResult> GenerateTasks([FromBody] GenerateTasksRequestDto request)
     {
         try
         {
-            _logger.LogInformation("开始为操作医嘱 {OrderId} 生成执行任务", orderId);
+            _logger.LogInformation("开始为医嘱 {OrderId} 生成执行任务", request.OperationOrderId);
 
-            // 直接通过医嘱ID调用Service生成任务
-            // Service内部会：查询医嘱表 -> 根据逻辑拆分任务 -> 保存到任务表
-            var tasks = await _taskService.GenerateExecutionTasksAsync(orderId);
+            // 1. 获取医嘱信息
+            var order = await _orderRepository.GetByIdAsync(request.OperationOrderId);
+            if (order == null)
+            {
+                return NotFound(new GenerateTasksResponseDto
+                {
+                    Success = false,
+                    Message = $"未找到ID为 {request.OperationOrderId} 的医嘱"
+                });
+            }
 
-            // 3. 转换为通用 DTO
-            var taskDtos = MapToDtos(tasks);
+            // 2. 生成执行任务
+            var tasks = await _taskService.GenerateExecutionTasksAsync(order);
 
-            var response = new TaskGenerationResultDto
+            // 3. 转换为DTO
+            var taskDtos = tasks.Select(t => new ExecutionTaskDto
+            {
+                Id = t.Id,
+                MedicalOrderId = t.MedicalOrderId,
+                PatientId = t.PatientId,
+                Category = (int)t.Category,
+                PlannedStartTime = t.PlannedStartTime,
+                ActualStartTime = t.ActualStartTime,
+                ActualEndTime = t.ActualEndTime,
+                ExecutorStaffId = t.ExecutorStaffId,
+                CompleterNurseId = t.CompleterNurseId,
+                Status = (int)t.Status,
+                IsRolledBack = t.IsRolledBack,
+                DataPayload = t.DataPayload,
+                ResultPayload = t.ResultPayload,
+                ExceptionReason = t.ExceptionReason,
+                CreatedAt = t.CreatedAt
+            }).ToList();
+
+            var response = new GenerateTasksResponseDto
             {
                 Success = true,
-                Message = $"成功生成 {tasks.Count} 个操作执行任务",
+                Message = $"成功为医嘱生成 {tasks.Count} 个执行任务",
                 Tasks = taskDtos,
                 TaskCount = tasks.Count
             };
 
-            _logger.LogInformation("生成完成，共 {Count} 个任务", tasks.Count);
+            _logger.LogInformation("成功为医嘱 {OrderId} 生成了 {TaskCount} 个执行任务", request.OperationOrderId, tasks.Count);
             return Ok(response);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "生成任务失败，医嘱ID: {OrderId}", orderId);
-            return BadRequest(new TaskGenerationResultDto
+            _logger.LogError(ex, "为医嘱 {OrderId} 生成执行任务时发生错误", request.OperationOrderId);
+            return BadRequest(new GenerateTasksResponseDto
             {
                 Success = false,
-                Message = $"系统异常: {ex.Message}"
+                Message = $"生成任务失败: {ex.Message}"
             });
         }
     }
 
     /// <summary>
-    /// 回滚(取消)指定操作医嘱的未执行任务
+    /// 回滚指定医嘱的未执行任务（参照药品医嘱实现）
     /// </summary>
     [HttpPost("{orderId}/rollback")]
     public async Task<IActionResult> RollbackTasks(long orderId, [FromBody] string reason)
     {
         try
         {
-            _logger.LogInformation("请求回滚操作医嘱 {OrderId} 的任务", orderId);
-            
-            var order = await _orderRepository.GetByIdAsync(orderId);
-            if (order == null) return NotFound("医嘱不存在");
+            _logger.LogInformation("开始回滚医嘱 {OrderId} 的未执行任务", orderId);
 
-            await _taskService.RollbackPendingTasksAsync(orderId, reason ?? "用户手动回滚");
+            await _taskService.RollbackPendingTasksAsync(orderId, reason ?? "手动回滚");
 
+            _logger.LogInformation("成功回滚医嘱 {OrderId} 的未执行任务", orderId);
             return Ok(new { Success = true, Message = "任务回滚成功" });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "回滚失败");
-            return BadRequest(new { Success = false, Message = ex.Message });
+            _logger.LogError(ex, "回滚医嘱 {OrderId} 的任务时发生错误", orderId);
+            return BadRequest(new { Success = false, Message = $"回滚失败: {ex.Message}" });
         }
     }
 
     /// <summary>
-    /// 刷新任务 (当操作医嘱变更后调用)
+    /// 刷新指定医嘱的执行任务（重新生成，参照药品医嘱实现）
     /// </summary>
     [HttpPost("{orderId}/refresh")]
     public async Task<IActionResult> RefreshTasks(long orderId)
     {
         try
         {
-            _logger.LogInformation("请求刷新操作医嘱 {OrderId} 的任务", orderId);
+            _logger.LogInformation("开始刷新医嘱 {OrderId} 的执行任务", orderId);
 
-            await _taskService.RefreshExecutionTasksAsync(orderId);
+            // 1. 获取医嘱信息
+            var order = await _orderRepository.GetByIdAsync(orderId);
+            if (order == null)
+            {
+                return NotFound(new { Success = false, Message = $"未找到ID为 {orderId} 的医嘱" });
+            }
 
-            return Ok(new { Success = true, Message = "任务刷新重置成功" });
+            // 2. 刷新任务
+            await _taskService.RefreshExecutionTasksAsync(order);
+
+            _logger.LogInformation("成功刷新医嘱 {OrderId} 的执行任务", orderId);
+            return Ok(new { Success = true, Message = "任务刷新成功" });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "刷新失败");
-            return BadRequest(new { Success = false, Message = ex.Message });
+            _logger.LogError(ex, "刷新医嘱 {OrderId} 的任务时发生错误", orderId);
+            return BadRequest(new { Success = false, Message = $"刷新失败: {ex.Message}" });
         }
     }
 
     /// <summary>
-    /// 获取某条执行任务的条形码图片（用于扫码验证患者身份）
+    /// 获取ExecutionTask的条形码（参照药品医嘱实现）
     /// </summary>
     [HttpGet("task/{taskId}/barcode")]
     public async Task<IActionResult> GetTaskBarcode(long taskId)
     {
         try
         {
-            var task = await _executionTaskRepository.GetByIdAsync(taskId);
-            if (task == null) return NotFound("任务不存在");
+            _logger.LogInformation("开始获取ExecutionTask {TaskId} 的条形码", taskId);
 
+            // 1. 验证任务是否存在
+            var task = await _executionTaskRepository.GetByIdAsync(taskId);
+            if (task == null)
+            {
+                return NotFound(new { Success = false, Message = $"未找到ID为 {taskId} 的执行任务" });
+            }
+
+            // 2. 创建条形码索引对象
             var barcodeIndex = new BarcodeIndex
             {
                 TableName = "ExecutionTasks",
                 RecordId = taskId.ToString()
             };
 
+            // 3. 生成条形码图片
             var imageBytes = await _barcodeService.GenerateBarcodeAsync(barcodeIndex);
-            return File(imageBytes, "image/png", $"ExecTask-{taskId}.png");
+
+            _logger.LogInformation("成功生成ExecutionTask {TaskId} 的条形码", taskId);
+            return File(imageBytes, "image/png", $"ExecutionTask-{taskId}-barcode.png");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "获取条形码失败: {Message}", ex.Message);
-            return BadRequest($"获取条形码失败: {ex.Message}");
+            _logger.LogError(ex, "获取ExecutionTask {TaskId} 的条形码时发生错误", taskId);
+            return BadRequest(new { Success = false, Message = $"获取条形码失败: {ex.Message}" });
         }
     }
 
     /// <summary>
-    /// 查询某操作医嘱关联的所有任务列表
+    /// 获取指定医嘱的所有ExecutionTask列表（参照药品医嘱实现）
     /// </summary>
     [HttpGet("{orderId}/tasks")]
     public async Task<IActionResult> GetOrderTasks(long orderId)
     {
         try
         {
-            var tasks = await _executionTaskRepository.ListAsync(t => t.MedicalOrderId == orderId);
-            var taskDtos = MapToDtos(tasks);
+            _logger.LogInformation("开始获取医嘱 {OrderId} 的所有执行任务", orderId);
 
-            return Ok(new 
-            { 
-                Success = true, 
+            // 1. 验证医嘱是否存在
+            var order = await _orderRepository.GetByIdAsync(orderId);
+            if (order == null)
+            {
+                return NotFound(new { Success = false, Message = $"未找到ID为 {orderId} 的医嘱" });
+            }
+
+            // 2. 获取所有关联的执行任务
+            var tasks = await _executionTaskRepository.ListAsync(t => t.MedicalOrderId == orderId);
+
+            // 3. 转换为DTO
+            var taskDtos = tasks.Select(t => new ExecutionTaskDto
+            {
+                Id = t.Id,
+                MedicalOrderId = t.MedicalOrderId,
+                PatientId = t.PatientId,
+                Category = (int)t.Category,
+                PlannedStartTime = t.PlannedStartTime,
+                ActualStartTime = t.ActualStartTime,
+                ActualEndTime = t.ActualEndTime,
+                ExecutorStaffId = t.ExecutorStaffId,
+                CompleterNurseId = t.CompleterNurseId,
+                Status = (int)t.Status,
+                IsRolledBack = t.IsRolledBack,
+                DataPayload = t.DataPayload,
+                ResultPayload = t.ResultPayload,
+                ExceptionReason = t.ExceptionReason,
+                CreatedAt = t.CreatedAt
+            }).OrderBy(t => t.PlannedStartTime).ToList();
+
+            var response = new
+            {
+                Success = true,
+                Message = $"找到 {tasks.Count()} 个执行任务",
                 OrderId = orderId,
-                Tasks = taskDtos 
-            });
+                Tasks = taskDtos,
+                TaskCount = tasks.Count()
+            };
+
+            _logger.LogInformation("成功获取医嘱 {OrderId} 的 {TaskCount} 个执行任务", orderId, tasks.Count());
+            return Ok(response);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "查询任务列表失败: {Message}", ex.Message);
-            return BadRequest(new { Success = false, Message = ex.Message });
+            _logger.LogError(ex, "获取医嘱 {OrderId} 的执行任务时发生错误", orderId);
+            return BadRequest(new { Success = false, Message = $"获取任务列表失败: {ex.Message}" });
         }
-    }
-
-    // --- 私有辅助方法 ---
-    private List<ExecutionTaskDto> MapToDtos(IEnumerable<ExecutionTask> tasks)
-    {
-        return tasks.Select(t => new ExecutionTaskDto
-        {
-            Id = t.Id,
-            MedicalOrderId = t.MedicalOrderId,
-            PatientId = t.PatientId,
-            Category = t.Category,
-            PlannedStartTime = t.PlannedStartTime,
-            ActualStartTime = t.ActualStartTime,
-            ActualEndTime = t.ActualEndTime,
-            ExecutorStaffId = t.ExecutorStaffId,
-            CompleterNurseId = t.CompleterNurseId,
-            Status = t.Status,
-            IsRolledBack = t.IsRolledBack,
-            DataPayload = t.DataPayload,
-            ResultPayload = t.ResultPayload,
-            ExceptionReason = t.ExceptionReason,
-            CreatedAt = t.CreatedAt
-        }).OrderBy(t => t.PlannedStartTime).ToList();
     }
 }
 

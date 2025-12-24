@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CareFlow.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251223134329_AddNursingRecordSupplementTable")]
-    partial class AddNursingRecordSupplementTable
+    [Migration("20251224112650_hospital_OPv1")]
+    partial class hospital_OPv1
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -1033,6 +1033,10 @@ namespace CareFlow.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("ItemName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("Location")
                         .IsRequired()
                         .HasColumnType("text");
@@ -1092,18 +1096,51 @@ namespace CareFlow.Infrastructure.Migrations
                 {
                     b.HasBaseType("CareFlow.Core.Models.Medical.MedicalOrder");
 
-                    b.Property<string>("FrequencyType")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<int?>("ExpectedDurationMinutes")
+                        .HasColumnType("integer");
 
-                    b.Property<string>("FrequencyValue")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<int>("IntervalDays")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("IntervalHours")
+                        .HasColumnType("numeric");
 
                     b.Property<bool>("Normal")
                         .HasColumnType("boolean");
 
                     b.Property<string>("OpId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("OperationName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("OperationRequirements")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OperationSite")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PreparationItems")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("RequiresPreparation")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("RequiresResult")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ResultTemplate")
+                        .HasColumnType("text");
+
+                    b.Property<int>("SmartSlotsMask")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("StartTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TimingStrategy")
                         .IsRequired()
                         .HasColumnType("text");
 
