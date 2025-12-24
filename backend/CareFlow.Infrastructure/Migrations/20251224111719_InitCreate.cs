@@ -426,9 +426,10 @@ namespace CareFlow.Infrastructure.Migrations
                     PatientId = table.Column<string>(type: "text", nullable: false),
                     ScheduledTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     AssignedNurseId = table.Column<string>(type: "text", nullable: true),
-                    Status = table.Column<string>(type: "text", nullable: false),
+                    Status = table.Column<int>(type: "integer", nullable: false),
                     ExecuteTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     ExecutorNurseId = table.Column<string>(type: "text", nullable: true),
+                    CancelReason = table.Column<string>(type: "text", nullable: true),
                     TaskType = table.Column<string>(type: "text", nullable: false),
                     Description = table.Column<string>(type: "text", nullable: true),
                     CreateTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
@@ -551,6 +552,7 @@ namespace CareFlow.Infrastructure.Migrations
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false),
                     ItemCode = table.Column<string>(type: "text", nullable: false),
+                    ItemName = table.Column<string>(type: "text", nullable: false),
                     RisLisId = table.Column<string>(type: "text", nullable: false),
                     Location = table.Column<string>(type: "text", nullable: false),
                     Source = table.Column<int>(type: "integer", nullable: false),
@@ -699,6 +701,36 @@ namespace CareFlow.Infrastructure.Migrations
                         name: "FK_SurgicalOrders_MedicalOrders_Id",
                         column: x => x.Id,
                         principalTable: "MedicalOrders",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "NursingRecordSupplements",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    NursingTaskId = table.Column<long>(type: "bigint", nullable: false),
+                    SupplementNurseId = table.Column<string>(type: "text", nullable: false),
+                    SupplementTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    Content = table.Column<string>(type: "text", nullable: false),
+                    SupplementType = table.Column<string>(type: "text", nullable: false),
+                    CreateTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_NursingRecordSupplements", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_NursingRecordSupplements_Nurses_SupplementNurseId",
+                        column: x => x.SupplementNurseId,
+                        principalTable: "Nurses",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_NursingRecordSupplements_NursingTasks_NursingTaskId",
+                        column: x => x.NursingTaskId,
+                        principalTable: "NursingTasks",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -919,6 +951,16 @@ namespace CareFlow.Infrastructure.Migrations
                 column: "RecorderNurseId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_NursingRecordSupplements_NursingTaskId",
+                table: "NursingRecordSupplements",
+                column: "NursingTaskId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_NursingRecordSupplements_SupplementNurseId",
+                table: "NursingRecordSupplements",
+                column: "SupplementNurseId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_NursingTasks_AssignedNurseId",
                 table: "NursingTasks",
                 column: "AssignedNurseId");
@@ -990,7 +1032,7 @@ namespace CareFlow.Infrastructure.Migrations
                 name: "NursingCareNotes");
 
             migrationBuilder.DropTable(
-                name: "NursingTasks");
+                name: "NursingRecordSupplements");
 
             migrationBuilder.DropTable(
                 name: "OperationOrders");
@@ -1012,6 +1054,9 @@ namespace CareFlow.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "ShiftTypes");
+
+            migrationBuilder.DropTable(
+                name: "NursingTasks");
 
             migrationBuilder.DropTable(
                 name: "MedicalOrders");

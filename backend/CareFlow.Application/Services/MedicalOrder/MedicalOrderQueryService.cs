@@ -539,8 +539,7 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
         if (inspOrder == null) return;
 
         detail.ItemCode = inspOrder.ItemCode;
-        // InspectionOrder模型中没有ItemName字段，使用ItemCode作为名称
-        detail.ItemName = inspOrder.ItemCode;
+        detail.ItemName = inspOrder.ItemName;
     }
 
     /// <summary>
@@ -598,7 +597,14 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
                 {
                     var firstItem = medOrder.Items.First();
                     var drug = await _drugRepository.GetByIdAsync(firstItem.DrugId);
-                    return $"{drug?.GenericName ?? "药品"} {firstItem.Dosage}";
+                    var drugName = drug?.GenericName ?? "药品";
+                    
+                    // 如果有多个药品，添加"等n种药品"
+                    if (medOrder.Items.Count > 1)
+                    {
+                        return $"{drugName} {firstItem.Dosage} 等{medOrder.Items.Count}种药品";
+                    }
+                    return $"{drugName} {firstItem.Dosage}";
                 }
                 return "药品医嘱";
 
@@ -608,7 +614,7 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
 
             case "InspectionOrder":
                 var inspOrder = await _inspectionRepository.GetByIdAsync(order.Id);
-                return inspOrder?.ItemCode ?? "检查医嘱";
+                return inspOrder?.ItemName ?? "检查医嘱";
 
             case "OperationOrder":
                 var opOrder = await _operationRepository.GetByIdAsync(order.Id);

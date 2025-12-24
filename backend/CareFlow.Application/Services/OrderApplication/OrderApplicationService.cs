@@ -850,7 +850,7 @@ public class OrderApplicationService : IOrderApplicationService
             OrderId = inspectionOrder.Id,
             OrderType = "Inspection",
             IsLongTerm = inspectionOrder.IsLongTerm,
-            DisplayText = inspectionOrder.ItemCode,
+            DisplayText = inspectionOrder.ItemName,
             ItemCount = 1,
             InspectionSource = inspectionOrder.Source.ToString(),
             PatientId = task.PatientId,
@@ -860,12 +860,12 @@ public class OrderApplicationService : IOrderApplicationService
             StatusText = GetStatusText(task.Status), // 从任务状态转换
             PlannedStartTime = task.PlannedStartTime,
             PlantEndTime = inspectionOrder.PlantEndTime,
-            ContentDescription = $"检查：{inspectionOrder.ItemCode}",
+            ContentDescription = $"检查：{inspectionOrder.ItemName}",
             Medications = null,
             InspectionInfo = new InspectionDetail
             {
                 ItemCode = inspectionOrder.ItemCode,
-                ItemName = inspectionOrder.ItemCode,
+                ItemName = inspectionOrder.ItemName,
                 Location = inspectionOrder.Location,
                 Source = inspectionOrder.Source.ToString(),
                 Precautions = inspectionOrder.Precautions,

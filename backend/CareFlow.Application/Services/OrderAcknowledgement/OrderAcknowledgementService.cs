@@ -855,7 +855,7 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
         }
         else if (order is InspectionOrder inspectionOrder)
         {
-            dto.DisplayText = $"检查项目: {inspectionOrder.ItemCode}";
+            dto.DisplayText = $"检查项目: {inspectionOrder.ItemName}";
             dto.ItemCode = inspectionOrder.ItemCode;
             dto.Location = inspectionOrder.Location;
         }
