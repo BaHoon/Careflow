@@ -62,8 +62,8 @@ public enum ExecutionTaskStatus
     /// <summary>异常/拒绝 - 护士跳过执行或执行异常</summary>
     Incomplete = 8,
     
-    /// <summary>已取消 - 护士手动取消任务</summary>
-    Cancelled = 9
+    /// <summary>待退药 - 医嘱停止后需要护士确认退药，或护士主动申请退药</summary>
+    PendingReturn = 9
 }
 
 /// <summary>

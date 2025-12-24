@@ -1,6 +1,7 @@
 using CareFlow.Application.Interfaces;
 using CareFlow.Application.Services;
 using CareFlow.Application.Services.InspectionOrders;
+using CareFlow.Application.Services.MedicalOrder;
 using CareFlow.Application.Services.MedicationOrders;
 using CareFlow.Application.Services.OperationOrders;
 using CareFlow.Application.Services.OrderAcknowledgement;
@@ -44,6 +45,9 @@ public static class DependencyInjection
         services.AddScoped<IPharmacyIntegrationService, PharmacyIntegrationService>();
         services.AddScoped<IInspectionStationService, InspectionStationService>();
         services.AddScoped<IBackgroundJobService, SimpleBackgroundJobService>();
+        
+        // 注册医生端医嘱查询服务
+        services.AddScoped<IMedicalOrderQueryService, MedicalOrderQueryService>();
 
         return services;
     }

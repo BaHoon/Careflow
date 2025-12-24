@@ -45,6 +45,7 @@ namespace CareFlow.Infrastructure
         public DbSet<InspectionReport> InspectionReports { get; set; } // 检查报告
         public DbSet<HospitalTimeSlot> HospitalTimeSlots { get; set; } // 时段字典
         public DbSet<Drug> Drugs { get; set; } // 药品字典
+        public DbSet<MedicalOrderStatusHistory> MedicalOrderStatusHistories { get; set; } // 医嘱状态变更历史
         #endregion
 
         //护理执行
@@ -54,6 +55,7 @@ namespace CareFlow.Infrastructure
         public DbSet<ShiftType> ShiftTypes { get; set; }               // 班次定义
         public DbSet<NurseRoster> NurseRosters { get; set; }           // 护士排班
         public DbSet<NursingTask> NursingTasks { get; set; }
+        public DbSet<MedicationReturnRequest> MedicationReturnRequests { get; set; } // 退药申请记录
         public DbSet<NursingRecordSupplement> NursingRecordSupplements { get; set; } // 护理记录补充说明
 
         #region 5. Barcode (条形码系统)

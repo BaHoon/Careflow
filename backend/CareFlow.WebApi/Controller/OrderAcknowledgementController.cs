@@ -191,6 +191,63 @@ public class OrderAcknowledgementController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// 拒绝停止医嘱
+    /// 护士认为不应该停止该医嘱，将医嘱状态从PendingStop恢复为InProgress
+    /// </summary>
+    /// <param name="request">拒绝停嘱请求（包含护士ID、医嘱ID列表和拒绝原因）</param>
+    /// <returns>拒绝停嘱结果</returns>
+    [HttpPost("reject-stop")]
+    public async Task<ActionResult<RejectStopOrderResponseDto>> RejectStopOrder(
+        [FromBody] RejectStopOrderRequestDto request)
+    {
+        try
+        {
+            // 参数验证
+            if (string.IsNullOrWhiteSpace(request.NurseId))
+            {
+                return BadRequest(new { message = "护士ID不能为空" });
+            }
+
+            if (request.OrderIds == null || request.OrderIds.Count == 0)
+            {
+                return BadRequest(new { message = "医嘱ID列表不能为空" });
+            }
+
+            if (string.IsNullOrWhiteSpace(request.RejectReason))
+            {
+                return BadRequest(new { message = "拒绝原因不能为空" });
+            }
+
+            _logger.LogInformation("接收到拒绝停嘱请求: 护士 {NurseId}, 医嘱数量 {Count}, 原因: {Reason}",
+                request.NurseId, request.OrderIds.Count, request.RejectReason);
+
+            var result = await _acknowledgementService.RejectStopOrderAsync(request);
+
+            if (result.Success)
+            {
+                _logger.LogInformation("✅ 拒绝停嘱成功: {Count} 条，恢复任务 {TaskCount} 个",
+                    result.RejectedOrderIds.Count, result.RestoredTaskIds.Count);
+                return Ok(result);
+            }
+            else
+            {
+                _logger.LogWarning("⚠️ 拒绝停嘱部分失败: {Message}", result.Message);
+                return BadRequest(result);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ 拒绝停嘱时发生异常");
+            return StatusCode(500, new RejectStopOrderResponseDto
+            {
+                Success = false,
+                Message = "服务器内部错误",
+                Errors = new List<string> { ex.Message }
+            });
+        }
+    }
+
     // ==================== TODO: 阶段三实现以下接口 ====================
 
     /// <summary>

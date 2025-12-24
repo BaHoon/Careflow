@@ -250,15 +250,27 @@
                     </div>
                   </div>
 
+                  <!-- 开始时间 -->
+                  <div v-if="order.startTime" class="detail-section">
+                    <span class="detail-label">开始时间:</span>
+                    <span class="detail-value">{{ formatDateTime(order.startTime) }}</span>
+                  </div>
+
+                  <!-- 结束时间 -->
+                  <div v-if="order.plantEndTime" class="detail-section">
+                    <span class="detail-label">结束时间:</span>
+                    <span class="detail-value">{{ formatDateTime(order.plantEndTime) }}</span>
+                  </div>
+
                   <!-- 时间策略 -->
                   <div v-if="order.timingStrategy" class="detail-section">
-                    <span class="detail-label">策略:</span>
+                    <span class="detail-label">时间策略:</span>
                     <span class="detail-value">{{ getTimingStrategyText(order) }}</span>
                   </div>
 
                   <!-- 给药途径 -->
-                  <div v-if="order.usageRoute" class="detail-section">
-                    <span class="detail-label">途径:</span>
+                  <div v-if="order.usageRoute !== null && order.usageRoute !== undefined" class="detail-section">
+                    <span class="detail-label">用药途径:</span>
                     <span class="detail-value">{{ getUsageRouteText(order.usageRoute) }}</span>
                   </div>
 
@@ -329,6 +341,14 @@
                 >
                   批量签收 ({{ selectedStoppedCount }})
                 </el-button>
+                <el-button 
+                  type="danger" 
+                  :disabled="selectedStoppedCount === 0"
+                  @click="rejectStoppedBatch"
+                  class="action-btn"
+                >
+                  批量退回 ({{ selectedStoppedCount }})
+                </el-button>
               </div>
             </div>
 
@@ -380,6 +400,13 @@
                 >
                   签收
                 </el-button>
+                <el-button 
+                  type="danger"
+                  @click="rejectStoppedOne(order)"
+                  class="action-btn-small"
+                >
+                  退回
+                </el-button>
               </div>
             </div>
           </div>
@@ -408,10 +435,13 @@ import {
   getPatientPendingOrders,
   acknowledgeOrders,
   rejectOrders,
+  rejectStopOrders,
   requestMedicationImmediately,
   requestInspection,
   cancelMedicationRequest
 } from '../api/orderAcknowledgement';
+// 导入退药相关API
+import { confirmReturnMedication } from '../api/orderApplication';
 
 // ==================== 状态管理 ====================
 
@@ -933,7 +963,7 @@ const acknowledgeStoppedBatchInternal = async (orderIds) => {
 
     ElMessage.success(result.message);
 
-    // TODO: 阶段三实现 - 检查是否有待取消的申请
+    // 检查是否有待退药的申请
     for (const item of result.results) {
       if (item.hasPendingRequests) {
         await handleStoppedOrderWithPendingRequests(item);
@@ -952,38 +982,74 @@ const acknowledgeStoppedBatchInternal = async (orderIds) => {
   }
 };
 
-// TODO: 阶段三实现 - 处理停止医嘱的待取消申请
+// 处理停止医嘱的待退药申请
 const handleStoppedOrderWithPendingRequests = async (result) => {
+  if (!result.pendingRequestIds || result.pendingRequestIds.length === 0) {
+    return;
+  }
+
   try {
     await ElMessageBox.confirm(
-      `该医嘱存在 ${result.pendingRequestIds.length} 个已提交但未执行的申请，是否取消这些申请？`,
-      '警告',
+      `该医嘱有 ${result.pendingRequestIds.length} 个已申请的药品需要退回药房，确认退药后任务将被停止。`,
+      '确认退药',
       {
-        confirmButtonText: '取消申请',
-        cancelButtonText: '保留申请',
-        type: 'warning'
+        confirmButtonText: '确认退药',
+        cancelButtonText: '暂不退药',
+        type: 'warning',
+        customClass: 'return-medication-confirm'
       }
     );
-    
-    // TODO: 调用取消申请接口
-    // await cancelMedicationRequest({ 
-    //   orderId: result.orderId, 
-    //   requestIds: result.pendingRequestIds 
-    // });
-    ElMessage.info('取消申请功能待阶段三实现');
-  } catch {
-    // 用户选择保留申请
+
+    // 对每个任务ID调用确认退药接口（注意：这些任务已经是PendingReturn状态）
+    const currentNurse = getCurrentNurse();
+    if (!currentNurse) {
+      ElMessage.error('未找到当前护士信息');
+      return;
+    }
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const taskId of result.pendingRequestIds) {
+      try {
+        const response = await confirmReturnMedication(
+          taskId,
+          currentNurse.staffId
+        );
+
+        if (response.success) {
+          successCount++;
+        } else {
+          failCount++;
+          console.error(`任务 ${taskId} 退药确认失败:`, response.message);
+        }
+      } catch (error) {
+        failCount++;
+        console.error(`任务 ${taskId} 退药确认异常:`, error);
+      }
+    }
+
+    if (successCount > 0) {
+      ElMessage.success(`已成功确认 ${successCount} 个退药${failCount > 0 ? `，${failCount} 个失败` : ''}`);
+    } else if (failCount > 0) {
+      ElMessage.error(`所有退药确认均失败`);
+    }
+  } catch (error) {
+    // 用户取消或其他错误
+    if (error !== 'cancel') {
+      console.error('退药确认失败:', error);
+    }
   }
 };
 
 // ==================== 退回逻辑 ====================
 
-// 单条退回
+// 单条退回（新开医嘱）
 const rejectOne = async (order) => {
   await rejectBatchInternal([order.orderId]);
 };
 
-// 批量退回
+// 批量退回（新开医嘱）
 const rejectBatch = async () => {
   const selectedIds = pendingOrders.value.newOrders
     .filter(o => o.selected)
@@ -997,7 +1063,26 @@ const rejectBatch = async () => {
   await rejectBatchInternal(selectedIds);
 };
 
-// 退回核心逻辑
+// 单条退回（停止医嘱）
+const rejectStoppedOne = async (order) => {
+  await rejectStoppedBatchInternal([order.orderId]);
+};
+
+// 批量退回（停止医嘱）
+const rejectStoppedBatch = async () => {
+  const selectedIds = pendingOrders.value.stoppedOrders
+    .filter(o => o.selected)
+    .map(o => o.orderId);
+  
+  if (selectedIds.length === 0) {
+    ElMessage.warning('请至少选择一条医嘱');
+    return;
+  }
+
+  await rejectStoppedBatchInternal(selectedIds);
+};
+
+// 退回核心逻辑（新开医嘱）
 const rejectBatchInternal = async (orderIds) => {
   try {
     // 弹窗输入退回原因
@@ -1037,6 +1122,50 @@ const rejectBatchInternal = async (orderIds) => {
       return;
     }
     console.error('退回失败:', error);
+    ElMessage.error(error.message || '退回失败');
+  }
+};
+
+// 退回核心逻辑（停止医嘱）
+const rejectStoppedBatchInternal = async (orderIds) => {
+  try {
+    // 弹窗输入拒绝原因
+    const { value: reason } = await ElMessageBox.prompt(
+      '请输入拒绝停止医嘱的原因（该医嘱将恢复为执行中状态）',
+      '拒绝停止医嘱',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        inputPattern: /\S+/,
+        inputErrorMessage: '拒绝原因不能为空'
+      }
+    );
+
+    const result = await rejectStopOrders({
+      nurseId: currentNurse.value.staffId,
+      orderIds: orderIds,
+      rejectReason: reason
+    });
+
+    if (!result.success) {
+      ElMessage.error(result.message || '退回失败');
+      return;
+    }
+
+    ElMessage.success(result.message);
+
+    // 清除选择状态
+    selectAllStopped.value = false;
+    pendingOrders.value.stoppedOrders.forEach(o => o.selected = false);
+
+    // 刷新列表
+    await refreshCurrentView();
+  } catch (error) {
+    if (error === 'cancel') {
+      // 用户取消
+      return;
+    }
+    console.error('退回停止医嘱失败:', error);
     ElMessage.error(error.message || '退回失败');
   }
 };
@@ -1329,25 +1458,77 @@ const getOrderTypeColor = (orderType) => {
 
 // 获取时间策略文本
 const getTimingStrategyText = (order) => {
-  const map = {
-    'IMMEDIATE': '立即执行',
-    'SPECIFIC': `指定时间 ${formatDateTime(order.startTime)}`,
-    'CYCLIC': `周期执行`,
-    'SLOTS': '时段执行'
+  if (!order.timingStrategy) return '未指定';
+  
+  switch (order.timingStrategy) {
+    case 'IMMEDIATE':
+      return '立即执行';
+    
+    case 'SPECIFIC':
+      return `指定时间: ${formatDateTime(order.startTime)}`;
+    
+    case 'CYCLIC':
+      const intervalText = order.intervalHours 
+        ? (order.intervalHours < 1 
+            ? `每${Math.round(order.intervalHours * 60)}分钟` 
+            : order.intervalHours % 24 === 0 
+              ? `每${order.intervalHours / 24}天` 
+              : `每${order.intervalHours}小时`)
+        : '周期执行';
+      return intervalText;
+    
+    case 'SLOTS':
+      const slotText = getSlotNamesFromMask(order.smartSlotsMask);
+      const intervalDaysText = order.intervalDays && order.intervalDays > 1 
+        ? `每${order.intervalDays}天` 
+        : '每天';
+      return `时段执行 (${intervalDaysText} ${slotText})`;
+    
+    default:
+      return order.timingStrategy;
+  }
+};
+
+// 根据时间槽掩码获取中文时间点名称
+const getSlotNamesFromMask = (mask) => {
+  if (!mask) return '未指定';
+  
+  const slotMap = {
+    1: '早餐前',
+    2: '早餐后',
+    4: '午餐前',
+    8: '午餐后',
+    16: '晚餐前',
+    32: '晚餐后',
+    64: '睡前'
   };
-  return map[order.timingStrategy] || order.timingStrategy;
+  
+  const selectedSlots = [];
+  for (let bit = 1; bit <= 64; bit *= 2) {
+    if (mask & bit) {
+      selectedSlots.push(slotMap[bit]);
+    }
+  }
+  
+  return selectedSlots.length > 0 ? selectedSlots.join('、') : '未指定';
 };
 
 // 获取给药途径文本
 const getUsageRouteText = (route) => {
+  if (route === null || route === undefined || route === '') return '未指定';
+  
+  // 后端返回的是枚举名称字符串（如 "PO", "IM"）
   const map = {
-    '1': '口服',
-    '10': '肌肉注射',
-    '11': '皮下注射',
-    '12': '皮内注射',
-    '20': '静脉滴注',
-    '21': '静脉推注'
+    'PO': '口服',
+    'Topical': '外用/涂抹',
+    'IM': '肌内注射',
+    'SC': '皮下注射',
+    'IVP': '静脉推注',
+    'IVGTT': '静脉滴注',
+    'Inhalation': '吸氧',
+    'ST': '皮试'
   };
+  
   return map[route] || route;
 };
 
@@ -2145,6 +2326,23 @@ const formatDateTime = (dateTime) => {
 
 :deep(.order-action-confirm .el-message-box__message > div) {
   margin-top: 10px;
+}
+
+/* 退药申请弹窗样式 */
+:deep(.return-medication-confirm) {
+  width: 520px;
+  max-width: 90vw;
+}
+
+:deep(.return-medication-confirm .el-message-box__message) {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #606266;
+}
+
+:deep(.return-medication-confirm .el-input__inner) {
+  min-height: 80px;
+  line-height: 1.5;
 }
 
 .empty-icon {
