@@ -159,8 +159,14 @@
               </el-tag>
               
               <!-- 主要内容：药品申请显示 "计划时间 - 第一个药品" -->
+              <!-- 手术类药品申请显示 "手术日期 - 手术名称" -->
               <span v-if="activeTab === 'medication' && item.medications && item.medications.length > 0" class="order-main-text">
-                {{ formatDateTime(item.plannedStartTime) }} - {{ item.medications[0].drugName }}{{ item.medications.length > 1 ? '等' : '' }}
+                <template v-if="item.orderType === 'Surgical' && item.surgeryName">
+                  {{ formatDateTime(item.surgeryScheduleTime || item.plannedStartTime) }} - {{ item.surgeryName }}
+                </template>
+                <template v-else>
+                  {{ formatDateTime(item.plannedStartTime) }} - {{ item.medications[0].drugName }}{{ item.medications.length > 1 ? '等' : '' }}
+                </template>
               </span>
               <span v-else class="order-main-text">{{ item.displayText }}</span>
               
@@ -509,6 +515,12 @@ const loadApplications = async () => {
     return;
   }
 
+  // 如果没有选中任何状态，直接返回空列表
+  if (!statusFilter.value || statusFilter.value.length === 0) {
+    applicationList.value = [];
+    return;
+  }
+
   loading.value = true;
   try {
     const currentNurse = getCurrentNurse();
@@ -523,10 +535,8 @@ const loadApplications = async () => {
       patientIds: [selectedPatient.value.patientId]
     };
 
-    // 添加状态筛选（如果有的话）
-    if (statusFilter.value && statusFilter.value.length > 0) {
-      requestData.statusFilter = statusFilter.value;
-    }
+    // 添加状态筛选
+    requestData.statusFilter = statusFilter.value;
 
     // 仅药品申请时添加时间范围参数
     // 需要将本地时间转换为UTC时间（PostgreSQL要求）

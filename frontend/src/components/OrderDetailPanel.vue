@@ -122,6 +122,10 @@
               <span class="label">间隔天数:</span>
               <span class="value">{{ detail.intervalDays }}天</span>
             </div>
+            <div v-if="detail.timingStrategy === 'SLOTS' && detail.smartSlotsMask" class="info-item full-width">
+              <span class="label">执行时间点:</span>
+              <span class="value">{{ getSlotNamesFromMask(detail.smartSlotsMask) }}</span>
+            </div>
           </div>
           
           <div v-if="detail.medicationItems && detail.medicationItems.length > 0" class="drug-list">
@@ -484,6 +488,10 @@ const getTimingStrategyName = (strategy) => {
   if (!strategy) return '未指定';
   
   const strategyMap = {
+    'IMMEDIATE': '立即执行',
+    'SPECIFIC': '指定时间',
+    'CYCLIC': '周期执行',
+    'SLOTS': '时段执行',
     'OnceDaily': '每日一次',
     'TwiceDaily': '每日两次',
     'ThreeTimesDaily': '每日三次',
@@ -494,6 +502,30 @@ const getTimingStrategyName = (strategy) => {
     'Hourly': '按小时'
   };
   return strategyMap[strategy] || strategy;
+};
+
+// 根据时间槽掩码获取中文时间点名称
+const getSlotNamesFromMask = (mask) => {
+  if (!mask) return '未指定';
+  
+  const slotMap = {
+    1: '早餐前',
+    2: '早餐后',
+    4: '午餐前',
+    8: '午餐后',
+    16: '晚餐前',
+    32: '晚餐后',
+    64: '睡前'
+  };
+  
+  const selectedSlots = [];
+  for (let bit = 1; bit <= 64; bit *= 2) {
+    if (mask & bit) {
+      selectedSlots.push(slotMap[bit]);
+    }
+  }
+  
+  return selectedSlots.length > 0 ? selectedSlots.join('、') : '未指定';
 };
 
 const getTaskStatusText = (status) => {

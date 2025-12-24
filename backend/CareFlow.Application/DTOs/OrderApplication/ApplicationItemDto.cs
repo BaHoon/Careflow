@@ -111,6 +111,16 @@ public class ApplicationItemDto
     public int? SmartSlotsMask { get; set; }
     
     /// <summary>
+    /// 手术名称（手术类医嘱的药品申请专用）
+    /// </summary>
+    public string? SurgeryName { get; set; }
+    
+    /// <summary>
+    /// 手术排期时间（手术类医嘱的药品申请专用）
+    /// </summary>
+    public DateTime? SurgeryScheduleTime { get; set; }
+    
+    /// <summary>
     /// 是否加急
     /// </summary>
     public bool IsUrgent { get; set; }

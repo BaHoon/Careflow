@@ -848,6 +848,9 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
             dto.UsageRoute = medicationOrder.UsageRoute.ToString();
             dto.TimingStrategy = medicationOrder.TimingStrategy;
             dto.StartTime = medicationOrder.StartTime;
+            dto.IntervalHours = medicationOrder.IntervalHours;
+            dto.IntervalDays = medicationOrder.IntervalDays;
+            dto.SmartSlotsMask = medicationOrder.SmartSlotsMask;
             dto.Items = await LoadMedicationItems(order.Id);
         }
         else if (order is InspectionOrder inspectionOrder)

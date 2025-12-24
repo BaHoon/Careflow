@@ -701,10 +701,26 @@ public class OrderApplicationService : IOrderApplicationService
         // 获取药品信息和医嘱详情
         var medications = new List<MedicationItemDetail>();
         var medOrder = task.MedicalOrder as MedicationOrder;
+        var surgicalOrder = task.MedicalOrder as SurgicalOrder;
         
+        // 从药品医嘱获取药品信息
         if (medOrder != null && medOrder.Items != null)
         {
             foreach (var item in medOrder.Items)
+            {
+                medications.Add(new MedicationItemDetail
+                {
+                    DrugId = item.DrugId,
+                    DrugName = item.Drug?.GenericName ?? item.Drug?.TradeName ?? "未知药品",
+                    Specification = item.Drug?.Specification ?? "",
+                    Dosage = item.Dosage
+                });
+            }
+        }
+        // 从手术医嘱获取药品信息（手术医嘱也继承了 Items 属性）
+        else if (surgicalOrder != null && surgicalOrder.Items != null)
+        {
+            foreach (var item in surgicalOrder.Items)
             {
                 medications.Add(new MedicationItemDetail
                 {
@@ -761,6 +777,9 @@ public class OrderApplicationService : IOrderApplicationService
             IntervalHours = medOrder?.IntervalHours,
             IntervalDays = medOrder?.IntervalDays,
             SmartSlotsMask = medOrder?.SmartSlotsMask,
+            // 填充手术信息（如果是手术类医嘱）
+            SurgeryName = surgicalOrder?.SurgeryName,
+            SurgeryScheduleTime = surgicalOrder?.ScheduleTime,
             IsUrgent = isUrgent,
             Remarks = remarks,
             CreateTime = task.CreatedAt,

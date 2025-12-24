@@ -250,15 +250,27 @@
                     </div>
                   </div>
 
+                  <!-- 开始时间 -->
+                  <div v-if="order.startTime" class="detail-section">
+                    <span class="detail-label">开始时间:</span>
+                    <span class="detail-value">{{ formatDateTime(order.startTime) }}</span>
+                  </div>
+
+                  <!-- 结束时间 -->
+                  <div v-if="order.plantEndTime" class="detail-section">
+                    <span class="detail-label">结束时间:</span>
+                    <span class="detail-value">{{ formatDateTime(order.plantEndTime) }}</span>
+                  </div>
+
                   <!-- 时间策略 -->
                   <div v-if="order.timingStrategy" class="detail-section">
-                    <span class="detail-label">策略:</span>
+                    <span class="detail-label">时间策略:</span>
                     <span class="detail-value">{{ getTimingStrategyText(order) }}</span>
                   </div>
 
                   <!-- 给药途径 -->
-                  <div v-if="order.usageRoute" class="detail-section">
-                    <span class="detail-label">途径:</span>
+                  <div v-if="order.usageRoute !== null && order.usageRoute !== undefined" class="detail-section">
+                    <span class="detail-label">用药途径:</span>
                     <span class="detail-value">{{ getUsageRouteText(order.usageRoute) }}</span>
                   </div>
 
@@ -1446,25 +1458,77 @@ const getOrderTypeColor = (orderType) => {
 
 // 获取时间策略文本
 const getTimingStrategyText = (order) => {
-  const map = {
-    'IMMEDIATE': '立即执行',
-    'SPECIFIC': `指定时间 ${formatDateTime(order.startTime)}`,
-    'CYCLIC': `周期执行`,
-    'SLOTS': '时段执行'
+  if (!order.timingStrategy) return '未指定';
+  
+  switch (order.timingStrategy) {
+    case 'IMMEDIATE':
+      return '立即执行';
+    
+    case 'SPECIFIC':
+      return `指定时间: ${formatDateTime(order.startTime)}`;
+    
+    case 'CYCLIC':
+      const intervalText = order.intervalHours 
+        ? (order.intervalHours < 1 
+            ? `每${Math.round(order.intervalHours * 60)}分钟` 
+            : order.intervalHours % 24 === 0 
+              ? `每${order.intervalHours / 24}天` 
+              : `每${order.intervalHours}小时`)
+        : '周期执行';
+      return intervalText;
+    
+    case 'SLOTS':
+      const slotText = getSlotNamesFromMask(order.smartSlotsMask);
+      const intervalDaysText = order.intervalDays && order.intervalDays > 1 
+        ? `每${order.intervalDays}天` 
+        : '每天';
+      return `时段执行 (${intervalDaysText} ${slotText})`;
+    
+    default:
+      return order.timingStrategy;
+  }
+};
+
+// 根据时间槽掩码获取中文时间点名称
+const getSlotNamesFromMask = (mask) => {
+  if (!mask) return '未指定';
+  
+  const slotMap = {
+    1: '早餐前',
+    2: '早餐后',
+    4: '午餐前',
+    8: '午餐后',
+    16: '晚餐前',
+    32: '晚餐后',
+    64: '睡前'
   };
-  return map[order.timingStrategy] || order.timingStrategy;
+  
+  const selectedSlots = [];
+  for (let bit = 1; bit <= 64; bit *= 2) {
+    if (mask & bit) {
+      selectedSlots.push(slotMap[bit]);
+    }
+  }
+  
+  return selectedSlots.length > 0 ? selectedSlots.join('、') : '未指定';
 };
 
 // 获取给药途径文本
 const getUsageRouteText = (route) => {
+  if (route === null || route === undefined || route === '') return '未指定';
+  
+  // 后端返回的是枚举名称字符串（如 "PO", "IM"）
   const map = {
-    '1': '口服',
-    '10': '肌肉注射',
-    '11': '皮下注射',
-    '12': '皮内注射',
-    '20': '静脉滴注',
-    '21': '静脉推注'
+    'PO': '口服',
+    'Topical': '外用/涂抹',
+    'IM': '肌内注射',
+    'SC': '皮下注射',
+    'IVP': '静脉推注',
+    'IVGTT': '静脉滴注',
+    'Inhalation': '吸氧',
+    'ST': '皮试'
   };
+  
   return map[route] || route;
 };
 
