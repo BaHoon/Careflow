@@ -571,30 +571,32 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
         _logger.LogInformation("条形码生成完成: 成功 {Success}, 失败 {Failed}", 
             barcodeSuccessCount, barcodeFailCount);
 
-        // 5. 检查今天是否有任务需要执行
-        var today = DateTime.Today;
-        var todayTasks = tasks.Where(t => t.PlannedStartTime.Date == today).ToList();
+        // 5. 检查今天是否有任务需要执行 【已注释】
+        // var today = DateTime.Today;
+        // var todayTasks = tasks.Where(t => t.PlannedStartTime.Date == today).ToList();
 
         var result = new AcknowledgedOrderResultDto
         {
             OrderId = order.Id,
             OrderType = order.OrderType,
             GeneratedTaskIds = tasks.Select(t => t.Id).ToList(),
-            NeedTodayAction = todayTasks.Any(),
+            // NeedTodayAction = todayTasks.Any(),  // 【已注释】不再检查今日任务
+            NeedTodayAction = false,  // 固定返回 false，不再提示申请
             TaskSummary = new TaskGenerationSummary
             {
                 TotalTaskCount = tasks.Count,
-                TodayTaskCount = todayTasks.Count,
+                TodayTaskCount = 0,  // 【已注释】不再统计今日任务
                 AssignedTaskCount = assignedCount,
                 UnassignedTaskCount = unassignedCount
             }
         };
 
-        // 6. 判断需要的操作类型
-        result.ActionType = DetermineActionType(order, todayTasks);
+        // 6. 判断需要的操作类型 【已注释】
+        // result.ActionType = DetermineActionType(order, todayTasks);
+        result.ActionType = "None";  // 固定返回 None，不再触发申请提示
 
         _logger.LogInformation("任务生成完成: 总计 {Total}, 今日 {Today}, 已分配 {Assigned}, 未分配 {Unassigned}",
-            tasks.Count, todayTasks.Count, assignedCount, unassignedCount);
+            tasks.Count, 0, assignedCount, unassignedCount);
 
         return result;
     }
@@ -709,20 +711,14 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
                 order.Id, pendingReturnTaskIds.Count);
         }
 
-        // 5. ✅ 检查是否有已提交但未确认的申请（需要通知外部系统取消）
-        var appliedTasks = await _taskRepository.ListAsync(t =>
-            t.MedicalOrderId == order.Id &&
-            (t.Status == ExecutionTaskStatus.Applied || 
-             t.Status == ExecutionTaskStatus.AppliedConfirmed));
-             
-        var pendingRequestIds = appliedTasks.Select(t => t.Id).ToList();
-        var hasPendingRequests = pendingRequestIds.Any();
+        // 5. ✅ 返回待退药的任务ID（而不是查询Applied/AppliedConfirmed状态）
+        // 注意：这里返回的是已经转换为PendingReturn状态的任务ID
+        var hasPendingRequests = pendingReturnTaskIds.Any();
         
         if (hasPendingRequests)
         {
-            _logger.LogWarning("⚠️ 医嘱 {OrderId} 有 {Count} 个已提交申请（状态: Applied/AppliedConfirmed），" +
-                             "建议通知药房/检查站取消。任务ID: {TaskIds}",
-                order.Id, pendingRequestIds.Count, string.Join(", ", pendingRequestIds));
+            _logger.LogInformation("⚠️ 医嘱 {OrderId} 需要护士确认退药的任务ID: {TaskIds}",
+                order.Id, string.Join(", ", pendingReturnTaskIds));
         }
         
         // 6. ✅ 统计所有任务状态（用于完整性检查）
@@ -742,12 +738,12 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
             ActionType = "None",
             GeneratedTaskIds = stoppedTaskIds,
             HasPendingRequests = hasPendingRequests,
-            PendingRequestIds = pendingRequestIds
+            PendingRequestIds = pendingReturnTaskIds  // 返回待退药任务ID（PendingReturn状态）
         };
 
         _logger.LogInformation("========== 停止医嘱签收完成：作废 {StoppedCount} 个任务，" +
-                             "待取消申请 {PendingCount} 个 ==========",
-            stoppedTaskIds.Count, pendingRequestIds.Count);
+                             "待退药 {PendingCount} 个 ==========",
+            stoppedTaskIds.Count, pendingReturnTaskIds.Count);
 
         return result;
     }
@@ -798,35 +794,35 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
     }
 
     /// <summary>
-    /// 判断需要的操作类型
+    /// 判断需要的操作类型 【已注释 - 不再使用】
     /// </summary>
-    private string DetermineActionType(MedicalOrderEntity order, List<ExecutionTask> todayTasks)
-    {
-        if (!todayTasks.Any())
-        {
-            return "None";
-        }
+    // private string DetermineActionType(MedicalOrderEntity order, List<ExecutionTask> todayTasks)
+    // {
+    //     if (!todayTasks.Any())
+    //     {
+    //         return "None";
+    //     }
 
-        // 药品医嘱或手术医嘱：检查今天是否有取药任务
-        if (order is MedicationOrder || order is SurgicalOrder)
-        {
-            var hasTodayRetrieve = todayTasks.Any(t =>
-                t.Category == TaskCategory.Verification &&
-                t.DataPayload.Contains("RetrieveMedication"));
+    //     // 药品医嘱或手术医嘱：检查今天是否有取药任务
+    //     if (order is MedicationOrder || order is SurgicalOrder)
+    //     {
+    //         var hasTodayRetrieve = todayTasks.Any(t =>
+    //             t.Category == TaskCategory.Verification &&
+    //             t.DataPayload.Contains("RetrieveMedication"));
 
-            if (hasTodayRetrieve)
-            {
-                return "RequestMedication";
-            }
-        }
-        // 检查医嘱
-        else if (order is InspectionOrder)
-        {
-            return "RequestInspection";
-        }
+    //         if (hasTodayRetrieve)
+    //         {
+    //             return "RequestMedication";
+    //         }
+    //     }
+    //     // 检查医嘱
+    //     else if (order is InspectionOrder)
+    //     {
+    //         return "RequestInspection";
+    //     }
 
-        return "None";
-    }
+    //     return "None";
+    // }
 
     /// <summary>
     /// 将医嘱实体映射为待签收DTO

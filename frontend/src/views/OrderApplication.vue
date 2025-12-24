@@ -758,7 +758,7 @@ const handleBatchApply = async () => {
     }
 
     if (response.success) {
-      ElMessage.success(`批量申请成功：${response.data.processedIds?.length || selectedItems.length} 项`);
+      ElMessage.success(`批量申请成功：${response.processedIds?.length || selectedItems.length} 项`);
       await loadApplications(); // 刷新列表（会自动更新待申请数量）
       selectAll.value = false;
     } else {

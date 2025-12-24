@@ -428,6 +428,8 @@ import {
   requestInspection,
   cancelMedicationRequest
 } from '../api/orderAcknowledgement';
+// 导入退药相关API
+import { confirmReturnMedication } from '../api/orderApplication';
 
 // ==================== 状态管理 ====================
 
@@ -949,7 +951,7 @@ const acknowledgeStoppedBatchInternal = async (orderIds) => {
 
     ElMessage.success(result.message);
 
-    // TODO: 阶段三实现 - 检查是否有待取消的申请
+    // 检查是否有待退药的申请
     for (const item of result.results) {
       if (item.hasPendingRequests) {
         await handleStoppedOrderWithPendingRequests(item);
@@ -968,27 +970,63 @@ const acknowledgeStoppedBatchInternal = async (orderIds) => {
   }
 };
 
-// TODO: 阶段三实现 - 处理停止医嘱的待取消申请
+// 处理停止医嘱的待退药申请
 const handleStoppedOrderWithPendingRequests = async (result) => {
+  if (!result.pendingRequestIds || result.pendingRequestIds.length === 0) {
+    return;
+  }
+
   try {
     await ElMessageBox.confirm(
-      `该医嘱存在 ${result.pendingRequestIds.length} 个已提交但未执行的申请，是否取消这些申请？`,
-      '警告',
+      `该医嘱有 ${result.pendingRequestIds.length} 个已申请的药品需要退回药房，确认退药后任务将被停止。`,
+      '确认退药',
       {
-        confirmButtonText: '取消申请',
-        cancelButtonText: '保留申请',
-        type: 'warning'
+        confirmButtonText: '确认退药',
+        cancelButtonText: '暂不退药',
+        type: 'warning',
+        customClass: 'return-medication-confirm'
       }
     );
-    
-    // TODO: 调用取消申请接口
-    // await cancelMedicationRequest({ 
-    //   orderId: result.orderId, 
-    //   requestIds: result.pendingRequestIds 
-    // });
-    ElMessage.info('取消申请功能待阶段三实现');
-  } catch {
-    // 用户选择保留申请
+
+    // 对每个任务ID调用确认退药接口（注意：这些任务已经是PendingReturn状态）
+    const currentNurse = getCurrentNurse();
+    if (!currentNurse) {
+      ElMessage.error('未找到当前护士信息');
+      return;
+    }
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const taskId of result.pendingRequestIds) {
+      try {
+        const response = await confirmReturnMedication(
+          taskId,
+          currentNurse.staffId
+        );
+
+        if (response.success) {
+          successCount++;
+        } else {
+          failCount++;
+          console.error(`任务 ${taskId} 退药确认失败:`, response.message);
+        }
+      } catch (error) {
+        failCount++;
+        console.error(`任务 ${taskId} 退药确认异常:`, error);
+      }
+    }
+
+    if (successCount > 0) {
+      ElMessage.success(`已成功确认 ${successCount} 个退药${failCount > 0 ? `，${failCount} 个失败` : ''}`);
+    } else if (failCount > 0) {
+      ElMessage.error(`所有退药确认均失败`);
+    }
+  } catch (error) {
+    // 用户取消或其他错误
+    if (error !== 'cancel') {
+      console.error('退药确认失败:', error);
+    }
   }
 };
 
@@ -2224,6 +2262,23 @@ const formatDateTime = (dateTime) => {
 
 :deep(.order-action-confirm .el-message-box__message > div) {
   margin-top: 10px;
+}
+
+/* 退药申请弹窗样式 */
+:deep(.return-medication-confirm) {
+  width: 520px;
+  max-width: 90vw;
+}
+
+:deep(.return-medication-confirm .el-message-box__message) {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #606266;
+}
+
+:deep(.return-medication-confirm .el-input__inner) {
+  min-height: 80px;
+  line-height: 1.5;
 }
 
 .empty-icon {
