@@ -58,6 +58,7 @@
             <el-checkbox label="Applying">待申请</el-checkbox>
             <el-checkbox label="Applied">已申请</el-checkbox>
             <el-checkbox label="AppliedConfirmed">已确认</el-checkbox>
+            <el-checkbox label="PendingReturn">待退药</el-checkbox>
           </el-checkbox-group>
         </div>
 
@@ -263,14 +264,39 @@
             </el-button>
           </div>
 
-          <!-- 已申请状态显示取消按钮 -->
+          <!-- 已申请状态显示撤销申请按钮 -->
           <div v-else-if="item.status === 'Applied'" class="application-actions">
             <el-button 
               type="warning" 
-              @click="handleCancelApply(item)"
+              @click="handleCancelApplication(item)"
               class="action-btn-small"
             >
-              取消
+              撤销申请
+            </el-button>
+          </div>
+
+          <!-- 已确认状态显示退药按钮 -->
+          <div v-else-if="item.status === 'AppliedConfirmed'" class="application-actions">
+            <el-button 
+              type="danger" 
+              @click="handleReturnMedication(item)"
+              class="action-btn-small"
+            >
+              退药
+            </el-button>
+          </div>
+
+          <!-- 待退药状态显示确认退药按钮 -->
+          <div v-else-if="item.status === 'PendingReturn'" class="application-actions">
+            <el-tag type="danger" size="small" class="return-notice">
+              需要退药
+            </el-tag>
+            <el-button 
+              type="primary" 
+              @click="handleConfirmReturn(item)"
+              class="action-btn-small"
+            >
+              确认退药
             </el-button>
           </div>
         </div>
@@ -299,7 +325,9 @@ import {
   submitMedicationApplication,
   submitInspectionApplication,
   cancelMedicationApplication,
-  cancelInspectionApplication
+  cancelInspectionApplication,
+  requestReturnMedication,
+  confirmReturnMedication
 } from '@/api/orderApplication';
 
 // 使用患者数据组合
@@ -744,6 +772,137 @@ const handleBatchApply = async () => {
   }
 };
 
+// 撤销申请（Applied状态）
+const handleCancelApplication = async (item) => {
+  try {
+    await ElMessageBox.confirm(
+      '确定要撤销此申请吗？药房可能正在配药中。',
+      '撤销申请确认',
+      {
+        confirmButtonText: '确认',
+        cancelButtonText: '取消',
+        type: 'warning',
+        customClass: 'order-action-confirm'
+      }
+    );
+  } catch {
+    return; // 用户取消
+  }
+
+  const currentNurse = getCurrentNurse();
+  if (!currentNurse) {
+    ElMessage.error('未找到当前护士信息');
+    return;
+  }
+
+  loading.value = true;
+  try {
+    const response = await cancelMedicationApplication({
+      nurseId: currentNurse.staffId,
+      ids: [item.relatedId],
+      reason: '护士撤销申请'
+    });
+
+    if (response.success) {
+      ElMessage.success('撤销成功');
+      await loadApplications();
+    } else {
+      ElMessage.error(response.message || '撤销失败');
+    }
+  } catch (error) {
+    console.error('撤销申请失败:', error);
+    ElMessage.error('撤销申请失败');
+  } finally {
+    loading.value = false;
+  }
+};
+
+// 申请退药（AppliedConfirmed状态）
+const handleReturnMedication = async (item) => {
+  try {
+    const { value: reason } = await ElMessageBox.prompt(
+      '药房已配好药，请输入退药原因：',
+      '申请退药',
+      {
+        confirmButtonText: '确认退药',
+        cancelButtonText: '取消',
+        inputPattern: /\S+/,
+        inputErrorMessage: '退药原因不能为空',
+        inputType: 'textarea'
+      }
+    );
+
+    const currentNurse = getCurrentNurse();
+    if (!currentNurse) {
+      ElMessage.error('未找到当前护士信息');
+      return;
+    }
+
+    loading.value = true;
+    const response = await requestReturnMedication(
+      item.relatedId,
+      currentNurse.staffId,
+      reason
+    );
+
+    if (response.success) {
+      ElMessage.success('退药申请已提交');
+      await loadApplications();
+    } else {
+      ElMessage.error(response.message || '退药申请失败');
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('申请退药失败:', error);
+      ElMessage.error('申请退药失败');
+    }
+  } finally {
+    loading.value = false;
+  }
+};
+
+// 确认退药（PendingReturn状态）
+const handleConfirmReturn = async (item) => {
+  try {
+    await ElMessageBox.confirm(
+      '确认退回该药品？退药后任务将被停止。',
+      '确认退药',
+      {
+        confirmButtonText: '确认退药',
+        cancelButtonText: '取消',
+        type: 'warning',
+        customClass: 'order-action-confirm'
+      }
+    );
+
+    const currentNurse = getCurrentNurse();
+    if (!currentNurse) {
+      ElMessage.error('未找到当前护士信息');
+      return;
+    }
+
+    loading.value = true;
+    const response = await confirmReturnMedication(
+      item.relatedId,
+      currentNurse.staffId
+    );
+
+    if (response.success) {
+      ElMessage.success('退药确认成功');
+      await loadApplications();
+    } else {
+      ElMessage.error(response.message || '退药确认失败');
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('确认退药失败:', error);
+      ElMessage.error('确认退药失败');
+    }
+  } finally {
+    loading.value = false;
+  }
+};
+
 // 取消申请
 const handleCancelApply = async (item) => {
   try {
@@ -773,20 +932,20 @@ const handleCancelApply = async (item) => {
     if (activeTab.value === 'medication') {
       response = await cancelMedicationApplication({
         nurseId: currentNurse.staffId,
-        ids: [item.relatedId],  // ✅ 后端期望 ids 字段
-        reason: '护士取消'       // ✅ 后端期望 reason 字段
+        ids: [item.relatedId],
+        reason: '护士取消'
       });
     } else {
       response = await cancelInspectionApplication({
         nurseId: currentNurse.staffId,
-        ids: [item.relatedId],  // ✅ 后端期望 ids 字段
-        reason: '护士取消'       // ✅ 后端期望 reason 字段
+        ids: [item.relatedId],
+        reason: '护士取消'
       });
     }
 
     if (response.success) {
       ElMessage.success('取消成功');
-      await loadApplications(); // 刷新列表（会自动更新待申请数量）
+      await loadApplications();
     } else {
       ElMessage.error(response.message || '取消失败');
     }
@@ -829,7 +988,8 @@ const getStatusColor = (status) => {
   const colorMap = {
     Applying: 'warning',
     Applied: 'primary',
-    AppliedConfirmed: 'success'
+    AppliedConfirmed: 'success',
+    PendingReturn: 'danger'
   };
   return colorMap[status] || 'info';
 };
@@ -839,7 +999,8 @@ const getStatusText = (status) => {
   const textMap = {
     Applying: '待申请',
     Applied: '已申请',
-    AppliedConfirmed: '已确认'
+    AppliedConfirmed: '已确认',
+    PendingReturn: '待退药'
   };
   return textMap[status] || status;
 };

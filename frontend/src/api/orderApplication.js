@@ -87,3 +87,31 @@ export const cancelMedicationApplication = (data) => {
 export const cancelInspectionApplication = (data) => {
   return api.post('/orders/application/inspection/cancel', data);
 };
+
+// ==================== 退药相关 ====================
+
+/**
+ * 申请退药（AppliedConfirmed状态，护士主动退药）
+ * @param {number} taskId - 任务ID
+ * @param {string} nurseId - 护士ID
+ * @param {string} reason - 退药原因
+ * @returns {Promise<Object>} 退药结果
+ */
+export const requestReturnMedication = (taskId, nurseId, reason = null) => {
+  return api.post(`/orders/application/medication/return/${taskId}`, {
+    nurseId,
+    reason
+  });
+};
+
+/**
+ * 确认退药（PendingReturn状态，护士确认执行退药）
+ * @param {number} taskId - 任务ID
+ * @param {string} nurseId - 护士ID
+ * @returns {Promise<Object>} 退药确认结果
+ */
+export const confirmReturnMedication = (taskId, nurseId) => {
+  return api.post(`/orders/application/medication/return/${taskId}/confirm`, {
+    nurseId
+  });
+};

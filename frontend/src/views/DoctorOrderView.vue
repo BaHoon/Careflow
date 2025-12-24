@@ -125,8 +125,12 @@
             <!-- 医嘱摘要 -->
             <span class="order-summary">{{ order.summary }}</span>
 
-            <!-- 停嘱标识 -->
-            <span v-if="order.stopReason" class="stop-badge" :title="order.stopReason">
+            <!-- 停嘱标识：只在医嘱处于停嘱相关状态时显示 -->
+            <span 
+              v-if="order.stopReason && (order.status === 8 || order.status === 5)" 
+              class="stop-badge" 
+              :title="order.stopReason"
+            >
               🛑 已停嘱
             </span>
           </div>
@@ -416,8 +420,9 @@ const handleStopConfirm = async (stopData) => {
 
 // ==================== 判断是否可以停止医嘱 ====================
 const canStopOrder = (order) => {
-  // 只有已签收(2)或进行中(3)状态的医嘱可以停止
-  return order.status === 2 || order.status === 3;
+  // 待签收(1)、已签收(2)或进行中(3)状态的医嘱可以停止
+  // 未签收的医嘱停止后直接取消，不需要护士签收
+  return order.status === 1 || order.status === 2 || order.status === 3;
 };
 
 // ==================== 重新提交已退回的医嘱 ====================

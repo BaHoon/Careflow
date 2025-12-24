@@ -128,12 +128,18 @@ public class DoctorOrderController : ControllerBase
     /// <returns>停嘱结果，包含被锁定的任务列表</returns>
     /// <remarks>
     /// 业务逻辑：
-    /// 1. 验证医嘱状态（只有 Accepted 或 InProgress 可停止）
-    /// 2. 医嘱状态改为 PendingStop（等待护士签收）
-    /// 3. 锁定 StopAfterTaskId 之后的所有未完成任务：
-    ///    - 保存任务原状态到 StatusBeforeLocking
-    ///    - 任务状态改为 OrderStopping
-    /// 4. 护士后续操作：
+    /// 1. 验证医嘱状态：
+    ///    - PendingReceive（未签收）：直接取消，状态改为 Cancelled，无需护士签收
+    ///    - Accepted 或 InProgress（已签收）：改为 PendingStop，需要护士签收
+    /// 2. 对于未签收医嘱：
+    ///    - 医嘱状态直接改为 Cancelled
+    ///    - 无需锁定任务（因为还没有任务生成）
+    /// 3. 对于已签收医嘱：
+    ///    - 医嘱状态改为 PendingStop
+    ///    - 锁定 StopAfterTaskId 之后的所有未完成任务：
+    ///      * 保存任务原状态到 StatusBeforeLocking
+    ///      * 任务状态改为 OrderStopping
+    /// 4. 护士后续操作（仅针对已签收医嘱）：
     ///    - 签收停嘱 → 医嘱变为 Stopped，任务变为 Stopped
     ///    - 拒绝停嘱 → 医嘱恢复 InProgress，任务恢复原状态
     /// 
@@ -142,7 +148,7 @@ public class DoctorOrderController : ControllerBase
     ///   "orderId": 123,
     ///   "doctorId": "D001",
     ///   "stopReason": "患者病情好转，无需继续用药",
-    ///   "stopAfterTaskId": 456  // 从这个任务之后停止
+    ///   "stopAfterTaskId": 456  // 从这个任务之后停止（未签收医嘱可填0）
     /// }
     /// 
     /// 状态码说明：
@@ -172,10 +178,8 @@ public class DoctorOrderController : ControllerBase
                 return BadRequest(new { message = "停嘱原因不能为空" });
             }
 
-            if (request.StopAfterTaskId <= 0)
-            {
-                return BadRequest(new { message = "必须指定停止节点" });
-            }
+            // 注意：未签收医嘱（PendingReceive）可以不指定停止节点（stopAfterTaskId可以为0或null）
+            // 已签收医嘱必须指定停止节点，但这个验证在Service层进行
 
             _logger.LogInformation("接收停嘱请求: 医嘱 {OrderId}, 医生 {DoctorId}, 停止节点 {StopAfterTaskId}",
                 request.OrderId, request.DoctorId, request.StopAfterTaskId);

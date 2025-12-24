@@ -22,6 +22,7 @@ public class OrderApplicationService : IOrderApplicationService
     private readonly IRepository<MedicationOrder, long> _medicationOrderRepository;
     private readonly IRepository<Patient, string> _patientRepository;
     private readonly IRepository<BarcodeIndex, string> _barcodeRepository;
+    private readonly IRepository<MedicationReturnRequest, long> _returnRequestRepository;
     private readonly IPharmacyIntegrationService _pharmacyService;
     private readonly IInspectionStationService _inspectionStationService;
     private readonly IInspectionService _inspectionService;
@@ -35,6 +36,7 @@ public class OrderApplicationService : IOrderApplicationService
         IRepository<MedicationOrder, long> medicationOrderRepository,
         IRepository<Patient, string> patientRepository,
         IRepository<BarcodeIndex, string> barcodeRepository,
+        IRepository<MedicationReturnRequest, long> returnRequestRepository,
         IPharmacyIntegrationService pharmacyService,
         IInspectionStationService inspectionStationService,
         IInspectionService inspectionService,
@@ -47,6 +49,7 @@ public class OrderApplicationService : IOrderApplicationService
         _medicationOrderRepository = medicationOrderRepository;
         _patientRepository = patientRepository;
         _barcodeRepository = barcodeRepository;
+        _returnRequestRepository = returnRequestRepository;
         _pharmacyService = pharmacyService;
         _inspectionStationService = inspectionStationService;
         _inspectionService = inspectionService;
@@ -90,10 +93,11 @@ public class OrderApplicationService : IOrderApplicationService
             }
             else
             {
-                // 默认只查询待申请、已申请、已确认的任务
+                // 默认查询：待申请、已申请、已确认、待退药
                 query = query.Where(t => t.Status == ExecutionTaskStatus.Applying 
                                       || t.Status == ExecutionTaskStatus.Applied 
-                                      || t.Status == ExecutionTaskStatus.AppliedConfirmed);
+                                      || t.Status == ExecutionTaskStatus.AppliedConfirmed
+                                      || t.Status == ExecutionTaskStatus.PendingReturn);
             }
 
             // 时间范围筛选
@@ -866,6 +870,7 @@ public class OrderApplicationService : IOrderApplicationService
             ExecutionTaskStatus.OrderStopping => "停嘱锁定",
             ExecutionTaskStatus.Stopped => "已停止/作废",
             ExecutionTaskStatus.Incomplete => "异常/拒绝",
+            ExecutionTaskStatus.PendingReturn => "待退药",
             _ => status.ToString()
         };
     }
@@ -902,6 +907,184 @@ public class OrderApplicationService : IOrderApplicationService
         catch (Exception ex)
         {
             _logger.LogError(ex, "为ExecutionTask {TaskId} 生成条形码时发生错误", task.Id);
+            throw;
+        }
+    }
+
+    #endregion
+
+    #region 退药相关方法
+
+    /// <summary>
+    /// 申请退药（AppliedConfirmed状态，护士主动退药）
+    /// </summary>
+    public async Task<ApplicationResponseDto> RequestReturnMedicationAsync(
+        long taskId, string nurseId, string? reason = null)
+    {
+        _logger.LogInformation("========== 护士申请退药 ==========");
+        _logger.LogInformation("任务ID: {TaskId}, 护士ID: {NurseId}, 原因: {Reason}",
+            taskId, nurseId, reason);
+
+        try
+        {
+            var task = await _taskRepository.GetByIdAsync(taskId);
+            
+            if (task == null)
+            {
+                _logger.LogWarning("❌ 任务 {TaskId} 不存在", taskId);
+                throw new Exception($"任务 {taskId} 不存在");
+            }
+
+            if (task.Status != ExecutionTaskStatus.AppliedConfirmed)
+            {
+                _logger.LogWarning("❌ 任务 {TaskId} 状态为 {Status}，只能退回已确认状态的药品", 
+                    taskId, task.Status);
+                throw new Exception($"任务状态为 {task.Status}，只能退回已确认状态的药品");
+            }
+
+            // 1. 创建退药记录
+            var returnRequest = new MedicationReturnRequest
+            {
+                ExecutionTaskId = taskId,
+                ReturnType = "ManualCancel",
+                RequestedBy = nurseId,
+                RequestedAt = DateTime.UtcNow,
+                Reason = reason ?? "护士主动退药",
+                Status = "Pending"
+            };
+            await _returnRequestRepository.AddAsync(returnRequest);
+            
+            _logger.LogInformation("✅ 已创建退药记录 {RequestId}", returnRequest.Id);
+
+            // 2. 更新任务状态为待退药
+            task.Status = ExecutionTaskStatus.PendingReturn;
+            task.LastModifiedAt = DateTime.UtcNow;
+            await _taskRepository.UpdateAsync(task);
+            
+            _logger.LogInformation("✅ 任务 {TaskId} 状态已更新为 PendingReturn", taskId);
+
+            // 3. 调用药房退药接口
+            returnRequest.Status = "Submitted";
+            returnRequest.SubmittedAt = DateTime.UtcNow;
+            
+            var result = await _pharmacyService.ReturnMedicationAsync(taskId);
+            
+            if (result.Success)
+            {
+                returnRequest.Status = "Confirmed";
+                returnRequest.ConfirmedAt = DateTime.UtcNow;
+                returnRequest.PharmacyResponse = result.Message;
+                
+                // 退药成功，恢复为待申请
+                task.Status = ExecutionTaskStatus.Applying;
+                task.LastModifiedAt = DateTime.UtcNow;
+                
+                _logger.LogInformation("✅ 退药成功，任务 {TaskId} 状态恢复为 Applying", taskId);
+            }
+            else
+            {
+                returnRequest.Status = "Failed";
+                returnRequest.PharmacyResponse = result.Message;
+                
+                _logger.LogWarning("⚠️ 退药失败: {Message}", result.Message);
+            }
+            
+            await _returnRequestRepository.UpdateAsync(returnRequest);
+            await _taskRepository.UpdateAsync(task);
+
+            return new ApplicationResponseDto 
+            { 
+                Success = result.Success,
+                Message = result.Success ? "退药成功" : $"退药失败: {result.Message}",
+                ProcessedIds = result.Success ? new List<long> { taskId } : new List<long>()
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ 申请退药失败");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// 确认退药（PendingReturn状态，护士确认执行退药）
+    /// </summary>
+    public async Task<ApplicationResponseDto> ConfirmReturnMedicationAsync(
+        long taskId, string nurseId)
+    {
+        _logger.LogInformation("========== 护士确认退药 ==========");
+        _logger.LogInformation("任务ID: {TaskId}, 护士ID: {NurseId}", taskId, nurseId);
+
+        try
+        {
+            var task = await _taskRepository.GetByIdAsync(taskId);
+            
+            if (task == null)
+            {
+                _logger.LogWarning("❌ 任务 {TaskId} 不存在", taskId);
+                throw new Exception($"任务 {taskId} 不存在");
+            }
+
+            if (task.Status != ExecutionTaskStatus.PendingReturn)
+            {
+                _logger.LogWarning("❌ 任务 {TaskId} 状态为 {Status}，只能确认待退药状态的任务", 
+                    taskId, task.Status);
+                throw new Exception($"任务状态为 {task.Status}，只能确认待退药状态的任务");
+            }
+
+            // 查找待处理的退药记录
+            var returnRequest = await _returnRequestRepository.GetQueryable()
+                .FirstOrDefaultAsync(r => r.ExecutionTaskId == taskId 
+                                       && r.Status == "Pending");
+            
+            if (returnRequest == null)
+            {
+                _logger.LogWarning("❌ 未找到待处理的退药申请记录");
+                throw new Exception("未找到待处理的退药申请记录");
+            }
+
+            _logger.LogInformation("📋 找到退药记录 {RequestId}，退药类型: {ReturnType}", 
+                returnRequest.Id, returnRequest.ReturnType);
+
+            // 提交到药房
+            returnRequest.Status = "Submitted";
+            returnRequest.SubmittedAt = DateTime.UtcNow;
+            
+            var result = await _pharmacyService.ReturnMedicationAsync(taskId);
+            
+            if (result.Success)
+            {
+                returnRequest.Status = "Confirmed";
+                returnRequest.ConfirmedAt = DateTime.UtcNow;
+                returnRequest.PharmacyResponse = result.Message;
+                
+                // 退药成功，任务改为已停止
+                task.Status = ExecutionTaskStatus.Stopped;
+                task.LastModifiedAt = DateTime.UtcNow;
+                
+                _logger.LogInformation("✅ 退药成功，任务 {TaskId} 状态改为 Stopped", taskId);
+            }
+            else
+            {
+                returnRequest.Status = "Failed";
+                returnRequest.PharmacyResponse = result.Message;
+                
+                _logger.LogWarning("⚠️ 退药失败: {Message}", result.Message);
+            }
+            
+            await _returnRequestRepository.UpdateAsync(returnRequest);
+            await _taskRepository.UpdateAsync(task);
+
+            return new ApplicationResponseDto 
+            { 
+                Success = result.Success,
+                Message = result.Success ? "退药确认成功" : $"退药确认失败: {result.Message}",
+                ProcessedIds = result.Success ? new List<long> { taskId } : new List<long>()
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ 确认退药失败");
             throw;
         }
     }

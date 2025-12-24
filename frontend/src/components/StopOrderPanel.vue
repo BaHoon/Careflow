@@ -18,7 +18,12 @@
     <!-- 说明文本 -->
     <div class="instruction-box">
       <div class="instruction-title">操作说明：</div>
-      <ol class="instruction-list">
+      <ol v-if="order.status === 1" class="instruction-list">
+        <li>该医嘱<strong>尚未签收</strong>，停止后将<strong>直接取消</strong></li>
+        <li>无需选择停止节点，填写停嘱原因即可</li>
+        <li>停嘱后医嘱状态将变为<strong>已取消</strong>，无需护士签收</li>
+      </ol>
+      <ol v-else class="instruction-list">
         <li>请选择<strong>停止节点</strong>（从该任务开始的所有任务将被锁定）</li>
         <li>停止节点任务本身<strong>也会</strong>被锁定，不会继续执行</li>
         <li>停止节点之前的任务<strong>保持不变</strong></li>
@@ -26,8 +31,8 @@
       </ol>
     </div>
 
-    <!-- 任务列表 -->
-    <div class="task-selection">
+    <!-- 任务列表（仅已签收医嘱显示） -->
+    <div v-if="order.status !== 1" class="task-selection">
       <div class="task-selection-header">
         <span class="header-title">选择停止节点</span>
         <span class="header-hint">（点击任务卡片选择）</span>
@@ -171,6 +176,11 @@ const stopReason = ref('');
 const submitting = ref(false);
 
 // ==================== 计算属性 ====================
+// 是否有任务
+const hasTasks = computed(() => {
+  return props.tasks && props.tasks.length > 0;
+});
+
 // 选中任务的索引
 const selectedTaskIndex = computed(() => {
   return props.tasks.findIndex(t => t.id === selectedTaskId.value);
@@ -191,7 +201,13 @@ const lockedTaskCount = computed(() => {
 
 // 是否可以确认
 const canConfirm = computed(() => {
-  return selectedTaskId.value && stopReason.value.trim().length > 0 && !submitting.value;
+  // 未签收医嘱（无任务）：只需填写原因
+  // 已签收医嘱（有任务）：需要选择任务和填写原因
+  const hasReason = stopReason.value.trim().length > 0;
+  if (!hasTasks.value) {
+    return hasReason && !submitting.value;
+  }
+  return selectedTaskId.value && hasReason && !submitting.value;
 });
 
 // ==================== 方法 ====================
@@ -241,7 +257,8 @@ const handleCancel = () => {
 // 确认停嘱
 const handleConfirm = async () => {
   if (!canConfirm.value) {
-    ElMessage.warning('请选择停止节点并填写停嘱原因');
+    const msg = hasTasks.value ? '请选择停止节点并填写停嘱原因' : '请填写停嘱原因';
+    ElMessage.warning(msg);
     return;
   }
 
@@ -249,7 +266,7 @@ const handleConfirm = async () => {
   try {
     emit('confirm', {
       orderId: props.order.id,
-      stopAfterTaskId: selectedTaskId.value,
+      stopAfterTaskId: hasTasks.value ? selectedTaskId.value : 0, // 未签收医嘱传0
       stopReason: stopReason.value.trim()
     });
   } finally {

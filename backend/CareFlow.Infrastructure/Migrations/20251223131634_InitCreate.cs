@@ -498,11 +498,13 @@ namespace CareFlow.Infrastructure.Migrations
                     PatientId = table.Column<string>(type: "text", nullable: false),
                     Category = table.Column<int>(type: "integer", nullable: false),
                     PlannedStartTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    AssignedNurseId = table.Column<string>(type: "text", nullable: true),
                     ActualStartTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     ExecutorStaffId = table.Column<string>(type: "text", nullable: true),
                     ActualEndTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     CompleterNurseId = table.Column<string>(type: "text", nullable: true),
                     Status = table.Column<int>(type: "integer", nullable: false),
+                    StatusBeforeLocking = table.Column<int>(type: "integer", nullable: true),
                     IsRolledBack = table.Column<bool>(type: "boolean", nullable: false),
                     DataPayload = table.Column<string>(type: "text", nullable: false),
                     ResultPayload = table.Column<string>(type: "text", nullable: true),
@@ -520,6 +522,11 @@ namespace CareFlow.Infrastructure.Migrations
                         principalTable: "MedicalOrders",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_ExecutionTasks_Nurses_AssignedNurseId",
+                        column: x => x.AssignedNurseId,
+                        principalTable: "Nurses",
+                        principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_ExecutionTasks_Nurses_CompleterNurseId",
                         column: x => x.CompleterNurseId,
@@ -697,6 +704,41 @@ namespace CareFlow.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "MedicationReturnRequests",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    ExecutionTaskId = table.Column<long>(type: "bigint", nullable: false),
+                    ReturnType = table.Column<string>(type: "text", nullable: false),
+                    RequestedBy = table.Column<string>(type: "text", nullable: false),
+                    RequestedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    Reason = table.Column<string>(type: "text", nullable: false),
+                    Status = table.Column<string>(type: "text", nullable: false),
+                    SubmittedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    ConfirmedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    PharmacyResponse = table.Column<string>(type: "text", nullable: true),
+                    Remarks = table.Column<string>(type: "text", nullable: true),
+                    CreateTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MedicationReturnRequests", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_MedicationReturnRequests_ExecutionTasks_ExecutionTaskId",
+                        column: x => x.ExecutionTaskId,
+                        principalTable: "ExecutionTasks",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_MedicationReturnRequests_Nurses_RequestedBy",
+                        column: x => x.RequestedBy,
+                        principalTable: "Nurses",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "InspectionReports",
                 columns: table => new
                 {
@@ -740,6 +782,11 @@ namespace CareFlow.Infrastructure.Migrations
                 name: "IX_Beds_WardId",
                 table: "Beds",
                 column: "WardId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ExecutionTasks_AssignedNurseId",
+                table: "ExecutionTasks",
+                column: "AssignedNurseId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ExecutionTasks_CompleterNurseId",
@@ -837,6 +884,16 @@ namespace CareFlow.Infrastructure.Migrations
                 column: "MedicalOrderId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_MedicationReturnRequests_ExecutionTaskId",
+                table: "MedicationReturnRequests",
+                column: "ExecutionTaskId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MedicationReturnRequests_RequestedBy",
+                table: "MedicationReturnRequests",
+                column: "RequestedBy");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_NurseRosters_ShiftId",
                 table: "NurseRosters",
                 column: "ShiftId");
@@ -909,9 +966,6 @@ namespace CareFlow.Infrastructure.Migrations
                 name: "BarcodeIndexes");
 
             migrationBuilder.DropTable(
-                name: "ExecutionTasks");
-
-            migrationBuilder.DropTable(
                 name: "HospitalTimeSlots");
 
             migrationBuilder.DropTable(
@@ -925,6 +979,9 @@ namespace CareFlow.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "MedicationOrders");
+
+            migrationBuilder.DropTable(
+                name: "MedicationReturnRequests");
 
             migrationBuilder.DropTable(
                 name: "NurseRosters");
@@ -949,6 +1006,9 @@ namespace CareFlow.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "Drugs");
+
+            migrationBuilder.DropTable(
+                name: "ExecutionTasks");
 
             migrationBuilder.DropTable(
                 name: "ShiftTypes");

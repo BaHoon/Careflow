@@ -244,17 +244,65 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
                 return response;
             }
 
-            // 2. 验证医嘱状态（只有 Accepted 或 InProgress 可以停止）
-            if (order.Status != OrderStatus.Accepted && order.Status != OrderStatus.InProgress)
+            // 2. 验证医嘱状态（PendingReceive、Accepted 或 InProgress 可以停止）
+            if (order.Status != OrderStatus.PendingReceive && 
+                order.Status != OrderStatus.Accepted && 
+                order.Status != OrderStatus.InProgress)
             {
                 response.Success = false;
-                response.Message = $"医嘱状态为 {order.Status}，不允许停止（仅 Accepted 或 InProgress 状态可停止）";
+                response.Message = $"医嘱状态为 {order.Status}，不允许停止（仅 PendingReceive、Accepted 或 InProgress 状态可停止）";
                 response.Errors.Add($"当前状态: {order.Status}");
                 return response;
             }
 
-            // 3. 验证停止节点任务是否存在
-            var stopAfterTask = await _taskRepository.GetByIdAsync(request.StopAfterTaskId);
+            // 2.1 特殊处理：未签收的医嘱直接取消，不需要护士签收
+            if (order.Status == OrderStatus.PendingReceive)
+            {
+                _logger.LogInformation("检测到未签收医嘱，直接取消（不需要护士签收）");
+                
+                var oldStatus = order.Status;
+                order.Status = OrderStatus.Cancelled;
+                order.StopReason = request.StopReason;
+                order.StopOrderTime = DateTime.UtcNow;
+                order.StopDoctorId = request.DoctorId;
+                
+                await _orderRepository.UpdateAsync(order);
+                
+                // 记录状态历史
+                var cancelHistory = new MedicalOrderStatusHistory
+                {
+                    MedicalOrderId = order.Id,
+                    FromStatus = oldStatus,
+                    ToStatus = OrderStatus.Cancelled,
+                    ChangedAt = DateTime.UtcNow,
+                    ChangedById = request.DoctorId,
+                    ChangedByType = "Doctor",
+                    Reason = $"医生取消未签收医嘱: {request.StopReason}"
+                };
+                await _statusHistoryRepository.AddAsync(cancelHistory);
+                
+                _logger.LogInformation("✅ 未签收医嘱已取消: {OrderId}", order.Id);
+                
+                response.Success = true;
+                response.Message = "未签收医嘱已取消";
+                response.OrderStatus = OrderStatus.Cancelled;
+                response.StopOrderTime = order.StopOrderTime.Value;
+                response.LockedTaskIds = new List<long>();
+                response.LockedTasks = new List<LockedTaskDto>();
+                
+                return response;
+            }
+
+            // 3. 验证停止节点任务是否存在（已签收医嘱才需要验证）
+            if (!request.StopAfterTaskId.HasValue || request.StopAfterTaskId.Value <= 0)
+            {
+                response.Success = false;
+                response.Message = "已签收医嘱必须指定停止节点";
+                response.Errors.Add("停止节点不能为空");
+                return response;
+            }
+            
+            var stopAfterTask = await _taskRepository.GetByIdAsync(request.StopAfterTaskId.Value);
             if (stopAfterTask == null || stopAfterTask.MedicalOrderId != request.OrderId)
             {
                 response.Success = false;
@@ -272,7 +320,7 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
             _logger.LogInformation("医嘱共有 {TotalTasks} 个任务", allTasks.Count);
 
             // 5. 找到停止节点在任务列表中的位置
-            var stopAfterIndex = allTasks.FindIndex(t => t.Id == request.StopAfterTaskId);
+            var stopAfterIndex = allTasks.FindIndex(t => t.Id == request.StopAfterTaskId.Value);
             if (stopAfterIndex == -1)
             {
                 response.Success = false;
@@ -281,16 +329,16 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
                 return response;
             }
 
-            // 6. 筛选需要锁定的任务：停止节点之后的所有待申请、已申请、就绪、待执行状态的任务
+            // 6. 筛选需要锁定的任务：停止节点及之后的所有待申请、已申请、就绪、待执行状态的任务
             var tasksToLock = allTasks
-                .Skip(stopAfterIndex + 1) // 跳过停止节点及之前的任务
+                .Skip(stopAfterIndex) // 包含停止节点及之后的任务
                 .Where(t => t.Status == ExecutionTaskStatus.Applying 
                          || t.Status == ExecutionTaskStatus.Applied
                          || t.Status == ExecutionTaskStatus.AppliedConfirmed
                          || t.Status == ExecutionTaskStatus.Pending)
                 .ToList();
 
-            _logger.LogInformation("需要锁定 {LockCount} 个任务（状态: 待申请/已申请/就绪/待执行）", tasksToLock.Count);
+            _logger.LogInformation("需要锁定 {LockCount} 个任务（包含停止节点，状态: 待申请/已申请/就绪/待执行）", tasksToLock.Count);
 
             // 7. 锁定任务：保存原状态 → 改为 OrderStopping
             var lockedTasks = new List<LockedTaskDto>();

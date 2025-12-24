@@ -28,11 +28,11 @@ public class StopOrderRequestDto
     public string StopReason { get; set; } = null!;
     
     /// <summary>
-    /// 停止节点：从哪个任务之后停止（必填）
+    /// 停止节点：从哪个任务之后停止（已签收医嘱必填，未签收医嘱可选）
     /// 该任务本身不会被锁定，只有该任务之后的未完成任务会被锁定
     /// 例如：有5个任务[T1, T2, T3, T4, T5]，如果StopAfterTaskId = T2的ID
     /// 则T3、T4、T5会被锁定，T1和T2保持原状态
+    /// 未签收医嘱（PendingReceive）没有任务，此参数可以为0或null
     /// </summary>
-    [Required(ErrorMessage = "必须指定停止节点")]
-    public long StopAfterTaskId { get; set; }
+    public long? StopAfterTaskId { get; set; }
 }

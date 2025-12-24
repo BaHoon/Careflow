@@ -46,8 +46,9 @@ public interface IMedicalOrderQueryService
     /// 业务逻辑（参考状态流转图）：
     /// 
     /// 1. 验证医嘱状态：
-    ///    - 只有 Accepted 或 InProgress 状态的医嘱才能停止
-    ///    - 其他状态（Draft、PendingReceive、Completed、Stopped等）不允许停止
+    ///    - PendingReceive（未签收）：直接取消，状态改为 Cancelled，无需护士签收
+    ///    - Accepted 或 InProgress（已签收）：改为 PendingStop，需要护士签收
+    ///    - 其他状态（Draft、Completed、Stopped等）不允许停止
     /// 
     /// 2. 更新医嘱状态：
     ///    - 状态：InProgress → PendingStop

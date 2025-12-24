@@ -217,6 +217,94 @@ public class OrderApplicationController : ControllerBase
     }
 
     /// <summary>
+    /// 申请退药（已确认状态的药品）
+    /// </summary>
+    /// <param name="taskId">任务ID</param>
+    /// <param name="request">退药请求</param>
+    /// <returns>退药结果</returns>
+    [HttpPost("medication/return/{taskId}")]
+    [ProducesResponseType(typeof(ApplicationResponseDto), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(500)]
+    public async Task<ActionResult<ApplicationResponseDto>> RequestReturnMedication(
+        long taskId,
+        [FromBody] ReturnMedicationRequestDto request)
+    {
+        try
+        {
+            _logger.LogInformation("🔙 申请退药，任务: {TaskId}, 护士: {NurseId}", taskId, request.NurseId);
+            
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var result = await _applicationService.RequestReturnMedicationAsync(
+                taskId, request.NurseId, request.Reason);
+            
+            if (result.Success)
+            {
+                _logger.LogInformation("✅ 退药申请成功");
+                return Ok(result);
+            }
+            else
+            {
+                _logger.LogWarning("⚠️ 退药申请失败: {Message}", result.Message);
+                return Ok(result);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ 申请退药失败");
+            return StatusCode(500, new { message = "申请退药失败", error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// 确认退药（待退药状态的药品）
+    /// </summary>
+    /// <param name="taskId">任务ID</param>
+    /// <param name="request">确认请求</param>
+    /// <returns>确认结果</returns>
+    [HttpPost("medication/return/{taskId}/confirm")]
+    [ProducesResponseType(typeof(ApplicationResponseDto), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(500)]
+    public async Task<ActionResult<ApplicationResponseDto>> ConfirmReturnMedication(
+        long taskId,
+        [FromBody] ConfirmReturnRequestDto request)
+    {
+        try
+        {
+            _logger.LogInformation("✅ 确认退药，任务: {TaskId}, 护士: {NurseId}", taskId, request.NurseId);
+            
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var result = await _applicationService.ConfirmReturnMedicationAsync(
+                taskId, request.NurseId);
+            
+            if (result.Success)
+            {
+                _logger.LogInformation("✅ 退药确认成功");
+                return Ok(result);
+            }
+            else
+            {
+                _logger.LogWarning("⚠️ 退药确认失败: {Message}", result.Message);
+                return Ok(result);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ 确认退药失败");
+            return StatusCode(500, new { message = "确认退药失败", error = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// 撤销检查申请
     /// </summary>
     /// <param name="request">撤销请求</param>

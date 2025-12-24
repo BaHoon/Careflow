@@ -24,6 +24,7 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
     private readonly IRepository<Drug, string> _drugRepository;
     private readonly IRepository<MedicalOrderStatusHistory, long> _statusHistoryRepository;
     private readonly IRepository<BarcodeIndex, string> _barcodeRepository;
+    private readonly IRepository<MedicationReturnRequest, long> _returnRequestRepository;
     private readonly IMedicationOrderTaskService _medicationTaskService;
     private readonly IInspectionService _inspectionTaskService;
     private readonly ISurgicalOrderTaskService _surgicalTaskService;
@@ -39,6 +40,7 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
         IRepository<Drug, string> drugRepository,
         IRepository<MedicalOrderStatusHistory, long> statusHistoryRepository,
         IRepository<BarcodeIndex, string> barcodeRepository,
+        IRepository<MedicationReturnRequest, long> returnRequestRepository,
         IMedicationOrderTaskService medicationTaskService,
         IInspectionService inspectionTaskService,
         ISurgicalOrderTaskService surgicalTaskService,
@@ -53,6 +55,7 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
         _drugRepository = drugRepository;
         _statusHistoryRepository = statusHistoryRepository;
         _barcodeRepository = barcodeRepository;
+        _returnRequestRepository = returnRequestRepository;
         _medicationTaskService = medicationTaskService;
         _inspectionTaskService = inspectionTaskService;
         _surgicalTaskService = surgicalTaskService;
@@ -394,6 +397,9 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
                 order.StopRejectedByNurseId = request.NurseId;
                 
                 // 清空停嘱相关字段（医生可能会再次下达停嘱）
+                order.StopReason = null;
+                order.StopOrderTime = null;
+                order.StopDoctorId = null;
                 order.StopConfirmedAt = null;
                 order.StopConfirmedByNurseId = null;
                 
@@ -634,36 +640,73 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
             t.MedicalOrderId == order.Id &&
             t.Status == ExecutionTaskStatus.OrderStopping);
 
-        _logger.LogInformation("该停止医嘱有 {Count} 个锁定任务需要作废", lockedTasks.Count);
+        _logger.LogInformation("该停止医嘱有 {Count} 个锁定任务需要处理", lockedTasks.Count);
 
         var stoppedTaskIds = new List<long>();
+        var pendingReturnTaskIds = new List<long>();
         
-        // 4. ✅ 将所有锁定的任务变更为 Stopped
+        // 4. ✅ 处理所有锁定的任务
         foreach (var task in lockedTasks)
         {
             var originalStatus = task.Status;
             var statusBeforeLocking = task.StatusBeforeLocking;
             
-            task.Status = ExecutionTaskStatus.Stopped;
-            task.StatusBeforeLocking = null; // 清空锁定前状态字段
-            task.ActualEndTime = DateTime.UtcNow;
-            task.LastModifiedAt = DateTime.UtcNow;
-            
-            // 记录详细的停止原因
-            var stopReason = $"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}] 医嘱已停止（护士 {nurseId} 确认）。" +
-                           $"任务原状态: {statusBeforeLocking?.ToString() ?? "未记录"}，" +
-                           $"锁定状态: {originalStatus}";
-            
-            task.ExceptionReason = string.IsNullOrEmpty(task.ExceptionReason) 
-                ? stopReason 
-                : task.ExceptionReason + "\n" + stopReason;
-            
-            await _taskRepository.UpdateAsync(task);
-            stoppedTaskIds.Add(task.Id);
-            
-            _logger.LogInformation("✅ 任务 {TaskId} 已从 OrderStopping 变更为 Stopped " +
-                                 "(原状态: {StatusBeforeLocking})", 
-                task.Id, statusBeforeLocking?.ToString() ?? "未记录");
+            // 🆕 检查是否需要退药
+            if (statusBeforeLocking == ExecutionTaskStatus.Applied ||
+                statusBeforeLocking == ExecutionTaskStatus.AppliedConfirmed)
+            {
+                // 创建退药申请记录
+                var returnRequest = new MedicationReturnRequest
+                {
+                    ExecutionTaskId = task.Id,
+                    ReturnType = "OrderStopped",
+                    RequestedBy = nurseId,
+                    RequestedAt = DateTime.UtcNow,
+                    Reason = $"医嘱停止：{order.StopReason}",
+                    Status = "Pending"
+                };
+                await _returnRequestRepository.AddAsync(returnRequest);
+                
+                // 🆕 任务状态改为待退药（而不是直接Stopped）
+                task.Status = ExecutionTaskStatus.PendingReturn;
+                task.StatusBeforeLocking = null;
+                task.LastModifiedAt = DateTime.UtcNow;
+                
+                await _taskRepository.UpdateAsync(task);
+                pendingReturnTaskIds.Add(task.Id);
+                
+                _logger.LogInformation("✅ 任务 {TaskId} 需退药，状态: OrderStopping → PendingReturn (原状态: {StatusBeforeLocking})",
+                    task.Id, statusBeforeLocking.ToString());
+            }
+            else
+            {
+                // 其他状态直接改为Stopped
+                task.Status = ExecutionTaskStatus.Stopped;
+                task.StatusBeforeLocking = null;
+                task.ActualEndTime = DateTime.UtcNow;
+                task.LastModifiedAt = DateTime.UtcNow;
+                
+                // 记录详细的停止原因
+                var stopReason = $"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}] 医嘱已停止（护士 {nurseId} 确认）。" +
+                               $"任务原状态: {statusBeforeLocking?.ToString() ?? "未记录"}，" +
+                               $"锁定状态: {originalStatus}";
+                
+                task.ExceptionReason = string.IsNullOrEmpty(task.ExceptionReason) 
+                    ? stopReason 
+                    : task.ExceptionReason + "\n" + stopReason;
+                
+                await _taskRepository.UpdateAsync(task);
+                stoppedTaskIds.Add(task.Id);
+                
+                _logger.LogInformation("✅ 任务 {TaskId} 已从 OrderStopping 变更为 Stopped (原状态: {StatusBeforeLocking})",
+                    task.Id, statusBeforeLocking?.ToString() ?? "未记录");
+            }
+        }
+        
+        if (pendingReturnTaskIds.Count > 0)
+        {
+            _logger.LogInformation("⚠️ 医嘱 {OrderId} 有 {Count} 个任务需要护士在药品申请界面确认退药",
+                order.Id, pendingReturnTaskIds.Count);
         }
 
         // 5. ✅ 检查是否有已提交但未确认的申请（需要通知外部系统取消）
