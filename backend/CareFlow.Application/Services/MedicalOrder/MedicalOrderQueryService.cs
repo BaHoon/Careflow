@@ -598,7 +598,14 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
                 {
                     var firstItem = medOrder.Items.First();
                     var drug = await _drugRepository.GetByIdAsync(firstItem.DrugId);
-                    return $"{drug?.GenericName ?? "药品"} {firstItem.Dosage}";
+                    var drugName = drug?.GenericName ?? "药品";
+                    
+                    // 如果有多个药品，添加"等n种药品"
+                    if (medOrder.Items.Count > 1)
+                    {
+                        return $"{drugName} {firstItem.Dosage} 等{medOrder.Items.Count}种药品";
+                    }
+                    return $"{drugName} {firstItem.Dosage}";
                 }
                 return "药品医嘱";
 
