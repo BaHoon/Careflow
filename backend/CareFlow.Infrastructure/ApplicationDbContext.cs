@@ -56,6 +56,7 @@ namespace CareFlow.Infrastructure
         public DbSet<NurseRoster> NurseRosters { get; set; }           // 护士排班
         public DbSet<NursingTask> NursingTasks { get; set; }
         public DbSet<MedicationReturnRequest> MedicationReturnRequests { get; set; } // 退药申请记录
+        public DbSet<NursingRecordSupplement> NursingRecordSupplements { get; set; } // 护理记录补充说明
 
         #region 5. Barcode (条形码系统)
         public DbSet<BarcodeIndex> BarcodeIndexes { get; set; }         // 条形码索引表

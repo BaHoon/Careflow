@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using CareFlow.Core.Models.Organization;
+using CareFlow.Core.Enums;
 
 namespace CareFlow.Core.Models.Nursing;
 
@@ -48,11 +49,14 @@ public class NursingTask : EntityBase<long>
     public Nurse? AssignedNurse { get; set; }
 
     // --- 2. 执行情况 ---
-    public string Status { get; set; } = "Pending"; // Pending, Completed, Cancelled
+    public ExecutionTaskStatus Status { get; set; } = ExecutionTaskStatus.Pending; // Pending, Completed, Cancelled
     public DateTime? ExecuteTime { get; set; }      // 实际执行时间
         
     // [用户需求] 实际执行护士 (可能和分配的不一样，比如帮忙代测)
-    public string? ExecutorNurseId { get; set; }    
+    public string? ExecutorNurseId { get; set; }
+    
+    // 取消理由（仅当Status=Cancelled时有值）
+    public string? CancelReason { get; set; }
 
     // --- 3. 任务元数据 ---
     public string TaskType { get; set; } = "Routine"; // Routine(常规), ReMeasure(复测)

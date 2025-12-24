@@ -3,6 +3,7 @@ using System;
 using CareFlow.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CareFlow.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251223113458_AddItemNameToInspectionOrder")]
+    partial class AddItemNameToInspectionOrder
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -540,60 +543,6 @@ namespace CareFlow.Infrastructure.Migrations
                     b.ToTable("ExecutionTasks");
                 });
 
-            modelBuilder.Entity("CareFlow.Core.Models.Nursing.MedicationReturnRequest", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime?>("ConfirmedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("CreateTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long>("ExecutionTaskId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("PharmacyResponse")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Remarks")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("RequestedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("RequestedBy")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("ReturnType")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("SubmittedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ExecutionTaskId");
-
-                    b.HasIndex("RequestedBy");
-
-                    b.ToTable("MedicationReturnRequests");
-                });
-
             modelBuilder.Entity("CareFlow.Core.Models.Nursing.NurseRoster", b =>
                 {
                     b.Property<long>("Id")
@@ -717,44 +666,6 @@ namespace CareFlow.Infrastructure.Migrations
                     b.ToTable("NursingCareNotes");
                 });
 
-            modelBuilder.Entity("CareFlow.Core.Models.Nursing.NursingRecordSupplement", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreateTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long>("NursingTaskId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("SupplementNurseId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("SupplementTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("SupplementType")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("NursingTaskId");
-
-                    b.HasIndex("SupplementNurseId");
-
-                    b.ToTable("NursingRecordSupplements");
-                });
-
             modelBuilder.Entity("CareFlow.Core.Models.Nursing.NursingTask", b =>
                 {
                     b.Property<long>("Id")
@@ -764,9 +675,6 @@ namespace CareFlow.Infrastructure.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<string>("AssignedNurseId")
-                        .HasColumnType("text");
-
-                    b.Property<string>("CancelReason")
                         .HasColumnType("text");
 
                     b.Property<DateTime>("CreateTime")
@@ -1383,25 +1291,6 @@ namespace CareFlow.Infrastructure.Migrations
                     b.Navigation("Patient");
                 });
 
-            modelBuilder.Entity("CareFlow.Core.Models.Nursing.MedicationReturnRequest", b =>
-                {
-                    b.HasOne("CareFlow.Core.Models.Nursing.ExecutionTask", "ExecutionTask")
-                        .WithMany()
-                        .HasForeignKey("ExecutionTaskId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CareFlow.Core.Models.Organization.Nurse", "RequestedByNurse")
-                        .WithMany()
-                        .HasForeignKey("RequestedBy")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ExecutionTask");
-
-                    b.Navigation("RequestedByNurse");
-                });
-
             modelBuilder.Entity("CareFlow.Core.Models.Nursing.NurseRoster", b =>
                 {
                     b.HasOne("CareFlow.Core.Models.Nursing.ShiftType", "ShiftType")
@@ -1446,25 +1335,6 @@ namespace CareFlow.Infrastructure.Migrations
                     b.Navigation("Patient");
 
                     b.Navigation("RecorderNurse");
-                });
-
-            modelBuilder.Entity("CareFlow.Core.Models.Nursing.NursingRecordSupplement", b =>
-                {
-                    b.HasOne("CareFlow.Core.Models.Nursing.NursingTask", "NursingTask")
-                        .WithMany()
-                        .HasForeignKey("NursingTaskId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CareFlow.Core.Models.Organization.Nurse", "SupplementNurse")
-                        .WithMany()
-                        .HasForeignKey("SupplementNurseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("NursingTask");
-
-                    b.Navigation("SupplementNurse");
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Nursing.NursingTask", b =>
