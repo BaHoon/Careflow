@@ -539,8 +539,7 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
         if (inspOrder == null) return;
 
         detail.ItemCode = inspOrder.ItemCode;
-        // InspectionOrder模型中没有ItemName字段，使用ItemCode作为名称
-        detail.ItemName = inspOrder.ItemCode;
+        detail.ItemName = inspOrder.ItemName;
     }
 
     /// <summary>
@@ -615,7 +614,7 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
 
             case "InspectionOrder":
                 var inspOrder = await _inspectionRepository.GetByIdAsync(order.Id);
-                return inspOrder?.ItemCode ?? "检查医嘱";
+                return inspOrder?.ItemName ?? "检查医嘱";
 
             case "OperationOrder":
                 var opOrder = await _operationRepository.GetByIdAsync(order.Id);
