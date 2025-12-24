@@ -158,8 +158,11 @@
                 {{ getOrderTypeName(item.orderType) }}
               </el-tag>
               
-              <!-- 主要内容 -->
-              <span class="order-main-text">{{ item.displayText }}</span>
+              <!-- 主要内容：药品申请显示 "计划时间 - 第一个药品" -->
+              <span v-if="activeTab === 'medication' && item.medications && item.medications.length > 0" class="order-main-text">
+                {{ formatDateTime(item.plannedStartTime) }} - {{ item.medications[0].drugName }}{{ item.medications.length > 1 ? '等' : '' }}
+              </span>
+              <span v-else class="order-main-text">{{ item.displayText }}</span>
               
               <!-- 检查来源（仅检查类） -->
               <span v-if="item.inspectionSource" class="inspection-source">
@@ -185,14 +188,14 @@
                 </div>
               </div>
 
-              <div v-if="item.plannedStartTime" class="detail-section">
-                <span class="detail-label">计划时间:</span>
-                <span class="detail-value">{{ formatDateTime(item.plannedStartTime) }}</span>
+              <div class="detail-section">
+                <span class="detail-label">时间策略:</span>
+                <span class="detail-value">{{ formatTimingStrategy(item) }}</span>
               </div>
 
-              <div v-if="item.remarks" class="detail-section">
-                <span class="detail-label">备注:</span>
-                <span class="detail-value">{{ item.remarks }}</span>
+              <div class="detail-section">
+                <span class="detail-label">用法:</span>
+                <span class="detail-value">{{ formatUsageRoute(item.usageRoute) }}</span>
               </div>
 
               <div class="application-meta">
@@ -1021,6 +1024,89 @@ const formatDateTime = (dateString) => {
   } catch {
     return dateString;
   }
+};
+
+// 格式化时间策略
+const formatTimingStrategy = (item) => {
+  if (!item.timingStrategy) return '-';
+  
+  switch (item.timingStrategy) {
+    case 'IMMEDIATE':
+      return '立即';
+    
+    case 'SPECIFIC':
+      // 指定时间：显示开始时间
+      return `指定时间: ${formatDateTime(item.startTime || item.plannedStartTime)}`;
+    
+    case 'SLOTS':
+      // Slot 策略：显示开始结束时间 + 选定的slot中文
+      const slotText = formatSlotsMask(item.smartSlotsMask);
+      const intervalDaysText = item.intervalDays && item.intervalDays > 1 
+        ? `每${item.intervalDays}天` 
+        : '每天';
+      return `${formatDateTime(item.startTime || item.plannedStartTime)} 至 ${formatDateTime(item.plantEndTime)} (${intervalDaysText} ${slotText})`;
+    
+    case 'CYCLIC':
+      // Cycle 策略：显示开始结束时间 + 间隔时间
+      const intervalText = formatIntervalHours(item.intervalHours);
+      return `${formatDateTime(item.startTime || item.plannedStartTime)} 至 ${formatDateTime(item.plantEndTime)} (${intervalText})`;
+    
+    default:
+      return item.timingStrategy;
+  }
+};
+
+// 格式化间隔时间
+const formatIntervalHours = (hours) => {
+  if (!hours) return '未指定间隔';
+  
+  if (hours < 1) {
+    const minutes = Math.round(hours * 60);
+    return `每${minutes}分钟`;
+  } else if (hours === 1) {
+    return '每小时';
+  } else if (hours % 24 === 0) {
+    const days = hours / 24;
+    return `每${days}天`;
+  } else {
+    return `每${hours}小时`;
+  }
+};
+
+// 格式化 Slots 掩码
+const formatSlotsMask = (mask) => {
+  if (!mask) return '';
+  
+  // 根据掩码解析选定的时段
+  // 假设 bit 0-7 分别代表：早晨、上午、中午、下午、晚上、深夜、凌晨、其他
+  const slotNames = ['早晨', '上午', '中午', '下午', '晚上', '深夜', '凌晨', '其他'];
+  const selectedSlots = [];
+  
+  for (let i = 0; i < slotNames.length; i++) {
+    if (mask & (1 << i)) {
+      selectedSlots.push(slotNames[i]);
+    }
+  }
+  
+  return selectedSlots.length > 0 ? selectedSlots.join('、') : '未指定时段';
+};
+
+// 格式化用法途径
+const formatUsageRoute = (usageRoute) => {
+  if (!usageRoute) return '-';
+  
+  const usageMap = {
+    'PO': '口服',
+    'Topical': '外用/涂抹',
+    'IM': '肌内注射',
+    'SC': '皮下注射',
+    'IVP': '静脉推注',
+    'IVGTT': '静脉滴注',
+    'Inhalation': '吸氧',
+    'ST': '皮试'
+  };
+  
+  return usageMap[usageRoute] || usageRoute;
 };
 </script>
 

@@ -698,9 +698,11 @@ public class OrderApplicationService : IOrderApplicationService
             _logger.LogWarning(ex, "解析DataPayload失败，任务ID: {TaskId}", task.Id);
         }
 
-        // 获取药品信息
+        // 获取药品信息和医嘱详情
         var medications = new List<MedicationItemDetail>();
-        if (task.MedicalOrder is MedicationOrder medOrder && medOrder.Items != null)
+        var medOrder = task.MedicalOrder as MedicationOrder;
+        
+        if (medOrder != null && medOrder.Items != null)
         {
             foreach (var item in medOrder.Items)
             {
@@ -753,6 +755,12 @@ public class OrderApplicationService : IOrderApplicationService
             ContentDescription = contentDesc,
             Medications = medications,
             InspectionInfo = null,
+            // 填充时间策略和用法信息
+            TimingStrategy = medOrder?.TimingStrategy,
+            UsageRoute = medOrder?.UsageRoute.ToString(),
+            IntervalHours = medOrder?.IntervalHours,
+            IntervalDays = medOrder?.IntervalDays,
+            SmartSlotsMask = medOrder?.SmartSlotsMask,
             IsUrgent = isUrgent,
             Remarks = remarks,
             CreateTime = task.CreatedAt,
