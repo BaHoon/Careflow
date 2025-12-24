@@ -967,112 +967,34 @@ namespace CareFlow.Infrastructure.Data
             context.ShiftTypes.AddRange(shiftTypes);
             context.SaveChanges(); // 保存班次类型
             
-            // 护士排班表数据 - 安排不同科室护士的排班
+            // 护士排班表数据 - 每个病区每个班次均分配护士
             var nurseRosters = new NurseRoster[]
             {
-                // 外科护士排班 (SUR - Ward SUR-W01)
-                new NurseRoster
-                {
-                    StaffId = "N001", // 王护士 (护士长)
-                    WardId = "SUR-W01",  // 外科病区
-                    ShiftId = "DAY",
-                    WorkDate = DateOnly.FromDateTime(DateTime.Today),
-                    Status = "Scheduled"
-                },
-                new NurseRoster
-                {
-                    StaffId = "N002", // 赵护士
-                    WardId = "SUR-W01",  // 外科病区
-                    ShiftId = "EVENING",
-                    WorkDate = DateOnly.FromDateTime(DateTime.Today),
-                    Status = "Scheduled"
-                },
-                new NurseRoster
-                {
-                    StaffId = "N008", // 周护士
-                    WardId = "SUR-W01",  // 外科病区
-                    ShiftId = "NIGHT",
-                    WorkDate = DateOnly.FromDateTime(DateTime.Today),
-                    Status = "Scheduled"
-                },
-                
-                // 内科护士排班 (IM - Ward IM-W01)
-                new NurseRoster
-                {
-                    StaffId = "N004", // 张护士 (责任组长)
-                    WardId = "IM-W01",  // 内科一病区
-                    ShiftId = "DAY",
-                    WorkDate = DateOnly.FromDateTime(DateTime.Today),
-                    Status = "Scheduled"
-                },
-                new NurseRoster
-                {
-                    StaffId = "N003", // 李护士
-                    WardId = "IM-W01",  // 内科一病区
-                    ShiftId = "EVENING",
-                    WorkDate = DateOnly.FromDateTime(DateTime.Today),
-                    Status = "Scheduled"
-                },
-                new NurseRoster
-                {
-                    StaffId = "N007", // 吴护士
-                    WardId = "IM-W02",  // 内科二病区
-                    ShiftId = "NIGHT",
-                    WorkDate = DateOnly.FromDateTime(DateTime.Today),
-                    Status = "Scheduled"
-                },
-                
-                // 儿科护士排班 (PED - Ward PED-W01)
-                new NurseRoster
-                {
-                    StaffId = "N006", // 刘护士 (责任组长)
-                    WardId = "PED-W01",  // 儿科病区
-                    ShiftId = "DAY",
-                    WorkDate = DateOnly.FromDateTime(DateTime.Today),
-                    Status = "Scheduled"
-                },
-                new NurseRoster
-                {
-                    StaffId = "N005", // 陈护士
-                    WardId = "PED-W01",  // 儿科病区
-                    ShiftId = "EVENING",
-                    WorkDate = DateOnly.FromDateTime(DateTime.Today),
-                    Status = "Scheduled"
-                },
-                
-                // 明天的排班安排 (部分轮换)
-                new NurseRoster
-                {
-                    StaffId = "N002", // 赵护士
-                    WardId = "SUR-W01",  // 外科病区
-                    ShiftId = "DAY",
-                    WorkDate = DateOnly.FromDateTime(DateTime.Today.AddDays(1)),
-                    Status = "Scheduled"
-                },
-                new NurseRoster
-                {
-                    StaffId = "N001", // 王护士 (护士长)
-                    WardId = "SUR-W01",  // 外科病区
-                    ShiftId = "EVENING",
-                    WorkDate = DateOnly.FromDateTime(DateTime.Today.AddDays(1)),
-                    Status = "Scheduled"
-                },
-                new NurseRoster
-                {
-                    StaffId = "N003", // 李护士
-                    WardId = "IM-W02",  // 内科二病区
-                    ShiftId = "DAY",
-                    WorkDate = DateOnly.FromDateTime(DateTime.Today.AddDays(1)),
-                    Status = "Scheduled"
-                },
-                new NurseRoster
-                {
-                    StaffId = "N005", // 陈护士
-                    WardId = "PED-W01",  // 儿科病区
-                    ShiftId = "DAY",
-                    WorkDate = DateOnly.FromDateTime(DateTime.Today.AddDays(1)),
-                    Status = "Scheduled"
-                }
+                // 内科一病区 IM-W01
+                new NurseRoster { StaffId = "N004", WardId = "IM-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(DateTime.Today), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N003", WardId = "IM-W01", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(DateTime.Today), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N007", WardId = "IM-W01", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(DateTime.Today), Status = "Scheduled" },
+
+                // 内科二病区 IM-W02
+                new NurseRoster { StaffId = "N001", WardId = "IM-W02", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(DateTime.Today), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N004", WardId = "IM-W02", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(DateTime.Today), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N003", WardId = "IM-W02", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(DateTime.Today), Status = "Scheduled" },
+
+                // 外科病区 SUR-W01
+                new NurseRoster { StaffId = "N002", WardId = "SUR-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(DateTime.Today), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N008", WardId = "SUR-W01", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(DateTime.Today), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N001", WardId = "SUR-W01", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(DateTime.Today), Status = "Scheduled" },
+
+                // 儿科病区 PED-W01
+                new NurseRoster { StaffId = "N006", WardId = "PED-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(DateTime.Today), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N005", WardId = "PED-W01", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(DateTime.Today), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N010", WardId = "PED-W01", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(DateTime.Today), Status = "Scheduled" },
+
+                // 备用/明日部分排班（保持原来的简单轮换示例）
+                new NurseRoster { StaffId = "N002", WardId = "SUR-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(DateTime.Today.AddDays(1)), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N001", WardId = "SUR-W01", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(DateTime.Today.AddDays(1)), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N003", WardId = "IM-W02", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(DateTime.Today.AddDays(1)), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N005", WardId = "PED-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(DateTime.Today.AddDays(1)), Status = "Scheduled" }
             };
             context.NurseRosters.AddRange(nurseRosters);
             context.SaveChanges(); // 保存排班数据

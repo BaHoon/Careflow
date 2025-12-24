@@ -2,6 +2,7 @@ using CareFlow.Application.Interfaces;
 using CareFlow.Application.DTOs.Nursing; // 引用你新定义的 DTO
 using CareFlow.Application.Services.Nursing; // 引用 Service
 using CareFlow.Application.Services.Scheduling;
+using CareFlow.Application.Common;
 using Microsoft.AspNetCore.Mvc;
 using CareFlow.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -829,7 +830,7 @@ namespace CareFlow.WebApi.Controllers
                                 resultData["healthEducation"] = !string.IsNullOrEmpty(careNote.HealthEducation) ? careNote.HealthEducation : null;
                             }
                             
-                            resultPayload = System.Text.Json.JsonSerializer.Serialize(resultData);
+                            resultPayload = System.Text.Json.JsonSerializer.Serialize(resultData, JsonConfig.DefaultOptions);
                         }
                     }
                     
