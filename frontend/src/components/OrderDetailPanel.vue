@@ -353,6 +353,26 @@
                   <span class="timeline-value danger">{{ task.exceptionReason }}</span>
                 </div>
               </div>
+
+              <!-- 护士模式：任务操作按钮 -->
+              <div v-if="nurseMode" class="nurse-actions">
+                <el-button 
+                  type="primary" 
+                  size="small"
+                  @click.stop="emit('update-task-execution', task.id)"
+                  :icon="EditPen"
+                >
+                  修改执行情况
+                </el-button>
+                <el-button 
+                  type="success" 
+                  size="small"
+                  @click.stop="emit('print-task-sheet', task.id)"
+                  :icon="Printer"
+                >
+                  打印执行单
+                </el-button>
+              </div>
             </div>
           </el-collapse-item>
         </el-collapse>
@@ -367,14 +387,26 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue';
+import { EditPen, Printer } from '@element-plus/icons-vue';
 
 // ==================== Props ====================
 const props = defineProps({
   detail: {
     type: Object,
     required: true
+  },
+  // 护士模式：显示任务操作按钮
+  nurseMode: {
+    type: Boolean,
+    default: false
   }
 });
+
+// ==================== Emits ====================
+const emit = defineEmits([
+  'update-task-execution',  // 修改任务执行情况
+  'print-task-sheet'        // 打印任务执行单
+]);
 
 // ==================== 风琴控制 ====================
 // 主风琴面板控制（基础信息、药品信息等）
@@ -1072,5 +1104,19 @@ const getTaskTimingStatus = (task) => {
   color: #c0c4cc;
   padding: 40px 16px;
   font-size: 0.9rem;
+}
+
+/* ==================== 护士操作按钮 ==================== */
+.nurse-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed #e4e7ed;
+}
+
+.nurse-actions .el-button {
+  flex: 0 0 auto;
 }
 </style>
