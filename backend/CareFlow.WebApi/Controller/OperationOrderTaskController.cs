@@ -1,5 +1,6 @@
 using CareFlow.Application.Services.MedicalOrder.OperationOrders;
 using CareFlow.Application.DTOs.OperationOrders;
+using CareFlow.Application.Interfaces;
 using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models;
 using CareFlow.Core.Models.Medical;
@@ -19,6 +20,7 @@ public class OperationOrderTaskController : ControllerBase
     private readonly IRepository<OperationOrder, long> _orderRepository;
     private readonly IRepository<ExecutionTask, long> _executionTaskRepository;
     private readonly IBarcodeService _barcodeService;
+    private readonly IOrderAcknowledgementService _orderAcknowledgementService;
     private readonly ILogger<OperationOrderTaskController> _logger;
 
     public OperationOrderTaskController(
@@ -26,12 +28,14 @@ public class OperationOrderTaskController : ControllerBase
         IRepository<OperationOrder, long> orderRepository,
         IRepository<ExecutionTask, long> executionTaskRepository,
         IBarcodeService barcodeService,
+        IOrderAcknowledgementService orderAcknowledgementService,
         ILogger<OperationOrderTaskController> logger)
     {
         _taskService = taskService;
         _orderRepository = orderRepository;
         _executionTaskRepository = executionTaskRepository;
         _barcodeService = barcodeService;
+        _orderAcknowledgementService = orderAcknowledgementService;
         _logger = logger;
     }
 
@@ -125,6 +129,7 @@ public class OperationOrderTaskController : ControllerBase
 
     /// <summary>
     /// 刷新指定医嘱的执行任务（重新生成，参照药品医嘱实现）
+    /// 刷新后会为新生成的任务生成条形码，与药品类医嘱保持一致
     /// </summary>
     [HttpPost("{orderId}/refresh")]
     public async Task<IActionResult> RefreshTasks(long orderId)
@@ -140,11 +145,38 @@ public class OperationOrderTaskController : ControllerBase
                 return NotFound(new { Success = false, Message = $"未找到ID为 {orderId} 的医嘱" });
             }
 
-            // 2. 刷新任务
-            await _taskService.RefreshExecutionTasksAsync(order);
+            // 2. 刷新任务（回滚旧任务并生成新任务）
+            var newTasks = await _taskService.RefreshExecutionTasksAsync(order);
 
-            _logger.LogInformation("成功刷新医嘱 {OrderId} 的执行任务", orderId);
-            return Ok(new { Success = true, Message = "任务刷新成功" });
+            // 3. 为新生成的任务生成条形码（与药品类医嘱保持一致）
+            int barcodeSuccessCount = 0;
+            int barcodeFailCount = 0;
+            
+            if (newTasks != null && newTasks.Any())
+            {
+                foreach (var task in newTasks)
+                {
+                    try
+                    {
+                        await _orderAcknowledgementService.GenerateBarcodeForTaskAsync(task);
+                        barcodeSuccessCount++;
+                        _logger.LogInformation("✅ 刷新后的任务 {TaskId} 已生成条形码", task.Id);
+                    }
+                    catch (Exception ex)
+                    {
+                        barcodeFailCount++;
+                        _logger.LogError(ex, "为刷新后的任务 {TaskId} 生成条形码失败", task.Id);
+                        // 条形码生成失败不应阻断刷新流程
+                    }
+                }
+                
+                _logger.LogInformation("刷新后条形码生成完成: 成功 {Success}, 失败 {Failed}", 
+                    barcodeSuccessCount, barcodeFailCount);
+            }
+
+            _logger.LogInformation("成功刷新医嘱 {OrderId} 的执行任务，新任务数: {TaskCount}, 条形码生成: {BarcodeCount}", 
+                orderId, newTasks?.Count ?? 0, barcodeSuccessCount);
+            return Ok(new { Success = true, Message = "任务刷新成功", NewTaskCount = newTasks?.Count ?? 0, BarcodeGenerated = barcodeSuccessCount });
         }
         catch (Exception ex)
         {

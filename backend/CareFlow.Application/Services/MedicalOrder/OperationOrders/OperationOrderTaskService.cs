@@ -21,7 +21,7 @@ namespace CareFlow.Application.Services.MedicalOrder.OperationOrders;
 public interface IOperationOrderTaskService
 {
     Task<List<ExecutionTask>> GenerateExecutionTasksAsync(OperationOrder order);
-    Task RefreshExecutionTasksAsync(OperationOrder order);
+    Task<List<ExecutionTask>> RefreshExecutionTasksAsync(OperationOrder order);
     Task RollbackPendingTasksAsync(long orderId, string reason);
     Task CheckAndUpdateOrderStatusAsync(long orderId);
 }
@@ -29,11 +29,8 @@ public interface IOperationOrderTaskService
 public class OperationOrderTaskService : IOperationOrderTaskService
 {
     private readonly IRepository<ExecutionTask, long> _taskRepository;
-    private readonly IRepository<BarcodeIndex, string> _barcodeRepository;
     private readonly IRepository<OperationOrder, long> _operationOrderRepository;
     private readonly IRepository<HospitalTimeSlot, int> _timeSlotRepository;
-    private readonly IBarcodeService _barcodeService;
-    private readonly INurseAssignmentService _nurseAssignmentService;
     private readonly ILogger<OperationOrderTaskService> _logger;
 
     // 操作代码到操作名称的映射（从原 Factory 合并）
@@ -63,19 +60,13 @@ public class OperationOrderTaskService : IOperationOrderTaskService
 
     public OperationOrderTaskService(
         IRepository<ExecutionTask, long> taskRepository,
-        IRepository<BarcodeIndex, string> barcodeRepository,
         IRepository<OperationOrder, long> operationOrderRepository,
         IRepository<HospitalTimeSlot, int> timeSlotRepository,
-        IBarcodeService barcodeService,
-        INurseAssignmentService nurseAssignmentService,
         ILogger<OperationOrderTaskService> logger)
     {
         _taskRepository = taskRepository;
-        _barcodeRepository = barcodeRepository;
         _operationOrderRepository = operationOrderRepository;
         _timeSlotRepository = timeSlotRepository;
-        _barcodeService = barcodeService;
-        _nurseAssignmentService = nurseAssignmentService;
         _logger = logger;
     }
 
@@ -161,14 +152,9 @@ public class OperationOrderTaskService : IOperationOrderTaskService
                     try
                     {
                         // 先保存任务以获得ID
+                        // 注意：责任护士分配和条形码生成由 OrderAcknowledgementService 在签收时统一处理
                         await _taskRepository.AddAsync(task);
                         savedTaskCount++;
-
-                        // 为任务分配责任护士
-                        await AssignResponsibleNurseAsync(task, existingOrder.PatientId);
-
-                        // 生成条形码索引
-                        await GenerateBarcodeForTask(task);
                     }
                     catch (Exception ex)
                     {
@@ -237,20 +223,13 @@ public class OperationOrderTaskService : IOperationOrderTaskService
             foreach (var task in pendingTasks)
             {
                 // 更新状态为Stopped，不物理删除
+                // 注意：条形码不删除，与药品类医嘱保持一致
                 task.Status = ExecutionTaskStatus.Stopped;
                 task.ExceptionReason = $"医嘱停止: {reason}";
                 task.IsRolledBack = true;
                 task.LastModifiedAt = DateTime.UtcNow;
                 
                 await _taskRepository.UpdateAsync(task);
-
-                // 删除条形码索引（如果需要）
-                var barcodeId = $"Exec-{task.Id}";
-                var barcode = await _barcodeRepository.GetByIdAsync(barcodeId);
-                if (barcode != null)
-                {
-                    await _barcodeRepository.DeleteAsync(barcode);
-                }
             }
 
             _logger.LogInformation("已回滚医嘱 {OrderId} 的 {TaskCount} 个未执行任务", orderId, pendingTasks.Count());
@@ -271,9 +250,9 @@ public class OperationOrderTaskService : IOperationOrderTaskService
         }
     }
 
-    public async Task RefreshExecutionTasksAsync(OperationOrder order)
+    public async Task<List<ExecutionTask>> RefreshExecutionTasksAsync(OperationOrder order)
     {
-        // 医嘱更新后刷新任务
+        // 医嘱更新后刷新任务（参照药品类医嘱实现）
         // 输入验证
         if (order == null)
         {
@@ -301,10 +280,12 @@ public class OperationOrderTaskService : IOperationOrderTaskService
             // 1. 回滚所有未执行的任务
             await RollbackPendingTasksAsync(order.Id, "医嘱修改");
 
-            // 2. 重新生成任务
-            await GenerateExecutionTasksAsync(existingOrder);
+            // 2. 重新生成任务并返回新任务列表（用于后续生成条形码）
+            var newTasks = await GenerateExecutionTasksAsync(existingOrder);
 
-            _logger.LogInformation("已刷新医嘱 {OrderId} 的执行任务", order.Id);
+            _logger.LogInformation("已刷新医嘱 {OrderId} 的执行任务，新生成 {TaskCount} 个任务", order.Id, newTasks?.Count ?? 0);
+            
+            return newTasks ?? new List<ExecutionTask>();
         }
         catch (Exception ex)
         {
@@ -805,57 +786,6 @@ public class OperationOrderTaskService : IOperationOrderTaskService
         };
     }
 
-    /// <summary>
-    /// 为任务分配责任护士
-    /// </summary>
-    private async Task AssignResponsibleNurseAsync(ExecutionTask task, string patientId)
-    {
-        try
-        {
-            var responsibleNurse = await _nurseAssignmentService
-                .CalculateResponsibleNurseAsync(patientId, task.PlannedStartTime);
-
-            if (responsibleNurse != null)
-            {
-                task.AssignedNurseId = responsibleNurse;
-                await _taskRepository.UpdateAsync(task);
-                _logger.LogInformation("任务 {TaskId} 分配计划责任护士 {NurseId}", task.Id, responsibleNurse);
-            }
-            else
-            {
-                _logger.LogWarning("任务 {TaskId} 计划时间 {Time} 无排班护士，计划责任护士留空",
-                    task.Id, task.PlannedStartTime);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "为任务 {TaskId} 分配责任护士失败", task.Id);
-        }
-    }
-
-    /// <summary>
-    /// 为任务生成条形码索引
-    /// </summary>
-    private async Task GenerateBarcodeForTask(ExecutionTask task)
-    {
-        try
-        {
-            var barcodeIndex = new BarcodeIndex
-            {
-                Id = $"Exec-{task.Id}", 
-                TableName = "ExecutionTasks",
-                RecordId = task.Id.ToString()
-            };
-            await _barcodeRepository.AddAsync(barcodeIndex);
-            
-            _logger.LogDebug("为任务 {TaskId} 生成条形码索引成功", task.Id);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "为任务 {TaskId} 生成条形码失败", task.Id);
-            // 条形码生成失败不影响任务创建，只记录日志
-        }
-    }
 
     /// <summary>
     /// 检查所有任务是否完成，如果完成则更新医嘱的EndTime
