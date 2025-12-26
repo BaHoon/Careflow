@@ -124,7 +124,8 @@
               {{ order.isLongTerm ? '长期' : '临时' }}
             </el-tag>
 
-            <!-- 医嘱摘要 -->
+            <!-- 医嘱ID和摘要 -->
+            <span class="order-id">#{{ order.id }}</span>
             <span class="order-summary">{{ formatOrderSummary(order) }}</span>
 
             <!-- 停嘱标识：只在医嘱处于停嘱相关状态时显示 -->
@@ -386,7 +387,60 @@ const viewOrderDetail = async (order) => {
 // ==================== 停止医嘱 ====================
 const handleStopOrder = async (order) => {
   try {
-    // 首先获取医嘱详情（包含任务列表）
+    // 特殊处理：出院医嘱且已签收或进行中状态，直接停止所有任务，不让医生选择
+    if (order.orderType === 'DischargeOrder' && (order.status === 2 || order.status === 3)) {
+      // 先获取任务列表，找到第一个任务作为停止节点
+      const detail = await getOrderDetail(order.id);
+      if (!detail.tasks || detail.tasks.length === 0) {
+        ElMessage.error('该医嘱没有任务，无法停止');
+        return;
+      }
+
+      await ElMessageBox.confirm(
+        '出院医嘱停止后将停止所有相关任务，确认停止该医嘱吗？',
+        '停止出院医嘱',
+        {
+          confirmButtonText: '确认停止',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }
+      );
+
+      const { value: stopReason } = await ElMessageBox.prompt(
+        '请输入停止原因',
+        '停止原因',
+        {
+          confirmButtonText: '确认',
+          cancelButtonText: '取消',
+          inputPattern: /\S+/,
+          inputErrorMessage: '停止原因不能为空',
+          inputType: 'textarea',
+          inputPlaceholder: '例如：患者病情好转，无需出院'
+        }
+      );
+
+      const currentDoctor = getCurrentDoctor();
+      // 使用第一个任务作为停止节点（停止第一个任务后的所有任务，即停止所有任务）
+      const firstTask = detail.tasks[0];
+      const requestData = {
+        orderId: order.id,
+        doctorId: currentDoctor.staffId,
+        stopReason: stopReason,
+        stopAfterTaskId: firstTask.id
+      };
+
+      const result = await stopOrder(requestData);
+      
+      if (result.success) {
+        ElMessage.success(`停嘱成功，已锁定 ${result.lockedTaskIds?.length || 0} 个任务`);
+        await loadOrders();
+      } else {
+        ElMessage.error(result.message || '停嘱失败');
+      }
+      return;
+    }
+
+    // 其他医嘱：显示任务选择面板
     const detail = await getOrderDetail(order.id);
     currentStopOrder.value = {
       ...order,
@@ -394,8 +448,10 @@ const handleStopOrder = async (order) => {
     };
     stopDialogVisible.value = true;
   } catch (error) {
-    console.error('获取医嘱任务列表失败:', error);
-    ElMessage.error('获取医嘱任务列表失败');
+    if (error !== 'cancel') {
+      console.error('停止医嘱失败:', error);
+      ElMessage.error(error.message || '停止医嘱失败');
+    }
   }
 };
 
@@ -768,6 +824,16 @@ onMounted(async () => {
   gap: 10px;
   margin-bottom: 12px;
   flex-wrap: wrap;
+}
+
+.order-id {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  background: #ecf5ff;
+  padding: 2px 8px;
+  border-radius: var(--radius-small);
+  font-family: 'Courier New', monospace;
 }
 
 .order-summary {

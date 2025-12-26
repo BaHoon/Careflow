@@ -83,6 +83,7 @@
               <el-checkbox :label="2">已签收</el-checkbox>
               <el-checkbox :label="3">进行中</el-checkbox>
               <el-checkbox :label="4">已完成</el-checkbox>
+              <el-checkbox :label="5">已停止</el-checkbox>
               <el-checkbox :label="8">等待停嘱</el-checkbox>
             </el-checkbox-group>
           </div>
@@ -182,7 +183,8 @@
                   🛑 新停
                 </span>
 
-                <!-- 医嘱摘要 -->
+                <!-- 医嘱ID和摘要 -->
+                <span class="order-id">#{{ order.id }}</span>
                 <span class="order-summary">{{ formatOrderSummary(order) }}</span>
 
                 <!-- 患者信息（多患者模式下显示） -->
@@ -274,6 +276,7 @@
                     </el-tag>
                     <span v-if="isNewlyCreated(order)" class="new-badge">🆕 新开</span>
                     <span v-if="isNewlyStopped(order)" class="new-stopped-badge">🛑 新停</span>
+                    <span class="order-id">#{{ order.id }}</span>
                     <span class="order-summary">{{ formatOrderSummary(order) }}</span>
                   </div>
 
@@ -1280,6 +1283,16 @@ onMounted(async () => {
   gap: 10px;
   margin-bottom: 12px;
   flex-wrap: wrap;
+}
+
+.order-id {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  background: #ecf5ff;
+  padding: 2px 8px;
+  border-radius: var(--radius-small);
+  font-family: 'Courier New', monospace;
 }
 
 .order-summary {

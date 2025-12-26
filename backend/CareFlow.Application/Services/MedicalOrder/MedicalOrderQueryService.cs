@@ -615,10 +615,17 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
         var opOrder = await _operationRepository.GetByIdAsync(orderId);
         if (opOrder == null) return;
 
-        // OperationOrder模型字段：OpId, Normal, FrequencyType, FrequencyValue
+        // OperationOrder模型字段：OpId, OperationName, OperationSite, Normal, FrequencyType, FrequencyValue等
         detail.OperationCode = opOrder.OpId;
-        detail.OperationName = opOrder.OpId; // 模型中没有单独的名称字段
-        detail.TargetSite = null; // 模型中没有此字段
+        detail.OperationName = opOrder.OperationName ?? opOrder.OpId; // 使用OperationName字段，如果没有则使用OpId
+        detail.TargetSite = opOrder.OperationSite; // 操作部位
+        
+        // 操作类医嘱也有时间策略相关字段，需要填充
+        detail.TimingStrategy = opOrder.TimingStrategy;
+        detail.StartTime = opOrder.StartTime;
+        detail.IntervalHours = opOrder.IntervalHours;
+        detail.IntervalDays = opOrder.IntervalDays;
+        detail.SmartSlotsMask = opOrder.SmartSlotsMask;
     }
 
     /// <summary>
@@ -683,7 +690,7 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
 
             case "OperationOrder":
                 var opOrder = await _operationRepository.GetByIdAsync(order.Id);
-                return opOrder?.OpId ?? "操作医嘱";
+                return opOrder?.OperationName ?? opOrder?.OpId ?? "操作医嘱";
 
             default:
                 return "医嘱";

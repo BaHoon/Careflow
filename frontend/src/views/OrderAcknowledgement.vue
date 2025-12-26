@@ -232,6 +232,7 @@
                   >
                     {{ getOrderTypeName(order.orderType) }}
                   </el-tag>
+                  <span class="order-id">#{{ order.orderId }}</span>
                   <span class="order-text">{{ formatOrderTitle(order) }}</span>
                 </div>
 
@@ -284,6 +285,12 @@
                   <div v-if="order.scheduleTime" class="detail-section">
                     <span class="detail-label">手术时间:</span>
                     <span class="detail-value">{{ formatDateTime(order.scheduleTime) }}</span>
+                  </div>
+
+                  <!-- 操作名称（操作类医嘱） -->
+                  <div v-if="order.orderType === 'OperationOrder' && order.operationName" class="detail-section">
+                    <span class="detail-label">操作名称:</span>
+                    <span class="detail-value">{{ order.operationName }}</span>
                   </div>
 
                   <!-- 元数据 -->
@@ -373,6 +380,7 @@
                   >
                     {{ getOrderTypeName(order.orderType) }}
                   </el-tag>
+                  <span class="order-id">#{{ order.orderId }}</span>
                   <span class="order-text">{{ formatOrderTitle(order) }}</span>
                 </div>
 
@@ -2360,7 +2368,18 @@ const formatDateTime = (dateTime) => {
   flex-wrap: wrap;
 }
 
+.order-id {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  background: #ecf5ff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+}
+
 .order-text {
+  flex: 1;
   font-weight: 600;
   font-size: 0.95rem;
   color: var(--text-primary);

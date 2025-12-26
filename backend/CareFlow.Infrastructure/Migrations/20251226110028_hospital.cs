@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CareFlow.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class InitCreate : Migration
+    public partial class hospital : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -262,7 +262,7 @@ namespace CareFlow.Infrastructure.Migrations
                     DateOfBirth = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     Age = table.Column<int>(type: "integer", nullable: false),
                     Weight = table.Column<float>(type: "real", nullable: false),
-                    Status = table.Column<string>(type: "text", nullable: false),
+                    Status = table.Column<int>(type: "integer", nullable: false),
                     PhoneNumber = table.Column<string>(type: "text", nullable: false),
                     NursingGrade = table.Column<int>(type: "integer", nullable: false),
                     BedId = table.Column<string>(type: "text", nullable: false),
@@ -690,9 +690,20 @@ namespace CareFlow.Infrastructure.Migrations
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false),
                     OpId = table.Column<string>(type: "text", nullable: false),
+                    OperationName = table.Column<string>(type: "text", nullable: false),
                     Normal = table.Column<bool>(type: "boolean", nullable: false),
-                    FrequencyType = table.Column<string>(type: "text", nullable: false),
-                    FrequencyValue = table.Column<string>(type: "text", nullable: false)
+                    OperationSite = table.Column<string>(type: "text", nullable: true),
+                    TimingStrategy = table.Column<string>(type: "text", nullable: false),
+                    StartTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    IntervalHours = table.Column<decimal>(type: "numeric", nullable: true),
+                    SmartSlotsMask = table.Column<int>(type: "integer", nullable: false),
+                    IntervalDays = table.Column<int>(type: "integer", nullable: false),
+                    OperationRequirements = table.Column<string>(type: "text", nullable: true),
+                    RequiresPreparation = table.Column<bool>(type: "boolean", nullable: false),
+                    PreparationItems = table.Column<string>(type: "text", nullable: true),
+                    ExpectedDurationMinutes = table.Column<int>(type: "integer", nullable: true),
+                    RequiresResult = table.Column<bool>(type: "boolean", nullable: false),
+                    ResultTemplate = table.Column<string>(type: "text", nullable: true)
                 },
                 constraints: table =>
                 {

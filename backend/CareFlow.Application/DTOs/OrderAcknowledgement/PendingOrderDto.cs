@@ -149,6 +149,11 @@ public class PendingOrderDto
     public string? OpId { get; set; }
     
     /// <summary>
+    /// 操作名称（仅操作医嘱）
+    /// </summary>
+    public string? OperationName { get; set; }
+    
+    /// <summary>
     /// 医嘱备注
     /// </summary>
     public string? Remarks { get; set; }
