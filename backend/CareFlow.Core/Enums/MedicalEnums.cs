@@ -91,3 +91,27 @@ public enum TimingStrategy
     /// </summary>
     Slots = 4
 }
+
+/// <summary>
+/// 出院类型枚举
+/// </summary>
+public enum DischargeType
+{
+    /// <summary>治愈出院</summary>
+    Cured = 1,
+    
+    /// <summary>好转出院</summary>
+    Improved = 2,
+    
+    /// <summary>转院</summary>
+    Transfer = 3,
+    
+    /// <summary>自动出院</summary>
+    AutoDischarge = 4,
+    
+    /// <summary>死亡</summary>
+    Death = 5,
+    
+    /// <summary>其他</summary>
+    Other = 99
+}

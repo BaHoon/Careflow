@@ -244,13 +244,14 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
                 return response;
             }
 
-            // 2. 验证医嘱状态（PendingReceive、Accepted 或 InProgress 可以停止）
+            // 2. 验证医嘱状态（PendingReceive、Accepted、InProgress 或 Stopped 可以停止）
             if (order.Status != OrderStatus.PendingReceive && 
                 order.Status != OrderStatus.Accepted && 
-                order.Status != OrderStatus.InProgress)
+                order.Status != OrderStatus.InProgress &&
+                order.Status != OrderStatus.Stopped)
             {
                 response.Success = false;
-                response.Message = $"医嘱状态为 {order.Status}，不允许停止（仅 PendingReceive、Accepted 或 InProgress 状态可停止）";
+                response.Message = $"医嘱状态为 {order.Status}，不允许停止（仅 PendingReceive、Accepted、InProgress 或 Stopped 状态可停止）";
                 response.Errors.Add($"当前状态: {order.Status}");
                 return response;
             }
@@ -329,6 +330,35 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
                 return response;
             }
 
+            // 5.1 如果医嘱已经是Stopped状态，验证新的停止节点不能晚于之前的停止节点
+            if (order.Status == OrderStatus.Stopped)
+            {
+                // 查找之前被停止的任务（状态为Stopped且有StatusBeforeLocking的）
+                var previousStoppedTasks = allTasks
+                    .Where(t => (t.Status == ExecutionTaskStatus.Stopped || t.Status == ExecutionTaskStatus.PendingReturn) && t.StatusBeforeLocking.HasValue)
+                    .ToList();
+
+                if (previousStoppedTasks.Any())
+                {
+                    // 找到之前停止的第一个任务的索引
+                    var firstPreviousStoppedIndex = allTasks.FindIndex(t => 
+                        t.Status == ExecutionTaskStatus.Stopped && t.StatusBeforeLocking.HasValue);
+
+                    if (stopAfterIndex >= firstPreviousStoppedIndex)
+                    {
+                        response.Success = false;
+                        response.Message = $"停止节点不能晚于或等于之前的停止节点（任务索引 {firstPreviousStoppedIndex}）";
+                        response.Errors.Add("停止节点必须早于之前的停止节点");
+                        _logger.LogWarning("停止节点 {NewIndex} 不能晚于之前的停止节点 {OldIndex}", 
+                            stopAfterIndex, firstPreviousStoppedIndex);
+                        return response;
+                    }
+
+                    _logger.LogInformation("✅ 已停止医嘱再次停止：新停止节点索引 {NewIndex}，之前停止节点索引 {OldIndex}",
+                        stopAfterIndex, firstPreviousStoppedIndex);
+                }
+            }
+
             // 6. 筛选需要锁定的任务：停止节点及之后的所有待申请、已申请、就绪、待执行状态的任务
             var tasksToLock = allTasks
                 .Skip(stopAfterIndex) // 包含停止节点及之后的任务
@@ -368,7 +398,7 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
                     task.Id, originalStatus);
             }
 
-            // 8. 更新医嘱状态：InProgress/Accepted → PendingStop
+            // 8. 更新医嘱状态：InProgress/Accepted/Stopped → PendingStop
             var previousStatus = order.Status;
             
             order.Status = OrderStatus.PendingStop;
@@ -378,7 +408,7 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
 
             await _orderRepository.UpdateAsync(order);
 
-            _logger.LogInformation("✅ 医嘱状态更新为 PendingStop");
+            _logger.LogInformation("✅ 医嘱状态从 {PreviousStatus} 更新为 PendingStop", previousStatus);
 
             // 插入状态历史记录
             var history = new MedicalOrderStatusHistory
@@ -763,6 +793,158 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
         {
             _logger.LogError(ex, "❌ 撤销医嘱失败: {OrderId}", orderId);
             throw;
+        }
+    }
+
+    /// <summary>
+    /// 医生撤回停嘱申请
+    /// 医嘱状态: PendingStop → 停止前的状态（Accepted/InProgress）
+    /// 任务状态: OrderStopping → 锁定前的原始状态（StatusBeforeLocking）
+    /// </summary>
+    public async Task<WithdrawStopResponseDto> WithdrawStopAsync(WithdrawStopRequestDto request)
+    {
+        _logger.LogInformation("========== 医生撤回停嘱申请 ==========");
+        _logger.LogInformation("医嘱ID: {OrderId}, 医生ID: {DoctorId}, 原因: {Reason}",
+            request.OrderId, request.DoctorId, request.WithdrawReason);
+
+        var response = new WithdrawStopResponseDto
+        {
+            OrderId = request.OrderId
+        };
+
+        try
+        {
+            // 1. 查询医嘱
+            var order = await _orderRepository.GetByIdAsync(request.OrderId);
+            if (order == null)
+            {
+                response.Success = false;
+                response.Message = $"医嘱 {request.OrderId} 不存在";
+                response.Errors.Add("医嘱不存在");
+                _logger.LogWarning("医嘱 {OrderId} 不存在", request.OrderId);
+                return response;
+            }
+
+            // 2. 验证状态：必须是 PendingStop
+            if (order.Status != OrderStatus.PendingStop)
+            {
+                response.Success = false;
+                response.Message = $"医嘱状态为 {order.Status}，只能撤回等待停嘱（PendingStop）状态的医嘱";
+                response.Errors.Add($"当前状态: {order.Status}");
+                _logger.LogWarning("医嘱 {OrderId} 状态为 {Status}，不能撤回", request.OrderId, order.Status);
+                return response;
+            }
+
+            var currentStatus = order.Status;
+
+            // 3. 查询历史记录，获取停止前的状态
+            var lastHistory = await _statusHistoryRepository.GetQueryable()
+                .Where(h => h.MedicalOrderId == order.Id && h.ToStatus == OrderStatus.PendingStop)
+                .OrderByDescending(h => h.ChangedAt)
+                .FirstOrDefaultAsync();
+
+            OrderStatus statusToRestore;
+            if (lastHistory != null)
+            {
+                statusToRestore = lastHistory.FromStatus;
+                _logger.LogInformation("从历史记录获取停止前状态: {FromStatus}", statusToRestore);
+            }
+            else
+            {
+                // 默认恢复为 InProgress
+                statusToRestore = OrderStatus.InProgress;
+                _logger.LogWarning("未找到医嘱 {OrderId} 的停止前状态历史记录，默认恢复为 InProgress", request.OrderId);
+            }
+
+            // 4. 恢复医嘱状态
+            order.Status = statusToRestore;
+            
+            // 清空停嘱相关字段（医生可能会再次下达停嘱）
+            order.StopReason = null;
+            order.StopOrderTime = null;
+            order.StopDoctorId = null;
+            order.StopConfirmedAt = null;
+            order.StopConfirmedByNurseId = null;
+
+            await _orderRepository.UpdateAsync(order);
+
+            _logger.LogInformation("✅ 医嘱 {OrderId} 状态已从 PendingStop 恢复为 {RestoredStatus}",
+                request.OrderId, statusToRestore);
+
+            // 5. 插入状态历史记录
+            var history = new MedicalOrderStatusHistory
+            {
+                MedicalOrderId = order.Id,
+                FromStatus = currentStatus,
+                ToStatus = statusToRestore,
+                ChangedAt = DateTime.UtcNow,
+                ChangedById = request.DoctorId,
+                ChangedByType = "Doctor",
+                Reason = $"医生撤回停嘱申请: {request.WithdrawReason}"
+            };
+            await _statusHistoryRepository.AddAsync(history);
+
+            // 6. 查找并恢复被锁定的任务
+            var lockedTasks = await _taskRepository.ListAsync(t =>
+                t.MedicalOrderId == order.Id &&
+                t.Status == ExecutionTaskStatus.OrderStopping);
+
+            _logger.LogInformation("医嘱 {OrderId} 有 {Count} 个被锁定的任务需要恢复",
+                request.OrderId, lockedTasks.Count);
+
+            var restoredTaskIds = new List<long>();
+            var taskRestorationDetails = new Dictionary<long, string>();
+
+            foreach (var task in lockedTasks)
+            {
+                // 恢复到锁定前的状态
+                var restoredStatus = task.StatusBeforeLocking ?? ExecutionTaskStatus.Pending;
+                var originalStatus = task.Status;
+
+                task.Status = restoredStatus;
+                task.StatusBeforeLocking = null; // 清空锁定前状态字段
+                task.LastModifiedAt = DateTime.UtcNow;
+
+                // 记录操作日志到 ExceptionReason（用于审计，转换为北京时间显示）
+                var chinaTimeZone = TimeZoneInfo.FindSystemTimeZoneById("China Standard Time");
+                var beijingTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, chinaTimeZone);
+                var operationLog = $"[{beijingTime:yyyy-MM-dd HH:mm:ss}] 医生 {request.DoctorId} 撤回停嘱，" +
+                                  $"任务从 {originalStatus} 恢复为 {restoredStatus}。" +
+                                  $"原因: {request.WithdrawReason}";
+
+                task.ExceptionReason = string.IsNullOrEmpty(task.ExceptionReason)
+                    ? operationLog
+                    : task.ExceptionReason + "\n" + operationLog;
+
+                await _taskRepository.UpdateAsync(task);
+
+                restoredTaskIds.Add(task.Id);
+                taskRestorationDetails[task.Id] = restoredStatus.ToString();
+
+                _logger.LogInformation("✅ 任务 {TaskId} 已从 OrderStopping 恢复为 {Status}",
+                    task.Id, restoredStatus);
+            }
+
+            // 7. 返回成功响应
+            response.Success = true;
+            response.Message = $"撤回成功，医嘱恢复为 {statusToRestore}，{lockedTasks.Count} 个任务已解锁";
+            response.RestoredOrderStatus = statusToRestore;
+            response.RestoredTaskIds = restoredTaskIds;
+            response.TaskRestorationDetails = taskRestorationDetails;
+
+            _logger.LogInformation("✅ 医嘱 {OrderId} 停嘱已撤回，{TaskCount} 个任务已解锁",
+                request.OrderId, lockedTasks.Count);
+            _logger.LogInformation("========== 撤回停嘱完成 ==========");
+
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ 撤回停嘱失败: {OrderId}", request.OrderId);
+            response.Success = false;
+            response.Message = "撤回停嘱失败";
+            response.Errors.Add($"系统错误: {ex.Message}");
+            return response;
         }
     }
 }

@@ -1,7 +1,7 @@
 namespace CareFlow.Application.DTOs.MedicalOrder
 {
-    // 药品明细 DTO
-    public class MedicationItemDto
+    // 药品明细 DTO (用于创建医嘱请求)
+    public class CreateOrderMedicationItemDto
     {
         public string DrugId { get; set; } = null!;
         public string Dosage { get; set; } = null!;
@@ -39,7 +39,7 @@ namespace CareFlow.Application.DTOs.MedicalOrder
         public string? AnesthesiaType { get; set; }
         public string? IncisionSite { get; set; }
         // RequiredMeds 已改为 Items 列表
-        public List<MedicationItemDto>? MedicationItems { get; set; }  // 手术需带入的药品
+        public List<CreateOrderMedicationItemDto>? MedicationItems { get; set; }  // 手术需带入的药品
         public string? RequiredTalk { get; set; }      // JSON
         public string? RequiredOperation { get; set; } // JSON
 

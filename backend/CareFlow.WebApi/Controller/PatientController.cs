@@ -1,5 +1,6 @@
 using CareFlow.Application.DTOs.Patient;
 using CareFlow.Core.Interfaces;
+using CareFlow.Core.Enums;
 using CareFlow.Core.Models.Organization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -40,7 +41,7 @@ public class PatientController : ControllerBase
                 .ThenInclude(b => b.Ward)
                 .ThenInclude(w => w.Department)
                 .Include(p => p.AttendingDoctor)
-                .Where(p => p.Status != "Discharged"); // 排除已出院患者
+                .Where(p => p.Status == PatientStatus.Hospitalized || p.Status == PatientStatus.PendingDischarge); // 排除已出院患者
 
             // 根据departmentId和wardId过滤
             if (!string.IsNullOrEmpty(wardId))
@@ -85,7 +86,8 @@ public class PatientController : ControllerBase
                 Weight = p.Weight,
                 NursingGrade = p.NursingGrade,
                 Department = p.Bed?.Ward?.Department?.DeptName ?? "未分配",
-                Diagnosis = null // TODO: 从就诊记录中获取
+                Diagnosis = null, // TODO: 从就诊记录中获取
+                Status = p.Status
             }).ToList();
 
             _logger.LogInformation("成功获取 {Count} 个患者", result.Count);

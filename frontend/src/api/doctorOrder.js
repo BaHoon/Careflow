@@ -63,3 +63,15 @@ export function resubmitRejectedOrder(orderId, doctorId) {
 export function cancelRejectedOrder(orderId, doctorId, cancelReason) {
   return api.post(`/doctor/orders/${orderId}/cancel`, { doctorId, cancelReason });
 }
+
+/**
+ * 医生撤回停嘱申请
+ * @param {Object} data - 撤回请求
+ * @param {number} data.orderId - 医嘱ID
+ * @param {string} data.doctorId - 医生ID
+ * @param {string} data.withdrawReason - 撤回原因
+ * @returns {Promise} 撤回结果
+ */
+export function withdrawStopOrder(data) {
+  return api.post('/doctor/orders/withdraw-stop', data);
+}

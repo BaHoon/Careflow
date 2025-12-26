@@ -985,6 +985,183 @@
               </div>
             </div>
 
+            <!-- 出院医嘱表单 -->
+            <div v-else-if="activeType === 'DischargeOrder'" class="discharge-form">
+              <div class="form-section">
+                <div class="section-header">
+                  <i class="el-icon-success"></i>
+                  <span>出院基本信息</span>
+                </div>
+
+                <div class="form-row">
+                  <label class="required">出院类型：</label>
+                  <el-radio-group v-model="dischargeOrder.dischargeType" size="large">
+                    <el-radio-button :label="1">
+                      <i class="el-icon-circle-check"></i> 治愈出院
+                    </el-radio-button>
+                    <el-radio-button :label="2">
+                      <i class="el-icon-success"></i> 好转出院
+                    </el-radio-button>
+                    <el-radio-button :label="3">
+                      <i class="el-icon-sort"></i> 转院
+                    </el-radio-button>
+                    <el-radio-button :label="4">
+                      <i class="el-icon-warning"></i> 自动出院
+                    </el-radio-button>
+                    <el-radio-button :label="5">
+                      <i class="el-icon-close"></i> 死亡
+                    </el-radio-button>
+                    <el-radio-button :label="99">
+                      <i class="el-icon-more"></i> 其他
+                    </el-radio-button>
+                  </el-radio-group>
+                </div>
+
+                <div class="form-row">
+                  <label class="required">出院时间：</label>
+                  <el-date-picker 
+                    v-model="dischargeOrder.dischargeTime"
+                    type="datetime"
+                    placeholder="选择出院时间"
+                    :disabled-date="disablePastDates"
+                    format="YYYY-MM-DD HH:mm"
+                    value-format="YYYY-MM-DDTHH:mm:ss"
+                    style="width: 280px"
+                  />
+                  <span class="tip-text">建议提前设置，以便安排后续工作</span>
+                </div>
+
+                <div class="form-row">
+                  <label class="required">出院诊断：</label>
+                  <el-input
+                    v-model="dischargeOrder.dischargeDiagnosis"
+                    type="textarea"
+                    :rows="2"
+                    placeholder="请输入出院诊断信息"
+                    maxlength="500"
+                    show-word-limit
+                  />
+                </div>
+
+                <div class="form-row">
+                  <label>出院医嘱：</label>
+                  <el-input
+                    v-model="dischargeOrder.dischargeInstructions"
+                    type="textarea"
+                    :rows="3"
+                    placeholder="请输入出院医嘱（如：注意休息、定期复查等）"
+                    maxlength="1000"
+                    show-word-limit
+                  />
+                </div>
+              </div>
+
+              <!-- 出院带回药品 -->
+              <div class="form-section">
+                <div class="section-header">
+                  <i class="el-icon-medicine-box"></i>
+                  <span>出院带回药品（可选）</span>
+                </div>
+                <div class="drug-group-box">
+                  <div class="drug-group-header">
+                    <span>患者出院携带的药品</span>
+                    <button @click="addDischargeDrug" class="btn-icon-text">
+                      + 添加药品
+                    </button>
+                  </div>
+                  <div v-if="dischargeOrder.items.length === 0" class="empty-hint">
+                    <i class="el-icon-info"></i> 无需带回药品可跳过此部分
+                  </div>
+                  <div v-for="(item, index) in dischargeOrder.items" :key="index" class="drug-item-row">
+                    <div class="item-index">{{ index + 1 }}</div>
+                    <el-select 
+                      v-model="item.drugId" 
+                      filterable 
+                      placeholder="搜索药品名称/简拼/条码"
+                      class="drug-select"
+                    >
+                      <el-option 
+                        v-for="d in drugDict" 
+                        :key="d.id" 
+                        :label="`${d.genericName} [${d.specification}]`" 
+                        :value="d.id"
+                      >
+                        <div class="drug-option">
+                          <span class="drug-name">{{ d.genericName }}</span>
+                          <span class="drug-spec">{{ d.specification }}</span>
+                        </div>
+                      </el-option>
+                    </el-select>
+                    <el-input 
+                      v-model="item.dosage" 
+                      placeholder="剂量 (如 0.5g)" 
+                      class="dosage-input"
+                      style="width: 120px"
+                    />
+                    <el-input 
+                      v-model="item.note" 
+                      placeholder="备注 (可选)" 
+                      class="note-input"
+                      style="width: 140px"
+                    />
+                    <button 
+                      @click="removeDischargeDrug(index)" 
+                      class="btn-icon-danger"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 用药指导 -->
+              <div class="form-section">
+                <div class="section-header">
+                  <i class="el-icon-document"></i>
+                  <span>用药指导</span>
+                </div>
+                <div class="form-row">
+                  <label>用药说明：</label>
+                  <el-input
+                    v-model="dischargeOrder.medicationInstructions"
+                    type="textarea"
+                    :rows="3"
+                    placeholder="请输入出院后用药指导（如：服药方法、注意事项等）"
+                    maxlength="1000"
+                    show-word-limit
+                  />
+                </div>
+              </div>
+
+              <!-- 随访安排 -->
+              <div class="form-section">
+                <div class="section-header">
+                  <i class="el-icon-date"></i>
+                  <span>随访安排</span>
+                </div>
+                <div class="form-row">
+                  <label>是否需要随访：</label>
+                  <el-switch 
+                    v-model="dischargeOrder.requiresFollowUp"
+                    active-text="需要"
+                    inactive-text="不需要"
+                  />
+                </div>
+                <div class="form-row" v-if="dischargeOrder.requiresFollowUp">
+                  <label>随访日期：</label>
+                  <el-date-picker 
+                    v-model="dischargeOrder.followUpDate"
+                    type="date"
+                    placeholder="选择随访日期"
+                    :disabled-date="disableFollowUpPastDates"
+                    format="YYYY-MM-DD"
+                    value-format="YYYY-MM-DDTHH:mm:ss"
+                    style="width: 280px"
+                  />
+                </div>
+              </div>
+            </div>
+
             <!-- 其他未知类型的占位符 -->
             <div v-else class="placeholder-form">
               正在开发 {{ activeType }} 的详细表单...
@@ -1048,6 +1225,12 @@
                   <span class="info-item">💉 {{ o.anesthesiaType }}</span>
                 </div>
 
+                <!-- 出院医嘱基本信息 -->
+                <div v-else-if="o.orderType === 'DischargeOrder'" class="order-basic-info">
+                  <span class="info-item">🕐 {{ formatDateTime(o.dischargeTime) }}</span>
+                  <span class="info-item" v-if="o.items && o.items.length > 0">💊 携带{{ o.items.length }}种药品</span>
+                </div>
+
                 <div class="order-basic-info" v-else>
                   <span class="info-item">{{ getRouteName(o.usageRoute) }}</span>
                 </div>
@@ -1097,6 +1280,29 @@
                     </div>
                   </template> 
 
+                  <!-- 出院医嘱详细信息 -->
+                  <template v-else-if="o.orderType === 'DischargeOrder'">
+                    <div class="detail-section">
+                      <div class="detail-label">出院诊断：</div>
+                      <div class="detail-value">{{ o.dischargeDiagnosis }}</div>
+                    </div>
+                    <div class="detail-section" v-if="o.dischargeInstructions">
+                      <div class="detail-label">出院医嘱：</div>
+                      <div class="detail-value">{{ o.dischargeInstructions }}</div>
+                    </div>
+                    <div class="detail-section" v-if="o.items && o.items.length > 0">
+                      <div class="detail-label">携带药品：</div>
+                      <div v-for="(item, i) in o.items" :key="i" class="detail-value">
+                        {{ i + 1 }}. {{ getDrugName(item.drugId) }} {{ item.dosage }}
+                        <span v-if="item.note" class="note-text">({{ item.note }})</span>
+                      </div>
+                    </div>
+                    <div class="detail-section" v-if="o.requiresFollowUp">
+                      <div class="detail-label">随访安排：</div>
+                      <div class="detail-value">{{ formatDateTime(o.followUpDate) }}</div>
+                    </div>
+                  </template>
+
                 </div>
               </div>
 
@@ -1133,7 +1339,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox, ElLoading } from 'element-plus';
 import { getPatientList } from '../api/patient';
 import { getDrugList } from '../api/drug';
 import { getTimeSlots } from '../api/hospitalConfig';
@@ -1141,6 +1347,7 @@ import { batchCreateMedicationOrders } from '../api/medicationOrder';
 import { batchCreateInspectionOrders } from '../api/inspectionOrder';
 import { batchCreateSurgicalOrders } from '../api/surgicalOrder';
 import { batchCreateOperationOrders } from '../api/operationOrder';
+import { batchCreateDischargeOrders, validateDischargeOrderCreation } from '../api/dischargeOrder';
 import { toBeijingTimeISO } from '../utils/timezone';
 
 // 当前用户信息（从localStorage获取登录信息）
@@ -1172,7 +1379,8 @@ const types = [
   { label: '检查申请', val: 'InspectionOrder' },
   { label: '手术医嘱', val: 'SurgicalOrder' },
   { label: '护理操作', val: 'OperationOrder' },
-  { label: '护理等级', val: 'NursingGrade' }
+  { label: '护理等级', val: 'NursingGrade' },
+  { label: '出院医嘱', val: 'DischargeOrder' }
 ];
 
 // 检查医嘱的响应式数据 - 完善版
@@ -1208,6 +1416,18 @@ const surgicalOrder = reactive({
   requiredOperation: [],     // 术前操作（多选）
   items: [{ drugId: '', dosage: '', note: '' }],  // 手术药品
   remarks: ''                // 备注
+});
+
+// 出院医嘱的响应式数据
+const dischargeOrder = reactive({
+  dischargeType: 2,          // 出院类型：1-治愈 2-好转 3-转院 4-自动出院 5-死亡 99-其他
+  dischargeTime: null,       // 出院时间
+  dischargeDiagnosis: '',    // 出院诊断
+  dischargeInstructions: '', // 出院医嘱
+  medicationInstructions: '',// 用药指导
+  requiresFollowUp: false,   // 是否需要随访
+  followUpDate: null,        // 随访日期
+  items: []                  // 出院带回药品（可选）
 });
 
 // 操作医嘱的响应式数据
@@ -1376,6 +1596,20 @@ const isFormValid = computed(() => {
     if (!surgicalOrder.surgeonId) return false;
     if (!surgicalOrder.scheduleTime) return false;
     return true;
+  } else if (activeType.value === 'DischargeOrder') {
+    // 出院医嘱验证
+    if (!selectedPatient.value) return false;
+    if (!dischargeOrder.dischargeType) return false;
+    if (!dischargeOrder.dischargeTime) return false;
+    if (!dischargeOrder.dischargeDiagnosis || !dischargeOrder.dischargeDiagnosis.trim()) return false;
+    // 如果需要随访，则随访日期必填
+    if (dischargeOrder.requiresFollowUp && !dischargeOrder.followUpDate) return false;
+    // 如果有药品，则药品必须完整填写
+    if (dischargeOrder.items.length > 0) {
+      const hasInvalidItem = dischargeOrder.items.some(item => !item.drugId || !item.dosage);
+      if (hasInvalidItem) return false;
+    }
+    return true;
   } else {
     // 药品医嘱验证（原有逻辑）
     if (!currentOrder.items.some(i => i.drugId && i.dosage)) return false;
@@ -1526,6 +1760,20 @@ const toggleRight = () => {
 const handlePatientClick = (patient) => {
   if (patient.id === selectedPatient.value?.id) return;
   
+  // 检查患者状态：待出院患者不允许开医嘱
+  if (patient.status === 2) { // PatientStatus.PendingDischarge = 2
+    ElMessageBox.alert(
+      `患者 ${patient.name} (${patient.bedId}) 当前状态为"待出院"，不允许开具新医嘱。`,
+      '温馨提示',
+      {
+        confirmButtonText: '我知道了',
+        type: 'info',
+        center: true
+      }
+    );
+    return;
+  }
+  
   const hasUnsubmittedData = 
     currentOrder.items.some(i => i.drugId && i.dosage) || 
     orderCart.value.length > 0;
@@ -1574,6 +1822,15 @@ const removeSurgicalItem = (index) => {
   if (surgicalOrder.items.length > 1) {
     surgicalOrder.items.splice(index, 1);
   }
+};
+
+// 出院药品增删
+const addDischargeDrug = () => {
+  dischargeOrder.items.push({ drugId: '', dosage: '', note: '' });
+};
+
+const removeDischargeDrug = (index) => {
+  dischargeOrder.items.splice(index, 1);
 };
 
 // 添加自定义术前宣讲
@@ -1762,6 +2019,16 @@ const clearForm = () => {
     customOperationInput.value = '';
     customTalkItems.value = [];
     customOperationItems.value = [];
+  } else if (activeType.value === 'DischargeOrder') {
+    // 清空出院医嘱表单
+    dischargeOrder.dischargeType = 2;
+    dischargeOrder.dischargeTime = null;
+    dischargeOrder.dischargeDiagnosis = '';
+    dischargeOrder.dischargeInstructions = '';
+    dischargeOrder.medicationInstructions = '';
+    dischargeOrder.requiresFollowUp = false;
+    dischargeOrder.followUpDate = null;
+    dischargeOrder.items = [];
   } else {
     // 清空药品医嘱表单（原有逻辑）
     currentOrder.items = [{ drugId: '', dosage: '', note: '' }];
@@ -1778,7 +2045,7 @@ const clearForm = () => {
 };
 
 // 暂存医嘱到待提交清单
-const addToCart = () => {
+const addToCart = async () => {
   if (!isFormValid.value) {
     ElMessage.warning('请完善必填项后再暂存');
     return;
@@ -1825,6 +2092,10 @@ const addToCart = () => {
       orderType: 'SurgicalOrder',
       patientId: selectedPatient.value.id
     });
+  } else if (activeType.value === 'DischargeOrder') {
+    // 出院医嘱需要先进行严格的前置验证
+    await validateAndAddDischargeOrder();
+    return;
   } else {
     // 暂存药品医嘱（原有逻辑）
     orderCart.value.push({
@@ -1836,6 +2107,224 @@ const addToCart = () => {
   
   ElMessage.success('医嘱已暂存到待提交清单');
   clearForm();
+};
+
+// 验证并添加出院医嘱到暂存清单
+const validateAndAddDischargeOrder = async () => {
+  const loading = ElLoading.service({
+    lock: true,
+    text: '正在验证出院条件...',
+    background: 'rgba(0, 0, 0, 0.7)'
+  });
+
+  try {
+    // 1. 调用后端验证接口
+    const validationResult = await validateDischargeOrderCreation(selectedPatient.value.id);
+    
+    const dischargeTime = new Date(dischargeOrder.dischargeTime);
+    const earliestTime = validationResult.earliestDischargeTime ? new Date(validationResult.earliestDischargeTime) : null;
+    
+    // 2. 检查时间是否符合要求（这是强制条件）
+    if (earliestTime && dischargeTime < earliestTime) {
+      loading.close();
+      
+      // 构建时间不符合的错误提示
+      let errorHtml = '<div style="text-align: left;">';
+      errorHtml += '<h3 style="color: #f56c6c; margin-bottom: 15px;">❌ 出院时间不符合要求</h3>';
+      
+      errorHtml += '<div style="padding: 12px; background: #fef0f0; border-left: 4px solid #f56c6c; border-radius: 4px;">';
+      errorHtml += '<div style="font-weight: bold; color: #f56c6c; margin-bottom: 8px;">⏰ 时间冲突：</div>';
+      errorHtml += '<div style="font-size: 13px; line-height: 1.8;">';
+      errorHtml += `<div>• 您设置的出院时间：<strong>${formatDateTime(dischargeTime)}</strong></div>`;
+      errorHtml += `<div>• 最早允许出院时间：<strong style="color: #f56c6c;">${formatDateTime(earliestTime)}</strong></div>`;
+      errorHtml += '<div style="margin-top: 10px; padding: 10px; background: white; border-radius: 4px; color: #f56c6c;">';
+      errorHtml += '❌ 出院时间早于最早允许时间，必须重新设置！';
+      errorHtml += '</div></div></div>';
+      
+      // 显示阻塞医嘱信息（如果有）
+      if (validationResult.blockedOrders && validationResult.blockedOrders.length > 0) {
+        errorHtml += '<div style="margin-top: 20px;"><strong style="color: #e6a23c;">存在 ' + validationResult.blockedOrders.length + ' 条阻塞医嘱：</strong></div>';
+        errorHtml += '<ul style="margin: 5px 0; padding-left: 20px; max-height: 150px; overflow-y: auto;">';
+        validationResult.blockedOrders.forEach(order => {
+          const startTime = order.startTime ? formatDateTime(new Date(order.startTime)) : '未知';
+          const endTime = order.endTime ? formatDateTime(new Date(order.endTime)) : '未知';
+          errorHtml += `<li style="margin-bottom: 8px; font-size: 13px;">
+            <div><strong>${order.summary}</strong></div>
+            <div style="color: #909399; font-size: 12px;">状态: ${order.statusDisplay}</div>
+            <div style="color: #909399; font-size: 12px;">时间: ${startTime} - ${endTime}</div>
+          </li>`;
+        });
+        errorHtml += '</ul>';
+      }
+      
+      // 显示待处理任务信息（如果有）
+      if (validationResult.pendingStopOrders && validationResult.pendingStopOrders.length > 0) {
+        errorHtml += '<div style="margin-top: 15px;"><strong style="color: #e6a23c;">待完成任务的医嘱：</strong></div>';
+        errorHtml += '<ul style="margin: 5px 0; padding-left: 20px;">';
+        validationResult.pendingStopOrders.forEach(order => {
+          const taskTime = order.latestTaskPlannedTime ? formatDateTime(new Date(order.latestTaskPlannedTime)) : '未知';
+          errorHtml += `<li style="margin-bottom: 8px; font-size: 13px;">
+            <div><strong>${order.summary}</strong></div>
+            <div style="color: #909399; font-size: 12px;">最晚任务时间: ${taskTime}</div>
+          </li>`;
+        });
+        errorHtml += '</ul>';
+      }
+      
+      errorHtml += '<div style="margin-top: 20px; padding: 12px; background: #f0f9ff; border-left: 4px solid #409eff; border-radius: 4px;">';
+      errorHtml += '<div style="font-size: 13px; line-height: 1.6;">';
+      errorHtml += '<strong style="color: #409eff;">💡 处理建议：</strong><br>';
+      errorHtml += `1. 设置出院时间不早于 <strong>${formatDateTime(earliestTime)}</strong><br>`;
+      errorHtml += '2. 或先完成所有未完成的任务<br>';
+      errorHtml += '3. 或先签收所有待签收医嘱';
+      errorHtml += '</div></div>';
+      
+      errorHtml += '</div>';
+      
+      // 使用MessageBox显示详细信息
+      ElMessageBox.alert(errorHtml, '出院时间不符合要求', {
+        dangerouslyUseHTMLString: true,
+        confirmButtonText: '重新设置',
+        type: 'error',
+        customClass: 'discharge-validation-dialog',
+        callback: () => {
+          // 清空出院时间，保留其他数据
+          dischargeOrder.dischargeTime = null;
+          ElMessage.warning({
+            message: `请设置出院时间不早于 ${formatDateTime(earliestTime)}`,
+            duration: 5000,
+            showClose: true
+          });
+        }
+      });
+      
+      return;
+    }
+    
+    // 3. 时间符合要求，但检查是否有阻塞医嘱（警告但允许继续）
+    if (validationResult.blockedOrders && validationResult.blockedOrders.length > 0) {
+      loading.close();
+      
+      // 构建警告提示
+      let warningHtml = '<div style="text-align: left;">';
+      warningHtml += '<h3 style="color: #e6a23c; margin-bottom: 15px;">⚠️ 存在阻塞医嘱警告</h3>';
+      
+      warningHtml += '<div style="padding: 12px; background: #fdf6ec; border-left: 4px solid #e6a23c; border-radius: 4px; margin-bottom: 15px;">';
+      warningHtml += '<div style="font-size: 13px; line-height: 1.6; color: #606266;">';
+      warningHtml += '检测到患者当前有未完成的医嘱或任务，虽然出院时间符合要求，但建议您先处理完这些医嘱后再开具出院医嘱。';
+      warningHtml += '</div></div>';
+      
+      warningHtml += '<div style="margin-bottom: 15px;"><strong style="color: #f56c6c;">存在 ' + validationResult.blockedOrders.length + ' 条阻塞医嘱：</strong></div>';
+      warningHtml += '<ul style="margin: 0; padding-left: 20px; max-height: 250px; overflow-y: auto; border: 1px solid #ebeef5; border-radius: 4px; padding: 10px; background: #fafafa;">';
+      validationResult.blockedOrders.forEach(order => {
+        const startTime = order.startTime ? formatDateTime(new Date(order.startTime)) : '未知';
+        const endTime = order.endTime ? formatDateTime(new Date(order.endTime)) : '未知';
+        warningHtml += `<li style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #ebeef5;">
+          <div style="margin-bottom: 4px;"><strong style="color: #303133;">${order.summary}</strong></div>
+          <div style="color: #909399; font-size: 12px; line-height: 1.5;">状态: ${order.statusDisplay}</div>
+          <div style="color: #909399; font-size: 12px; line-height: 1.5;">时间: ${startTime} - ${endTime}</div>
+        </li>`;
+      });
+      warningHtml += '</ul>';
+      
+      // 显示待处理任务信息（如果有）
+      if (validationResult.pendingStopOrders && validationResult.pendingStopOrders.length > 0) {
+        warningHtml += '<div style="margin-top: 15px;"><strong style="color: #e6a23c;">待完成任务的医嘱：</strong></div>';
+        warningHtml += '<ul style="margin: 5px 0; padding-left: 20px;">';
+        validationResult.pendingStopOrders.forEach(order => {
+          const taskTime = order.latestTaskPlannedTime ? formatDateTime(new Date(order.latestTaskPlannedTime)) : '未知';
+          warningHtml += `<li style="margin-bottom: 8px; font-size: 13px;">
+            <div><strong>${order.summary}</strong></div>
+            <div style="color: #909399; font-size: 12px;">最晚任务时间: ${taskTime}</div>
+          </li>`;
+        });
+        warningHtml += '</ul>';
+      }
+      
+      warningHtml += '<div style="margin-top: 20px; padding: 12px; background: #fff3cd; border-left: 4px solid #e6a23c; border-radius: 4px;">';
+      warningHtml += '<div style="font-size: 13px; line-height: 1.6; color: #856404;">';
+      warningHtml += '<strong>⚠️ 温馨提示：</strong><br>';
+      warningHtml += '• 出院时间符合要求，您可以继续开具出院医嘱<br>';
+      warningHtml += '• 但建议先完成上述医嘱和任务，以确保患者安全出院';
+      warningHtml += '</div></div>';
+      
+      warningHtml += '</div>';
+      
+      // 使用MessageBox显示警告并让医生确认
+      ElMessageBox.confirm(warningHtml, '阻塞医嘱确认', {
+        dangerouslyUseHTMLString: true,
+        confirmButtonText: '我已确认，继续开具',
+        cancelButtonText: '取消，先处理医嘱',
+        type: 'warning',
+        customClass: 'discharge-validation-dialog',
+        distinguishCancelAndClose: true,
+        closeOnClickModal: false
+      }).then(() => {
+        // 医生确认后，添加到暂存清单
+        orderCart.value.push({
+          ...JSON.parse(JSON.stringify(dischargeOrder)),
+          orderType: 'DischargeOrder',
+          patientId: selectedPatient.value.id,
+          validationResult: validationResult // 保存验证结果供后续使用
+        });
+        
+        ElMessage.success({
+          message: '✅ 出院医嘱已暂存到待提交清单',
+          duration: 3000,
+          showClose: true
+        });
+        
+        clearForm();
+      }).catch((action) => {
+        // 用户取消
+        if (action === 'cancel') {
+          ElMessage.info('已取消，请先处理阻塞医嘱');
+        }
+      });
+      
+      return;
+    }
+    
+    // 4. 没有任何问题，直接添加到暂存清单
+    loading.close();
+    
+    orderCart.value.push({
+      ...JSON.parse(JSON.stringify(dischargeOrder)),
+      orderType: 'DischargeOrder',
+      patientId: selectedPatient.value.id,
+      validationResult: validationResult // 保存验证结果供后续使用
+    });
+    
+    ElMessage.success({
+      message: '✅ 出院医嘱验证通过，已暂存到待提交清单',
+      duration: 3000,
+      showClose: true
+    });
+    
+    clearForm();
+    
+  } catch (error) {
+    loading.close();
+    console.error('验证出院医嘱失败:', error);
+    
+    ElMessageBox.alert(
+      `<div style="text-align: left;">
+        <div style="margin-bottom: 10px;"><strong style="color: #f56c6c;">❌ 验证失败</strong></div>
+        <div style="line-height: 1.8;">
+          <div style="color: #909399;">调用验证接口时发生错误</div>
+          <div style="margin-top: 10px; padding: 10px; background: #f5f5f5; border-radius: 4px; font-family: monospace; font-size: 12px; color: #f56c6c;">
+            ${error.response?.data?.message || error.message || '未知错误'}
+          </div>
+        </div>
+      </div>`,
+      '系统错误',
+      {
+        dangerouslyUseHTMLString: true,
+        confirmButtonText: '确定',
+        type: 'error'
+      }
+    );
+  }
 };
 
 const removeFromCart = (index) => {
@@ -1858,6 +2347,7 @@ const submitAll = async () => {
     const inspectionOrders = orderCart.value.filter(o => o.orderType === 'InspectionOrder');
     const surgicalOrders = orderCart.value.filter(o => o.orderType === 'SurgicalOrder');
     const operationOrders = orderCart.value.filter(o => o.orderType === 'OperationOrder');
+    const dischargeOrders = orderCart.value.filter(o => o.orderType === 'DischargeOrder');
 
     const results = [];
     let successCount = 0;
@@ -2006,6 +2496,43 @@ const submitAll = async () => {
       }
     }
 
+    // 🏠 提交出院医嘱
+    if (dischargeOrders.length > 0) {
+      const requestData = {
+        PatientId: selectedPatient.value?.id,
+        DoctorId: currentUser.value.staffId,
+        Orders: dischargeOrders.map(order => ({
+          DischargeType: order.dischargeType,
+          DischargeTime: toBeijingTimeISO(order.dischargeTime),
+          DischargeDiagnosis: order.dischargeDiagnosis,
+          DischargeInstructions: order.dischargeInstructions || '',
+          MedicationInstructions: order.medicationInstructions || '',
+          RequiresFollowUp: order.requiresFollowUp,
+          FollowUpDate: order.followUpDate ? toBeijingTimeISO(order.followUpDate) : null,
+          Items: order.items && order.items.length > 0 ? order.items.map(item => ({
+            DrugId: item.drugId,
+            Dosage: item.dosage,
+            Note: item.note || ''
+          })) : null
+        }))
+      };
+
+      console.log('🏠 提交出院医嘱:', requestData);
+      
+      try {
+        const response = await batchCreateDischargeOrders(requestData);
+        if (response.success) {
+          successCount += dischargeOrders.length;
+          results.push(`出院医嘱: ${dischargeOrders.length}条成功`);
+        } else {
+          errorMessages.push(`出院医嘱失败: ${response.message}`);
+          if (response.errors) errorMessages.push(...response.errors);
+        }
+      } catch (error) {
+        errorMessages.push(`出院医嘱提交异常: ${error.message}`);
+      }
+    }
+
     // 📢 显示结果
     if (errorMessages.length === 0) {
       ElMessage.success(`✅ 成功提交 ${successCount} 条医嘱\n${results.join('\n')}`);
@@ -2022,6 +2549,7 @@ const submitAll = async () => {
           if (type === 'InspectionOrder' && inspectionOrders.length > 0) return false;
           if (type === 'SurgicalOrder' && surgicalOrders.length > 0) return false;
           if (type === 'OperationOrder' && operationOrders.length > 0) return false;
+          if (type === 'DischargeOrder' && dischargeOrders.length > 0) return false;
           return true;
         });
       }
@@ -2037,6 +2565,15 @@ const submitAll = async () => {
 // 辅助函数
 const disablePastDates = (time) => {
   return time.getTime() < Date.now() - 24 * 60 * 60 * 1000;
+};
+
+// 随访日期不能早于出院时间
+const disableFollowUpPastDates = (time) => {
+  if (dischargeOrder.dischargeTime) {
+    const dischargeDate = new Date(dischargeOrder.dischargeTime);
+    return time.getTime() < dischargeDate.getTime();
+  }
+  return time.getTime() < Date.now();
 };
 
 const disablePastTime = (date) => {
@@ -2122,13 +2659,22 @@ const getDrugName = (id) => {
 
 const formatDateTime = (datetime) => {
   if (!datetime) return '';
-  const date = new Date(datetime);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  return `${year}-${month}-${day} ${hours}:${minutes}`;
+  try {
+    // 确保UTC时间字符串带有Z标识
+    let utcString = datetime;
+    if (typeof datetime === 'string' && !datetime.endsWith('Z') && !datetime.includes('+')) {
+      utcString = datetime + 'Z';
+    }
+    const date = new Date(utcString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
+  } catch {
+    return datetime;
+  }
 };
 
 const formatDate = (datetime) => {
@@ -2242,7 +2788,20 @@ const getOrderSummary = (order) => {
   else if (order.orderType === 'OperationOrder') {
     // 操作医嘱摘要 (未实现)
     return '操作医嘱';
-  } else {
+  } 
+  else if (order.orderType === 'DischargeOrder') {
+    // 出院医嘱摘要
+    const typeNames = {
+      1: '治愈出院',
+      2: '好转出院',
+      3: '转院',
+      4: '自动出院',
+      5: '死亡',
+      99: '其他出院'
+    };
+    return typeNames[order.dischargeType] || '出院';
+  } 
+  else {
     // 药品医嘱摘要
     const drugNames = order.items.map(i => getDrugName(i.drugId)).join('+');
     const strategyLabel = getStrategyLabel(order.timingStrategy);
@@ -3670,6 +4229,29 @@ watch(activeType, (newType) => {
 .form-row :deep(.el-checkbox-group .el-checkbox.is-checked) {
   background: linear-gradient(135deg, #e8f4ff 0%, #f0f8ff 100%);
   border-color: #409eff;
+}
+
+/* ==================== 出院验证弹窗样式 ==================== */
+:deep(.discharge-validation-dialog) {
+  max-width: 650px;
+}
+
+:deep(.discharge-validation-dialog .el-message-box__message) {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+:deep(.discharge-validation-dialog ul) {
+  list-style-type: none;
+}
+
+:deep(.discharge-validation-dialog ul li) {
+  border-bottom: 1px solid #ebeef5;
+  padding-bottom: 8px;
+}
+
+:deep(.discharge-validation-dialog ul li:last-child) {
+  border-bottom: none;
 }
 
 /* ==================== 响应式调整 ==================== */

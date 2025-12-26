@@ -18,6 +18,9 @@ namespace CareFlow.Core.Enums
         Verification = 5,
 
         // 6. 申请打印类 (如：检查申请) -> 提交申请，打印导引单后结束
-        ApplicationWithPrint = 6
+        ApplicationWithPrint = 6,
+
+        // 7. 出院确认类 (如：出院医嘱确认) -> 扫码患者，确认出院相关事项后完成
+        DischargeConfirmation = 11
     }
 }
