@@ -72,4 +72,14 @@ public class OrderSummaryDto
     /// 停嘱原因
     /// </summary>
     public string? StopReason { get; set; }
+    
+    /// <summary>
+    /// 报告ID（仅检查医嘱）
+    /// </summary>
+    public string? ReportId { get; set; }
+    
+    /// <summary>
+    /// 附件URL（报告PDF文件路径，仅检查医嘱）
+    /// </summary>
+    public string? AttachmentUrl { get; set; }
 }

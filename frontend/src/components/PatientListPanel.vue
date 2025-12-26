@@ -133,6 +133,11 @@
           <p>{{ emptyText }}</p>
         </div>
       </div>
+
+      <!-- 底部操作区域插槽 -->
+      <div class="bottom-actions" v-if="$slots['bottom-actions']">
+        <slot name="bottom-actions"></slot>
+      </div>
     </div>
 
     <!-- 折叠状态显示 -->
@@ -645,6 +650,13 @@ const handleMultiSelectToggle = (value) => {
 .empty-state p {
   font-size: 0.95rem;
   color: var(--text-secondary);
+}
+
+/* ==================== 底部操作区 ==================== */
+.bottom-actions {
+  padding: 12px 15px;
+  border-top: 1px solid var(--border-color);
+  background-color: var(--bg-secondary);
 }
 
 /* ==================== 折叠状态 ==================== */

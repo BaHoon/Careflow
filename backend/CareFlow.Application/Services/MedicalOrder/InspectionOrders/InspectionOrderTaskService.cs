@@ -62,14 +62,14 @@ public class InspectionOrderTaskService : IInspectionService
         if (fullOrder == null)
             throw new Exception($"检查医嘱 {order.Id} 不存在");
 
-        // 创建申请任务：病房护士在签收后1小时内提交检查申请
+        // 创建申请任务：病房护士签收后立即提交检查申请
         var task = new ExecutionTask
         {
             MedicalOrderId = order.Id,
             PatientId = order.PatientId,
             Category = TaskCategory.ApplicationWithPrint,  // 申请打印类任务：申请后打印导引单即结束
             Status = ExecutionTaskStatus.Applying,  // 待申请状态
-            PlannedStartTime = DateTime.UtcNow.AddHours(1),  // 签收后1小时内申请
+            PlannedStartTime = DateTime.UtcNow.AddMinutes(1),  // 签收后1分钟内申请
             CreatedAt = DateTime.UtcNow,
             DataPayload = JsonSerializer.Serialize(new
             {
@@ -111,9 +111,9 @@ public class InspectionOrderTaskService : IInspectionService
 
         var tasks = new List<ExecutionTask>
         {
-            // 任务1: 打印检查导引单（病房护士，预约后立即执行）
-            CreatePrintGuideTask(order, appointmentDetail.AppointmentTime.AddMinutes(-30))
-            // 检查时间半小时后自动从检查站返回报告
+            // 任务1: 打印检查导引单（病房护士，计划时间为检查预约时间）
+            CreatePrintGuideTask(order, appointmentDetail.AppointmentTime)
+            // 检查时间1分钟后自动从检查站返回报告
         };
 
         // 保存任务到数据库
@@ -215,8 +215,8 @@ public class InspectionOrderTaskService : IInspectionService
         order.ReportId = report.Id.ToString();
         await _orderRepo.UpdateAsync(order);
 
-        // 报告创建完成后，自动生成"查看报告"任务
-        await CreateReportReviewTask(order, report.Id);
+        // 不再自动生成"查看报告"任务，用户可以在检查申请任务中直接查看
+        // await CreateReportReviewTask(order, report.Id);
 
         return report.Id;
     }
@@ -333,9 +333,9 @@ public class InspectionOrderTaskService : IInspectionService
         
         var tasks = new List<ExecutionTask>
         {
-            // 任务1: 打印导引单（病房护士，预约完成后立即执行）
-            CreatePrintGuideTask(order, appointmentTime.AddMinutes(-60))
-            // 检查时间半小时后自动从检查站返回报告
+            // 任务1: 打印导引单（病房护士，计划时间为检查预约时间）
+            CreatePrintGuideTask(order, appointmentTime)
+            // 检查时间1分钟后自动从检查站返回报告
         };
         
         // 保存任务到数据库

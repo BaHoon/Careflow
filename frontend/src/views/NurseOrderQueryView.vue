@@ -18,7 +18,13 @@
       :collapsed="false"
       @patient-select="handlePatientSelect"
       @multi-select-toggle="handleMultiSelectToggle"
-    />
+    >
+      <template #bottom-actions>
+        <el-button type="primary" @click="openBarcodePrintDialog" size="small" style="width: 100%;">
+          🖨️ 单据打印
+        </el-button>
+      </template>
+    </PatientListPanel>
 
     <!-- 右侧医嘱查询工作区 -->
     <div class="work-area">
@@ -214,6 +220,16 @@
 
               <!-- 操作按钮区 -->
               <div class="order-actions">
+                <!-- 检查医嘱：显示查看报告按钮 -->
+                <el-button 
+                  v-if="order.orderType === 'InspectionOrder'"
+                  :type="order.reportId ? 'success' : 'info'"
+                  :disabled="!order.reportId"
+                  size="small"
+                  @click.stop="handleViewReport(order)"
+                >
+                  📄 {{ order.reportId ? '查看报告' : '报告未出' }}
+                </el-button>
                 <el-button 
                   type="primary" 
                   size="small"
@@ -283,6 +299,16 @@
                   </div>
 
                   <div class="order-actions">
+                    <!-- 检查医嘱：显示查看报告按钮 -->
+                    <el-button 
+                      v-if="order.orderType === 'InspectionOrder'"
+                      :type="order.reportId ? 'success' : 'info'"
+                      :disabled="!order.reportId"
+                      size="small"
+                      @click.stop="handleViewReport(order)"
+                    >
+                      📄 {{ order.reportId ? '查看报告' : '报告未出' }}
+                    </el-button>
                     <el-button type="primary" size="small" @click.stop="viewOrderDetail(order)">
                       查看详情
                     </el-button>
@@ -315,9 +341,85 @@
           :nurse-mode="true"
           @update-task-execution="handleUpdateTaskExecution"
           @print-task-sheet="handlePrintTaskSheet"
+          @view-inspection-report="handleViewInspectionReport"
         />
       </div>
     </el-dialog>
+
+    <!-- ==================== 单据打印弹窗 ==================== -->
+    <el-dialog
+      v-model="barcodePrintDialogVisible"
+      title="📋 任务单据打印"
+      width="1200px"
+      :close-on-click-modal="false"
+      class="barcode-print-dialog"
+    >
+      <div class="barcode-print-container">
+        <div v-if="loadingBarcodes" class="loading-state">
+          <el-icon class="is-loading"><Loading /></el-icon>
+          <p>加载条形码中...</p>
+        </div>
+
+        <div v-else-if="barcodeList.length === 0" class="empty-state">
+          <p>暂无生成的任务条形码</p>
+        </div>
+
+        <div v-else class="barcode-grid">
+          <div
+            v-for="barcode in barcodeList"
+            :key="barcode.taskId"
+            class="barcode-item"
+            :class="{ 'selected': selectedBarcodes.includes(barcode.taskId) }"
+            @click="toggleBarcodeSelection(barcode.taskId)"
+          >
+            <div class="barcode-checkbox">
+              <el-checkbox
+                :model-value="selectedBarcodes.includes(barcode.taskId)"
+                @change="toggleBarcodeSelection(barcode.taskId)"
+              />
+            </div>
+            <div class="barcode-image">
+              <img :src="barcode.barcodeBase64" :alt="`任务 ${barcode.taskId}`" />
+            </div>
+            <div class="barcode-info">
+              <div class="info-row">
+                <span class="label">患者:</span>
+                <span class="value">{{ barcode.patientName }} ({{ barcode.patientId }})</span>
+              </div>
+              <div class="info-row">
+                <span class="label">任务:</span>
+                <span class="value">{{ barcode.orderSummary }}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">类型:</span>
+                <span class="value">{{ getTaskCategoryName(barcode.taskCategory) }}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">计划时间:</span>
+                <span class="value">{{ formatDateTime(barcode.plannedTime) }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="dialog-footer">
+          <div class="footer-info">
+            已选择 {{ selectedBarcodes.length }} 个条形码
+          </div>
+          <div class="footer-actions">
+            <el-button @click="barcodePrintDialogVisible = false">取消</el-button>
+            <el-button type="primary" @click="selectAllBarcodes">全选</el-button>
+            <el-button type="primary" @click="printSelectedBarcodes" :disabled="selectedBarcodes.length === 0">
+              打印选中
+            </el-button>
+          </div>
+        </div>
+      </template>
+    </el-dialog>
+
+
   </div>
 </template>
 
@@ -377,6 +479,12 @@ const loading = ref(false);
 // ==================== 医嘱详情弹窗 ====================
 const detailDialogVisible = ref(false);
 const currentOrderDetail = ref(null);
+
+// ==================== 单据打印弹窗 ====================
+const barcodePrintDialogVisible = ref(false);
+const loadingBarcodes = ref(false);
+const barcodeList = ref([]);
+const selectedBarcodes = ref([]);
 
 // ==================== 计算属性 ====================
 /**
@@ -574,6 +682,244 @@ const handlePrintTaskSheet = (taskId) => {
   ElMessage.warning('此功能接口尚未实现，请等待后端开发');
   // TODO: 调用 printTaskExecutionSheet(taskId) 接口
   // TODO: 下载并打开 PDF 文件
+};
+
+/**
+ * 查看检查报告
+ */
+const handleViewInspectionReport = (reportInfo) => {
+  console.log('📄 查看检查报告:', reportInfo);
+  
+  // 构建报告URL，使用后端静态文件服务
+  const baseUrl = 'http://localhost:5181';
+  const reportUrl = `${baseUrl}/${reportInfo.reportUrl}`;
+  
+  console.log('🔗 报告URL:', reportUrl);
+  
+  // 在新窗口打开PDF报告
+  window.open(reportUrl, '_blank');
+  
+  ElMessage.success('正在打开检查报告...');
+};
+
+/**
+ * 直接从医嘱列表查看报告
+ */
+const handleViewReport = (order) => {
+  console.log('📄 从医嘱列表查看报告:', order);
+  
+  if (!order.attachmentUrl) {
+    ElMessage.warning('报告文件不存在');
+    return;
+  }
+  
+  // 构建报告URL
+  const baseUrl = 'http://localhost:5181';
+  const reportUrl = `${baseUrl}/${order.attachmentUrl}`;
+  
+  console.log('🔗 报告URL:', reportUrl);
+  
+  // 在新窗口打开PDF报告
+  window.open(reportUrl, '_blank');
+  
+  ElMessage.success('正在打开检查报告...');
+};
+
+// ==================== 单据打印相关 ====================
+/**
+ * 打开单据打印弹窗
+ */
+const openBarcodePrintDialog = async () => {
+  barcodePrintDialogVisible.value = true;
+  await loadTaskBarcodes();
+};
+
+/**
+ * 加载任务条形码列表
+ */
+const loadTaskBarcodes = async () => {
+  loadingBarcodes.value = true;
+  try {
+    // 获取当前病区ID（如果有选中患者）
+    const wardId = currentScheduledWardId.value;
+    
+    const response = await fetch(`http://localhost:5181/api/BarcodePrint/task-barcodes${wardId ? `?wardId=${wardId}` : ''}`);
+    const result = await response.json();
+    
+    if (result.success) {
+      barcodeList.value = result.data || [];
+      selectedBarcodes.value = [];
+      console.log(`✅ 加载了 ${barcodeList.value.length} 个任务条形码`);
+    } else {
+      throw new Error(result.message || '加载失败');
+    }
+  } catch (error) {
+    console.error('❌ 加载任务条形码失败:', error);
+    ElMessage.error('加载条形码列表失败: ' + error.message);
+    barcodeList.value = [];
+  } finally {
+    loadingBarcodes.value = false;
+  }
+};
+
+/**
+ * 切换条形码选择状态
+ */
+const toggleBarcodeSelection = (taskId) => {
+  const index = selectedBarcodes.value.indexOf(taskId);
+  if (index > -1) {
+    selectedBarcodes.value.splice(index, 1);
+  } else {
+    selectedBarcodes.value.push(taskId);
+  }
+};
+
+/**
+ * 全选条形码
+ */
+const selectAllBarcodes = () => {
+  if (selectedBarcodes.value.length === barcodeList.value.length) {
+    // 已全选，则取消全选
+    selectedBarcodes.value = [];
+  } else {
+    // 未全选，则全选
+    selectedBarcodes.value = barcodeList.value.map(b => b.taskId);
+  }
+};
+
+/**
+ * 打印选中的条形码
+ */
+const printSelectedBarcodes = () => {
+  if (selectedBarcodes.value.length === 0) {
+    ElMessage.warning('请先选择要打印的条形码');
+    return;
+  }
+
+  console.log('🖨️ 打印选中的条形码:', selectedBarcodes.value);
+
+  // 创建打印窗口
+  const printWindow = window.open('', '_blank', 'width=800,height=600');
+  
+  if (!printWindow) {
+    ElMessage.error('无法打开打印窗口，请检查浏览器弹窗拦截设置');
+    return;
+  }
+
+  // 构建打印内容
+  const selectedItems = barcodeList.value.filter(b => selectedBarcodes.value.includes(b.taskId));
+  
+  let printContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>任务条形码打印</title>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          padding: 20px;
+        }
+        .barcode-item {
+          page-break-inside: avoid;
+          margin-bottom: 30px;
+          border: 1px solid #ddd;
+          padding: 15px;
+          border-radius: 8px;
+        }
+        .barcode-image {
+          text-align: center;
+          margin-bottom: 15px;
+        }
+        .barcode-image img {
+          max-width: 100%;
+          height: auto;
+        }
+        .barcode-info {
+          font-size: 14px;
+          line-height: 1.8;
+        }
+        .info-row {
+          margin-bottom: 5px;
+        }
+        .label {
+          font-weight: bold;
+          color: #666;
+          margin-right: 10px;
+        }
+        .value {
+          color: #333;
+        }
+        @media print {
+          .barcode-item {
+            page-break-inside: avoid;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <h1>任务条形码单据</h1>
+      <p>打印时间: ${new Date().toLocaleString('zh-CN')}</p>
+      <hr>
+  `;
+
+  selectedItems.forEach(barcode => {
+    printContent += `
+      <div class="barcode-item">
+        <div class="barcode-image">
+          <img src="${barcode.barcodeBase64}" alt="任务 ${barcode.taskId}" />
+        </div>
+        <div class="barcode-info">
+          <div class="info-row">
+            <span class="label">患者:</span>
+            <span class="value">${barcode.patientName} (${barcode.patientId})</span>
+          </div>
+          <div class="info-row">
+            <span class="label">任务:</span>
+            <span class="value">${barcode.orderSummary}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">类型:</span>
+            <span class="value">${getTaskCategoryName(barcode.taskCategory)}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">计划时间:</span>
+            <span class="value">${formatDateTime(barcode.plannedTime)}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  printContent += `
+    </body>
+    </html>
+  `;
+
+  printWindow.document.write(printContent);
+  printWindow.document.close();
+
+  // 等待图片加载完成后打印
+  printWindow.onload = () => {
+    setTimeout(() => {
+      printWindow.print();
+    }, 500);
+  };
+
+  ElMessage.success(`正在打印 ${selectedBarcodes.value.length} 个任务条形码`);
+};
+
+/**
+ * 获取任务类别名称
+ */
+const getTaskCategoryName = (category) => {
+  const categoryMap = {
+    'ApplicationWithPrint': '申请打印类',
+    'ResultPending': '结果等待类',
+    'DataCollection': '数据采集类',
+    'VerificationWithDosage': '核对用药类',
+    'ExecutionOnly': '纯执行类'
+  };
+  return categoryMap[category] || category;
 };
 
 // ==================== 新开/新停判断 ====================
@@ -1073,6 +1419,108 @@ onMounted(async () => {
 
 .order-detail-dialog-body::-webkit-scrollbar-thumb:hover {
   background: #909399;
+}
+
+/* ==================== 单据打印弹窗 ==================== */
+.barcode-print-dialog .el-dialog__body {
+  padding: 20px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.barcode-print-container {
+  min-height: 400px;
+}
+
+.barcode-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 20px;
+}
+
+.barcode-item {
+  border: 2px solid #e4e7ed;
+  border-radius: 8px;
+  padding: 15px;
+  cursor: pointer;
+  transition: all 0.3s;
+  position: relative;
+  background: white;
+}
+
+.barcode-item:hover {
+  border-color: #409eff;
+  box-shadow: 0 2px 12px rgba(64, 158, 255, 0.2);
+}
+
+.barcode-item.selected {
+  border-color: #409eff;
+  background: #f0f7ff;
+  box-shadow: 0 2px 12px rgba(64, 158, 255, 0.3);
+}
+
+.barcode-checkbox {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+}
+
+.barcode-image {
+  text-align: center;
+  padding: 10px;
+  background: white;
+  border-radius: 4px;
+  margin-bottom: 15px;
+}
+
+.barcode-image img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+
+.barcode-info {
+  font-size: 13px;
+}
+
+.barcode-info .info-row {
+  display: flex;
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+.barcode-info .label {
+  font-weight: 600;
+  color: #606266;
+  min-width: 80px;
+  flex-shrink: 0;
+}
+
+.barcode-info .value {
+  color: #303133;
+  flex: 1;
+  word-break: break-word;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  border-top: 1px solid #e4e7ed;
+}
+
+.footer-info {
+  font-size: 14px;
+  color: #606266;
+  font-weight: 500;
+}
+
+.footer-actions {
+  display: flex;
+  gap: 10px;
 }
 
 /* ==================== 响应式布局 ==================== */

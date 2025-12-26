@@ -497,9 +497,9 @@ public class OrderApplicationService : IOrderApplicationService
                         _logger.LogInformation("✅ 检查医嘱 {OrderId} 生成了 {Count} 个任务条形码", 
                             orderId, barcodeSuccessCount);
                         
-                        // 4.4 调度延迟任务：检查时间5分钟后自动从检查站获取报告
+                        // 4.4 调度延迟任务：检查时间1分钟后自动从检查站获取报告
                         var appointmentTime = appointmentDetail.AppointmentTime;
-                        var reportFetchDelay = appointmentTime.AddMinutes(5) - DateTime.UtcNow;
+                        var reportFetchDelay = appointmentTime.AddMinutes(1) - DateTime.UtcNow;
                         
                         if (reportFetchDelay.TotalMilliseconds > 0)
                         {
@@ -541,8 +541,8 @@ public class OrderApplicationService : IOrderApplicationService
                                         RisLisId = order.RisLisId,
                                         Findings = "[模拟数据] 检查所见：未见明显异常。",
                                         Impression = "[模拟数据] 诊断意见：未见异常。",
-                                        AttachmentUrl = "REPORT.pdf", // 固定返回 REPORT.pdf（实际应该是检查站上传的PDF文件URL）
-                                        ReviewerId = "STATION_DOCTOR_001", // 模拟检查站审核医生ID
+                                        AttachmentUrl = "reports/REPORT.pdf", // 文件相对路径（实际应该是检查站上传的PDF文件URL）
+                                        ReviewerId = null, // 不关联审核医生，避免外键约束错误
                                         ReportSource = order.Source
                                     };
                                     
