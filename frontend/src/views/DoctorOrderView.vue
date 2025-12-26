@@ -29,10 +29,38 @@
 
       <!-- 筛选工具栏 -->
       <div v-if="selectedPatients.length > 0" class="filter-toolbar">
+        <!-- 时间范围 -->
+        <div class="filter-group">
+          <span class="filter-label">开具时间:</span>
+          <el-date-picker
+            v-model="timeRange"
+            type="datetimerange"
+            range-separator="至"
+            start-placeholder="开始时间"
+            end-placeholder="结束时间"
+            value-format="YYYY-MM-DDTHH:mm:ss"
+            @change="loadOrders"
+            class="time-picker"
+            size="small"
+          />
+        </div>
+
+        <!-- 类型筛选 -->
+        <div class="filter-group">
+          <span class="filter-label">类型:</span>
+          <el-checkbox-group v-model="typeFilter" @change="loadOrders" size="small">
+            <el-checkbox label="MedicationOrder">药品</el-checkbox>
+            <el-checkbox label="InspectionOrder">检查</el-checkbox>
+            <el-checkbox label="OperationOrder">操作</el-checkbox>
+            <el-checkbox label="SurgicalOrder">手术</el-checkbox>
+            <el-checkbox label="DischargeOrder">出院</el-checkbox>
+          </el-checkbox-group>
+        </div>
+
         <!-- 状态筛选 -->
         <div class="filter-group">
           <span class="filter-label">状态:</span>
-          <el-checkbox-group v-model="statusFilter" @change="loadOrders">
+          <el-checkbox-group v-model="statusFilter" @change="loadOrders" size="small">
             <el-checkbox :label="1">未签收</el-checkbox>
             <el-checkbox :label="2">已签收</el-checkbox>
             <el-checkbox :label="3">进行中</el-checkbox>
@@ -43,36 +71,10 @@
           </el-checkbox-group>
         </div>
 
-        <!-- 类型筛选 -->
-        <div class="filter-group">
-          <span class="filter-label">类型:</span>
-          <el-checkbox-group v-model="typeFilter" @change="loadOrders">
-            <el-checkbox label="MedicationOrder">药品</el-checkbox>
-            <el-checkbox label="InspectionOrder">检查</el-checkbox>
-            <el-checkbox label="OperationOrder">操作</el-checkbox>
-            <el-checkbox label="SurgicalOrder">手术</el-checkbox>
-          </el-checkbox-group>
-        </div>
-
-        <!-- 时间范围 -->
-        <div class="filter-group">
-          <span class="filter-label">时间:</span>
-          <el-date-picker
-            v-model="timeRange"
-            type="datetimerange"
-            range-separator="至"
-            start-placeholder="开始时间"
-            end-placeholder="结束时间"
-            value-format="YYYY-MM-DDTHH:mm:ss"
-            @change="loadOrders"
-            class="time-picker"
-          />
-        </div>
-
         <!-- 排序方式 -->
         <div class="filter-group">
           <span class="filter-label">排序:</span>
-          <el-select v-model="sortBy" @change="handleSortChange" class="sort-select">
+          <el-select v-model="sortBy" @change="handleSortChange" class="sort-select" size="small">
             <el-option label="创建时间" value="CreateTime" />
             <el-option label="医嘱状态" value="Status" />
             <el-option label="医嘱类型" value="OrderType" />
@@ -123,7 +125,7 @@
             </el-tag>
 
             <!-- 医嘱摘要 -->
-            <span class="order-summary">{{ order.summary }}</span>
+            <span class="order-summary">{{ formatOrderSummary(order) }}</span>
 
             <!-- 停嘱标识：只在医嘱处于停嘱相关状态时显示 -->
             <span 
@@ -274,7 +276,7 @@ const {
 // 默认显示未签收(1)、已签收(2)、进行中(3)的医嘱
 const statusFilter = ref([1, 2, 3]);
 // 默认显示所有类型
-const typeFilter = ref(['MedicationOrder', 'InspectionOrder', 'OperationOrder', 'SurgicalOrder']);
+const typeFilter = ref(['MedicationOrder', 'InspectionOrder', 'OperationOrder', 'SurgicalOrder', 'DischargeOrder']);
 // 时间范围
 const timeRange = ref(null);
 // 排序方式（默认创建时间降序）
@@ -530,7 +532,8 @@ const getOrderTypeName = (orderType) => {
     MedicationOrder: '药品',
     InspectionOrder: '检查',
     OperationOrder: '操作',
-    SurgicalOrder: '手术'
+    SurgicalOrder: '手术',
+    DischargeOrder: '出院'
   };
   return nameMap[orderType] || orderType;
 };
@@ -540,9 +543,21 @@ const getOrderTypeColor = (orderType) => {
     MedicationOrder: 'success',
     InspectionOrder: 'info',
     OperationOrder: 'warning',
-    SurgicalOrder: 'danger'
+    SurgicalOrder: 'danger',
+    DischargeOrder: 'primary'
   };
   return colorMap[orderType] || 'info';
+};
+
+// ==================== 格式化医嘱标题 ====================
+const formatOrderSummary = (order) => {
+  // 如果是出院医嘱，显示特殊格式
+  if (order.orderType === 'DischargeOrder') {
+    const dischargeTime = order.plantEndTime || order.createTime;
+    return `出院医嘱-预计出院时间: ${formatDateTime(dischargeTime)}`;
+  }
+  // 其他医嘱直接返回 summary
+  return order.summary;
 };
 
 // ==================== 格式化日期时间 ====================

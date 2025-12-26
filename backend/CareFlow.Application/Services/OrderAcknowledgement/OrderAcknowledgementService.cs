@@ -28,6 +28,8 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
     private readonly IMedicationOrderTaskService _medicationTaskService;
     private readonly IInspectionService _inspectionTaskService;
     private readonly ISurgicalOrderTaskService _surgicalTaskService;
+    private readonly IDischargeOrderService _dischargeOrderService;
+    private readonly IDischargeOrderTaskService _dischargeTaskService;
     private readonly INurseAssignmentService _nurseAssignmentService;
     private readonly IBarcodeService _barcodeService;
     private readonly ILogger<OrderAcknowledgementService> _logger;
@@ -44,6 +46,8 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
         IMedicationOrderTaskService medicationTaskService,
         IInspectionService inspectionTaskService,
         ISurgicalOrderTaskService surgicalTaskService,
+        IDischargeOrderService dischargeOrderService,
+        IDischargeOrderTaskService dischargeTaskService,
         INurseAssignmentService nurseAssignmentService,
         IBarcodeService barcodeService,
         ILogger<OrderAcknowledgementService> logger)
@@ -59,6 +63,8 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
         _medicationTaskService = medicationTaskService;
         _inspectionTaskService = inspectionTaskService;
         _surgicalTaskService = surgicalTaskService;
+        _dischargeOrderService = dischargeOrderService;
+        _dischargeTaskService = dischargeTaskService;
         _nurseAssignmentService = nurseAssignmentService;
         _barcodeService = barcodeService;
         _logger = logger;
@@ -77,7 +83,7 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
             var patients = await _patientRepository.GetQueryable()
                 .Include(p => p.Bed)
                     .ThenInclude(b => b.Ward)
-                .Where(p => p.Bed.Ward.DepartmentId == deptCode && p.Status == "Active")
+                .Where(p => p.Bed.Ward.DepartmentId == deptCode && (p.Status == PatientStatus.Hospitalized || p.Status == PatientStatus.PendingDischarge))
                 .ToListAsync();
 
             _logger.LogInformation("科室患者总数: {Count}", patients.Count);
@@ -498,6 +504,22 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
     {
         _logger.LogInformation("签收新开医嘱，类型: {OrderType}", order.OrderType);
 
+        // 0. 如果是出院医嘱，先执行前置验证
+        if (order is DischargeOrder)
+        {
+            _logger.LogInformation("检测到出院医嘱，执行签收前置验证");
+            var validation = await _dischargeOrderService.ValidateDischargeOrderAcknowledgementAsync(order.PatientId);
+            
+            if (!validation.CanAcknowledge)
+            {
+                var errorMsg = $"出院医嘱签收前置验证失败: {validation.Reason}";
+                _logger.LogWarning(errorMsg);
+                throw new InvalidOperationException(errorMsg);
+            }
+            
+            _logger.LogInformation("✅ 出院医嘱签收前置验证通过");
+        }
+
         var previousStatus = order.Status;
         
         // 1. 更新医嘱状态
@@ -507,6 +529,23 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
         order.SignedByNurseId = nurseId;
         
         await _orderRepository.UpdateAsync(order);
+        
+        // 1.1 如果是出院医嘱，更新患者状态为待出院
+        if (order is DischargeOrder)
+        {
+            _logger.LogInformation("更新患者状态为待出院");
+            var patient = await _patientRepository.GetByIdAsync(order.PatientId);
+            if (patient != null)
+            {
+                patient.Status = PatientStatus.PendingDischarge;
+                await _patientRepository.UpdateAsync(patient);
+                _logger.LogInformation("✅ 患者 {PatientId} 状态已更新为待出院", order.PatientId);
+            }
+            else
+            {
+                _logger.LogWarning("⚠️ 未找到患者 {PatientId}，无法更新状态", order.PatientId);
+            }
+        }
         
         // 插入状态历史记录
         var history = new MedicalOrderStatusHistory
@@ -774,6 +813,13 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
                 tasks = await _surgicalTaskService.GenerateExecutionTasksAsync(surgicalOrder);
                 _logger.LogInformation("手术医嘱生成 {Count} 个任务", tasks.Count);
             }
+            else if (order is DischargeOrder dischargeOrder)
+            {
+                // 出院医嘱 - 验证已在 AcknowledgeNewOrderAsync 中完成
+                _logger.LogInformation("生成出院医嘱任务");
+                tasks = await _dischargeTaskService.GenerateExecutionTasksAsync(dischargeOrder);
+                _logger.LogInformation("出院医嘱生成 {Count} 个任务", tasks.Count);
+            }
             else if (order is OperationOrder operationOrder)
             {
                 // TODO: 阶段四实现 - 操作医嘱任务生成
@@ -871,6 +917,18 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
         {
             dto.DisplayText = $"操作: {operationOrder.OpId}";
             dto.OpId = operationOrder.OpId;
+        }
+        else if (order is DischargeOrder dischargeOrder)
+        {
+            // 出院医嘱：优先使用DischargeTime，不存在则使用PlantEndTime
+            var dischargeTime = dischargeOrder.DischargeTime != default 
+                ? dischargeOrder.DischargeTime 
+                : order.PlantEndTime;
+            
+            dto.DisplayText = $"出院医嘱-预计出院时间: {dischargeTime:yyyy/MM/dd HH:mm}";
+            
+            // 出院医嘱如果有带药，也需要加载药品明细
+            dto.Items = await LoadMedicationItems(order.Id);
         }
 
         // 停止医嘱特有字段（PendingStop表示待护士签收停止）

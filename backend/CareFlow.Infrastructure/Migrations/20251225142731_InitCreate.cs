@@ -490,6 +490,32 @@ namespace CareFlow.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "DischargeOrders",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "bigint", nullable: false),
+                    DischargeType = table.Column<int>(type: "integer", nullable: false),
+                    DischargeTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DischargeDiagnosis = table.Column<string>(type: "text", nullable: false),
+                    DischargeInstructions = table.Column<string>(type: "text", nullable: false),
+                    MedicationInstructions = table.Column<string>(type: "text", nullable: false),
+                    RequiresFollowUp = table.Column<bool>(type: "boolean", nullable: false),
+                    FollowUpDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    DischargeConfirmedByNurseId = table.Column<string>(type: "text", nullable: true),
+                    DischargeConfirmedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DischargeOrders", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_DischargeOrders_MedicalOrders_Id",
+                        column: x => x.Id,
+                        principalTable: "MedicalOrders",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "ExecutionTasks",
                 columns: table => new
                 {
@@ -1006,6 +1032,9 @@ namespace CareFlow.Infrastructure.Migrations
         {
             migrationBuilder.DropTable(
                 name: "BarcodeIndexes");
+
+            migrationBuilder.DropTable(
+                name: "DischargeOrders");
 
             migrationBuilder.DropTable(
                 name: "HospitalTimeSlots");

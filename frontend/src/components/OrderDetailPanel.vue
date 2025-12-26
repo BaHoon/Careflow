@@ -310,7 +310,7 @@
                   {{ getTaskTimingStatus(task).text }}
                 </span>
                 <span class="task-time-separator">|</span>
-                <span class="task-time">计划: {{ formatTime(task.plannedStartTime) }}</span>
+                <span class="task-time">计划: {{ formatDateTime(task.plannedStartTime) }}</span>
                 <span v-if="task.statusBeforeLocking !== null" class="lock-indicator" title="此任务已被停嘱锁定">
                   🔒 锁前: {{ getTaskStatusText(task.statusBeforeLocking) }}
                 </span>
@@ -484,7 +484,8 @@ const getOrderTypeName = (orderType) => {
     MedicationOrder: '药品医嘱',
     InspectionOrder: '检查医嘱',
     OperationOrder: '操作医嘱',
-    SurgicalOrder: '手术医嘱'
+    SurgicalOrder: '手术医嘱',
+    DischargeOrder: '出院医嘱'
   };
   return nameMap[orderType] || orderType;
 };
@@ -494,7 +495,8 @@ const getOrderTypeColor = (orderType) => {
     MedicationOrder: 'success',
     InspectionOrder: 'info',
     OperationOrder: 'warning',
-    SurgicalOrder: 'danger'
+    SurgicalOrder: 'danger',
+    DischargeOrder: 'primary'
   };
   return colorMap[orderType] || 'info';
 };

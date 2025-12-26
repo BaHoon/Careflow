@@ -126,6 +126,11 @@ public class ApplicationItemDto
     public bool IsUrgent { get; set; }
     
     /// <summary>
+    /// 是否为出院医嘱的取药任务
+    /// </summary>
+    public bool IsDischargeOrder { get; set; }
+    
+    /// <summary>
     /// 申请备注
     /// </summary>
     public string? Remarks { get; set; }

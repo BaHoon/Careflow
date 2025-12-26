@@ -155,6 +155,53 @@ public class OrderDetailDto
     /// </summary>
     public string? TargetSite { get; set; }
     
+    // ==================== 出院医嘱特有字段 ====================
+    
+    /// <summary>
+    /// 出院类型（仅DischargeOrder有效）
+    /// </summary>
+    public int? DischargeType { get; set; }
+    
+    /// <summary>
+    /// 出院类型显示文本（仅DischargeOrder有效）
+    /// </summary>
+    public string? DischargeTypeDisplay { get; set; }
+    
+    /// <summary>
+    /// 出院时间（仅DischargeOrder有效）
+    /// </summary>
+    public DateTime? DischargeTime { get; set; }
+    
+    /// <summary>
+    /// 出院诊断（仅DischargeOrder有效）
+    /// </summary>
+    public string? DischargeDiagnosis { get; set; }
+    
+    /// <summary>
+    /// 出院医嘱（仅DischargeOrder有效）
+    /// </summary>
+    public string? DischargeInstructions { get; set; }
+    
+    /// <summary>
+    /// 出院带药说明（仅DischargeOrder有效）
+    /// </summary>
+    public string? MedicationInstructions { get; set; }
+    
+    /// <summary>
+    /// 是否需要随访（仅DischargeOrder有效）
+    /// </summary>
+    public bool? RequiresFollowUp { get; set; }
+    
+    /// <summary>
+    /// 随访时间（仅DischargeOrder有效）
+    /// </summary>
+    public DateTime? FollowUpDate { get; set; }
+    
+    /// <summary>
+    /// 出院带药清单（仅DischargeOrder有效）
+    /// </summary>
+    public List<MedicationItemDto>? DischargeItems { get; set; }
+    
     // ==================== 关联任务列表 ====================
     
     /// <summary>

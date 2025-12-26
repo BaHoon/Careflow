@@ -34,12 +34,13 @@ namespace CareFlow.Infrastructure
         // 基类
         public DbSet<MedicalOrder> MedicalOrders { get; set; }
         
-        // 四种具体的医嘱类型
+        // 五种具体的医嘱类型
         public DbSet<MedicationOrder> MedicationOrders { get; set; } // 药品
         public DbSet<MedicationOrderItem> MedicationOrderItems { get; set; } // 药品医嘱明细
         public DbSet<InspectionOrder> InspectionOrders { get; set; } // 检查
         public DbSet<SurgicalOrder> SurgicalOrders { get; set; }     // 手术
         public DbSet<OperationOrder> OperationOrders { get; set; }   // 操作 (护理/治疗)
+        public DbSet<DischargeOrder> DischargeOrders { get; set; }   // 出院
 
         // 医嘱附属表
         public DbSet<InspectionReport> InspectionReports { get; set; } // 检查报告
@@ -74,12 +75,13 @@ namespace CareFlow.Infrastructure
             modelBuilder.Entity<Doctor>().ToTable("Doctors");
             modelBuilder.Entity<Nurse>().ToTable("Nurses");
 
-            // MedicalOrder 继承体系：数据库里会有 MedicalOrders 以及 4 个子表
+            // MedicalOrder 继承体系：数据库里会有 MedicalOrders 以及 5 个子表
             modelBuilder.Entity<MedicalOrder>().UseTptMappingStrategy();
             modelBuilder.Entity<MedicationOrder>().ToTable("MedicationOrders");
             modelBuilder.Entity<InspectionOrder>().ToTable("InspectionOrders");
             modelBuilder.Entity<SurgicalOrder>().ToTable("SurgicalOrders");
             modelBuilder.Entity<OperationOrder>().ToTable("OperationOrders");
+            modelBuilder.Entity<DischargeOrder>().ToTable("DischargeOrders");
 
             // --- 其他特殊字段配置 ---
 

@@ -71,7 +71,7 @@
                 {{ getTaskTimingStatus(task).text }}
               </span>
               <span class="task-time-separator">|</span>
-              <span class="task-time">计划: {{ formatTime(task.plannedStartTime) }}</span>
+              <span class="task-time">计划: {{ formatDateTime(task.plannedStartTime) }}</span>
             </div>
 
             <!-- 选中标识 -->
@@ -280,6 +280,7 @@ const formatDateTime = (dateString) => {
   try {
     const date = new Date(dateString);
     return date.toLocaleString('zh-CN', { 
+      year: 'numeric',
       month: '2-digit',
       day: '2-digit',
       hour: '2-digit',
@@ -347,7 +348,7 @@ const getTaskTimingStatus = (task) => {
 
 const getTaskStatusText = (status) => {
   const statusMap = {
-    0: '待申请', 1: '已申请', 2: '已确认', 3: '已分配',
+    0: '待申请', 1: '已申请', 2: '已确认', 3: '待执行',
     4: '进行中', 5: '已完成', 6: '未完成', 7: '停嘱中', 8: '已停止'
   };
   return statusMap[status] || `状态${status}`;

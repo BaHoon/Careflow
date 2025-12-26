@@ -65,6 +65,7 @@
               <el-checkbox label="InspectionOrder">检查</el-checkbox>
               <el-checkbox label="OperationOrder">操作</el-checkbox>
               <el-checkbox label="SurgicalOrder">手术</el-checkbox>
+              <el-checkbox label="DischargeOrder">出院</el-checkbox>
             </el-checkbox-group>
           </div>
 
@@ -176,7 +177,7 @@
                 </span>
 
                 <!-- 医嘱摘要 -->
-                <span class="order-summary">{{ order.summary }}</span>
+                <span class="order-summary">{{ formatOrderSummary(order) }}</span>
 
                 <!-- 患者信息（多患者模式下显示） -->
                 <span v-if="selectedPatients.length > 1" class="patient-badge-mini">
@@ -257,7 +258,7 @@
                     </el-tag>
                     <span v-if="isNewlyCreated(order)" class="new-badge">🆕 新开</span>
                     <span v-if="isNewlyStopped(order)" class="new-stopped-badge">🛑 新停</span>
-                    <span class="order-summary">{{ order.summary }}</span>
+                    <span class="order-summary">{{ formatOrderSummary(order) }}</span>
                   </div>
 
                   <div class="order-meta">
@@ -359,7 +360,7 @@ const sortBy = ref('time');
 // 时间范围
 const timeRange = ref(null);
 // 医嘱类型（默认显示所有类型）
-const typeFilter = ref(['MedicationOrder', 'InspectionOrder', 'OperationOrder', 'SurgicalOrder']);
+const typeFilter = ref(['MedicationOrder', 'InspectionOrder', 'OperationOrder', 'SurgicalOrder', 'DischargeOrder']);
 // 医嘱状态（默认显示未签收、已签收、进行中）
 const statusFilter = ref([1, 2, 3]);
 // 新开医嘱筛选
@@ -639,7 +640,8 @@ const getOrderTypeName = (orderType) => {
     MedicationOrder: '药品',
     InspectionOrder: '检查',
     OperationOrder: '操作',
-    SurgicalOrder: '手术'
+    SurgicalOrder: '手术',
+    DischargeOrder: '出院'
   };
   return nameMap[orderType] || orderType;
 };
@@ -649,9 +651,21 @@ const getOrderTypeColor = (orderType) => {
     MedicationOrder: 'success',
     InspectionOrder: 'info',
     OperationOrder: 'warning',
-    SurgicalOrder: 'danger'
+    SurgicalOrder: 'danger',
+    DischargeOrder: 'primary'
   };
   return colorMap[orderType] || 'info';
+};
+
+// ==================== 格式化医嘱标题 ====================
+const formatOrderSummary = (order) => {
+  // 如果是出院医嘱，显示特殊格式
+  if (order.orderType === 'DischargeOrder') {
+    const dischargeTime = order.plantEndTime || order.createTime;
+    return `出院医嘱-预计出院时间: ${formatDateTime(dischargeTime)}`;
+  }
+  // 其他医嘱直接返回 summary
+  return order.summary;
 };
 
 // ==================== 格式化日期时间 ====================
