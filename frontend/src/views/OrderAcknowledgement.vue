@@ -1969,6 +1969,7 @@ const formatDateTime = (dateTime) => {
   margin-bottom: 12px;
   transition: all 0.3s;
   background: white;
+  align-items: center;
 }
 
 .order-item:hover {
@@ -2079,14 +2080,20 @@ const formatDateTime = (dateTime) => {
   gap: 8px;
   justify-content: center;
   align-items: center;
-  min-width: 80px;
+  min-width: 90px;
+  flex-shrink: 0;
+}
+
+.order-actions :deep(.el-button + .el-button) {
+  margin-left: 0 !important;
 }
 
 /* 单个医嘱操作按钮统一样式 */
 .action-btn-small {
   width: 80px !important;
-  height: 36px !important;
+  height: 32px !important;
   padding: 0 !important;
+  margin: 0 !important;
   font-size: 0.9rem !important;
   font-weight: 600 !important;
   border-radius: var(--radius-small) !important;
@@ -2094,6 +2101,7 @@ const formatDateTime = (dateTime) => {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
+  line-height: 1 !important;
 }
 
 .action-btn-small:not(:disabled):hover {
