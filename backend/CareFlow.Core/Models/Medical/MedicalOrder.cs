@@ -283,6 +283,58 @@ namespace CareFlow.Core.Models.Medical
         public string PrepStatus { get; set; } = null!;       // 准备状态
     }
 
+    // 出院医嘱 (DISCHARGE_ORDER)
+    [Table("DischargeOrders")]
+    public class DischargeOrder : MedicalOrder
+    {
+        /// <summary>
+        /// 出院类型（治愈出院、好转出院、转院、死亡等）
+        /// </summary>
+        public DischargeType DischargeType { get; set; }
+        
+        /// <summary>
+        /// 出院时间
+        /// </summary>
+        public DateTime DischargeTime { get; set; }
+        
+        /// <summary>
+        /// 出院诊断
+        /// </summary>
+        public string DischargeDiagnosis { get; set; } = null!;
+        
+        /// <summary>
+        /// 出院医嘱
+        /// </summary>
+        public string DischargeInstructions { get; set; } = string.Empty;
+        
+        /// <summary>
+        /// 出院带药说明
+        /// </summary>
+        public string MedicationInstructions { get; set; } = string.Empty;
+        
+        /// <summary>
+        /// 是否需要随访
+        /// </summary>
+        public bool RequiresFollowUp { get; set; }
+        
+        /// <summary>
+        /// 随访时间
+        /// </summary>
+        public DateTime? FollowUpDate { get; set; }
+        
+        /// <summary>
+        /// 出院确认护士ID
+        /// </summary>
+        public string? DischargeConfirmedByNurseId { get; set; }
+        
+        /// <summary>
+        /// 出院确认时间
+        /// </summary>
+        public DateTime? DischargeConfirmedAt { get; set; }
+        
+        // 注意：Items 集合已在 MedicalOrder 基类中定义，用于存储出院带药清单
+    }
+
     // ==================== 医嘱状态变更历史表 ====================
     
     /// <summary>

@@ -30,7 +30,7 @@ namespace CareFlow.Application.Services.Nursing
             var patients = await _context.Set<Patient>()
                 .Include(p => p.Bed)
                 .ThenInclude(b => b.Ward)
-                .Where(p => p.Bed.Ward.DepartmentId == departmentId && p.Status == "Active")
+                .Where(p => p.Bed.Ward.DepartmentId == departmentId && p.Status == PatientStatus.Hospitalized)//TODO
                 .ToListAsync();
 
             var newTasks = new List<NursingTask>();

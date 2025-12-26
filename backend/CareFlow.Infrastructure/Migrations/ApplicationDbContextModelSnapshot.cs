@@ -1061,6 +1061,43 @@ namespace CareFlow.Infrastructure.Migrations
                     b.ToTable("Wards");
                 });
 
+            modelBuilder.Entity("CareFlow.Core.Models.Medical.DischargeOrder", b =>
+                {
+                    b.HasBaseType("CareFlow.Core.Models.Medical.MedicalOrder");
+
+                    b.Property<DateTime?>("DischargeConfirmedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DischargeConfirmedByNurseId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("DischargeDiagnosis")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("DischargeInstructions")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("DischargeTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("DischargeType")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("FollowUpDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("MedicationInstructions")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("RequiresFollowUp")
+                        .HasColumnType("boolean");
+
+                    b.ToTable("DischargeOrders", (string)null);
+                });
+
             modelBuilder.Entity("CareFlow.Core.Models.Medical.InspectionOrder", b =>
                 {
                     b.HasBaseType("CareFlow.Core.Models.Medical.MedicalOrder");
@@ -1553,6 +1590,15 @@ namespace CareFlow.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Department");
+                });
+
+            modelBuilder.Entity("CareFlow.Core.Models.Medical.DischargeOrder", b =>
+                {
+                    b.HasOne("CareFlow.Core.Models.Medical.MedicalOrder", null)
+                        .WithOne()
+                        .HasForeignKey("CareFlow.Core.Models.Medical.DischargeOrder", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Medical.InspectionOrder", b =>

@@ -310,7 +310,7 @@
                   {{ getTaskTimingStatus(task).text }}
                 </span>
                 <span class="task-time-separator">|</span>
-                <span class="task-time">计划: {{ formatTime(task.plannedStartTime) }}</span>
+                <span class="task-time">计划: {{ formatDateTime(task.plannedStartTime) }}</span>
                 <span v-if="task.statusBeforeLocking !== null" class="lock-indicator" title="此任务已被停嘱锁定">
                   🔒 锁前: {{ getTaskStatusText(task.statusBeforeLocking) }}
                 </span>
@@ -353,6 +353,26 @@
                   <span class="timeline-value danger">{{ task.exceptionReason }}</span>
                 </div>
               </div>
+
+              <!-- 护士模式：任务操作按钮 -->
+              <div v-if="nurseMode" class="nurse-actions">
+                <el-button 
+                  type="primary" 
+                  size="small"
+                  @click.stop="emit('update-task-execution', task.id)"
+                  :icon="EditPen"
+                >
+                  修改执行情况
+                </el-button>
+                <el-button 
+                  type="success" 
+                  size="small"
+                  @click.stop="emit('print-task-sheet', task.id)"
+                  :icon="Printer"
+                >
+                  打印执行单
+                </el-button>
+              </div>
             </div>
           </el-collapse-item>
         </el-collapse>
@@ -367,14 +387,26 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue';
+import { EditPen, Printer } from '@element-plus/icons-vue';
 
 // ==================== Props ====================
 const props = defineProps({
   detail: {
     type: Object,
     required: true
+  },
+  // 护士模式：显示任务操作按钮
+  nurseMode: {
+    type: Boolean,
+    default: false
   }
 });
+
+// ==================== Emits ====================
+const emit = defineEmits([
+  'update-task-execution',  // 修改任务执行情况
+  'print-task-sheet'        // 打印任务执行单
+]);
 
 // ==================== 风琴控制 ====================
 // 主风琴面板控制（基础信息、药品信息等）
@@ -417,13 +449,20 @@ watch(() => props.detail, (newDetail) => {
 const formatDateTime = (dateString) => {
   if (!dateString) return '-';
   try {
-    const date = new Date(dateString);
+    // 确保UTC时间字符串带有Z标识
+    let utcString = dateString;
+    if (!dateString.endsWith('Z') && !dateString.includes('+')) {
+      utcString = dateString + 'Z';
+    }
+    const date = new Date(utcString);
+    // JavaScript的toLocaleString会自动转换为本地时区（北京时间UTC+8）
     return date.toLocaleString('zh-CN', { 
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      timeZone: 'Asia/Shanghai'
     });
   } catch {
     return dateString;
@@ -452,7 +491,8 @@ const getOrderTypeName = (orderType) => {
     MedicationOrder: '药品医嘱',
     InspectionOrder: '检查医嘱',
     OperationOrder: '操作医嘱',
-    SurgicalOrder: '手术医嘱'
+    SurgicalOrder: '手术医嘱',
+    DischargeOrder: '出院医嘱'
   };
   return nameMap[orderType] || orderType;
 };
@@ -462,7 +502,8 @@ const getOrderTypeColor = (orderType) => {
     MedicationOrder: 'success',
     InspectionOrder: 'info',
     OperationOrder: 'warning',
-    SurgicalOrder: 'danger'
+    SurgicalOrder: 'danger',
+    DischargeOrder: 'primary'
   };
   return colorMap[orderType] || 'info';
 };
@@ -561,8 +602,17 @@ const getTaskCategoryStyle = (category) => {
 const formatTime = (dateString) => {
   if (!dateString) return '--:--';
   try {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    // 确保UTC时间字符串带有Z标识
+    let utcString = dateString;
+    if (!dateString.endsWith('Z') && !dateString.includes('+')) {
+      utcString = dateString + 'Z';
+    }
+    const date = new Date(utcString);
+    return date.toLocaleTimeString('zh-CN', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      timeZone: 'Asia/Shanghai'
+    });
   } catch {
     return '--:--';
   }
@@ -1072,5 +1122,19 @@ const getTaskTimingStatus = (task) => {
   color: #c0c4cc;
   padding: 40px 16px;
   font-size: 0.9rem;
+}
+
+/* ==================== 护士操作按钮 ==================== */
+.nurse-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed #e4e7ed;
+}
+
+.nurse-actions .el-button {
+  flex: 0 0 auto;
 }
 </style>

@@ -1,5 +1,6 @@
 using CareFlow.Application.Interfaces;
 using CareFlow.Application.Services;
+using CareFlow.Application.Services.DischargeOrders;
 using CareFlow.Application.Services.InspectionOrders;
 using CareFlow.Application.Services.MedicalOrder;
 using CareFlow.Application.Services.MedicationOrders;
@@ -27,6 +28,7 @@ public static class DependencyInjection
         // 注册任务生成服务
         services.AddScoped<IMedicationOrderTaskService, MedicationOrderTaskService>();
         services.AddScoped<ISurgicalOrderTaskService, SurgicalOrderTaskService>();
+        services.AddScoped<IDischargeOrderTaskService, DischargeOrderTaskService>();
         
         // 注册任务工厂
         services.AddScoped<IExecutionTaskFactory, SurgicalExecutionTaskFactory>();
@@ -36,6 +38,7 @@ public static class DependencyInjection
         services.AddScoped<IInspectionOrderService, InspectionOrderService>();
         services.AddScoped<ISurgicalOrderService, SurgicalOrderService>();
         services.AddScoped<IOperationOrderService, OperationOrderService>();
+        services.AddScoped<IDischargeOrderService, DischargeOrderService>();
         
         // 注册医嘱签收服务（阶段一）
         services.AddScoped<IOrderAcknowledgementService, OrderAcknowledgementService>();

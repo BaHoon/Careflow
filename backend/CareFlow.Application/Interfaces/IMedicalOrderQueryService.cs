@@ -95,4 +95,20 @@ public interface IMedicalOrderQueryService
     /// <param name="cancelReason">撤销原因</param>
     /// <returns>操作结果</returns>
     Task<bool> CancelRejectedOrderAsync(long orderId, string doctorId, string cancelReason);
+
+    /// <summary>
+    /// 医生撤回停嘱申请
+    /// </summary>
+    /// <param name="request">撤回请求，包含医嘱ID、医生ID、撤回原因</param>
+    /// <returns>撤回结果，包含恢复的任务列表</returns>
+    /// <remarks>
+    /// 业务逻辑：
+    /// 1. 验证医嘱状态必须为 PendingStop（等待停嘱）
+    /// 2. 查询医嘱进入PendingStop前的状态（从历史记录表）
+    /// 3. 恢复医嘱状态到停止前的状态（Accepted 或 InProgress）
+    /// 4. 清空停嘱相关字段（StopReason, StopOrderTime, StopDoctorId）
+    /// 5. 恢复所有被锁定的任务（OrderStopping → StatusBeforeLocking）
+    /// 6. 记录撤回操作的审计信息
+    /// </remarks>
+    Task<WithdrawStopResponseDto> WithdrawStopAsync(WithdrawStopRequestDto request);
 }

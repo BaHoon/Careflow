@@ -232,12 +232,12 @@
                   >
                     {{ getOrderTypeName(order.orderType) }}
                   </el-tag>
-                  <span class="order-text">{{ order.displayText }}</span>
+                  <span class="order-text">{{ formatOrderTitle(order) }}</span>
                 </div>
 
                 <!-- 医嘱详情 -->
                 <div class="order-details">
-                  <!-- 药品明细 -->
+                  <!-- 药品明细（药品医嘱和出院医嘱都显示） -->
                   <div v-if="order.items && order.items.length > 0" class="detail-section">
                     <span class="detail-label">药品:</span>
                     <div class="drug-list">
@@ -373,7 +373,7 @@
                   >
                     {{ getOrderTypeName(order.orderType) }}
                   </el-tag>
-                  <span class="order-text">{{ order.displayText }}</span>
+                  <span class="order-text">{{ formatOrderTitle(order) }}</span>
                 </div>
 
                 <div class="order-details">
@@ -442,6 +442,9 @@ import {
 } from '../api/orderAcknowledgement';
 // 导入退药相关API
 import { confirmReturnMedication } from '../api/orderApplication';
+// 导入出院医嘱验证API
+import { validateDischargeOrderAcknowledgement } from '../api/dischargeOrder';
+import { ElLoading } from 'element-plus';
 
 // ==================== 状态管理 ====================
 
@@ -775,6 +778,14 @@ const loadPatientPendingOrders = async (patientId) => {
 
 // 单条签收（新开医嘱）
 const acknowledgeOne = async (order) => {
+  // 如果是出院医嘱，先进行前置验证
+  if (order.orderType === 'DischargeOrder') {
+    const canProceed = await validateDischargeOrderBeforeAcknowledgement(order);
+    if (!canProceed) {
+      return; // 验证失败，不继续签收
+    }
+  }
+  
   await acknowledgeBatchInternal([order.orderId]);
   // 签收后刷新列表和数字徽章
   await refreshAfterAction();
@@ -782,18 +793,149 @@ const acknowledgeOne = async (order) => {
 
 // 批量签收（新开医嘱）
 const acknowledgeBatch = async () => {
-  const selectedIds = pendingOrders.value.newOrders
-    .filter(o => o.selected)
-    .map(o => o.orderId);
+  const selectedOrders = pendingOrders.value.newOrders.filter(o => o.selected);
   
-  if (selectedIds.length === 0) {
+  if (selectedOrders.length === 0) {
     ElMessage.warning('请至少选择一条医嘱');
     return;
   }
 
+  // 检查是否包含出院医嘱
+  const hasDischargeOrder = selectedOrders.some(o => o.orderType === 'DischargeOrder');
+  
+  if (hasDischargeOrder) {
+    // 如果包含出院医嘱，需要先验证
+    const dischargeOrder = selectedOrders.find(o => o.orderType === 'DischargeOrder');
+    const canProceed = await validateDischargeOrderBeforeAcknowledgement(dischargeOrder);
+    if (!canProceed) {
+      return; // 验证失败，不继续签收
+    }
+  }
+
+  const selectedIds = selectedOrders.map(o => o.orderId);
   await acknowledgeBatchInternal(selectedIds);
   // 签收后刷新列表和数字徽章
   await refreshAfterAction();
+};
+
+// 验证出院医嘱签收前置条件
+const validateDischargeOrderBeforeAcknowledgement = async (order) => {
+  const loading = ElLoading.service({
+    lock: true,
+    text: '正在验证出院医嘱签收条件...',
+    background: 'rgba(0, 0, 0, 0.7)'
+  });
+
+  try {
+    // 调用后端验证接口
+    const validationResult = await validateDischargeOrderAcknowledgement(selectedPatient.value.patientId);
+    
+    loading.close();
+    
+    // 如果不能签收，显示详细的错误弹窗
+    if (!validationResult.canAcknowledge) {
+      // 构建错误提示HTML（与医生开具出院医嘱的样式保持一致）
+      let errorHtml = '<div style="text-align: left;">';
+      errorHtml += '<h3 style="color: #f56c6c; margin-bottom: 15px;">❌ 无法签收出院医嘱</h3>';
+      
+      errorHtml += '<div style="padding: 12px; background: #fef0f0; border-left: 4px solid #f56c6c; border-radius: 4px; margin-bottom: 15px;">';
+      errorHtml += '<div style="font-size: 13px; line-height: 1.6; color: #606266;">';
+      errorHtml += validationResult.reason;
+      errorHtml += '</div></div>';
+      
+      // 判断错误原因类型，显示对应的医嘱列表
+      const hasUnacknowledgedOrders = validationResult.reason.includes('未签收');
+      const hasLateTaskOrders = validationResult.reason.includes('计划执行时间晚于出院时间');
+      
+      // 显示阻塞医嘱列表
+      if (validationResult.blockedOrders && validationResult.blockedOrders.length > 0) {
+        // 根据原因确定标题
+        let title = '';
+        if (hasUnacknowledgedOrders && !hasLateTaskOrders) {
+          title = '未签收的医嘱';
+        } else if (!hasUnacknowledgedOrders && hasLateTaskOrders) {
+          title = '任务时间冲突的医嘱';
+        } else {
+          title = '阻塞的医嘱';
+        }
+        
+        errorHtml += '<div style="margin-bottom: 15px;"><strong style="color: #f56c6c;">' + title + ' (' + validationResult.blockedOrders.length + ' 条)：</strong></div>';
+        errorHtml += '<ul style="margin: 0; padding-left: 20px; max-height: 250px; overflow-y: auto; border: 1px solid #ebeef5; border-radius: 4px; padding: 10px; background: #fafafa;">';
+        validationResult.blockedOrders.forEach(order => {
+          const createTime = order.createTime ? formatDateTime(new Date(order.createTime)) : '未知';
+          const endTime = order.endTime ? formatDateTime(new Date(order.endTime)) : '';
+          
+          errorHtml += `<li style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #ebeef5;">`;
+          errorHtml += `<div style="margin-bottom: 4px;"><strong style="color: #303133;">${order.summary}</strong></div>`;
+          errorHtml += `<div style="color: #909399; font-size: 12px; line-height: 1.5;">状态: ${order.statusDisplay}</div>`;
+          errorHtml += `<div style="color: #909399; font-size: 12px; line-height: 1.5;">创建时间: ${createTime}</div>`;
+          if (endTime) {
+            errorHtml += `<div style="color: #f56c6c; font-size: 12px; line-height: 1.5;">最晚任务时间: ${endTime}</div>`;
+          }
+          errorHtml += '</li>';
+        });
+        errorHtml += '</ul>';
+      }
+      
+      // 显示待停止医嘱（PendingStopOrderDetails）
+      if (validationResult.pendingStopOrderDetails && validationResult.pendingStopOrderDetails.length > 0) {
+        errorHtml += '<div style="margin-top: 15px; margin-bottom: 15px;"><strong style="color: #e6a23c;">待停止的医嘱 (' + validationResult.pendingStopOrderDetails.length + ' 条)：</strong></div>';
+        errorHtml += '<ul style="margin: 0; padding-left: 20px; max-height: 250px; overflow-y: auto; border: 1px solid #ebeef5; border-radius: 4px; padding: 10px; background: #fafafa;">';
+        validationResult.pendingStopOrderDetails.forEach(order => {
+          const stopTime = order.stopOrderTime ? formatDateTime(new Date(order.stopOrderTime)) : '未知';
+          errorHtml += `<li style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #ebeef5;">`;
+          errorHtml += `<div style="margin-bottom: 4px;"><strong style="color: #303133;">${order.summary}</strong></div>`;
+          errorHtml += `<div style="color: #909399; font-size: 12px; line-height: 1.5;">停止时间: ${stopTime}</div>`;
+          errorHtml += `<div style="color: #909399; font-size: 12px; line-height: 1.5;">停止原因: ${order.stopReason}</div>`;
+          errorHtml += '</li>';
+        });
+        errorHtml += '</ul>';
+      }
+      
+      // 根据错误类型给出不同的处理建议
+      errorHtml += '<div style="margin-top: 20px; padding: 12px; background: #f0f9ff; border-left: 4px solid #409eff; border-radius: 4px;">';
+      errorHtml += '<div style="font-size: 13px; line-height: 1.6;">';
+      errorHtml += '<strong style="color: #409eff;">💡 处理建议：</strong><br>';
+      
+      if (hasUnacknowledgedOrders) {
+        errorHtml += '1. 请先签收所有待签收的新开医嘱<br>';
+        errorHtml += '2. 请先签收所有待停止的医嘱<br>';
+      }
+      
+      if (hasLateTaskOrders) {
+        errorHtml += '• 部分医嘱的任务计划执行时间晚于出院时间<br>';
+        errorHtml += '• 建议退回这些医嘱，让医生重新调整<br>';
+        errorHtml += '• 或联系医生调整出院时间<br>';
+      }
+      
+      if (!hasUnacknowledgedOrders && !hasLateTaskOrders) {
+        errorHtml += '请先处理所有阻塞的医嘱<br>';
+      }
+      
+      errorHtml += '<div style="margin-top: 8px; color: #909399;">处理完成后再签收出院医嘱</div>';
+      errorHtml += '</div></div>';
+      
+      errorHtml += '</div>';
+      
+      // 显示弹窗（只有确定按钮）
+      await ElMessageBox.alert(errorHtml, '无法签收出院医嘱', {
+        dangerouslyUseHTMLString: true,
+        confirmButtonText: '确定',
+        type: 'error',
+        customClass: 'discharge-validation-dialog'
+      });
+      
+      return false; // 验证失败，不能签收
+    }
+    
+    // 验证通过，可以继续签收
+    return true;
+  } catch (error) {
+    loading.close();
+    console.error('验证出院医嘱签收条件失败:', error);
+    ElMessage.error('验证出院医嘱签收条件失败，请稍后重试');
+    return false;
+  }
 };
 
 // 签收核心逻辑
@@ -1457,7 +1599,8 @@ const getOrderTypeName = (orderType) => {
     'MedicationOrder': '药品',
     'InspectionOrder': '检查',
     'SurgicalOrder': '手术',
-    'OperationOrder': '操作'
+    'OperationOrder': '操作',
+    'DischargeOrder': '出院'
   };
   return map[orderType] || orderType;
 };
@@ -1468,9 +1611,21 @@ const getOrderTypeColor = (orderType) => {
     'MedicationOrder': 'success',
     'InspectionOrder': 'info',
     'SurgicalOrder': 'danger',
-    'OperationOrder': 'warning'
+    'OperationOrder': 'warning',
+    'DischargeOrder': 'primary'
   };
   return map[orderType] || '';
+};
+
+// 格式化医嘱标题（为出院医嘱定制）
+const formatOrderTitle = (order) => {
+  // 如果是出院医嘱，显示特殊格式
+  if (order.orderType === 'DischargeOrder') {
+    const dischargeTime = order.plantEndTime || order.createTime;
+    return `出院医嘱-预计出院时间: ${formatDateTime(dischargeTime)}`;
+  }
+  // 其他医嘱使用原有的 displayText
+  return order.displayText;
 };
 
 // 获取时间策略文本
@@ -1552,14 +1707,25 @@ const getUsageRouteText = (route) => {
 // 格式化日期时间
 const formatDateTime = (dateTime) => {
   if (!dateTime) return '-';
-  const date = new Date(dateTime);
-  return date.toLocaleString('zh-CN', { 
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  try {
+    // 确保UTC时间字符串带有Z标识
+    let utcString = dateTime;
+    if (!dateTime.endsWith('Z') && !dateTime.includes('+')) {
+      utcString = dateTime + 'Z';
+    }
+    const date = new Date(utcString);
+    // JavaScript的toLocaleString会自动转换为本地时区（北京时间UTC+8）
+    return date.toLocaleString('zh-CN', { 
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Asia/Shanghai'
+    });
+  } catch {
+    return dateTime;
+  }
 };
 </script>
 

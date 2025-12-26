@@ -570,7 +570,10 @@ public class OrderApplicationService : IOrderApplicationService
                 // 更新状态回到Applying
                 task.Status = ExecutionTaskStatus.Applying;
                 task.LastModifiedAt = DateTime.UtcNow;
-                task.ExceptionReason = $"[{DateTime.UtcNow:yyyy-MM-dd HH:mm}] 护士{nurseId}撤销申请: {reason ?? "无"}";
+                // 转换为北京时间显示
+                var chinaTimeZone = TimeZoneInfo.FindSystemTimeZoneById("China Standard Time");
+                var beijingTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, chinaTimeZone);
+                task.ExceptionReason = $"[{beijingTime:yyyy-MM-dd HH:mm}] 护士{nurseId}撤销申请: {reason ?? "无"}";
 
                 await _taskRepository.UpdateAsync(task);
                 processedIds.Add(taskId);
@@ -625,8 +628,10 @@ public class OrderApplicationService : IOrderApplicationService
                     continue;
                 }
 
-                // 记录撤销信息
-                order.Remarks += $"\n[{DateTime.UtcNow:yyyy-MM-dd HH:mm}] 护士{nurseId}撤销申请: {reason ?? "无"}";
+                // 记录撤销信息（转换为北京时间显示）
+                var chinaTimeZone = TimeZoneInfo.FindSystemTimeZoneById("China Standard Time");
+                var beijingTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, chinaTimeZone);
+                order.Remarks += $"\n[{beijingTime:yyyy-MM-dd HH:mm}] 护士{nurseId}撤销申请: {reason ?? "无"}";
 
                 await _inspectionOrderRepository.UpdateAsync(order);
                 processedIds.Add(orderId);
@@ -667,6 +672,7 @@ public class OrderApplicationService : IOrderApplicationService
     {
         // 解析DataPayload获取申请信息
         bool isUrgent = false;
+        bool isDischargeOrder = false;
         string? remarks = null;
         DateTime? appliedAt = null;
         string? appliedBy = null;
@@ -692,6 +698,12 @@ public class OrderApplicationService : IOrderApplicationService
             {
                 confirmedAt = payload["PharmacyConfirmedAt"].GetDateTime();
             }
+
+            // 检查是否为出院医嘱任务
+            if (payload != null && payload.ContainsKey("IsDischargeOrder"))
+            {
+                isDischargeOrder = payload["IsDischargeOrder"].GetBoolean();
+            }
         }
         catch (Exception ex)
         {
@@ -702,6 +714,7 @@ public class OrderApplicationService : IOrderApplicationService
         var medications = new List<MedicationItemDetail>();
         var medOrder = task.MedicalOrder as MedicationOrder;
         var surgicalOrder = task.MedicalOrder as SurgicalOrder;
+        var dischargeOrder = task.MedicalOrder as DischargeOrder;
         
         // 从药品医嘱获取药品信息
         if (medOrder != null && medOrder.Items != null)
@@ -731,20 +744,38 @@ public class OrderApplicationService : IOrderApplicationService
                 });
             }
         }
+        // 从出院医嘱获取带回药品信息
+        else if (dischargeOrder != null && dischargeOrder.Items != null)
+        {
+            foreach (var item in dischargeOrder.Items)
+            {
+                medications.Add(new MedicationItemDetail
+                {
+                    DrugId = item.DrugId,
+                    DrugName = item.Drug?.GenericName ?? item.Drug?.TradeName ?? "未知药品",
+                    Specification = item.Drug?.Specification ?? "",
+                    Dosage = item.Dosage
+                });
+            }
+        }
 
         var contentDesc = medications.Any()
             ? $"取药：{string.Join("、", medications.Select(m => m.DrugName))}"
             : "取药任务";
 
-        // 构建显示文本：多药品时显示第一个 + "等"
+        // 构建显示文本：多药品时显示第一个 + "等"，出院医嘱加上标识
         string displayText;
         if (medications.Count > 1)
         {
-            displayText = $"{medications[0].DrugName}等";
+            displayText = isDischargeOrder 
+                ? $"{medications[0].DrugName}等（出院带回）" 
+                : $"{medications[0].DrugName}等";
         }
         else if (medications.Count == 1)
         {
-            displayText = medications[0].DrugName;
+            displayText = isDischargeOrder 
+                ? $"{medications[0].DrugName}（出院带回）" 
+                : medications[0].DrugName;
         }
         else
         {
@@ -758,6 +789,7 @@ public class OrderApplicationService : IOrderApplicationService
             OrderId = task.MedicalOrderId,
             OrderType = task.MedicalOrder?.OrderType ?? "Medication",
             IsLongTerm = task.MedicalOrder?.IsLongTerm ?? false,
+            IsDischargeOrder = isDischargeOrder, // 标记是否为出院医嘱
             DisplayText = displayText,
             ItemCount = medications.Count,
             InspectionSource = null,

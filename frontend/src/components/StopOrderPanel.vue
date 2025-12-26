@@ -23,6 +23,13 @@
         <li>无需选择停止节点，填写停嘱原因即可</li>
         <li>停嘱后医嘱状态将变为<strong>已取消</strong>，无需护士签收</li>
       </ol>
+      <ol v-else-if="order.status === 5" class="instruction-list">
+        <li>该医嘱已停止，但仍有<strong>未完成的任务</strong>可以再次停止</li>
+        <li>请选择<strong>新的停止节点</strong>（必须早于之前的停止节点）</li>
+        <li>停止节点任务本身<strong>也会</strong>被锁定，不会继续执行</li>
+        <li>已被停止的任务<strong>不可选择</strong>（显示为灰色）</li>
+        <li>填写停嘱原因后，医嘱将进入<strong>等待护士签收</strong>状态</li>
+      </ol>
       <ol v-else class="instruction-list">
         <li>请选择<strong>停止节点</strong>（从该任务开始的所有任务将被锁定）</li>
         <li>停止节点任务本身<strong>也会</strong>被锁定，不会继续执行</li>
@@ -71,7 +78,7 @@
                 {{ getTaskTimingStatus(task).text }}
               </span>
               <span class="task-time-separator">|</span>
-              <span class="task-time">计划: {{ formatTime(task.plannedStartTime) }}</span>
+              <span class="task-time">计划: {{ formatDateTime(task.plannedStartTime) }}</span>
             </div>
 
             <!-- 选中标识 -->
@@ -230,15 +237,33 @@ const isAfterStopNode = (taskId) => {
 
 // 判断任务是否可以被选择为停止节点
 const canSelectTask = (task) => {
-  // 只有未完成的任务才能作为停止节点
-  // 已完成(5)和已停止(8)的任务不能选择
-  return task.status !== 5 && task.status !== 8;
+  // 已完成(5)和已停止(7, 8)的任务不能选择
+  // 如果任务有statusBeforeLocking字段，说明它是之前被停止的任务，也不能选择
+  if (task.status === 5 || task.status === 7 || task.status === 8) {
+    return false;
+  }
+  
+  // 对于已停止的医嘱，还需要检查该任务是否是之前被停止的
+  // 如果任务的statusBeforeLocking不为null，说明它之前被锁定过
+  if (props.order.status === 5 && task.statusBeforeLocking !== null && task.statusBeforeLocking !== undefined) {
+    return false;
+  }
+  
+  return true;
 };
 
 // 选择任务
 const selectTask = (task) => {
   if (!canSelectTask(task)) {
-    ElMessage.warning('已完成或已停止的任务不能作为停止节点');
+    if (task.status === 5) {
+      ElMessage.warning('已完成的任务不能作为停止节点');
+    } else if (task.status === 7 || task.status === 8) {
+      ElMessage.warning('已停止的任务不能作为停止节点');
+    } else if (props.order.status === 5 && task.statusBeforeLocking !== null) {
+      ElMessage.warning('该任务已被之前的停嘱锁定，不能再次选择');
+    } else {
+      ElMessage.warning('该任务不能作为停止节点');
+    }
     return;
   }
   
@@ -278,12 +303,19 @@ const handleConfirm = async () => {
 const formatDateTime = (dateString) => {
   if (!dateString) return '-';
   try {
-    const date = new Date(dateString);
+    // 确保UTC时间字符串带有Z标识
+    let utcString = dateString;
+    if (!dateString.endsWith('Z') && !dateString.includes('+')) {
+      utcString = dateString + 'Z';
+    }
+    const date = new Date(utcString);
     return date.toLocaleString('zh-CN', { 
+      year: 'numeric',
       month: '2-digit',
       day: '2-digit',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      timeZone: 'Asia/Shanghai'
     });
   } catch {
     return dateString;
@@ -294,8 +326,17 @@ const formatDateTime = (dateString) => {
 const formatTime = (dateString) => {
   if (!dateString) return '--:--';
   try {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    // 确保UTC时间字符串带有Z标识
+    let utcString = dateString;
+    if (!dateString.endsWith('Z') && !dateString.includes('+')) {
+      utcString = dateString + 'Z';
+    }
+    const date = new Date(utcString);
+    return date.toLocaleTimeString('zh-CN', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      timeZone: 'Asia/Shanghai'
+    });
   } catch {
     return '--:--';
   }
@@ -347,7 +388,7 @@ const getTaskTimingStatus = (task) => {
 
 const getTaskStatusText = (status) => {
   const statusMap = {
-    0: '待申请', 1: '已申请', 2: '已确认', 3: '已分配',
+    0: '待申请', 1: '已申请', 2: '已确认', 3: '待执行',
     4: '进行中', 5: '已完成', 6: '未完成', 7: '停嘱中', 8: '已停止'
   };
   return statusMap[status] || `状态${status}`;

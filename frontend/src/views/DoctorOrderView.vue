@@ -29,10 +29,38 @@
 
       <!-- 筛选工具栏 -->
       <div v-if="selectedPatients.length > 0" class="filter-toolbar">
+        <!-- 时间范围 -->
+        <div class="filter-group">
+          <span class="filter-label">开具时间:</span>
+          <el-date-picker
+            v-model="timeRange"
+            type="datetimerange"
+            range-separator="至"
+            start-placeholder="开始时间"
+            end-placeholder="结束时间"
+            value-format="YYYY-MM-DDTHH:mm:ss"
+            @change="loadOrders"
+            class="time-picker"
+            size="small"
+          />
+        </div>
+
+        <!-- 类型筛选 -->
+        <div class="filter-group">
+          <span class="filter-label">类型:</span>
+          <el-checkbox-group v-model="typeFilter" @change="loadOrders" size="small">
+            <el-checkbox label="MedicationOrder">药品</el-checkbox>
+            <el-checkbox label="InspectionOrder">检查</el-checkbox>
+            <el-checkbox label="OperationOrder">操作</el-checkbox>
+            <el-checkbox label="SurgicalOrder">手术</el-checkbox>
+            <el-checkbox label="DischargeOrder">出院</el-checkbox>
+          </el-checkbox-group>
+        </div>
+
         <!-- 状态筛选 -->
         <div class="filter-group">
           <span class="filter-label">状态:</span>
-          <el-checkbox-group v-model="statusFilter" @change="loadOrders">
+          <el-checkbox-group v-model="statusFilter" @change="loadOrders" size="small">
             <el-checkbox :label="1">未签收</el-checkbox>
             <el-checkbox :label="2">已签收</el-checkbox>
             <el-checkbox :label="3">进行中</el-checkbox>
@@ -43,36 +71,10 @@
           </el-checkbox-group>
         </div>
 
-        <!-- 类型筛选 -->
-        <div class="filter-group">
-          <span class="filter-label">类型:</span>
-          <el-checkbox-group v-model="typeFilter" @change="loadOrders">
-            <el-checkbox label="MedicationOrder">药品</el-checkbox>
-            <el-checkbox label="InspectionOrder">检查</el-checkbox>
-            <el-checkbox label="OperationOrder">操作</el-checkbox>
-            <el-checkbox label="SurgicalOrder">手术</el-checkbox>
-          </el-checkbox-group>
-        </div>
-
-        <!-- 时间范围 -->
-        <div class="filter-group">
-          <span class="filter-label">时间:</span>
-          <el-date-picker
-            v-model="timeRange"
-            type="datetimerange"
-            range-separator="至"
-            start-placeholder="开始时间"
-            end-placeholder="结束时间"
-            value-format="YYYY-MM-DDTHH:mm:ss"
-            @change="loadOrders"
-            class="time-picker"
-          />
-        </div>
-
         <!-- 排序方式 -->
         <div class="filter-group">
           <span class="filter-label">排序:</span>
-          <el-select v-model="sortBy" @change="handleSortChange" class="sort-select">
+          <el-select v-model="sortBy" @change="handleSortChange" class="sort-select" size="small">
             <el-option label="创建时间" value="CreateTime" />
             <el-option label="医嘱状态" value="Status" />
             <el-option label="医嘱类型" value="OrderType" />
@@ -123,7 +125,7 @@
             </el-tag>
 
             <!-- 医嘱摘要 -->
-            <span class="order-summary">{{ order.summary }}</span>
+            <span class="order-summary">{{ formatOrderSummary(order) }}</span>
 
             <!-- 停嘱标识：只在医嘱处于停嘱相关状态时显示 -->
             <span 
@@ -178,6 +180,15 @@
               @click.stop="handleStopOrder(order)"
             >
               停止医嘱
+            </el-button>
+            <!-- 等待停嘱状态：撤回停嘱申请 -->
+            <el-button 
+              v-if="order.status === 8"
+              type="warning" 
+              size="small"
+              @click.stop="handleWithdrawStop(order)"
+            >
+              撤回停嘱
             </el-button>
             <!-- 已退回医嘱的操作按钮 -->
             <el-button 
@@ -257,7 +268,7 @@ import PatientInfoBar from '@/components/PatientInfoBar.vue';
 import OrderDetailPanel from '@/components/OrderDetailPanel.vue';
 import StopOrderPanel from '@/components/StopOrderPanel.vue';
 import { usePatientData } from '@/composables/usePatientData';
-import { queryOrders, getOrderDetail, stopOrder, resubmitRejectedOrder, cancelRejectedOrder } from '@/api/doctorOrder';
+import { queryOrders, getOrderDetail, stopOrder, resubmitRejectedOrder, cancelRejectedOrder, withdrawStopOrder } from '@/api/doctorOrder';
 
 // ==================== 患者数据 ====================
 const { 
@@ -274,7 +285,7 @@ const {
 // 默认显示未签收(1)、已签收(2)、进行中(3)的医嘱
 const statusFilter = ref([1, 2, 3]);
 // 默认显示所有类型
-const typeFilter = ref(['MedicationOrder', 'InspectionOrder', 'OperationOrder', 'SurgicalOrder']);
+const typeFilter = ref(['MedicationOrder', 'InspectionOrder', 'OperationOrder', 'SurgicalOrder', 'DischargeOrder']);
 // 时间范围
 const timeRange = ref(null);
 // 排序方式（默认创建时间降序）
@@ -420,9 +431,20 @@ const handleStopConfirm = async (stopData) => {
 
 // ==================== 判断是否可以停止医嘱 ====================
 const canStopOrder = (order) => {
-  // 待签收(1)、已签收(2)或进行中(3)状态的医嘱可以停止
+  // 待签收(1)、已签收(2)、进行中(3)或已停止(5)状态的医嘱可以停止
   // 未签收的医嘱停止后直接取消，不需要护士签收
-  return order.status === 1 || order.status === 2 || order.status === 3;
+  // 已停止的医嘱如果还有未完成的任务，可以再次停止（更改停止节点）
+  if (order.status === 1 || order.status === 2 || order.status === 3) {
+    return true;
+  }
+  
+  // 已停止状态(5)：检查是否有未完成的任务（通过任务计数判断）
+  if (order.status === 5) {
+    // 如果有未完成的任务（完成数 < 总数），则可以再次停止
+    return order.completedTaskCount < order.taskCount;
+  }
+  
+  return false;
 };
 
 // ==================== 重新提交已退回的医嘱 ====================
@@ -479,6 +501,43 @@ const handleCancel = async (order) => {
   }
 };
 
+// ==================== 医生撤回停嘱申请 ====================
+const handleWithdrawStop = async (order) => {
+  try {
+    const { value: withdrawReason } = await ElMessageBox.prompt(
+      '确认撤回停嘱申请？撤回后医嘱将继续执行，被锁定的任务将解锁。',
+      '撤回停嘱',
+      {
+        confirmButtonText: '确认撤回',
+        cancelButtonText: '取消',
+        inputPattern: /\S+/,
+        inputErrorMessage: '撤回原因不能为空',
+        inputType: 'textarea',
+        inputPlaceholder: '请输入撤回原因，例如：病情有变化，暂不停嘱'
+      }
+    );
+
+    const currentDoctor = getCurrentDoctor();
+    const result = await withdrawStopOrder({
+      orderId: order.id,
+      doctorId: currentDoctor.staffId,
+      withdrawReason: withdrawReason
+    });
+
+    if (result.success) {
+      ElMessage.success(`撤回成功，已解锁 ${result.restoredTaskIds?.length || 0} 个任务`);
+      await loadOrders();
+    } else {
+      ElMessage.error(result.message || '撤回失败');
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('撤回停嘱失败:', error);
+      ElMessage.error(error.message || '撤回停嘱失败');
+    }
+  }
+};
+
 // ==================== 计算任务进度 ====================
 const calculateTaskProgress = (order) => {
   if (order.taskCount === 0) return 0;
@@ -530,7 +589,8 @@ const getOrderTypeName = (orderType) => {
     MedicationOrder: '药品',
     InspectionOrder: '检查',
     OperationOrder: '操作',
-    SurgicalOrder: '手术'
+    SurgicalOrder: '手术',
+    DischargeOrder: '出院'
   };
   return nameMap[orderType] || orderType;
 };
@@ -540,22 +600,41 @@ const getOrderTypeColor = (orderType) => {
     MedicationOrder: 'success',
     InspectionOrder: 'info',
     OperationOrder: 'warning',
-    SurgicalOrder: 'danger'
+    SurgicalOrder: 'danger',
+    DischargeOrder: 'primary'
   };
   return colorMap[orderType] || 'info';
+};
+
+// ==================== 格式化医嘱标题 ====================
+const formatOrderSummary = (order) => {
+  // 如果是出院医嘱，显示特殊格式
+  if (order.orderType === 'DischargeOrder') {
+    const dischargeTime = order.plantEndTime || order.createTime;
+    return `出院医嘱-预计出院时间: ${formatDateTime(dischargeTime)}`;
+  }
+  // 其他医嘱直接返回 summary
+  return order.summary;
 };
 
 // ==================== 格式化日期时间 ====================
 const formatDateTime = (dateString) => {
   if (!dateString) return '-';
   try {
-    const date = new Date(dateString);
+    // 确保UTC时间字符串带有Z标识
+    let utcString = dateString;
+    if (!dateString.endsWith('Z') && !dateString.includes('+')) {
+      utcString = dateString + 'Z';
+    }
+    const date = new Date(utcString);
+    // JavaScript的toLocaleString会自动转换为本地时区（北京时间UTC+8）
     return date.toLocaleString('zh-CN', { 
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      timeZone: 'Asia/Shanghai'
     });
   } catch {
     return dateString;
