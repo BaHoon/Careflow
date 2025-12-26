@@ -304,6 +304,79 @@ public class DoctorOrderController : ControllerBase
             return StatusCode(500, new { success = false, message = ex.Message });
         }
     }
+
+    /// <summary>
+    /// 医生撤回停嘱申请
+    /// </summary>
+    /// <param name="request">撤回请求</param>
+    /// <returns>撤回结果，包含被恢复的任务列表</returns>
+    /// <remarks>
+    /// 业务逻辑：
+    /// 1. 验证医嘱状态（只有 PendingStop 可撤回）
+    /// 2. 查询医嘱进入PendingStop前的状态（从历史记录表）
+    /// 3. 恢复医嘱状态到停止前的状态（Accepted 或 InProgress）
+    /// 4. 清空停嘱相关字段（StopReason, StopOrderTime等）
+    /// 5. 恢复所有被锁定的任务（OrderStopping → StatusBeforeLocking）
+    /// 6. 记录撤回操作的审计信息
+    /// 
+    /// 示例请求：
+    /// {
+    ///   "orderId": 123,
+    ///   "doctorId": "D001",
+    ///   "withdrawReason": "病情有变化，暂不停嘱"
+    /// }
+    /// </remarks>
+    [HttpPost("withdraw-stop")]
+    public async Task<ActionResult<WithdrawStopResponseDto>> WithdrawStop(
+        [FromBody] WithdrawStopRequestDto request)
+    {
+        try
+        {
+            // 参数验证
+            if (request.OrderId <= 0)
+            {
+                return BadRequest(new { message = "医嘱ID无效" });
+            }
+
+            if (string.IsNullOrWhiteSpace(request.DoctorId))
+            {
+                return BadRequest(new { message = "医生ID不能为空" });
+            }
+
+            if (string.IsNullOrWhiteSpace(request.WithdrawReason))
+            {
+                return BadRequest(new { message = "撤回原因不能为空" });
+            }
+
+            _logger.LogInformation("接收撤回停嘱请求: 医嘱 {OrderId}, 医生 {DoctorId}",
+                request.OrderId, request.DoctorId);
+
+            var result = await _queryService.WithdrawStopAsync(request);
+
+            if (result.Success)
+            {
+                _logger.LogInformation("✅ 撤回停嘱成功: 医嘱 {OrderId}, 恢复 {TaskCount} 个任务",
+                    request.OrderId, result.RestoredTaskIds.Count);
+                return Ok(result);
+            }
+            else
+            {
+                _logger.LogWarning("⚠️ 撤回停嘱失败: {Message}", result.Message);
+                return BadRequest(result);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ 撤回停嘱时发生异常: {OrderId}", request.OrderId);
+            return StatusCode(500, new WithdrawStopResponseDto
+            {
+                Success = false,
+                OrderId = request.OrderId,
+                Message = "撤回停嘱失败",
+                Errors = new List<string> { $"系统错误: {ex.Message}" }
+            });
+        }
+    }
 }
 
 // DTO类定义

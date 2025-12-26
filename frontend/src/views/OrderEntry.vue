@@ -2659,13 +2659,22 @@ const getDrugName = (id) => {
 
 const formatDateTime = (datetime) => {
   if (!datetime) return '';
-  const date = new Date(datetime);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  return `${year}-${month}-${day} ${hours}:${minutes}`;
+  try {
+    // 确保UTC时间字符串带有Z标识
+    let utcString = datetime;
+    if (typeof datetime === 'string' && !datetime.endsWith('Z') && !datetime.includes('+')) {
+      utcString = datetime + 'Z';
+    }
+    const date = new Date(utcString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
+  } catch {
+    return datetime;
+  }
 };
 
 const formatDate = (datetime) => {

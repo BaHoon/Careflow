@@ -570,7 +570,10 @@ public class OrderApplicationService : IOrderApplicationService
                 // 更新状态回到Applying
                 task.Status = ExecutionTaskStatus.Applying;
                 task.LastModifiedAt = DateTime.UtcNow;
-                task.ExceptionReason = $"[{DateTime.UtcNow:yyyy-MM-dd HH:mm}] 护士{nurseId}撤销申请: {reason ?? "无"}";
+                // 转换为北京时间显示
+                var chinaTimeZone = TimeZoneInfo.FindSystemTimeZoneById("China Standard Time");
+                var beijingTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, chinaTimeZone);
+                task.ExceptionReason = $"[{beijingTime:yyyy-MM-dd HH:mm}] 护士{nurseId}撤销申请: {reason ?? "无"}";
 
                 await _taskRepository.UpdateAsync(task);
                 processedIds.Add(taskId);
@@ -625,8 +628,10 @@ public class OrderApplicationService : IOrderApplicationService
                     continue;
                 }
 
-                // 记录撤销信息
-                order.Remarks += $"\n[{DateTime.UtcNow:yyyy-MM-dd HH:mm}] 护士{nurseId}撤销申请: {reason ?? "无"}";
+                // 记录撤销信息（转换为北京时间显示）
+                var chinaTimeZone = TimeZoneInfo.FindSystemTimeZoneById("China Standard Time");
+                var beijingTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, chinaTimeZone);
+                order.Remarks += $"\n[{beijingTime:yyyy-MM-dd HH:mm}] 护士{nurseId}撤销申请: {reason ?? "无"}";
 
                 await _inspectionOrderRepository.UpdateAsync(order);
                 processedIds.Add(orderId);

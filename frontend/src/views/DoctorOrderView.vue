@@ -181,6 +181,15 @@
             >
               停止医嘱
             </el-button>
+            <!-- 等待停嘱状态：撤回停嘱申请 -->
+            <el-button 
+              v-if="order.status === 8"
+              type="warning" 
+              size="small"
+              @click.stop="handleWithdrawStop(order)"
+            >
+              撤回停嘱
+            </el-button>
             <!-- 已退回医嘱的操作按钮 -->
             <el-button 
               v-if="order.status === 7"
@@ -259,7 +268,7 @@ import PatientInfoBar from '@/components/PatientInfoBar.vue';
 import OrderDetailPanel from '@/components/OrderDetailPanel.vue';
 import StopOrderPanel from '@/components/StopOrderPanel.vue';
 import { usePatientData } from '@/composables/usePatientData';
-import { queryOrders, getOrderDetail, stopOrder, resubmitRejectedOrder, cancelRejectedOrder } from '@/api/doctorOrder';
+import { queryOrders, getOrderDetail, stopOrder, resubmitRejectedOrder, cancelRejectedOrder, withdrawStopOrder } from '@/api/doctorOrder';
 
 // ==================== 患者数据 ====================
 const { 
@@ -422,9 +431,20 @@ const handleStopConfirm = async (stopData) => {
 
 // ==================== 判断是否可以停止医嘱 ====================
 const canStopOrder = (order) => {
-  // 待签收(1)、已签收(2)或进行中(3)状态的医嘱可以停止
+  // 待签收(1)、已签收(2)、进行中(3)或已停止(5)状态的医嘱可以停止
   // 未签收的医嘱停止后直接取消，不需要护士签收
-  return order.status === 1 || order.status === 2 || order.status === 3;
+  // 已停止的医嘱如果还有未完成的任务，可以再次停止（更改停止节点）
+  if (order.status === 1 || order.status === 2 || order.status === 3) {
+    return true;
+  }
+  
+  // 已停止状态(5)：检查是否有未完成的任务（通过任务计数判断）
+  if (order.status === 5) {
+    // 如果有未完成的任务（完成数 < 总数），则可以再次停止
+    return order.completedTaskCount < order.taskCount;
+  }
+  
+  return false;
 };
 
 // ==================== 重新提交已退回的医嘱 ====================
@@ -477,6 +497,43 @@ const handleCancel = async (order) => {
     if (error !== 'cancel') {
       console.error('撤销失败:', error);
       ElMessage.error(error.message || '撤销失败');
+    }
+  }
+};
+
+// ==================== 医生撤回停嘱申请 ====================
+const handleWithdrawStop = async (order) => {
+  try {
+    const { value: withdrawReason } = await ElMessageBox.prompt(
+      '确认撤回停嘱申请？撤回后医嘱将继续执行，被锁定的任务将解锁。',
+      '撤回停嘱',
+      {
+        confirmButtonText: '确认撤回',
+        cancelButtonText: '取消',
+        inputPattern: /\S+/,
+        inputErrorMessage: '撤回原因不能为空',
+        inputType: 'textarea',
+        inputPlaceholder: '请输入撤回原因，例如：病情有变化，暂不停嘱'
+      }
+    );
+
+    const currentDoctor = getCurrentDoctor();
+    const result = await withdrawStopOrder({
+      orderId: order.id,
+      doctorId: currentDoctor.staffId,
+      withdrawReason: withdrawReason
+    });
+
+    if (result.success) {
+      ElMessage.success(`撤回成功，已解锁 ${result.restoredTaskIds?.length || 0} 个任务`);
+      await loadOrders();
+    } else {
+      ElMessage.error(result.message || '撤回失败');
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('撤回停嘱失败:', error);
+      ElMessage.error(error.message || '撤回停嘱失败');
     }
   }
 };
@@ -564,13 +621,20 @@ const formatOrderSummary = (order) => {
 const formatDateTime = (dateString) => {
   if (!dateString) return '-';
   try {
-    const date = new Date(dateString);
+    // 确保UTC时间字符串带有Z标识
+    let utcString = dateString;
+    if (!dateString.endsWith('Z') && !dateString.includes('+')) {
+      utcString = dateString + 'Z';
+    }
+    const date = new Date(utcString);
+    // JavaScript的toLocaleString会自动转换为本地时区（北京时间UTC+8）
     return date.toLocaleString('zh-CN', { 
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      timeZone: 'Asia/Shanghai'
     });
   } catch {
     return dateString;

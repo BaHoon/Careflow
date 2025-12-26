@@ -1707,14 +1707,25 @@ const getUsageRouteText = (route) => {
 // 格式化日期时间
 const formatDateTime = (dateTime) => {
   if (!dateTime) return '-';
-  const date = new Date(dateTime);
-  return date.toLocaleString('zh-CN', { 
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  try {
+    // 确保UTC时间字符串带有Z标识
+    let utcString = dateTime;
+    if (!dateTime.endsWith('Z') && !dateTime.includes('+')) {
+      utcString = dateTime + 'Z';
+    }
+    const date = new Date(utcString);
+    // JavaScript的toLocaleString会自动转换为本地时区（北京时间UTC+8）
+    return date.toLocaleString('zh-CN', { 
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Asia/Shanghai'
+    });
+  } catch {
+    return dateTime;
+  }
 };
 </script>
 

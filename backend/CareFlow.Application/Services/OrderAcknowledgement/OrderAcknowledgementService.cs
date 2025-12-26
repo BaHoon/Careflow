@@ -445,8 +445,10 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
                     task.StatusBeforeLocking = null; // 清空锁定前状态字段
                     task.LastModifiedAt = DateTime.UtcNow;
                     
-                    // 记录操作日志到 ExceptionReason（用于审计）
-                    var operationLog = $"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}] 护士 {request.NurseId} 拒绝停嘱，" +
+                    // 记录操作日志到 ExceptionReason（用于审计，转换为北京时间显示）
+                    var chinaTimeZone = TimeZoneInfo.FindSystemTimeZoneById("China Standard Time");
+                    var beijingTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, chinaTimeZone);
+                    var operationLog = $"[{beijingTime:yyyy-MM-dd HH:mm:ss}] 护士 {request.NurseId} 拒绝停嘱，" +
                                       $"任务从 {originalStatus} 恢复为 {restoredStatus}。" +
                                       $"原因: {request.RejectReason}";
                     
@@ -727,8 +729,10 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
                 task.ActualEndTime = DateTime.UtcNow;
                 task.LastModifiedAt = DateTime.UtcNow;
                 
-                // 记录详细的停止原因
-                var stopReason = $"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}] 医嘱已停止（护士 {nurseId} 确认）。" +
+                // 记录详细的停止原因（转换为北京时间显示）
+                var chinaTimeZone = TimeZoneInfo.FindSystemTimeZoneById("China Standard Time");
+                var beijingTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, chinaTimeZone);
+                var stopReason = $"[{beijingTime:yyyy-MM-dd HH:mm:ss}] 医嘱已停止（护士 {nurseId} 确认）。" +
                                $"任务原状态: {statusBeforeLocking?.ToString() ?? "未记录"}，" +
                                $"锁定状态: {originalStatus}";
                 

@@ -611,9 +611,9 @@ namespace CareFlow.Infrastructure.Data
                 },
                 new Patient
                 {
-                    Id = "P003", Name = "MYX", Gender = "女", IdCard = "110100197803030003",
+                    Id = "P003", Name = "王五", Gender = "女", IdCard = "110100197803030003",
                     DateOfBirth = new DateTime(1978, 3, 3, 0, 0, 0, DateTimeKind.Utc),
-                    Age = 44, Weight = 444f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138003",
+                    Age = 44, Weight = 64.2f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138003",
                     NursingGrade = NursingGrade.Grade3, BedId = "SUR-W01-001", AttendingDoctorId = "D002"
                 },
                 new Patient

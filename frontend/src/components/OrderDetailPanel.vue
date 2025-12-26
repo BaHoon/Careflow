@@ -449,13 +449,20 @@ watch(() => props.detail, (newDetail) => {
 const formatDateTime = (dateString) => {
   if (!dateString) return '-';
   try {
-    const date = new Date(dateString);
+    // 确保UTC时间字符串带有Z标识
+    let utcString = dateString;
+    if (!dateString.endsWith('Z') && !dateString.includes('+')) {
+      utcString = dateString + 'Z';
+    }
+    const date = new Date(utcString);
+    // JavaScript的toLocaleString会自动转换为本地时区（北京时间UTC+8）
     return date.toLocaleString('zh-CN', { 
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      timeZone: 'Asia/Shanghai'
     });
   } catch {
     return dateString;
@@ -595,8 +602,17 @@ const getTaskCategoryStyle = (category) => {
 const formatTime = (dateString) => {
   if (!dateString) return '--:--';
   try {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    // 确保UTC时间字符串带有Z标识
+    let utcString = dateString;
+    if (!dateString.endsWith('Z') && !dateString.includes('+')) {
+      utcString = dateString + 'Z';
+    }
+    const date = new Date(utcString);
+    return date.toLocaleTimeString('zh-CN', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      timeZone: 'Asia/Shanghai'
+    });
   } catch {
     return '--:--';
   }
