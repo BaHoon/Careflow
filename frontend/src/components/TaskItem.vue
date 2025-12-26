@@ -13,7 +13,10 @@
         <el-icon :size="18" class="task-icon">
           <component :is="categoryIcon" />
         </el-icon>
-        <span class="task-category">{{ categoryText }}</span>
+        <span class="task-operation-name">{{ operationName }}</span>
+        <el-tag :type="getCategoryTagType(task.category)" size="small" style="margin-left: 8px;">
+          {{ categoryText }}
+        </el-tag>
       </div>
       <el-tag :type="statusTagType" size="small">{{ statusText }}</el-tag>
     </div>
@@ -138,6 +141,33 @@ const categoryText = computed(() => {
   };
   return textMap[props.task.category] || props.task.category;
 });
+
+// 操作名称（优先使用dataPayload中的OperationName或Title，否则使用opId）
+const operationName = computed(() => {
+  if (props.task.dataPayload) {
+    try {
+      const payload = typeof props.task.dataPayload === 'string' 
+        ? JSON.parse(props.task.dataPayload) 
+        : props.task.dataPayload;
+      return payload.OperationName || payload.Title || props.task.opId || '操作任务';
+    } catch (e) {
+      console.error('解析dataPayload失败:', e);
+    }
+  }
+  return props.task.opId || '操作任务';
+});
+
+// 任务类别标签类型
+const getCategoryTagType = (category) => {
+  const typeMap = {
+    'Immediate': 'success',
+    'Duration': 'primary',
+    'ResultPending': 'warning',
+    'DataCollection': 'info',
+    'Verification': ''
+  };
+  return typeMap[category] || '';
+};
 
 // 状态标签类型
 const statusTagType = computed(() => {

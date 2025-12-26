@@ -67,26 +67,48 @@
     >
       <div v-if="currentTask" class="task-detail">
         <el-descriptions :column="2" border>
+          <!-- 任务基本信息 -->
           <el-descriptions-item label="任务ID">
             {{ currentTask.id }}
           </el-descriptions-item>
-          <el-descriptions-item label="医嘱ID">
-            {{ currentTask.medicalOrderId }}
+          <el-descriptions-item label="任务来源">
+            <el-tag :type="currentTask.taskSource === 'ExecutionTask' ? 'primary' : 'success'">
+              {{ currentTask.taskSource === 'ExecutionTask' ? '医嘱执行任务' : '护理任务' }}
+            </el-tag>
           </el-descriptions-item>
+          
+          <!-- 操作信息（仅操作类任务显示） -->
+          <el-descriptions-item v-if="currentTask.taskSource === 'ExecutionTask'" label="操作名称" :span="2">
+            <el-tag type="primary" size="large">{{ getOperationName(currentTask) }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item v-if="currentTask.taskSource === 'ExecutionTask'" label="操作代码">
+            {{ getOperationCode(currentTask) }}
+          </el-descriptions-item>
+          <el-descriptions-item v-if="currentTask.taskSource === 'ExecutionTask'" label="操作部位">
+            {{ getOperationSite(currentTask) || '-' }}
+          </el-descriptions-item>
+          
+          <!-- 患者信息 -->
           <el-descriptions-item label="患者姓名">
             {{ currentTask.patientName }}
           </el-descriptions-item>
           <el-descriptions-item label="床号">
             {{ currentTask.bedId }}
           </el-descriptions-item>
+          
+          <!-- 任务类别和状态 -->
           <el-descriptions-item label="任务类别">
-            {{ currentTask.category }}
+            <el-tag :type="getCategoryTagType(currentTask.category)">
+              {{ getCategoryText(currentTask.category) }}
+            </el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="任务状态">
             <el-tag :type="getStatusTagType(currentTask.status)">
               {{ getStatusText(currentTask.status) }}
             </el-tag>
           </el-descriptions-item>
+          
+          <!-- 时间信息 -->
           <el-descriptions-item label="计划开始时间" :span="2">
             {{ formatDateTime(currentTask.plannedStartTime) }}
           </el-descriptions-item>
@@ -104,15 +126,73 @@
           >
             {{ formatDateTime(currentTask.actualEndTime) }}
           </el-descriptions-item>
-          <el-descriptions-item label="任务数据" :span="2">
-            <pre class="json-display">{{ formatJson(currentTask.dataPayload) }}</pre>
+          
+          <!-- 护士信息 -->
+          <el-descriptions-item v-if="currentTask.assignedNurseName" label="负责护士">
+            {{ currentTask.assignedNurseName }}
           </el-descriptions-item>
+          <el-descriptions-item v-if="currentTask.executorNurseName" label="执行护士">
+            {{ currentTask.executorNurseName }}
+          </el-descriptions-item>
+          
+          <!-- 延迟信息 -->
+          <el-descriptions-item v-if="currentTask.delayMinutes !== undefined && currentTask.delayMinutes !== null" label="延迟分钟数">
+            {{ currentTask.delayMinutes }} 分钟
+          </el-descriptions-item>
+          <el-descriptions-item v-if="currentTask.allowedDelayMinutes !== undefined && currentTask.allowedDelayMinutes !== null" label="允许延迟">
+            {{ currentTask.allowedDelayMinutes }} 分钟
+          </el-descriptions-item>
+          
+          <!-- 准备物品（仅操作类任务） -->
+          <el-descriptions-item
+            v-if="currentTask.taskSource === 'ExecutionTask' && getPreparationItems(currentTask).length > 0"
+            label="准备物品"
+            :span="2"
+          >
+            <el-tag
+              v-for="(item, index) in getPreparationItems(currentTask)"
+              :key="index"
+              type="info"
+              style="margin-right: 8px; margin-bottom: 4px;"
+            >
+              {{ item }}
+            </el-tag>
+          </el-descriptions-item>
+          
+          <!-- 操作说明（仅操作类任务） -->
+          <el-descriptions-item
+            v-if="currentTask.taskSource === 'ExecutionTask' && getTaskDescription(currentTask)"
+            label="操作说明"
+            :span="2"
+          >
+            {{ getTaskDescription(currentTask) }}
+          </el-descriptions-item>
+          
+          <!-- 执行结果 -->
           <el-descriptions-item
             v-if="currentTask.resultPayload"
             label="执行结果"
             :span="2"
           >
             <pre class="json-display">{{ formatJson(currentTask.resultPayload) }}</pre>
+          </el-descriptions-item>
+          
+          <!-- 异常原因 -->
+          <el-descriptions-item
+            v-if="currentTask.exceptionReason"
+            label="异常原因"
+            :span="2"
+          >
+            <span style="color: #f56c6c;">{{ currentTask.exceptionReason }}</span>
+          </el-descriptions-item>
+          
+          <!-- 原始数据载荷（调试用，可选） -->
+          <el-descriptions-item
+            v-if="currentTask.dataPayload && false"
+            label="数据载荷（调试）"
+            :span="2"
+          >
+            <pre class="json-display">{{ formatJson(currentTask.dataPayload) }}</pre>
           </el-descriptions-item>
         </el-descriptions>
       </div>
@@ -358,6 +438,105 @@ const getStatusText = (status) => {
     'Cancelled': '已取消'
   };
   return textMap[status] || status;
+};
+
+// 获取操作名称
+const getOperationName = (task) => {
+  if (task.dataPayload) {
+    try {
+      const payload = typeof task.dataPayload === 'string' 
+        ? JSON.parse(task.dataPayload) 
+        : task.dataPayload;
+      return payload.OperationName || payload.Title || task.opId || '操作任务';
+    } catch (e) {
+      console.error('解析dataPayload失败:', e);
+    }
+  }
+  return task.opId || '操作任务';
+};
+
+// 获取操作代码
+const getOperationCode = (task) => {
+  if (task.dataPayload) {
+    try {
+      const payload = typeof task.dataPayload === 'string' 
+        ? JSON.parse(task.dataPayload) 
+        : task.dataPayload;
+      return payload.OpId || task.opId || '-';
+    } catch (e) {
+      console.error('解析dataPayload失败:', e);
+    }
+  }
+  return task.opId || '-';
+};
+
+// 获取操作部位
+const getOperationSite = (task) => {
+  if (task.dataPayload) {
+    try {
+      const payload = typeof task.dataPayload === 'string' 
+        ? JSON.parse(task.dataPayload) 
+        : task.dataPayload;
+      return payload.OperationSite || null;
+    } catch (e) {
+      console.error('解析dataPayload失败:', e);
+    }
+  }
+  return null;
+};
+
+// 获取准备物品列表
+const getPreparationItems = (task) => {
+  if (task.dataPayload) {
+    try {
+      const payload = typeof task.dataPayload === 'string' 
+        ? JSON.parse(task.dataPayload) 
+        : task.dataPayload;
+      return payload.PreparationItems || [];
+    } catch (e) {
+      console.error('解析dataPayload失败:', e);
+    }
+  }
+  return [];
+};
+
+// 获取任务说明
+const getTaskDescription = (task) => {
+  if (task.dataPayload) {
+    try {
+      const payload = typeof task.dataPayload === 'string' 
+        ? JSON.parse(task.dataPayload) 
+        : task.dataPayload;
+      return payload.Description || null;
+    } catch (e) {
+      console.error('解析dataPayload失败:', e);
+    }
+  }
+  return null;
+};
+
+// 任务类别文本
+const getCategoryText = (category) => {
+  const textMap = {
+    'Immediate': '即刻执行',
+    'Duration': '持续任务',
+    'ResultPending': '结果待定',
+    'DataCollection': '数据采集',
+    'Verification': '核对验证'
+  };
+  return textMap[category] || category;
+};
+
+// 任务类别标签类型
+const getCategoryTagType = (category) => {
+  const typeMap = {
+    'Immediate': 'success',
+    'Duration': 'primary',
+    'ResultPending': 'warning',
+    'DataCollection': 'info',
+    'Verification': ''
+  };
+  return typeMap[category] || '';
 };
 
 // 组件挂载

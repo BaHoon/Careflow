@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using System.Linq;
 
-namespace CareFlow.Application.Services;
+namespace CareFlow.Application.Services.MedicalOrder.MedicationOrders;
 
 public class MedicationOrderTaskService : IMedicationOrderTaskService
 {
