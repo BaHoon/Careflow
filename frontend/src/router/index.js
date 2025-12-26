@@ -7,7 +7,6 @@ import Home from '../views/Home.vue'
 // 布局组件
 import NurseLayout from '../layouts/NurseLayout.vue'
 import DoctorLayout from '../layouts/DoctorLayout.vue'
-import Inspection from '../views/Inspection.vue'
 
 // 护士子页面
 import NurseDashboard from '../views/NurseDashboard.vue'

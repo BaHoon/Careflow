@@ -154,6 +154,9 @@ if (app.Environment.IsDevelopment())
 // 启用 HTTPS 重定向
 app.UseHttpsRedirection();
 
+// 启用静态文件服务（用于访问 wwwroot 目录下的文件，如报告PDF、条形码图片等）
+app.UseStaticFiles();
+
 // 启用 CORS (必须放在 UseAuthorization 之前)
 app.UseCors("AllowAll");
 

@@ -346,10 +346,11 @@
               <div class="task-section">
                 <div class="section-title">⏰ 时间线</div>
                 <div class="timeline-item">
-                  <span class="timeline-label">计划:</span>
+                  <span class="timeline-label">{{ isInspectionTask(task) ? '检查预约时间' : '计划时间' }}:</span>
                   <span class="timeline-value">{{ formatDateTime(task.plannedStartTime) }}</span>
                 </div>
-                <div v-if="task.actualStartTime" class="timeline-item">
+                <!-- 检查类任务不显示开始时间，只显示计划时间（预约时间） -->
+                <div v-if="task.actualStartTime && !isInspectionTask(task)" class="timeline-item">
                   <span class="timeline-label">开始:</span>
                   <span class="timeline-value">{{ formatDateTime(task.actualStartTime) }}</span>
                   <span v-if="getDelayMinutes(task.plannedStartTime, task.actualStartTime) !== null" class="timeline-badge" :class="getDelayClass(getDelayMinutes(task.plannedStartTime, task.actualStartTime))">
@@ -359,7 +360,7 @@
                 <div v-if="task.actualEndTime" class="timeline-item">
                   <span class="timeline-label">结束:</span>
                   <span class="timeline-value">{{ formatDateTime(task.actualEndTime) }}</span>
-                  <span v-if="getDurationMinutes(task.actualStartTime, task.actualEndTime)" class="timeline-badge duration">
+                  <span v-if="getDurationMinutes(task.actualStartTime, task.actualEndTime) && !isInspectionTask(task)" class="timeline-badge duration">
                     [耗时{{ getDurationMinutes(task.actualStartTime, task.actualEndTime) }}分钟]
                   </span>
                 </div>
@@ -388,7 +389,20 @@
                 >
                   修改执行情况
                 </el-button>
+                <!-- 检查医嘱的检查申请任务：显示查看报告按钮 -->
                 <el-button 
+                  v-if="isInspectionApplicationTask(task, index)"
+                  :type="hasInspectionReport() ? 'success' : 'info'"
+                  size="small"
+                  @click.stop="handleInspectionReport(task)"
+                  :icon="Printer"
+                  :disabled="!hasInspectionReport()"
+                >
+                  {{ hasInspectionReport() ? '查看检查报告' : '报告未出' }}
+                </el-button>
+                <!-- 其他任务：显示打印执行单按钮 -->
+                <el-button 
+                  v-else
                   type="success" 
                   size="small"
                   @click.stop="emit('print-task-sheet', task.id)"
@@ -429,7 +443,8 @@ const props = defineProps({
 // ==================== Emits ====================
 const emit = defineEmits([
   'update-task-execution',  // 修改任务执行情况
-  'print-task-sheet'        // 打印任务执行单
+  'print-task-sheet',       // 打印任务执行单
+  'view-inspection-report'  // 查看检查报告
 ]);
 
 // ==================== 风琴控制 ====================
@@ -469,6 +484,38 @@ watch(() => props.detail, (newDetail) => {
   expandAllTasks.value = false;
 }, { immediate: true });
 
+// ==================== 检查报告相关 ====================
+// 判断是否为检查申请任务（检查医嘱的第二个任务）
+const isInspectionApplicationTask = (task, index) => {
+  return props.detail.orderType === 'InspectionOrder' && index === 1;
+};
+
+// 判断是否为检查类任务（用于时间线显示）
+const isInspectionTask = (task) => {
+  return props.detail.orderType === 'InspectionOrder';
+};
+
+// 判断检查报告是否已经出来
+const hasInspectionReport = () => {
+  return props.detail.reportTime != null && props.detail.reportId != null;
+};
+
+// 处理查看检查报告
+const handleInspectionReport = (task) => {
+  if (hasInspectionReport()) {
+    // 发送事件通知父组件打开报告
+    emit('view-inspection-report', {
+      orderId: props.detail.id,
+      reportId: props.detail.reportId,
+      reportUrl: props.detail.attachmentUrl || 'reports/REPORT.pdf'
+    });
+  } else {
+    // 报告还未出来，提示用户
+    // 按钮已禁用，这里不会执行
+  }
+};
+
+// 直接从检查信息区域查看报告
 // ==================== 格式化方法 ====================
 const formatDateTime = (dateString) => {
   if (!dateString) return '-';
