@@ -7,6 +7,7 @@ using CareFlow.Core.Models.Nursing;
 using CareFlow.Core.Models.Organization;
 using CareFlow.Core.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
@@ -28,6 +29,7 @@ public class OrderApplicationService : IOrderApplicationService
     private readonly IInspectionService _inspectionService;
     private readonly INurseAssignmentService _nurseAssignmentService;
     private readonly IBarcodeService _barcodeService;
+    private readonly IBackgroundJobService _backgroundJobService;
     private readonly ILogger<OrderApplicationService> _logger;
 
     public OrderApplicationService(
@@ -42,6 +44,7 @@ public class OrderApplicationService : IOrderApplicationService
         IInspectionService inspectionService,
         INurseAssignmentService nurseAssignmentService,
         IBarcodeService barcodeService,
+        IBackgroundJobService backgroundJobService,
         ILogger<OrderApplicationService> logger)
     {
         _taskRepository = taskRepository;
@@ -55,6 +58,7 @@ public class OrderApplicationService : IOrderApplicationService
         _inspectionService = inspectionService;
         _nurseAssignmentService = nurseAssignmentService;
         _barcodeService = barcodeService;
+        _backgroundJobService = backgroundJobService;
         _logger = logger;
     }
 
@@ -492,6 +496,72 @@ public class OrderApplicationService : IOrderApplicationService
                         
                         _logger.LogInformation("✅ 检查医嘱 {OrderId} 生成了 {Count} 个任务条形码", 
                             orderId, barcodeSuccessCount);
+                        
+                        // 4.4 调度延迟任务：检查时间5分钟后自动从检查站获取报告
+                        var appointmentTime = appointmentDetail.AppointmentTime;
+                        var reportFetchDelay = appointmentTime.AddMinutes(5) - DateTime.UtcNow;
+                        
+                        if (reportFetchDelay.TotalMilliseconds > 0)
+                        {
+                            _logger.LogInformation("调度检查报告自动获取任务，检查医嘱 {OrderId}，延迟时间: {Delay}", 
+                                orderId, reportFetchDelay);
+                            
+                            var orderIdCopy = orderId; // 捕获变量
+                            _backgroundJobService.ScheduleDelayedWithScope(async (serviceProvider) =>
+                            {
+                                // 这里模拟从检查站自动获取报告
+                                // 实际生产环境中，应该调用检查站的API获取报告
+                                var logger = serviceProvider.GetRequiredService<ILogger<OrderApplicationService>>();
+                                var inspectionService = serviceProvider.GetRequiredService<IInspectionService>();
+                                var inspectionOrderRepo = serviceProvider.GetRequiredService<IRepository<InspectionOrder, long>>();
+                                
+                                try
+                                {
+                                    logger.LogInformation("🔄 开始自动获取检查报告，医嘱ID: {OrderId}", orderIdCopy);
+                                    
+                                    var order = await inspectionOrderRepo.GetByIdAsync(orderIdCopy);
+                                    if (order == null)
+                                    {
+                                        logger.LogWarning("⚠️ 检查医嘱 {OrderId} 不存在，无法创建报告", orderIdCopy);
+                                        return;
+                                    }
+                                    
+                                    // ============================================
+                                    // 注意：以下为模拟数据，实际应从检查站系统获取
+                                    // 实际生产环境中应该：
+                                    // 1. 调用检查站API: GET /api/inspection-station/reports/{risLisId}
+                                    // 2. 从检查站获取真实的检查报告数据
+                                    // 3. 检查站护士会在检查完成后上传报告到检查站系统
+                                    // 4. 我们这里通过定时任务自动拉取最新报告
+                                    // ============================================
+                                    
+                                    var reportDto = new CareFlow.Application.DTOs.Inspection.CreateInspectionReportDto
+                                    {
+                                        OrderId = orderIdCopy,
+                                        RisLisId = order.RisLisId,
+                                        Findings = "[模拟数据] 检查所见：未见明显异常。",
+                                        Impression = "[模拟数据] 诊断意见：未见异常。",
+                                        AttachmentUrl = "REPORT.pdf", // 固定返回 REPORT.pdf（实际应该是检查站上传的PDF文件URL）
+                                        ReviewerId = "STATION_DOCTOR_001", // 模拟检查站审核医生ID
+                                        ReportSource = order.Source
+                                    };
+                                    
+                                    // 创建报告（会自动更新医嘱状态并生成查看报告任务）
+                                    var reportId = await inspectionService.CreateInspectionReportAsync(reportDto);
+                                    
+                                    logger.LogInformation("检查报告自动创建成功，医嘱ID: {OrderId}, 报告ID: {ReportId}", 
+                                        orderIdCopy, reportId);
+                                }
+                                catch (Exception ex)
+                                {
+                                    logger.LogError(ex, "自动获取检查报告失败，医嘱ID: {OrderId}", orderIdCopy);
+                                }
+                            }, reportFetchDelay);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("检查时间已过，无法调度报告获取任务，医嘱ID: {OrderId}", orderId);
+                        }
                     }
                     catch (Exception ex)
                     {

@@ -650,7 +650,7 @@ namespace CareFlow.WebApi.Controllers
                     .Where(et => et.PlannedStartTime >= startOfDay &&
                                  et.PlannedStartTime < endOfDay &&
                                  bedIds.Contains(et.Patient.BedId) &&
-                                 (et.ExecutorStaffId == nurseId || et.ExecutorStaffId == null)); // 我执行的或待执行的
+                                 (et.AssignedNurseId == nurseId || et.AssignedNurseId == null)); // 我执行的或待执行的
 
                 if (status.HasValue)
                 {

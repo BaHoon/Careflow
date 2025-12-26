@@ -24,7 +24,7 @@ public class InspectionStationService : IInspectionStationService
         List<long> orderIds, bool isUrgent)
     {
         _logger.LogInformation("========== 发送检查申请到检查站 ==========");
-        _logger.LogInformation("📤 医嘱数量: {Count}, 加急: {IsUrgent}", 
+        _logger.LogInformation("医嘱数量: {Count}, 加急: {IsUrgent}", 
             orderIds.Count, isUrgent);
 
         // TODO: 对接PACS/RIS/LIS系统
@@ -38,7 +38,7 @@ public class InspectionStationService : IInspectionStationService
         // 3. 获取预约号、排队号等信息
         // 4. 更新InspectionOrder的相关字段（预约时间、预约地点等）
 
-        _logger.LogWarning("⚠️ 检查站接口尚未实现，返回模拟数据");
+        _logger.LogWarning(" 检查站接口尚未实现，返回模拟数据");
         _logger.LogInformation("TODO: 需要根据InspectionOrder.Source区分RIS/LIS系统");
         _logger.LogInformation("TODO: 调用外部API获取预约号和排队信息");
 
@@ -55,7 +55,7 @@ public class InspectionStationService : IInspectionStationService
             appointmentDetails[orderId] = new AppointmentDetail
             {
                 AppointmentNumber = appointmentNumber,
-                AppointmentTime = DateTime.UtcNow.AddHours(2), // 模拟2小时后的预约时间
+                AppointmentTime = DateTime.UtcNow.AddMinutes(1), // 模拟1分钟后的预约时间
                 AppointmentPlace = "放射科3楼CT室", // 模拟预约地点
                 Precautions = "检查前需空腹4小时，请勿饮水" // 模拟注意事项
             };
