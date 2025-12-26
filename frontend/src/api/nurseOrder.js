@@ -102,17 +102,17 @@ export function isNewlyCreatedOrder(order, hoursThreshold = 24) {
 
 /**
  * 判断是否为"新停医嘱"
- * 定义：停嘱时间在最近指定小时内且状态为 PendingStop(8) 或 Stopped(5) 的医嘱
+ * 定义：停嘱时间在最近指定小时内且状态为 Stopped(5) 的医嘱
  * 
  * @param {Object} order - 医嘱对象
  * @param {string} order.stopOrderTime - 停嘱时间（ISO 8601格式）
- * @param {number} order.status - 医嘱状态（8=PendingStop, 5=Stopped）
+ * @param {number} order.status - 医嘱状态（5=Stopped）
  * @param {number} hoursThreshold - 时间阈值（小时），默认24小时
  * @returns {boolean} 是否为新停医嘱
  */
 export function isNewlyStoppedOrder(order, hoursThreshold = 24) {
-  // 必须有停嘱时间，且状态为等待停嘱(8)或已停止(5)
-  if (!order.stopOrderTime || (order.status !== 8 && order.status !== 5)) {
+  // 必须有停嘱时间，且状态为已停止(5)
+  if (!order.stopOrderTime || order.status !== 5) {
     return false;
   }
   

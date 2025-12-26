@@ -158,6 +158,9 @@
                 {{ getOrderTypeName(item.orderType) }}
               </el-tag>
               
+              <!-- 医嘱ID -->
+              <span class="order-id">#{{ item.orderId }}</span>
+              
               <!-- 主要内容：药品申请显示 "计划时间 - 第一个药品" -->
               <!-- 手术类药品申请显示 "手术日期 - 手术名称" -->
               <span v-if="activeTab === 'medication' && item.medications && item.medications.length > 0" class="order-main-text">
@@ -1387,6 +1390,16 @@ const formatUsageRoute = (usageRoute) => {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.order-id {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  background: #ecf5ff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
 }
 
 .order-main-text {
