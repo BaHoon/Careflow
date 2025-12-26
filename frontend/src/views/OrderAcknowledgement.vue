@@ -232,6 +232,7 @@
                   >
                     {{ getOrderTypeName(order.orderType) }}
                   </el-tag>
+                  <span class="order-id">#{{ order.orderId }}</span>
                   <span class="order-text">{{ formatOrderTitle(order) }}</span>
                 </div>
 
@@ -373,6 +374,7 @@
                   >
                     {{ getOrderTypeName(order.orderType) }}
                   </el-tag>
+                  <span class="order-id">#{{ order.orderId }}</span>
                   <span class="order-text">{{ formatOrderTitle(order) }}</span>
                 </div>
 
@@ -2360,7 +2362,18 @@ const formatDateTime = (dateTime) => {
   flex-wrap: wrap;
 }
 
+.order-id {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  background: #ecf5ff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+}
+
 .order-text {
+  flex: 1;
   font-weight: 600;
   font-size: 0.95rem;
   color: var(--text-primary);
