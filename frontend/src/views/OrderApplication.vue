@@ -58,7 +58,7 @@
             <el-checkbox label="Applying">待申请</el-checkbox>
             <el-checkbox label="Applied">已申请</el-checkbox>
             <el-checkbox label="AppliedConfirmed">已确认</el-checkbox>
-            <el-checkbox label="PendingReturn">待退药</el-checkbox>
+            <el-checkbox label="PendingReturn">待退回</el-checkbox>
           </el-checkbox-group>
         </div>
 
@@ -284,28 +284,28 @@
             </el-button>
           </div>
 
-          <!-- 已确认状态显示退药按钮 -->
+          <!-- 已确认状态显示退药/取消安排按钮 -->
           <div v-else-if="item.status === 'AppliedConfirmed'" class="application-actions">
             <el-button 
               type="danger" 
               @click="handleReturnMedication(item)"
               class="action-btn-small"
             >
-              退药
+              {{ item.orderType === 'Inspection' || item.orderType === 'InspectionOrder' ? '取消安排' : '退药' }}
             </el-button>
           </div>
 
-          <!-- 待退药状态显示确认退药按钮 -->
+          <!-- 待退药/取消状态显示确认按钮 -->
           <div v-else-if="item.status === 'PendingReturn'" class="application-actions">
             <el-tag type="danger" size="small" class="return-notice">
-              需要退药
+              {{ item.orderType === 'Inspection' || item.orderType === 'InspectionOrder' ? '需要取消' : '需要退药' }}
             </el-tag>
             <el-button 
               type="primary" 
               @click="handleConfirmReturn(item)"
               class="action-btn-small"
             >
-              确认退药
+              {{ item.orderType === 'Inspection' || item.orderType === 'InspectionOrder' ? '确认取消' : '确认退药' }}
             </el-button>
           </div>
         </div>
@@ -830,17 +830,18 @@ const handleCancelApplication = async (item) => {
   }
 };
 
-// 申请退药（AppliedConfirmed状态）
+// 申请退药/取消安排（AppliedConfirmed状态）
 const handleReturnMedication = async (item) => {
   try {
+    const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
     const { value: reason } = await ElMessageBox.prompt(
-      '药房已配好药，请输入退药原因：',
-      '申请退药',
+      isInspection ? '检查科室已安排，请输入取消原因：' : '药房已配好药，请输入退药原因：',
+      isInspection ? '申请取消安排' : '申请退药',
       {
-        confirmButtonText: '确认退药',
+        confirmButtonText: isInspection ? '确认取消' : '确认退药',
         cancelButtonText: '取消',
         inputPattern: /\S+/,
-        inputErrorMessage: '退药原因不能为空',
+        inputErrorMessage: isInspection ? '取消原因不能为空' : '退药原因不能为空',
         inputType: 'textarea'
       }
     );
@@ -859,29 +860,33 @@ const handleReturnMedication = async (item) => {
     );
 
     if (response.success) {
-      ElMessage.success('退药申请已提交');
+      const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
+      ElMessage.success(isInspection ? '取消申请已提交' : '退药申请已提交');
       await loadApplications();
     } else {
-      ElMessage.error(response.message || '退药申请失败');
+      const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
+      ElMessage.error(response.message || (isInspection ? '取消申请失败' : '退药申请失败'));
     }
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('申请退药失败:', error);
-      ElMessage.error('申请退药失败');
+      const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
+      console.error(isInspection ? '申请取消失败:' : '申请退药失败:', error);
+      ElMessage.error(isInspection ? '申请取消失败' : '申请退药失败');
     }
   } finally {
     loading.value = false;
   }
 };
 
-// 确认退药（PendingReturn状态）
+// 确认退药/取消（PendingReturn状态）
 const handleConfirmReturn = async (item) => {
   try {
+    const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
     await ElMessageBox.confirm(
-      '确认退回该药品？退药后任务将被停止。',
-      '确认退药',
+      isInspection ? '确认取消该检查安排？取消后任务将被停止。' : '确认退回该药品？退药后任务将被停止。',
+      isInspection ? '确认取消' : '确认退药',
       {
-        confirmButtonText: '确认退药',
+        confirmButtonText: isInspection ? '确认取消' : '确认退药',
         cancelButtonText: '取消',
         type: 'warning',
         customClass: 'order-action-confirm'
@@ -901,15 +906,18 @@ const handleConfirmReturn = async (item) => {
     );
 
     if (response.success) {
-      ElMessage.success('退药确认成功');
+      const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
+      ElMessage.success(isInspection ? '取消确认成功' : '退药确认成功');
       await loadApplications();
     } else {
-      ElMessage.error(response.message || '退药确认失败');
+      const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
+      ElMessage.error(response.message || (isInspection ? '取消确认失败' : '退药确认失败'));
     }
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('确认退药失败:', error);
-      ElMessage.error('确认退药失败');
+      const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
+      console.error(isInspection ? '确认取消失败:' : '确认退药失败:', error);
+      ElMessage.error(isInspection ? '确认取消失败' : '确认退药失败');
     }
   } finally {
     loading.value = false;
