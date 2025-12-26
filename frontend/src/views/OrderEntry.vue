@@ -1784,11 +1784,11 @@ const handlePatientClick = (patient) => {
       clearForm();
       orderCart.value = [];
       expandedOrders.value = [];
-      ElMessage.success(`已切换至患者：${patient.name} (${patient.bedId})`);
+      // ElMessage.success(`已切换至患者：${patient.name} (${patient.bedId})`);
     }
   } else {
     selectedPatient.value = patient;
-    ElMessage.success(`已切换至患者：${patient.name} (${patient.bedId})`);
+    // ElMessage.success(`已切换至患者：${patient.name} (${patient.bedId})`);
   }
 };
 
@@ -2746,10 +2746,10 @@ const loadPatientList = async () => {
     const patients = await getPatientList(deptCode);
     patientList.value = patients;
     
-    // 如果有患者，默认选择第一个
-    if (patients.length > 0 && !selectedPatient.value) {
-      selectedPatient.value = patients[0];
-    }
+    // 不再默认选择患者，让医生手动选择
+    // if (patients.length > 0 && !selectedPatient.value) {
+    //   selectedPatient.value = patients[0];
+    // }
     
     console.log('患者列表加载成功:', patients.length, '科室:', deptCode);
   } catch (error) {
