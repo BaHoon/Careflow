@@ -1,10 +1,11 @@
 using CareFlow.Application.Interfaces;
 using CareFlow.Application.Services;
 using CareFlow.Application.Services.DischargeOrders;
-using CareFlow.Application.Services.InspectionOrders;
 using CareFlow.Application.Services.MedicalOrder;
-using CareFlow.Application.Services.MedicationOrders;
-using CareFlow.Application.Services.OperationOrders;
+using CareFlow.Application.Services.MedicalOrder.InspectionOrders;
+using CareFlow.Application.Services.MedicalOrder.MedicationOrders;
+using CareFlow.Application.Services.MedicalOrder.OperationOrders;
+using CareFlow.Application.Services.MedicalOrder.SurgicalOrders;
 using CareFlow.Application.Services.OrderAcknowledgement;
 using CareFlow.Application.Services.OrderApplication;
 using CareFlow.Core.Interfaces;

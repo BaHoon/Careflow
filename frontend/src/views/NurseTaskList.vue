@@ -67,15 +67,36 @@
     >
       <div v-if="currentTask" class="task-detail">
         <el-descriptions :column="2" border>
-          <el-descriptions-item label="操作名称" :span="2">
+          <!-- 任务基本信息 -->
+          <el-descriptions-item label="任务ID">
+            {{ currentTask.id }}
+          </el-descriptions-item>
+          <el-descriptions-item label="任务来源">
+            <el-tag :type="currentTask.taskSource === 'ExecutionTask' ? 'primary' : 'success'">
+              {{ currentTask.taskSource === 'ExecutionTask' ? '医嘱执行任务' : '护理任务' }}
+            </el-tag>
+          </el-descriptions-item>
+          
+          <!-- 操作信息（仅操作类任务显示） -->
+          <el-descriptions-item v-if="currentTask.taskSource === 'ExecutionTask'" label="操作名称" :span="2">
             <el-tag type="primary" size="large">{{ getOperationName(currentTask) }}</el-tag>
           </el-descriptions-item>
+          <el-descriptions-item v-if="currentTask.taskSource === 'ExecutionTask'" label="操作代码">
+            {{ getOperationCode(currentTask) }}
+          </el-descriptions-item>
+          <el-descriptions-item v-if="currentTask.taskSource === 'ExecutionTask'" label="操作部位">
+            {{ getOperationSite(currentTask) || '-' }}
+          </el-descriptions-item>
+          
+          <!-- 患者信息 -->
           <el-descriptions-item label="患者姓名">
             {{ currentTask.patientName }}
           </el-descriptions-item>
           <el-descriptions-item label="床号">
             {{ currentTask.bedId }}
           </el-descriptions-item>
+          
+          <!-- 任务类别和状态 -->
           <el-descriptions-item label="任务类别">
             <el-tag :type="getCategoryTagType(currentTask.category)">
               {{ getCategoryText(currentTask.category) }}
@@ -86,12 +107,8 @@
               {{ getStatusText(currentTask.status) }}
             </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="操作代码">
-            {{ getOperationCode(currentTask) }}
-          </el-descriptions-item>
-          <el-descriptions-item label="操作部位">
-            {{ getOperationSite(currentTask) || '-' }}
-          </el-descriptions-item>
+          
+          <!-- 时间信息 -->
           <el-descriptions-item label="计划开始时间" :span="2">
             {{ formatDateTime(currentTask.plannedStartTime) }}
           </el-descriptions-item>
@@ -109,8 +126,26 @@
           >
             {{ formatDateTime(currentTask.actualEndTime) }}
           </el-descriptions-item>
+          
+          <!-- 护士信息 -->
+          <el-descriptions-item v-if="currentTask.assignedNurseName" label="负责护士">
+            {{ currentTask.assignedNurseName }}
+          </el-descriptions-item>
+          <el-descriptions-item v-if="currentTask.executorNurseName" label="执行护士">
+            {{ currentTask.executorNurseName }}
+          </el-descriptions-item>
+          
+          <!-- 延迟信息 -->
+          <el-descriptions-item v-if="currentTask.delayMinutes !== undefined && currentTask.delayMinutes !== null" label="延迟分钟数">
+            {{ currentTask.delayMinutes }} 分钟
+          </el-descriptions-item>
+          <el-descriptions-item v-if="currentTask.allowedDelayMinutes !== undefined && currentTask.allowedDelayMinutes !== null" label="允许延迟">
+            {{ currentTask.allowedDelayMinutes }} 分钟
+          </el-descriptions-item>
+          
+          <!-- 准备物品（仅操作类任务） -->
           <el-descriptions-item
-            v-if="getPreparationItems(currentTask).length > 0"
+            v-if="currentTask.taskSource === 'ExecutionTask' && getPreparationItems(currentTask).length > 0"
             label="准备物品"
             :span="2"
           >
@@ -123,19 +158,41 @@
               {{ item }}
             </el-tag>
           </el-descriptions-item>
+          
+          <!-- 操作说明（仅操作类任务） -->
           <el-descriptions-item
-            v-if="getTaskDescription(currentTask)"
+            v-if="currentTask.taskSource === 'ExecutionTask' && getTaskDescription(currentTask)"
             label="操作说明"
             :span="2"
           >
             {{ getTaskDescription(currentTask) }}
           </el-descriptions-item>
+          
+          <!-- 执行结果 -->
           <el-descriptions-item
             v-if="currentTask.resultPayload"
             label="执行结果"
             :span="2"
           >
             <pre class="json-display">{{ formatJson(currentTask.resultPayload) }}</pre>
+          </el-descriptions-item>
+          
+          <!-- 异常原因 -->
+          <el-descriptions-item
+            v-if="currentTask.exceptionReason"
+            label="异常原因"
+            :span="2"
+          >
+            <span style="color: #f56c6c;">{{ currentTask.exceptionReason }}</span>
+          </el-descriptions-item>
+          
+          <!-- 原始数据载荷（调试用，可选） -->
+          <el-descriptions-item
+            v-if="currentTask.dataPayload && false"
+            label="数据载荷（调试）"
+            :span="2"
+          >
+            <pre class="json-display">{{ formatJson(currentTask.dataPayload) }}</pre>
           </el-descriptions-item>
         </el-descriptions>
       </div>

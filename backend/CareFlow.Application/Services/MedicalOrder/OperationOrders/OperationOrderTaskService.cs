@@ -806,10 +806,10 @@ public class OperationOrderTaskService : IOperationOrderTaskService
                 return;
             }
 
-            // 检查是否所有任务都已完成（Completed或Cancelled）
+            // 检查是否所有任务都已完成（Completed或Stopped）
             var incompleteTasks = allTasks.Where(t => 
                 t.Status != ExecutionTaskStatus.Completed && 
-                t.Status != ExecutionTaskStatus.Cancelled && 
+                t.Status != ExecutionTaskStatus.Stopped && 
                 t.Status != ExecutionTaskStatus.Incomplete).ToList();
 
             if (!incompleteTasks.Any() && !order.EndTime.HasValue)

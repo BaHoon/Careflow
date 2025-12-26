@@ -3158,26 +3158,26 @@ const submitAll = async () => {
     // ⚙️ 提交操作医嘱
     if (operationOrders.length > 0) {
       const requestData = {
-        patientId: selectedPatient.value?.id,
-        doctorId: currentUser.value.staffId,
-        orders: operationOrders.map(order => ({
-          isLongTerm: order.isLongTerm,
-          plantEndTime: toBeijingTimeISO(order.plantEndTime),
-          remarks: order.remarks || null,
-          opId: order.opId,
-          operationName: order.operationName,
-          operationSite: order.operationSite || null,
-          normal: order.normal,
-          timingStrategy: order.timingStrategy?.toUpperCase(),
-          startTime: order.startTime ? toBeijingTimeISO(order.startTime) : null,
-          intervalHours: order.intervalHours || null,
-          intervalDays: order.intervalDays || 1,
-          smartSlotsMask: order.smartSlotsMask || 0,
-          requiresPreparation: order.requiresPreparation || false,
-          preparationItems: order.preparationItems && order.preparationItems.length > 0 ? order.preparationItems : null,
-          expectedDurationMinutes: order.expectedDurationMinutes || null,
-          requiresResult: order.requiresResult || false,
-          resultTemplate: order.resultTemplate || null
+        PatientId: selectedPatient.value?.id,
+        DoctorId: currentUser.value.staffId,
+        Orders: operationOrders.map(order => ({
+          IsLongTerm: order.isLongTerm,
+          PlantEndTime: toBeijingTimeISO(order.plantEndTime),
+          Remarks: order.remarks || null,
+          OpId: order.opId,
+          OperationName: order.operationName,
+          OperationSite: order.operationSite || null,
+          Normal: order.normal,
+          TimingStrategy: order.timingStrategy?.toUpperCase(),
+          StartTime: order.startTime ? toBeijingTimeISO(order.startTime) : null,
+          IntervalHours: order.intervalHours || null,
+          IntervalDays: order.intervalDays || 1,
+          SmartSlotsMask: order.smartSlotsMask || 0,
+          RequiresPreparation: order.requiresPreparation || false,
+          PreparationItems: order.preparationItems && order.preparationItems.length > 0 ? order.preparationItems : null,
+          ExpectedDurationMinutes: order.expectedDurationMinutes || null,
+          RequiresResult: order.requiresResult || false,
+          ResultTemplate: order.resultTemplate || null
         }))
       };
 

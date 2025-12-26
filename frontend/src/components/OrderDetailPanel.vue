@@ -244,9 +244,9 @@
         </template>
         
         <div class="info-grid">
-          <div class="info-item">
+          <div class="info-item full-width">
             <span class="label">操作名称:</span>
-            <span class="value highlight">{{ detail.operationName }}</span>
+            <span class="value highlight">{{ detail.operationName || detail.operationCode || '未知操作' }}</span>
           </div>
           <div class="info-item">
             <span class="label">操作代码:</span>
@@ -255,6 +255,30 @@
           <div v-if="detail.targetSite" class="info-item">
             <span class="label">操作部位:</span>
             <span class="value">{{ detail.targetSite }}</span>
+          </div>
+          <div v-if="detail.timingStrategy" class="info-item">
+            <span class="label">时间策略:</span>
+            <span class="value">{{ getTimingStrategyName(detail.timingStrategy) }}</span>
+          </div>
+          <div v-if="detail.startTime" class="info-item">
+            <span class="label">开始时间:</span>
+            <span class="value">{{ formatDateTime(detail.startTime) }}</span>
+          </div>
+          <div v-if="detail.plantEndTime" class="info-item">
+            <span class="label">结束时间:</span>
+            <span class="value">{{ formatDateTime(detail.plantEndTime) }}</span>
+          </div>
+          <div v-if="detail.intervalHours" class="info-item">
+            <span class="label">执行间隔:</span>
+            <span class="value">每{{ detail.intervalHours }}小时</span>
+          </div>
+          <div v-if="detail.intervalDays" class="info-item">
+            <span class="label">间隔天数:</span>
+            <span class="value">{{ detail.intervalDays }}天</span>
+          </div>
+          <div v-if="detail.timingStrategy === 'SLOTS' && detail.smartSlotsMask" class="info-item full-width">
+            <span class="label">执行时间点:</span>
+            <span class="value">{{ getSlotNamesFromMask(detail.smartSlotsMask) }}</span>
           </div>
         </div>
       </el-collapse-item>

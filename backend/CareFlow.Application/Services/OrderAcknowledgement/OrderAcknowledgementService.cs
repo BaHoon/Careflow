@@ -924,8 +924,16 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
         }
         else if (order is OperationOrder operationOrder)
         {
-            dto.DisplayText = $"操作: {operationOrder.OpId}";
+            // 操作类医嘱：显示操作名称而不是opid
+            dto.DisplayText = operationOrder.OperationName ?? $"操作: {operationOrder.OpId}";
             dto.OpId = operationOrder.OpId;
+            dto.OperationName = operationOrder.OperationName;
+            // 操作类医嘱也有时间策略相关字段，参照药品类医嘱
+            dto.TimingStrategy = operationOrder.TimingStrategy;
+            dto.StartTime = operationOrder.StartTime;
+            dto.IntervalHours = operationOrder.IntervalHours;
+            dto.IntervalDays = operationOrder.IntervalDays;
+            dto.SmartSlotsMask = operationOrder.SmartSlotsMask;
         }
         else if (order is DischargeOrder dischargeOrder)
         {
