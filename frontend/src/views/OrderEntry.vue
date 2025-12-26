@@ -957,12 +957,9 @@
                       :label="op.name"
                       :value="op.name"
                     >
-                      <div style="display: flex; align-items: center; gap: 8px;">
-                        <span style="font-size: 16px;">{{ op.icon }}</span>
-                        <div>
-                          <div style="font-weight: 600;">{{ op.name }}</div>
-                          <div style="color: #666; font-size: 12px;">代码：{{ op.opId }} | 类型：{{ getCategoryLabel(op.category) }}</div>
-                        </div>
+                      <div>
+                        <div style="font-weight: 600;">{{ op.name }}</div>
+                        <div style="color: #666; font-size: 12px;">代码：{{ op.opId }} | 类型：{{ getCategoryLabel(op.category) }}</div>
                       </div>
                     </el-option>
                   </el-select>
@@ -1192,18 +1189,9 @@
                   <span>执行要求</span>
                 </div>
                 
-                <div class="form-row">
-                  <label>是否需要准备物品：</label>
-                  <el-switch 
-                    v-model="operationOrder.requiresPreparation"
-                    active-text="需要"
-                    inactive-text="不需要"
-                  />
-                </div>
-
-                <!-- 准备物品列表（当requiresPreparation=true时显示） -->
+                <!-- 准备物品列表（根据操作类型自动显示，可编辑） -->
                 <div class="form-row" v-if="operationOrder.requiresPreparation">
-                  <label class="required">准备物品：</label>
+                  <label>准备物品：</label>
                   <div class="preparation-items-container">
                     <div class="preparation-input-row">
                       <el-input
@@ -1235,6 +1223,10 @@
                     </div>
                   </div>
                 </div>
+                <div v-else class="form-row">
+                  <label>准备物品：</label>
+                  <span class="tip-text">该操作无需准备物品</span>
+                </div>
 
                 <div class="form-row">
                   <label>预期执行时长（分钟）：</label>
@@ -1249,21 +1241,17 @@
                 </div>
               </div>
 
-              <!-- 步骤5：任务配置（高级选项，可折叠） -->
-              <div class="form-section">
+              <!-- 步骤5：任务配置（自动判定，仅显示） -->
+              <div class="form-section" v-if="operationOrder.requiresResult">
                 <div class="section-header">
                   <i class="el-icon-setting"></i>
-                  <span>任务配置（高级选项）</span>
+                  <span>任务配置</span>
                 </div>
                 
                 <div class="form-row">
                   <label>是否需要记录结果：</label>
-                  <el-switch 
-                    v-model="operationOrder.requiresResult"
-                    active-text="需要"
-                    inactive-text="不需要"
-                  />
-                  <span class="tip-text">适用于监测类操作（如血糖、血压监测）</span>
+                  <el-tag type="success">需要</el-tag>
+                  <span class="tip-text">该操作需要录入执行结果（如血糖值、血压值等）</span>
                 </div>
               </div>
 
@@ -1655,32 +1643,32 @@ const operationOrder = reactive({
 // 常用操作代码选项（参照后端 OperationOrderService.OperationNameMap）
 const operationOptions = [
   // 持续类操作（Duration）
-  { opId: 'OP001', name: '更换引流袋', category: 'Duration', icon: '🩹', needsPreparation: true },
-  { opId: 'OP002', name: '持续吸氧', category: 'Duration', icon: '💨', needsPreparation: false },
-  { opId: 'OP006', name: '鼻饲', category: 'Duration', icon: '🥄', needsPreparation: true },
-  { opId: 'OP007', name: '雾化吸入', category: 'Duration', icon: '💊', needsPreparation: true },
-  { opId: 'OP011', name: '持续心电监护', category: 'Duration', icon: '📊', needsPreparation: false },
-  { opId: 'OP012', name: '持续导尿', category: 'Duration', icon: '💧', needsPreparation: true },
-  { opId: 'OP013', name: '持续胃肠减压', category: 'Duration', icon: '🔧', needsPreparation: true },
-  { opId: 'OP014', name: '持续静脉输液', category: 'Duration', icon: '💉', needsPreparation: false },
+  { opId: 'OP001', name: '更换引流袋', category: 'Duration', needsPreparation: true, preparationItems: ['引流袋', '无菌手套', '消毒液', '棉签'] },
+  { opId: 'OP002', name: '持续吸氧', category: 'Duration', needsPreparation: false, preparationItems: [] },
+  { opId: 'OP006', name: '鼻饲', category: 'Duration', needsPreparation: true, preparationItems: ['鼻饲管', '注射器', '营养液', '温开水'] },
+  { opId: 'OP007', name: '雾化吸入', category: 'Duration', needsPreparation: true, preparationItems: ['雾化器', '雾化药液', '面罩或口含器'] },
+  { opId: 'OP011', name: '持续心电监护', category: 'Duration', needsPreparation: false, preparationItems: [] },
+  { opId: 'OP012', name: '持续导尿', category: 'Duration', needsPreparation: true, preparationItems: ['导尿管', '无菌手套', '消毒液', '引流袋', '润滑剂'] },
+  { opId: 'OP013', name: '持续胃肠减压', category: 'Duration', needsPreparation: true, preparationItems: ['胃管', '负压吸引器', '引流袋'] },
+  { opId: 'OP014', name: '持续静脉输液', category: 'Duration', needsPreparation: false, preparationItems: [] },
   
   // 即刻类操作（Immediate）
-  { opId: 'OP004', name: '更换敷料', category: 'Immediate', icon: '🩹', needsPreparation: true },
-  { opId: 'OP005', name: '导尿', category: 'Immediate', icon: '💧', needsPreparation: true },
-  { opId: 'OP008', name: '口腔护理', category: 'Immediate', icon: '🦷', needsPreparation: false },
-  { opId: 'OP009', name: '会阴护理', category: 'Immediate', icon: '🧼', needsPreparation: false },
-  { opId: 'OP010', name: '皮肤护理', category: 'Immediate', icon: '🧴', needsPreparation: false },
-  { opId: 'OP015', name: '翻身拍背', category: 'Immediate', icon: '👋', needsPreparation: false },
+  { opId: 'OP004', name: '更换敷料', category: 'Immediate', needsPreparation: true, preparationItems: ['无菌敷料', '胶带', '消毒液', '棉签', '无菌手套'] },
+  { opId: 'OP005', name: '导尿', category: 'Immediate', needsPreparation: true, preparationItems: ['导尿管', '无菌手套', '消毒液', '引流袋', '润滑剂'] },
+  { opId: 'OP008', name: '口腔护理', category: 'Immediate', needsPreparation: false, preparationItems: [] },
+  { opId: 'OP009', name: '会阴护理', category: 'Immediate', needsPreparation: false, preparationItems: [] },
+  { opId: 'OP010', name: '皮肤护理', category: 'Immediate', needsPreparation: false, preparationItems: [] },
+  { opId: 'OP015', name: '翻身拍背', category: 'Immediate', needsPreparation: false, preparationItems: [] },
   
   // 结果类操作（ResultPending）
-  { opId: 'OP003', name: '血糖监测', category: 'ResultPending', icon: '🩸', needsPreparation: false, needsResult: true },
-  { opId: 'OP016', name: '血压监测', category: 'ResultPending', icon: '📈', needsPreparation: false, needsResult: true },
-  { opId: 'OP017', name: '体温监测', category: 'ResultPending', icon: '🌡️', needsPreparation: false, needsResult: true },
-  { opId: 'OP018', name: '尿量监测', category: 'ResultPending', icon: '💧', needsPreparation: false, needsResult: true },
+  { opId: 'OP003', name: '血糖监测', category: 'ResultPending', needsPreparation: false, preparationItems: [], needsResult: true },
+  { opId: 'OP016', name: '血压监测', category: 'ResultPending', needsPreparation: false, preparationItems: [], needsResult: true },
+  { opId: 'OP017', name: '体温监测', category: 'ResultPending', needsPreparation: false, preparationItems: [], needsResult: true },
+  { opId: 'OP018', name: '尿量监测', category: 'ResultPending', needsPreparation: false, preparationItems: [], needsResult: true },
   
   // 数据收集类操作（DataCollection）
-  { opId: 'OP019', name: '意识状态评估', category: 'DataCollection', icon: '🧠', needsPreparation: false, needsResult: true },
-  { opId: 'OP020', name: '疼痛评估', category: 'DataCollection', icon: '😣', needsPreparation: false, needsResult: true }
+  { opId: 'OP019', name: '意识状态评估', category: 'DataCollection', needsPreparation: false, preparationItems: [], needsResult: true },
+  { opId: 'OP020', name: '疼痛评估', category: 'DataCollection', needsPreparation: false, preparationItems: [], needsResult: true }
 ];
 
 // 准备物品输入
@@ -1986,12 +1974,20 @@ const onOperationNameChange = (operationName) => {
       // 如果不需要准备物品，清空准备物品列表
       if (!selectedOp.needsPreparation) {
         operationOrder.preparationItems = [];
+      } else {
+        // 如果需要准备物品，自动填充默认准备物品列表
+        if (selectedOp.preparationItems && selectedOp.preparationItems.length > 0) {
+          operationOrder.preparationItems = [...selectedOp.preparationItems];
+        }
       }
     }
     
     // 根据操作类型自动设置是否需要记录结果（基于opId对应的操作类型）
     if (selectedOp.needsResult !== undefined) {
       operationOrder.requiresResult = selectedOp.needsResult;
+    } else {
+      // 如果没有明确设置，根据类别判断
+      operationOrder.requiresResult = selectedOp.category === 'ResultPending' || selectedOp.category === 'DataCollection';
     }
     
     // 根据操作类型提示是否需要配置执行时长（基于opId对应的操作类型）
