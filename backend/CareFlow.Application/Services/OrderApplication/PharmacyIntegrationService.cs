@@ -200,4 +200,92 @@ public class PharmacyIntegrationService : IPharmacyIntegrationService
         logger.LogInformation("========== 药房配药确认完成：成功 {Success}，失败 {Fail} ==========",
             successCount, failCount);
     }
+
+    /// <summary>
+    /// 退药请求（单个任务）
+    /// </summary>
+    public async Task<PharmacyRequestResult> ReturnMedicationAsync(long taskId)
+    {
+        _logger.LogInformation("========== 发送退药请求到药房系统 ==========");
+        _logger.LogInformation("📤 任务ID: {TaskId}", taskId);
+
+        try
+        {
+            // TODO: 对接真实药房系统退药API
+            // var httpClient = _httpClientFactory.CreateClient("PharmacySystem");
+            // var response = await httpClient.PostAsJsonAsync("/api/medication/return", new
+            // {
+            //     TaskId = taskId,
+            //     ReturnTime = DateTime.UtcNow,
+            //     Reason = "护士申请退药"
+            // });
+            // var result = await response.Content.ReadFromJsonAsync<PharmacyResponse>();
+
+            // 模拟：药房系统立即接受退药请求
+            var result = new PharmacyRequestResult
+            {
+                Success = true,
+                Message = "药房已接受退药请求（模拟）",
+                AcceptedTaskIds = new List<long> { taskId }
+            };
+
+            _logger.LogInformation("✅ 药房接受退药请求成功");
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ 发送退药请求失败");
+            return new PharmacyRequestResult
+            {
+                Success = false,
+                Message = $"发送退药请求失败: {ex.Message}",
+                AcceptedTaskIds = new List<long>()
+            };
+        }
+    }
+
+    /// <summary>
+    /// 批量退药请求
+    /// </summary>
+    public async Task<PharmacyRequestResult> ReturnMedicationBatchAsync(List<long> taskIds)
+    {
+        _logger.LogInformation("========== 批量发送退药请求到药房系统 ==========");
+        _logger.LogInformation("📤 任务数量: {Count}", taskIds.Count);
+
+        try
+        {
+            // TODO: 对接真实药房系统批量退药API
+            // var httpClient = _httpClientFactory.CreateClient("PharmacySystem");
+            // var response = await httpClient.PostAsJsonAsync("/api/medication/return/batch", new
+            // {
+            //     TaskIds = taskIds,
+            //     ReturnTime = DateTime.UtcNow,
+            //     Reason = "批量退药"
+            // });
+            // var result = await response.Content.ReadFromJsonAsync<PharmacyResponse>();
+
+            // 模拟：药房系统立即接受批量退药请求
+            var result = new PharmacyRequestResult
+            {
+                Success = true,
+                Message = $"药房已接受批量退药请求（模拟），共 {taskIds.Count} 个任务",
+                AcceptedTaskIds = taskIds
+            };
+
+            _logger.LogInformation("✅ 药房接受批量退药请求成功");
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ 批量发送退药请求失败");
+            return new PharmacyRequestResult
+            {
+                Success = false,
+                Message = $"批量发送退药请求失败: {ex.Message}",
+                AcceptedTaskIds = new List<long>()
+            };
+        }
+    }
 }

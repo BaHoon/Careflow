@@ -216,7 +216,7 @@ namespace CareFlow.Application.Services.Nursing
             }
 
             // 更新任务状态为已取消
-            task.Status = ExecutionTaskStatus.Cancelled;
+            task.Status = ExecutionTaskStatus.Incomplete;
             task.ExecuteTime = DateTime.UtcNow; // 记录取消时间
             task.ExecutorNurseId = nurseId; // 记录取消操作的护士
             task.CancelReason = cancelReason; // 记录取消理由

@@ -62,8 +62,8 @@ public enum ExecutionTaskStatus
     /// <summary>异常/拒绝 - 护士跳过执行或执行异常</summary>
     Incomplete = 8,
     
-    /// <summary>已取消 - 护士手动取消任务</summary>
-    Cancelled = 9
+    /// <summary>待退药 - 医嘱停止后需要护士确认退药，或护士主动申请退药</summary>
+    PendingReturn = 9
 }
 
 /// <summary>
@@ -90,4 +90,28 @@ public enum TimingStrategy
     /// 时段执行 (按医院时间槽位，如早餐前、午餐后等，通过SmartSlotsMask指定)
     /// </summary>
     Slots = 4
+}
+
+/// <summary>
+/// 出院类型枚举
+/// </summary>
+public enum DischargeType
+{
+    /// <summary>治愈出院</summary>
+    Cured = 1,
+    
+    /// <summary>好转出院</summary>
+    Improved = 2,
+    
+    /// <summary>转院</summary>
+    Transfer = 3,
+    
+    /// <summary>自动出院</summary>
+    AutoDischarge = 4,
+    
+    /// <summary>死亡</summary>
+    Death = 5,
+    
+    /// <summary>其他</summary>
+    Other = 99
 }

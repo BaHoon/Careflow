@@ -377,19 +377,42 @@ const isMyTask = (record) => {
 
 const formatTime = (datetime) => {
   if (!datetime) return '';
-  const date = new Date(datetime);
-  return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  try {
+    // 确保UTC时间字符串带有Z标识
+    let utcString = datetime;
+    if (!datetime.endsWith('Z') && !datetime.includes('+')) {
+      utcString = datetime + 'Z';
+    }
+    const date = new Date(utcString);
+    return date.toLocaleTimeString('zh-CN', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      timeZone: 'Asia/Shanghai'
+    });
+  } catch {
+    return datetime;
+  }
 };
 
 const formatDateTime = (datetime) => {
   if (!datetime) return '';
-  const date = new Date(datetime);
-  return date.toLocaleString('zh-CN', { 
-    month: '2-digit', 
-    day: '2-digit',
-    hour: '2-digit', 
-    minute: '2-digit' 
-  });
+  try {
+    // 确保UTC时间字符串带有Z标识
+    let utcString = datetime;
+    if (!datetime.endsWith('Z') && !datetime.includes('+')) {
+      utcString = datetime + 'Z';
+    }
+    const date = new Date(utcString);
+    return date.toLocaleString('zh-CN', { 
+      month: '2-digit', 
+      day: '2-digit',
+      hour: '2-digit', 
+      minute: '2-digit',
+      timeZone: 'Asia/Shanghai'
+    });
+  } catch {
+    return datetime;
+  }
 };
 
 // 获取记录状态样式类

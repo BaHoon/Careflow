@@ -146,8 +146,10 @@
         <!-- 分页 -->
         <div class="pagination-container">
           <el-pagination
-            v-model:current-page="pagination.currentPage"
-            v-model:page-size="pagination.pageSize"
+            :current-page="pagination.currentPage"
+            @update:current-page="pagination.currentPage = $event"
+            :page-size="pagination.pageSize"
+            @update:page-size="pagination.pageSize = $event"
             :page-sizes="[10, 20, 50, 100]"
             :total="total"
             layout="total, sizes, prev, pager, next, jumper"
@@ -461,14 +463,24 @@ const getStatusType = (status) => {
 // 时间格式化
 const formatDateTime = (dateTime) => {
   if (!dateTime) return '-'
-  const date = new Date(dateTime)
-  return date.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+  try {
+    // 确保UTC时间字符串带有Z标识
+    let utcString = dateTime;
+    if (!dateTime.endsWith('Z') && !dateTime.includes('+')) {
+      utcString = dateTime + 'Z';
+    }
+    const date = new Date(utcString)
+    return date.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Asia/Shanghai'
+    })
+  } catch {
+    return dateTime
+  }
 }
 
 // 获取条形码图片URL

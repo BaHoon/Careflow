@@ -34,17 +34,19 @@ namespace CareFlow.Infrastructure
         // 基类
         public DbSet<MedicalOrder> MedicalOrders { get; set; }
         
-        // 四种具体的医嘱类型
+        // 五种具体的医嘱类型
         public DbSet<MedicationOrder> MedicationOrders { get; set; } // 药品
         public DbSet<MedicationOrderItem> MedicationOrderItems { get; set; } // 药品医嘱明细
         public DbSet<InspectionOrder> InspectionOrders { get; set; } // 检查
         public DbSet<SurgicalOrder> SurgicalOrders { get; set; }     // 手术
         public DbSet<OperationOrder> OperationOrders { get; set; }   // 操作 (护理/治疗)
+        public DbSet<DischargeOrder> DischargeOrders { get; set; }   // 出院
 
         // 医嘱附属表
         public DbSet<InspectionReport> InspectionReports { get; set; } // 检查报告
         public DbSet<HospitalTimeSlot> HospitalTimeSlots { get; set; } // 时段字典
         public DbSet<Drug> Drugs { get; set; } // 药品字典
+        public DbSet<MedicalOrderStatusHistory> MedicalOrderStatusHistories { get; set; } // 医嘱状态变更历史
         #endregion
 
         //护理执行
@@ -54,6 +56,7 @@ namespace CareFlow.Infrastructure
         public DbSet<ShiftType> ShiftTypes { get; set; }               // 班次定义
         public DbSet<NurseRoster> NurseRosters { get; set; }           // 护士排班
         public DbSet<NursingTask> NursingTasks { get; set; }
+        public DbSet<MedicationReturnRequest> MedicationReturnRequests { get; set; } // 退药申请记录
         public DbSet<NursingRecordSupplement> NursingRecordSupplements { get; set; } // 护理记录补充说明
 
         #region 5. Barcode (条形码系统)
@@ -72,12 +75,13 @@ namespace CareFlow.Infrastructure
             modelBuilder.Entity<Doctor>().ToTable("Doctors");
             modelBuilder.Entity<Nurse>().ToTable("Nurses");
 
-            // MedicalOrder 继承体系：数据库里会有 MedicalOrders 以及 4 个子表
+            // MedicalOrder 继承体系：数据库里会有 MedicalOrders 以及 5 个子表
             modelBuilder.Entity<MedicalOrder>().UseTptMappingStrategy();
             modelBuilder.Entity<MedicationOrder>().ToTable("MedicationOrders");
             modelBuilder.Entity<InspectionOrder>().ToTable("InspectionOrders");
             modelBuilder.Entity<SurgicalOrder>().ToTable("SurgicalOrders");
             modelBuilder.Entity<OperationOrder>().ToTable("OperationOrders");
+            modelBuilder.Entity<DischargeOrder>().ToTable("DischargeOrders");
 
             // --- 其他特殊字段配置 ---
 

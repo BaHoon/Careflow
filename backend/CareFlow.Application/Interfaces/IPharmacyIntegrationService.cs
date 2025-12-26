@@ -22,4 +22,18 @@ public interface IPharmacyIntegrationService
     /// <param name="taskIds">任务ID列表</param>
     /// <returns>是否成功</returns>
     Task<bool> CancelMedicationRequestAsync(List<long> taskIds);
+    
+    /// <summary>
+    /// 退药请求（药房已配好药，需要退回）
+    /// </summary>
+    /// <param name="taskId">任务ID</param>
+    /// <returns>药房系统响应</returns>
+    Task<PharmacyRequestResult> ReturnMedicationAsync(long taskId);
+    
+    /// <summary>
+    /// 批量退药请求
+    /// </summary>
+    /// <param name="taskIds">任务ID列表</param>
+    /// <returns>药房系统响应</returns>
+    Task<PharmacyRequestResult> ReturnMedicationBatchAsync(List<long> taskIds);
 }

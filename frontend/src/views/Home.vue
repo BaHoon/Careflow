@@ -11,6 +11,11 @@
             <p>为所管辖患者下达长期或临时医嘱</p>
             <div class="card-badge doctor">医生权限</div>
           </div>
+          <div class="card clickable" @click="router.push('/doctor/order-query')">
+            <h3>🔍 医嘱查询</h3>
+            <p>查询患者医嘱、查看详情、停止医嘱</p>
+            <div class="card-badge doctor">医生权限</div>
+          </div>
           <div class="card clickable" @click="router.push('/my-patients')">
             <h3>👥 我的患者</h3>
             <p>查看负责的病床列表及临床概况</p>

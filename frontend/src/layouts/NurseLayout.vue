@@ -37,6 +37,15 @@
         </router-link>
         
         <router-link 
+          to="/nurse/order-query" 
+          class="nav-item"
+          active-class="active"
+        >
+          <el-icon><Search /></el-icon>
+          <span>医嘱查询</span>
+        </router-link>
+        
+        <router-link 
           to="/nurse/application" 
           class="nav-item"
           active-class="active"
@@ -104,6 +113,7 @@ import {
   Grid, 
   List, 
   Document,
+  Search,
   DocumentCopy,
   Operation,
   Notebook,
