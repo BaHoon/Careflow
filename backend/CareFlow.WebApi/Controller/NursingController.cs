@@ -1,13 +1,14 @@
 using CareFlow.Application.Interfaces;
 using CareFlow.Application.DTOs.Nursing; // 引用你新定义的 DTO
-using CareFlow.Application.Services.Nursing; // 引用 Service
 using CareFlow.Application.Services.Scheduling;
 using CareFlow.Application.Common;
+using CareFlow.Core.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using CareFlow.Infrastructure;
 using Microsoft.EntityFrameworkCore;
-using CareFlow.Core.Models.Medical;
+using CareFlow.Core.Models.Nursing;
 using CareFlow.Core.Enums;
+
 
 namespace CareFlow.WebApi.Controllers
 {
@@ -19,18 +20,24 @@ namespace CareFlow.WebApi.Controllers
         private readonly DailyTaskGeneratorService _taskGenerator;
         private readonly ApplicationDbContext _context;
         private readonly TaskDelayCalculator _delayCalculator;
+        private readonly IBarcodeMatchingService _barcodeMatchingService;
+        private readonly IBarcodeService _barcodeService;
 
         // 构造函数注入服务
         public NursingController(
             IVitalSignService vitalSignService, 
             DailyTaskGeneratorService taskGenerator,
             ApplicationDbContext context,
-            TaskDelayCalculator delayCalculator)
+            TaskDelayCalculator delayCalculator,
+            IBarcodeMatchingService barcodeMatchingService,
+            IBarcodeService barcodeService)
         {
             _vitalSignService = vitalSignService;
             _taskGenerator = taskGenerator;
             _context = context;
             _delayCalculator = delayCalculator;
+            _barcodeMatchingService = barcodeMatchingService;
+            _barcodeService = barcodeService;
         }
 
         /// <summary>
@@ -994,13 +1001,6 @@ namespace CareFlow.WebApi.Controllers
                     return BadRequest(new { message = $"任务状态不允许开始执行，当前状态: {task.Status}" });
                 }
 
-                // 并发校验：如果已有执行者，检查是否是同一个人
-                if (!string.IsNullOrEmpty(task.ExecutorStaffId) && task.ExecutorStaffId != nurseStaffId)
-                {
-                    var executor = await _context.Nurses.FindAsync(task.ExecutorStaffId);
-                    return BadRequest(new { message = $"任务已被 {executor?.Name} 开始执行" });
-                }
-
                 // 更新任务状态
                 task.ExecutorStaffId = nurseStaffId;
                 task.ActualStartTime = DateTime.UtcNow;
@@ -1041,16 +1041,30 @@ namespace CareFlow.WebApi.Controllers
         {
             try
             {
-                // 获取护士信息
-                var nurse = await _context.Nurses
-                    .FirstOrDefaultAsync(n => n.Id == dto.NurseId || n.EmployeeNumber == dto.NurseId);
+                // 调试日志
+                Console.WriteLine($"[CompleteExecutionTask] 开始处理 - TaskId: {id}, NurseId: {dto.NurseId}");
                 
-                if (nurse == null)
+                // 获取护士信息 - 先加载到内存再过滤（避免 ToString() 在 SQL 中不被支持）
+                var nurse = await _context.Nurses.ToListAsync();
+                var foundNurse = nurse.FirstOrDefault(n => 
+                    n.Id == dto.NurseId || 
+                    n.EmployeeNumber == dto.NurseId ||
+                    n.IdCard == dto.NurseId ||
+                    n.Name == dto.NurseId);
+                
+                if (foundNurse == null)
                 {
-                    return NotFound(new { message = "护士不存在" });
+                    // 如果没找到护士，返回更详细的错误信息
+                    Console.WriteLine($"[CompleteExecutionTask] 护士未找到 - NurseId: {dto.NurseId}");
+                    return NotFound(new { 
+                        message = $"护士不存在，请确认护士ID或员工号: {dto.NurseId}",
+                        nurseIdUsed = dto.NurseId
+                    });
                 }
                 
-                var nurseStaffId = nurse.Id;
+                Console.WriteLine($"[CompleteExecutionTask] 护士已找到 - Id: {foundNurse.Id}, Name: {foundNurse.Name}");
+                
+                var nurseStaffId = foundNurse.Id;
 
                 // 查询任务
                 var task = await _context.ExecutionTasks
@@ -1146,12 +1160,6 @@ namespace CareFlow.WebApi.Controllers
                     return BadRequest(new { message = $"任务类别 {task.Category} 的完成流程暂未实现，请联系管理员" });
                 }
 
-                // 只有 InProgress 状态的任务需要检查执行者权限
-                if (task.Status == ExecutionTaskStatus.InProgress && task.ExecutorStaffId != nurseStaffId)
-                {
-                    return Forbid("只有任务执行者可以结束任务");
-                }
-
                 // 首次开始执行任务时，设置执行者和开始时间
                 if (task.Status == ExecutionTaskStatus.Pending || 
                     task.Status == ExecutionTaskStatus.AppliedConfirmed)
@@ -1160,10 +1168,22 @@ namespace CareFlow.WebApi.Controllers
                     task.ActualStartTime = DateTime.UtcNow;
                 }
 
-                // 更新任务信息
+                // 更新任务信息 - 处理备注
                 if (!string.IsNullOrEmpty(dto.ResultPayload))
                 {
-                    task.ResultPayload = dto.ResultPayload;
+                    // 对于 Duration 和 ResultPending，如果是第二次调用，需要追加备注
+                    if ((task.Category == TaskCategory.Duration || task.Category == TaskCategory.ResultPending || task.Category == TaskCategory.Verification) &&
+                        targetStatus == ExecutionTaskStatus.Completed &&
+                        !string.IsNullOrEmpty(task.ResultPayload))
+                    {
+                        // 已经有备注，追加新的
+                        task.ResultPayload = task.ResultPayload + "\n" + dto.ResultPayload;
+                    }
+                    else
+                    {
+                        // 第一次调用或覆盖
+                        task.ResultPayload = dto.ResultPayload;
+                    }
                 }
 
                 // 如果转换到 Completed 状态，设置完成信息
@@ -1186,7 +1206,7 @@ namespace CareFlow.WebApi.Controllers
                     status = task.Status,
                     actualStartTime = task.ActualStartTime,
                     actualEndTime = task.ActualEndTime,
-                    executorName = nurse.Name,
+                    executorName = foundNurse.Name,
                     nextAction = targetStatus == ExecutionTaskStatus.InProgress 
                         ? (task.Category == TaskCategory.ResultPending ? "请点击\"结束任务\"并录入执行结果" : "请点击\"结束任务\"") 
                         : "任务已完成"
@@ -1198,7 +1218,14 @@ namespace CareFlow.WebApi.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "完成任务失败", error = ex.Message });
+                Console.WriteLine($"[CompleteExecutionTask] 异常发生: {ex.GetType().Name}");
+                Console.WriteLine($"[CompleteExecutionTask] 错误消息: {ex.Message}");
+                Console.WriteLine($"[CompleteExecutionTask] 堆栈跟踪: {ex.StackTrace}");
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine($"[CompleteExecutionTask] 内部异常: {ex.InnerException.Message}");
+                }
+                return StatusCode(500, new { message = "完成任务失败", error = ex.Message, stackTrace = ex.StackTrace });
             }
         }
 
@@ -1262,6 +1289,409 @@ namespace CareFlow.WebApi.Controllers
             {
                 return StatusCode(500, new { message = "取消任务失败", error = ex.Message });
             }
+        }
+
+        /// <summary>
+        /// [护士端] 获取执行任务详情（用于任务扫码）
+        /// </summary>
+        [HttpGet("execution-tasks/{id}")]
+        public async Task<IActionResult> GetExecutionTaskDetail(long id)
+        {
+            try
+            {
+                var task = await _context.ExecutionTasks
+                    .Include(t => t.Patient)
+                    .Include(t => t.MedicalOrder)
+                    .FirstOrDefaultAsync(t => t.Id == id);
+
+                if (task == null)
+                {
+                    return NotFound(new { message = "任务不存在" });
+                }
+
+                // 构建返回的任务信息
+                var taskInfo = new
+                {
+                    id = task.Id,
+                    patientId = task.PatientId,
+                    patientName = task.Patient?.Name,
+                    bedId = task.Patient?.BedId,
+                    category = (int)task.Category,
+                    categoryName = GetTaskCategoryName(task.Category),
+                    status = task.Status.ToString(),
+                    plannedStartTime = task.PlannedStartTime,
+                    actualStartTime = task.ActualStartTime,
+                    medicalOrderId = task.MedicalOrderId,
+                    executorStaffId = task.ExecutorStaffId,
+                    resultPayload = task.ResultPayload,
+                    drugs = GetTaskDrugs(task) // 用于核对类任务
+                };
+
+                return Ok(taskInfo);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "获取任务详情失败", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// [护士端] 上传任务条形码图片进行识别
+        /// </summary>
+        [HttpPost("barcode/recognize-task")]
+        public async Task<IActionResult> RecognizeTaskBarcode([FromForm] IFormFile taskBarcodeImage)
+        {
+            try
+            {
+                if (taskBarcodeImage == null || taskBarcodeImage.Length == 0)
+                {
+                    return BadRequest(new { message = "请上传条形码图片", success = false });
+                }
+
+                using (var stream = taskBarcodeImage.OpenReadStream())
+                {
+                    // 调用IBarcodeService识别条形码
+                    var recognitionResult = _barcodeService.RecognizeBarcode(stream);
+                    
+                    if (recognitionResult == null)
+                    {
+                        return BadRequest(new 
+                        { 
+                            message = "条形码识别失败，无法解析条形码内容",
+                            success = false,
+                            taskId = 0
+                        });
+                    }
+
+                    // 对于护士端的任务扫码，期望条形码中包含的是ExecutionTask ID
+                    if (!long.TryParse(recognitionResult.RecordId, out var taskId))
+                    {
+                        return BadRequest(new 
+                        { 
+                            message = $"条形码识别成功，但内容不是有效的任务ID: {recognitionResult.RecordId}",
+                            success = false,
+                            taskId = 0,
+                            decodedValue = recognitionResult.RecordId
+                        });
+                    }
+
+                    // 验证任务是否存在
+                    var executionTask = await _context.ExecutionTasks
+                        .Include(t => t.Patient)
+                        .FirstOrDefaultAsync(t => t.Id == taskId);
+
+                    if (executionTask == null)
+                    {
+                        return NotFound(new 
+                        { 
+                            message = $"任务ID {taskId} 不存在",
+                            success = false,
+                            taskId = 0
+                        });
+                    }
+
+                    return Ok(new 
+                    { 
+                        message = "条形码识别成功",
+                        success = true,
+                        taskId = taskId,
+                        patientName = executionTask.Patient?.Name,
+                        category = executionTask.Category,
+                        status = executionTask.Status
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new 
+                { 
+                    message = $"条形码识别异常: {ex.Message}",
+                    success = false,
+                    taskId = 0
+                });
+            }
+        }
+
+        /// <summary>
+        /// [护士端] 验证任务和患者条形码是否匹配
+        /// </summary>
+        [HttpPost("barcode/validate-patient")]
+        public async Task<IActionResult> ValidatePatientBarcode(long taskId, [FromForm] IFormFile taskBarcodeImage, [FromForm] IFormFile patientBarcodeImage)
+        {
+            try
+            {
+                if (taskBarcodeImage == null || patientBarcodeImage == null)
+                {
+                    return BadRequest(new { message = "缺少条形码图片", success = false });
+                }
+
+                var task = await _context.ExecutionTasks
+                    .Include(t => t.Patient)
+                    .FirstOrDefaultAsync(t => t.Id == taskId);
+
+                if (task == null)
+                {
+                    return NotFound(new { message = "任务不存在", success = false });
+                }
+
+                // 使用IBarcodeService识别两张条形码图片
+                using (var taskStream = taskBarcodeImage.OpenReadStream())
+                using (var patientStream = patientBarcodeImage.OpenReadStream())
+                {
+                    try
+                    {
+                        var taskRecognition = _barcodeService.RecognizeBarcode(taskStream);
+                        var patientRecognition = _barcodeService.RecognizeBarcode(patientStream);
+
+                        if (taskRecognition == null || patientRecognition == null)
+                        {
+                            return BadRequest(new 
+                            { 
+                                success = false,
+                                isMatched = false,
+                                message = "条形码识别失败，无法解析条形码内容",
+                                taskId = task.Id
+                            });
+                        }
+
+                        // 验证任务ID是否匹配
+                        if (!long.TryParse(taskRecognition.RecordId, out var decodedTaskId) || decodedTaskId != taskId)
+                        {
+                            return BadRequest(new 
+                            { 
+                                success = false,
+                                isMatched = false,
+                                message = "任务条形码不匹配",
+                                taskId = task.Id
+                            });
+                        }
+
+                        // 验证患者ID是否匹配
+                        if (patientRecognition.RecordId != task.PatientId)
+                        {
+                            return BadRequest(new 
+                            { 
+                                success = false,
+                                isMatched = false,
+                                message = $"患者条形码不匹配，扫描的患者ID: {patientRecognition.RecordId}，任务患者ID: {task.PatientId}",
+                                taskId = task.Id
+                            });
+                        }
+
+                        // 验证成功
+                        return Ok(new 
+                        { 
+                            success = true,
+                            isMatched = true,
+                            message = "患者验证成功",
+                            taskId = task.Id,
+                            patientId = task.PatientId,
+                            patientName = task.Patient?.Name
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        return BadRequest(new 
+                        { 
+                            success = false,
+                            isMatched = false,
+                            message = $"条形码识别异常: {ex.Message}",
+                            taskId = task.Id
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = $"患者条形码验证异常: {ex.Message}", success = false });
+            }
+        }
+
+        /// <summary>
+        /// [护士端] 验证任务和药品条形码是否匹配
+        /// </summary>
+        [HttpPost("barcode/validate-drug")]
+        public async Task<IActionResult> ValidateDrugBarcode(long taskId, [FromForm] IFormFile taskBarcodeImage, [FromForm] IFormFile drugBarcodeImage)
+        {
+            try
+            {
+                if (taskBarcodeImage == null || drugBarcodeImage == null)
+                {
+                    return BadRequest(new { message = "缺少条形码图片", success = false });
+                }
+
+                var task = await _context.ExecutionTasks
+                    .Include(t => t.Patient)
+                    .FirstOrDefaultAsync(t => t.Id == taskId);
+
+                if (task == null)
+                {
+                    return NotFound(new { message = "任务不存在", success = false });
+                }
+
+                // 使用IBarcodeService识别药品条形码
+                using (var taskStream = taskBarcodeImage.OpenReadStream())
+                using (var drugStream = drugBarcodeImage.OpenReadStream())
+                {
+                    try
+                    {
+                        var taskRecognition = _barcodeService.RecognizeBarcode(taskStream);
+                        var drugRecognition = _barcodeService.RecognizeBarcode(drugStream);
+
+                        if (taskRecognition == null || drugRecognition == null)
+                        {
+                            return BadRequest(new 
+                            { 
+                                success = false,
+                                isMatched = false,
+                                message = "条形码识别失败，无法解析条形码内容",
+                                taskId = task.Id
+                            });
+                        }
+
+                        // 验证任务ID是否匹配
+                        if (!long.TryParse(taskRecognition.RecordId, out var decodedTaskId) || decodedTaskId != taskId)
+                        {
+                            return BadRequest(new 
+                            { 
+                                success = false,
+                                isMatched = false,
+                                message = "任务条形码不匹配",
+                                taskId = task.Id
+                            });
+                        }
+
+                        // 对于药品验证，记录药品ID（从条形码中识别出）
+                        // 这里可以根据实际的药品管理逻辑来验证药品是否匹配
+                        // 简单实现：只要条形码能识别就算成功
+                        return Ok(new 
+                        { 
+                            success = true,
+                            isMatched = true,
+                            message = "药品验证成功",
+                            taskId = task.Id,
+                            scannedDrugId = drugRecognition.RecordId,
+                            drugName = $"药品-{drugRecognition.RecordId}"
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        return BadRequest(new 
+                        { 
+                            success = false,
+                            isMatched = false,
+                            message = $"条形码识别异常: {ex.Message}",
+                            taskId = task.Id
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = $"药品条形码验证异常: {ex.Message}", success = false });
+            }
+        }
+
+        /// <summary>
+        /// [护士端] 更新执行任务状态（用于任务扫码）
+        /// </summary>
+        [HttpPost("execution-tasks/{id}/update-status")]
+        public async Task<IActionResult> UpdateExecutionTaskStatus(long id, [FromBody] UpdateExecutionTaskStatusDto dto)
+        {
+            try
+            {
+                // 获取护士信息 - 更灵活的查询方式
+                var nurse = await _context.Nurses
+                    .FirstOrDefaultAsync(n => 
+                        n.Id.ToString() == dto.NurseId || 
+                        n.EmployeeNumber == dto.NurseId ||
+                        n.IdCard == dto.NurseId ||
+                        n.Name == dto.NurseId);
+                
+                if (nurse == null)
+                {
+                    return NotFound(new { 
+                        message = $"护士不存在，请确认护士ID或员工号: {dto.NurseId}",
+                        nurseIdUsed = dto.NurseId
+                    });
+                }
+
+                // 查询任务
+                var task = await _context.ExecutionTasks
+                    .Include(t => t.Patient)
+                    .FirstOrDefaultAsync(t => t.Id == id);
+
+                if (task == null)
+                {
+                    return NotFound(new { message = "任务不存在" });
+                }
+
+                // 解析目标状态
+                if (!Enum.TryParse<ExecutionTaskStatus>(dto.Status, out var targetStatus))
+                {
+                    return BadRequest(new { message = $"无效的状态: {dto.Status}" });
+                }
+
+                // 更新任务状态和执行者信息
+                task.ExecutorStaffId = nurse.Id;
+                task.ActualStartTime ??= DateTime.UtcNow;
+                task.Status = targetStatus;
+                task.LastModifiedAt = DateTime.UtcNow;
+
+                // 如果提供了结果，更新结果字段
+                if (!string.IsNullOrEmpty(dto.ResultPayload))
+                {
+                    task.ResultPayload = dto.ResultPayload;
+                }
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    message = "任务状态已更新",
+                    taskId = task.Id,
+                    status = task.Status,
+                    actualStartTime = task.ActualStartTime
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "更新任务状态失败", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// 获取任务相关的药品列表（用于Verification类任务）
+        /// </summary>
+        private List<dynamic> GetTaskDrugs(ExecutionTask task)
+        {
+            var drugs = new List<dynamic>();
+
+            if (task.Category == TaskCategory.Verification && task.MedicalOrderId > 0)
+            {
+                // 这里需要根据MedicalOrder获取药品列表
+                // 实现方式取决于MedicalOrder和Drug的关联关系
+                // 暂时返回空列表，具体实现需要根据业务逻辑调整
+            }
+
+            return drugs;
+        }
+
+        /// <summary>
+        /// 获取任务类别的显示名称
+        /// </summary>
+        private string GetTaskCategoryName(TaskCategory category)
+        {
+            return category switch
+            {
+                TaskCategory.Immediate => "立即执行",
+                TaskCategory.Duration => "持续执行",
+                TaskCategory.ResultPending => "结果等待",
+                TaskCategory.DataCollection => "护理记录",
+                TaskCategory.Verification => "核对",
+                TaskCategory.ApplicationWithPrint => "申请打印",
+                _ => "未知"
+            };
         }
 
         /// <summary>

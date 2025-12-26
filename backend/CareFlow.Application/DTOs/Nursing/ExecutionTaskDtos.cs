@@ -38,3 +38,19 @@ public class CancelExecutionTaskDto
     [MinLength(2, ErrorMessage = "取消理由至少2个字符")]
     public string CancelReason { get; set; } = string.Empty;
 }
+/// <summary>
+/// 更新执行任务状态 DTO（用于扫码任务页面）
+/// </summary>
+public class UpdateExecutionTaskStatusDto
+{
+    [Required(ErrorMessage = "护士ID不能为空")]
+    public string NurseId { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "状态不能为空")]
+    public string Status { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 执行结果（JSON格式，可选）
+    /// </summary>
+    public string? ResultPayload { get; set; }
+}

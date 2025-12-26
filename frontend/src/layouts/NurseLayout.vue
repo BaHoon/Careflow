@@ -62,6 +62,15 @@
           <el-icon><Notebook /></el-icon>
           <span>护理记录</span>
         </router-link>
+        
+        <router-link 
+          to="/nurse/task-scan" 
+          class="nav-item"
+          active-class="active"
+        >
+          <el-icon><PriceTag /></el-icon>
+          <span>任务扫码</span>
+        </router-link>
       </nav>
       
       <!-- 用户信息 -->
@@ -108,7 +117,8 @@ import {
   Operation,
   Notebook,
   ArrowDown,
-  SwitchButton 
+  SwitchButton,
+  PriceTag 
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
