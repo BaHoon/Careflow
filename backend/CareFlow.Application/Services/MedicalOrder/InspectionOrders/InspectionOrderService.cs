@@ -6,7 +6,7 @@ using CareFlow.Core.Models.Medical;
 using CareFlow.Core.Enums;
 using Microsoft.Extensions.Logging;
 
-namespace CareFlow.Application.Services.InspectionOrders;
+namespace CareFlow.Application.Services.MedicalOrder.InspectionOrders;
 
 /// <summary>
 /// 检查医嘱服务实现

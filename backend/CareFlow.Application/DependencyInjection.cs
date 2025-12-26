@@ -7,7 +7,6 @@ using CareFlow.Application.Services.MedicationOrders;
 using CareFlow.Application.Services.OperationOrders;
 using CareFlow.Application.Services.OrderAcknowledgement;
 using CareFlow.Application.Services.OrderApplication;
-using CareFlow.Application.Services.SurgicalOrders;
 using CareFlow.Core.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -29,6 +28,7 @@ public static class DependencyInjection
         services.AddScoped<IMedicationOrderTaskService, MedicationOrderTaskService>();
         services.AddScoped<ISurgicalOrderTaskService, SurgicalOrderTaskService>();
         services.AddScoped<IDischargeOrderTaskService, DischargeOrderTaskService>();
+        services.AddScoped<IOperationOrderTaskService, OperationOrderTaskService>();
         
         // 注册任务工厂
         services.AddScoped<IExecutionTaskFactory, SurgicalExecutionTaskFactory>();
@@ -39,6 +39,9 @@ public static class DependencyInjection
         services.AddScoped<ISurgicalOrderService, SurgicalOrderService>();
         services.AddScoped<IOperationOrderService, OperationOrderService>();
         services.AddScoped<IDischargeOrderService, DischargeOrderService>();
+        
+        // 注册操作医嘱管理服务（兼容旧接口，OperationOrderService实现了IOperationOrderManager）
+        services.AddScoped<IOperationOrderManager, OperationOrderService>();
         
         // 注册医嘱签收服务（阶段一）
         services.AddScoped<IOrderAcknowledgementService, OrderAcknowledgementService>();

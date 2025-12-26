@@ -1184,18 +1184,51 @@ namespace CareFlow.Infrastructure.Migrations
                 {
                     b.HasBaseType("CareFlow.Core.Models.Medical.MedicalOrder");
 
-                    b.Property<string>("FrequencyType")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<int?>("ExpectedDurationMinutes")
+                        .HasColumnType("integer");
 
-                    b.Property<string>("FrequencyValue")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<int>("IntervalDays")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("IntervalHours")
+                        .HasColumnType("numeric");
 
                     b.Property<bool>("Normal")
                         .HasColumnType("boolean");
 
                     b.Property<string>("OpId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("OperationName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("OperationRequirements")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OperationSite")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PreparationItems")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("RequiresPreparation")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("RequiresResult")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ResultTemplate")
+                        .HasColumnType("text");
+
+                    b.Property<int>("SmartSlotsMask")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("StartTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TimingStrategy")
                         .IsRequired()
                         .HasColumnType("text");
 
