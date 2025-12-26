@@ -31,7 +31,7 @@ public class DischargeOrderTaskService : IDischargeOrderTaskService
     /// <summary>
     /// 生成出院医嘱执行任务
     /// 任务1: 如果有带回药品，生成取药任务（Verification类型）
-    /// 任务2: 生成出院确认任务（DischargeConfirmation类型）
+    /// 任务2: 生成出院确认任务（DischargeConfirmation类型）（无）
     /// </summary>
     public async Task<List<ExecutionTask>> GenerateExecutionTasksAsync(DischargeOrder order)
     {
@@ -106,9 +106,9 @@ public class DischargeOrderTaskService : IDischargeOrderTaskService
                 _logger.LogInformation("出院医嘱不包含带回药品，跳过取药任务");
             }
 
-            // 7. 任务2: 生成出院确认任务（必须）
-            var dischargeConfirmTask = await GenerateDischargeConfirmationTaskAsync(existingOrder);
-            tasks.Add(dischargeConfirmTask);
+            // // 7. 任务2: 生成出院确认任务（必须）
+            // var dischargeConfirmTask = await GenerateDischargeConfirmationTaskAsync(existingOrder);
+            // tasks.Add(dischargeConfirmTask);
 
             _logger.LogInformation("✅ 成功为出院医嘱 {OrderId} 生成 {Count} 个执行任务", order.Id, tasks.Count);
 
