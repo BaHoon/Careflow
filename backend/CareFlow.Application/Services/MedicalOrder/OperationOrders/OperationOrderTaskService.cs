@@ -214,11 +214,14 @@ public class OperationOrderTaskService : IOperationOrderTaskService
         try
         {
             // 查找所有未开始执行的任务
+            // 注意：操作类医嘱没有取药任务，所以不需要检查Applying/Applied/AppliedConfirmed状态
+            // 操作类医嘱的任务状态只有四种：Pending、InProgress、Completed、Stopped
+            // 只检查Pending、InProgress状态，且ActualStartTime为null（未开始执行）
             var pendingTasks = await _taskRepository.ListAsync(t => 
                 t.MedicalOrderId == orderId && 
                 (t.Status == ExecutionTaskStatus.Pending || 
-                 t.Status == ExecutionTaskStatus.InProgress) && 
-                t.ActualStartTime == null);
+                 t.Status == ExecutionTaskStatus.InProgress) &&
+                t.ActualStartTime == null); // 只回滚未开始执行的任务
 
             foreach (var task in pendingTasks)
             {
@@ -527,11 +530,16 @@ public class OperationOrderTaskService : IOperationOrderTaskService
 
     /// <summary>
     /// 检查是否已存在未完成的任务，避免重复生成
+    /// 注意：操作类医嘱没有取药任务（Verification类别），所以不需要检查Applying/Applied/AppliedConfirmed状态
+    /// 操作类医嘱的任务状态只有四种：Pending、InProgress、Completed、Stopped
     /// </summary>
     private async Task<bool> HasPendingTasksAsync(long orderId)
     {
         try
         {
+            // 操作类医嘱的任务状态只有四种：Pending、InProgress、Completed、Stopped
+            // 不包含取药相关的状态（Applying、Applied、AppliedConfirmed）
+            // 也不包含Running状态（操作类医嘱使用InProgress表示执行中）
             var existingTasks = await _taskRepository.ListAsync(t => 
                 t.MedicalOrderId == orderId && 
                 (t.Status == ExecutionTaskStatus.Pending || 
@@ -807,10 +815,11 @@ public class OperationOrderTaskService : IOperationOrderTaskService
             }
 
             // 检查是否所有任务都已完成（Completed或Stopped）
+            // 操作类医嘱的任务状态只有四种：Pending、InProgress、Completed、Stopped
+            // 只要不是Completed或Stopped，就认为是未完成的任务
             var incompleteTasks = allTasks.Where(t => 
                 t.Status != ExecutionTaskStatus.Completed && 
-                t.Status != ExecutionTaskStatus.Stopped && 
-                t.Status != ExecutionTaskStatus.Incomplete).ToList();
+                t.Status != ExecutionTaskStatus.Stopped).ToList();
 
             if (!incompleteTasks.Any() && !order.EndTime.HasValue)
             {
