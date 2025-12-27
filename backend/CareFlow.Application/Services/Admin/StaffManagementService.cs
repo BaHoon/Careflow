@@ -146,33 +146,21 @@ public class StaffManagementService
         // 默认密码为 123456，使用 SHA256 加密
         var passwordHash = HashPassword("123456");
 
-        // 生成 EmployeeNumber
+        // 根据 ID 生成 EmployeeNumber
+        // ID格式: D001 → doc001, N123 → nurse123, A005 → admin005
         string employeeNumber;
+        string idNumber = request.StaffId.Substring(1); // 提取数字部分，如 D050 → 050
+        
         switch (request.Role)
         {
             case "Doctor":
-                var lastDoctor = await _doctorRepository.GetQueryable()
-                    .Where(d => d.EmployeeNumber.StartsWith("doc"))
-                    .OrderByDescending(d => d.EmployeeNumber)
-                    .FirstOrDefaultAsync();
-                var docNum = lastDoctor != null ? int.Parse(lastDoctor.EmployeeNumber.Substring(3)) + 1 : 1;
-                employeeNumber = $"doc{docNum:D3}";
+                employeeNumber = $"doc{idNumber.ToLower()}";
                 break;
             case "Nurse":
-                var lastNurse = await _nurseRepository.GetQueryable()
-                    .Where(n => n.EmployeeNumber.StartsWith("nurse"))
-                    .OrderByDescending(n => n.EmployeeNumber)
-                    .FirstOrDefaultAsync();
-                var nurseNum = lastNurse != null ? int.Parse(lastNurse.EmployeeNumber.Substring(5)) + 1 : 1;
-                employeeNumber = $"nurse{nurseNum:D3}";
+                employeeNumber = $"nurse{idNumber.ToLower()}";
                 break;
             case "Admin":
-                var lastAdmin = await _staffRepository.GetQueryable()
-                    .Where(s => s.RoleType == "Admin" && s.EmployeeNumber.StartsWith("admin"))
-                    .OrderByDescending(s => s.EmployeeNumber)
-                    .FirstOrDefaultAsync();
-                var adminNum = lastAdmin != null ? int.Parse(lastAdmin.EmployeeNumber.Substring(5)) + 1 : 1;
-                employeeNumber = $"admin{adminNum:D3}";
+                employeeNumber = $"admin{idNumber.ToLower()}";
                 break;
             default:
                 throw new ArgumentException($"不支持的角色类型: {request.Role}");
