@@ -45,7 +45,7 @@
           {{ formatDateTime(task.actualStartTime) }}
         </el-descriptions-item>
         <el-descriptions-item
-          v-if="task.executorNurseName"
+          v-if="task.executorNurseName && task.status === 5"
           label="执行护士"
           :span="2"
         >
