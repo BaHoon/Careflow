@@ -13,7 +13,6 @@ import NurseDashboard from '../views/NurseDashboard.vue'
 import NurseTaskList from '../views/NurseTaskList.vue'
 import OrderAcknowledgement from '../views/OrderAcknowledgement.vue'
 import NurseOrderQueryView from '../views/NurseOrderQueryView.vue'
-import OrderTest from '../views/OrderTest.vue'
 import OrderApplication from '../views/OrderApplication.vue'
 import NursingRecord from '../views/NursingRecord.vue'
 import TaskScan from '../views/TaskScan.vue'
@@ -83,12 +82,6 @@ const router = createRouter({
           name: 'order-application',
           component: OrderApplication,
           meta: { title: '医嘱申请' }
-        },
-        {
-          path: 'order-test', // 相对路径，实际路径为 /nurse/order-test
-          name: 'order-test',
-          component: OrderTest,
-          meta: { title: '医嘱测试' }
         },
         {
           path: 'nursing-record', // 相对路径，实际路径为 /nurse/nursing-record

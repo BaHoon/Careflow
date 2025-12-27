@@ -1394,19 +1394,19 @@ namespace CareFlow.Infrastructure.Data
                     DataPayload = "{\"taskType\":\"MEDICATION_ADMINISTRATION\",\"title\":\"静脉滴注0.9%氯化钠注射液 250ml\",\"TaskType\":\"MEDICATION_ADMINISTRATION\",\"description\":\"缓慢滴注，30分钟内完成\",\"isChecklist\":true,\"items\":[{\"id\":1,\"text\":\"核对药品：生理盐水\",\"isChecked\":true,\"required\":true},{\"id\":2,\"text\":\"检查输液通路\",\"isChecked\":true,\"required\":true},{\"id\":3,\"text\":\"监测滴注速率\",\"isChecked\":false,\"required\":false}],\"medicationInfo\":{\"drugName\":\"0.9%氯化钠注射液\",\"specification\":\"250ml/袋\",\"dosage\":\"250ml\",\"route\":\"IVGTT\",\"frequency\":\"30分钟\"}}"
                 },
                 
-                // 3️⃣ ResultPending演示：P003的皮肤测试 - 状态Pending(3)
-                // 流程：点"完成任务" → "确认开始" → InProgress(4)
-                //      然后点"结束任务（需录入结果）" → 输入结果 → Completed(5)
-                new CareFlow.Core.Models.Nursing.ExecutionTask
-                {
-                    MedicalOrderId = surgicalOrders[0].Id,
-                    PatientId = "P003",
-                    Category = TaskCategory.ResultPending,
-                    PlannedStartTime = currentTime.Date.AddHours(9), // UTC 09:00 (北京 17:00 下午)
-                    AssignedNurseId = "N004", // nurse004 - 张护士
-                    Status = ExecutionTaskStatus.Pending,
-                    DataPayload = "{\"taskType\":\"SkinTest\",\"title\":\"手术前皮肤敏感性测试\",\"description\":\"对头孢曲松钠进行皮肤敏感性测试，观察反应\",\"drugName\":\"头孢曲松钠\",\"testType\":\"SkinTest\",\"testDrug\":\"头孢曲松钠 0.1ml\",\"observationTime\":\"15分钟\"}"
-                },
+                // // 3️⃣ ResultPending演示：P003的皮肤测试 - 状态Pending(3)
+                // // 流程：点"完成任务" → "确认开始" → InProgress(4)
+                // //      然后点"结束任务（需录入结果）" → 输入结果 → Completed(5)
+                // new CareFlow.Core.Models.Nursing.ExecutionTask
+                // {
+                //     MedicalOrderId = surgicalOrders[0].Id,
+                //     PatientId = "P003",
+                //     Category = TaskCategory.ResultPending,
+                //     PlannedStartTime = currentTime.Date.AddHours(9), // UTC 09:00 (北京 17:00 下午)
+                //     AssignedNurseId = "N004", // nurse004 - 张护士
+                //     Status = ExecutionTaskStatus.Pending,
+                //     DataPayload = "{\"taskType\":\"SkinTest\",\"title\":\"手术前皮肤敏感性测试\",\"description\":\"对头孢曲松钠进行皮肤敏感性测试，观察反应\",\"drugName\":\"头孢曲松钠\",\"testType\":\"SkinTest\",\"testDrug\":\"头孢曲松钠 0.1ml\",\"observationTime\":\"15分钟\"}"
+                // },
                 
                 // ==================== 其他已完成的参考任务 ====================
                 
@@ -1483,41 +1483,41 @@ namespace CareFlow.Infrastructure.Data
                     DataPayload = "{\"taskType\":\"VitalSigns\",\"title\":\"生命体征测量\"}",
                 },
                 
-                // P003 的手术准备任务 (手术区域备皮 - 已完成参考)
-                new CareFlow.Core.Models.Nursing.ExecutionTask
-                {
-                    MedicalOrderId = surgicalOrders[0].Id,
-                    PatientId = "P003",
-                    Category = TaskCategory.Verification,
-                    PlannedStartTime = currentTime.Date.AddHours(6), // UTC 06:00 (北京 14:00)
-                    AssignedNurseId = "N001",
-                    Status = ExecutionTaskStatus.Pending,
-                    DataPayload = "{\"taskType\":\"SurgicalPrep\",\"title\":\"手术区域备皮\",\"surgeryName\":\"腹腔镜阑尾切除术\"}",
-                },
+                // // P003 的手术准备任务 (手术区域备皮 - 已完成参考)
+                // new CareFlow.Core.Models.Nursing.ExecutionTask
+                // {
+                //     MedicalOrderId = surgicalOrders[0].Id,
+                //     PatientId = "P003",
+                //     Category = TaskCategory.Verification,
+                //     PlannedStartTime = currentTime.Date.AddHours(6), // UTC 06:00 (北京 14:00)
+                //     AssignedNurseId = "N001",
+                //     Status = ExecutionTaskStatus.Pending,
+                //     DataPayload = "{\"taskType\":\"SurgicalPrep\",\"title\":\"手术区域备皮\",\"surgeryName\":\"腹腔镜阑尾切除术\"}",
+                // },
                 
-                // P003 的手术准备任务 (建立静脉通路 - 已完成参考)
-                new CareFlow.Core.Models.Nursing.ExecutionTask
-                {
-                    MedicalOrderId = surgicalOrders[0].Id,
-                    PatientId = "P003",
-                    Category = TaskCategory.Verification,
-                    PlannedStartTime = currentTime.Date.AddHours(7), // UTC 07:00 (北京 15:00)
-                    AssignedNurseId = "N001",
-                    Status = ExecutionTaskStatus.Pending,
-                    DataPayload = "{\"taskType\":\"SurgicalPrep\",\"title\":\"建立静脉通路\",\"surgeryName\":\"腹腔镜阑尾切除术\"}",
-                },
+                // // P003 的手术准备任务 (建立静脉通路 - 已完成参考)
+                // new CareFlow.Core.Models.Nursing.ExecutionTask
+                // {
+                //     MedicalOrderId = surgicalOrders[0].Id,
+                //     PatientId = "P003",
+                //     Category = TaskCategory.Verification,
+                //     PlannedStartTime = currentTime.Date.AddHours(7), // UTC 07:00 (北京 15:00)
+                //     AssignedNurseId = "N001",
+                //     Status = ExecutionTaskStatus.Pending,
+                //     DataPayload = "{\"taskType\":\"SurgicalPrep\",\"title\":\"建立静脉通路\",\"surgeryName\":\"腹腔镜阑尾切除术\"}",
+                // },
                 
-                // P003 的手术准备任务 (留置导尿管 - 待执行参考)
-                new CareFlow.Core.Models.Nursing.ExecutionTask
-                {
-                    MedicalOrderId = surgicalOrders[0].Id,
-                    PatientId = "P003",
-                    Category = TaskCategory.Verification,
-                    PlannedStartTime = currentTime.Date.AddHours(10), // UTC 10:00 (北京 18:00)
-                    AssignedNurseId = "N001",
-                    Status = ExecutionTaskStatus.Pending,
-                    DataPayload = "{\"taskType\":\"SurgicalPrep\",\"title\":\"留置导尿管\",\"surgeryName\":\"腹腔镜阑尾切除术\"}"
-                },
+                // // P003 的手术准备任务 (留置导尿管 - 待执行参考)
+                // new CareFlow.Core.Models.Nursing.ExecutionTask
+                // {
+                //     MedicalOrderId = surgicalOrders[0].Id,
+                //     PatientId = "P003",
+                //     Category = TaskCategory.Verification,
+                //     PlannedStartTime = currentTime.Date.AddHours(10), // UTC 10:00 (北京 18:00)
+                //     AssignedNurseId = "N001",
+                //     Status = ExecutionTaskStatus.Pending,
+                //     DataPayload = "{\"taskType\":\"SurgicalPrep\",\"title\":\"留置导尿管\",\"surgeryName\":\"腹腔镜阑尾切除术\"}"
+                // },
                 
                 // P006 的手术准备任务 (术前抗生素皮试 - 已完成参考)
                 new CareFlow.Core.Models.Nursing.ExecutionTask

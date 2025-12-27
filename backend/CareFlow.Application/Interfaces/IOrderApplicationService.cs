@@ -77,4 +77,13 @@ public interface IOrderApplicationService
     /// <returns>退药确认结果</returns>
     Task<ApplicationResponseDto> ConfirmReturnMedicationAsync(
         long taskId, string nurseId);
+    
+    /// <summary>
+    /// 确认异常取消退药（PendingReturnCancelled状态，将任务标记为异常状态）
+    /// </summary>
+    /// <param name="taskId">任务ID</param>
+    /// <param name="nurseId">操作护士ID</param>
+    /// <returns>确认结果</returns>
+    Task<ApplicationResponseDto> ConfirmCancelledReturnAsync(
+        long taskId, string nurseId);
 }

@@ -63,7 +63,7 @@ namespace CareFlow.Application.Services
                         DataPayload = JsonSerializer.Serialize(new
                         {
                             TaskType = "EDUCATION",
-                            Title = talkContent,
+                            Title = $"术前宣讲：{talkContent}",
                             Description = $"针对手术【{order.SurgeryName}】的术前宣教",
                             IsChecklist = false
                         }, JsonConfig.DefaultOptions)
@@ -99,7 +99,7 @@ namespace CareFlow.Application.Services
                         DataPayload = JsonSerializer.Serialize(new
                         {
                             TaskType = "NURSING_OP",
-                            Title = opContent,
+                            Title = $"术前操作：{opContent}",
                             Description = $"切口部位：{order.IncisionSite}",
                             RequiresScan = true // 标记前端需要扫码
                         }, JsonConfig.DefaultOptions)
@@ -146,7 +146,7 @@ namespace CareFlow.Application.Services
                 DataPayload = JsonSerializer.Serialize(new
                 {
                     TaskType = "SUPPLY_CHECK",
-                    Title = "术前物品与药品核对",
+                    Title = "物品核对：术前器械与药品",
                     Description = "请核对带入手术室的所有物品",
                     IsChecklist = true,
                     Items = supplyList
