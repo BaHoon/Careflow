@@ -216,6 +216,7 @@ const selectedSchedule = ref(null)
 const selectedDayDate = ref('')
 const daySchedules = ref([])
 const currentNurseId = ref(null)
+const currentDeptCode = ref(null)
 
 // 计算属性
 const currentMonthText = computed(() => {
@@ -338,9 +339,10 @@ const loadScheduleData = async () => {
       getScheduleList({
         startDate,
         endDate,
-        wardId: selectedWardId.value || undefined
+        wardId: selectedWardId.value || undefined,
+        departmentId: currentDeptCode.value || undefined
       }),
-      getWards(),
+      getWards(currentDeptCode.value || null),
       getShiftTypes()
     ])
 
@@ -456,15 +458,17 @@ const nextMonth = () => {
 
 // 生命周期
 onMounted(() => {
-  // 获取当前登录护士ID
+  // 获取当前登录护士信息
   const userInfo = localStorage.getItem('userInfo')
   if (userInfo) {
     try {
       const parsed = JSON.parse(userInfo)
-      // 从登录信息中获取 staffId（这是护士的ID）
+      // 从登录信息中获取 staffId（这是护士的ID）和 deptCode（科室代码）
       currentNurseId.value = parsed.staffId || null
+      currentDeptCode.value = parsed.deptCode || null
       console.log('当前用户信息:', parsed)
       console.log('当前护士ID:', currentNurseId.value)
+      console.log('当前科室代码:', currentDeptCode.value)
     } catch (error) {
       console.error('解析用户信息失败:', error)
     }

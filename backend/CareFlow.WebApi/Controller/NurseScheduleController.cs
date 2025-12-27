@@ -85,18 +85,20 @@ public class NurseScheduleController : ControllerBase
     /// <param name="endDate">结束日期（可选）</param>
     /// <param name="wardId">病区ID（可选）</param>
     /// <param name="nurseId">护士ID（可选）</param>
+    /// <param name="departmentId">科室ID（可选，返回该科室所有病区的排班）</param>
     /// <returns>排班列表</returns>
     [HttpGet("list")]
     public async Task<ActionResult<ScheduleListResponseDto>> GetScheduleList(
         [FromQuery] DateTime? startDate,
         [FromQuery] DateTime? endDate,
         [FromQuery] string? wardId,
-        [FromQuery] string? nurseId)
+        [FromQuery] string? nurseId,
+        [FromQuery] string? departmentId)
     {
         try
         {
-            _logger.LogInformation("查询排班列表: StartDate={StartDate}, EndDate={EndDate}, WardId={WardId}, NurseId={NurseId}",
-                startDate, endDate, wardId, nurseId);
+            _logger.LogInformation("查询排班列表: StartDate={StartDate}, EndDate={EndDate}, WardId={WardId}, NurseId={NurseId}, DepartmentId={DepartmentId}",
+                startDate, endDate, wardId, nurseId, departmentId);
 
             var query = _context.NurseRosters
                 .Include(r => r.Nurse)
@@ -118,7 +120,13 @@ public class NurseScheduleController : ControllerBase
                 query = query.Where(r => r.WorkDate <= end);
             }
 
-            // 病区筛选
+            // 科室筛选（优先于病区筛选）
+            if (!string.IsNullOrWhiteSpace(departmentId))
+            {
+                query = query.Where(r => r.Ward.DepartmentId == departmentId);
+            }
+
+            // 病区筛选（如果没有指定科室，可以按病区筛选）
             if (!string.IsNullOrWhiteSpace(wardId))
             {
                 query = query.Where(r => r.WardId == wardId);
@@ -170,15 +178,25 @@ public class NurseScheduleController : ControllerBase
     }
 
     /// <summary>
-    /// 获取所有病区列表
+    /// 获取病区列表（支持按科室筛选）
     /// </summary>
+    /// <param name="departmentId">科室ID（可选，返回该科室的所有病区）</param>
     [HttpGet("wards")]
-    public async Task<ActionResult<List<WardDto>>> GetWards()
+    public async Task<ActionResult<List<WardDto>>> GetWards([FromQuery] string? departmentId = null)
     {
         try
         {
-            var wards = await _context.Wards
+            var query = _context.Wards
                 .Include(w => w.Department)
+                .AsQueryable();
+
+            // 如果指定了科室，只返回该科室的病区
+            if (!string.IsNullOrWhiteSpace(departmentId))
+            {
+                query = query.Where(w => w.DepartmentId == departmentId);
+            }
+
+            var wards = await query
                 .Select(w => new WardDto
                 {
                     WardId = w.Id,
@@ -186,7 +204,12 @@ public class NurseScheduleController : ControllerBase
                     DepartmentId = w.DepartmentId,
                     DepartmentName = w.Department.DeptName
                 })
+                .OrderBy(w => w.DepartmentId)
+                .ThenBy(w => w.WardId)
                 .ToListAsync();
+
+            _logger.LogInformation("查询病区列表: DepartmentId={DepartmentId}, 返回数量={Count}",
+                departmentId, wards.Count);
 
             return Ok(wards);
         }

@@ -11,6 +11,7 @@ import api from '../utils/api';
  * @param {string} params.endDate - 结束日期 (YYYY-MM-DD)
  * @param {string} params.wardId - 病区ID（可选）
  * @param {string} params.nurseId - 护士ID（可选）
+ * @param {string} params.departmentId - 科室ID（可选，返回该科室所有病区的排班）
  * @returns {Promise<Object>} 排班列表
  */
 export const getScheduleList = (params = {}) => {
@@ -18,11 +19,13 @@ export const getScheduleList = (params = {}) => {
 };
 
 /**
- * 获取所有病区列表
+ * 获取病区列表（支持按科室筛选）
+ * @param {string} departmentId - 科室ID（可选，返回该科室的所有病区）
  * @returns {Promise<Array>} 病区列表
  */
-export const getWards = () => {
-  return api.get('/nurse/schedule/wards');
+export const getWards = (departmentId = null) => {
+  const params = departmentId ? { departmentId } : {}
+  return api.get('/nurse/schedule/wards', { params });
 };
 
 /**
