@@ -1217,8 +1217,8 @@
                   <span class="tip-text">该操作无需准备物品</span>
                 </div>
 
-                <!-- 预期执行时长（仅持续类操作显示） -->
-                <div class="form-row" v-if="getSelectedOperationCategory() === 'Duration'">
+                <!-- 预期执行时长（持续类操作或需要持续时间的ResultPending类操作显示） -->
+                <div class="form-row" v-if="shouldShowDurationInput()">
                   <label>预期执行时长（分钟）：</label>
                   <el-input-number 
                     v-model="operationOrder.expectedDurationMinutes"
@@ -1848,33 +1848,36 @@ const operationOrder = reactive({
 
 // 常用操作代码选项（参照后端 OperationOrderService.OperationNameMap）
 const operationOptions = [
-  // 持续类操作（Duration）- 需要开始和结束时间，有预期持续时间
-  { opId: 'OP001', name: '更换引流袋', category: 'Duration', needsPreparation: true, preparationItems: ['引流袋', '无菌手套', '碘伏', '棉签', '无菌纱布', '胶带'], defaultDurationMinutes: 15 },
-  { opId: 'OP002', name: '持续吸氧', category: 'Duration', needsPreparation: true, preparationItems: ['吸氧装置', '鼻导管或面罩', '湿化瓶', '蒸馏水'], defaultDurationMinutes: 60 },
-  { opId: 'OP006', name: '鼻饲', category: 'Duration', needsPreparation: true, preparationItems: ['鼻饲管', '注射器', '营养液', '温开水', '无菌纱布', '胶带'], defaultDurationMinutes: 30 },
-  { opId: 'OP007', name: '雾化吸入', category: 'Duration', needsPreparation: true, preparationItems: ['雾化器', '雾化药液', '面罩或口含器', '生理盐水', '电源'], defaultDurationMinutes: 20 },
-  { opId: 'OP011', name: '持续心电监护', category: 'Duration', needsPreparation: true, preparationItems: ['心电监护仪', '电极片', '导联线', '酒精棉球'], defaultDurationMinutes: 1440 },
-  { opId: 'OP012', name: '持续导尿', category: 'Duration', needsPreparation: true, preparationItems: ['导尿管', '无菌手套', '碘伏', '引流袋', '润滑剂', '无菌纱布', '胶带'], defaultDurationMinutes: 30 },
-  { opId: 'OP013', name: '持续胃肠减压', category: 'Duration', needsPreparation: true, preparationItems: ['胃管', '负压吸引器', '引流袋', '无菌手套', '碘伏', '胶带'], defaultDurationMinutes: 30 },
-  { opId: 'OP014', name: '持续静脉输液', category: 'Duration', needsPreparation: true, preparationItems: ['输液器', '输液袋/瓶', '输液架', '碘伏', '棉签', '胶带'], defaultDurationMinutes: 120 },
+  // --- 一、呼吸道管理类 (高频治疗) ---
+  { opId: 'OP001', name: '持续低流量吸氧', category: 'Duration', needsPreparation: true, preparationItems: ['氧气流量表', '湿化瓶', '灭菌注射用水', '鼻导管/吸氧面罩', '棉签'], needsResult: false, defaultDurationMinutes: 1440 },
+  { opId: 'OP002', name: '雾化吸入治疗', category: 'Duration', needsPreparation: true, preparationItems: ['雾化器', '雾化面罩/咬嘴', '药液', '生理盐水'], needsResult: false, defaultDurationMinutes: 15 },
+  { opId: 'OP003', name: '经口/鼻吸痰', category: 'Immediate', needsPreparation: true, preparationItems: ['负压吸引装置', '一次性吸痰管', '无菌手套', '生理盐水', '冲洗杯'], needsResult: false },
+  { opId: 'OP004', name: '气管切开护理', category: 'Immediate', needsPreparation: true, preparationItems: ['气切护理包', '吸痰管', '无菌纱布', '系带', '过氧化氢/生理盐水'], needsResult: false },
   
-  // 即刻类操作（Immediate）- 扫码即完成，无需持续时间
-  { opId: 'OP004', name: '更换敷料', category: 'Immediate', needsPreparation: true, preparationItems: ['无菌敷料', '胶带', '碘伏', '棉签', '无菌手套', '剪刀'] },
-  { opId: 'OP005', name: '导尿', category: 'Immediate', needsPreparation: true, preparationItems: ['导尿管', '无菌手套', '碘伏', '引流袋', '润滑剂', '无菌纱布', '胶带'] },
-  { opId: 'OP008', name: '口腔护理', category: 'Immediate', needsPreparation: true, preparationItems: ['口腔护理包', '生理盐水', '棉签', '无菌手套', '吸痰管'] },
-  { opId: 'OP009', name: '会阴护理', category: 'Immediate', needsPreparation: true, preparationItems: ['会阴护理包', '温开水', '无菌纱布', '无菌手套', '碘伏'] },
-  { opId: 'OP010', name: '皮肤护理', category: 'Immediate', needsPreparation: true, preparationItems: ['温水', '毛巾', '润肤霜', '无菌纱布', '爽身粉'] },
-  { opId: 'OP015', name: '翻身拍背', category: 'Immediate', needsPreparation: false, preparationItems: [] },
+  // --- 二、管路置入与维护类 (技术性操作) ---
+  { opId: 'OP005', name: '留置胃管(鼻饲管置入)', category: 'Immediate', needsPreparation: true, preparationItems: ['一次性胃管', '50ml注射器', '治疗巾', '液状石蜡/润滑油', '胶布', '听诊器', '温开水'], needsResult: false },
+  { opId: 'OP006', name: '胃肠减压护理', category: 'ResultPending', needsPreparation: true, preparationItems: ['负压引流器', '生理盐水', '冲洗注射器'], needsResult: true, defaultDurationMinutes: 1440 },
+  { opId: 'OP007', name: '留置导尿术', category: 'Immediate', needsPreparation: true, preparationItems: ['一次性导尿包', '无菌手套', '尿袋', '碘伏', '润滑油', '胶布'], needsResult: false },
+  { opId: 'OP008', name: '更换引流袋/尿袋', category: 'Immediate', needsPreparation: true, preparationItems: ['无菌引流袋/尿袋', '碘伏棉球', '弯盘', '血管钳'], needsResult: false },
+  { opId: 'OP009', name: '膀胱冲洗', category: 'ResultPending', needsPreparation: true, preparationItems: ['膀胱冲洗器', '冲洗液(生理盐水)', '废液袋', '输液架'], needsResult: true, defaultDurationMinutes: 60 },
+  { opId: 'OP010', name: '大量不保留灌肠', category: 'ResultPending', needsPreparation: true, preparationItems: ['灌肠袋/桶', '肛管', '润滑油', '灌肠液', '便盆', '一次性中单'], needsResult: true },
   
-  // 结果类操作（ResultPending）- 需要等待结果，录入结果后完成
-  { opId: 'OP003', name: '血糖监测', category: 'ResultPending', needsPreparation: true, preparationItems: ['血糖仪', '血糖试纸', '采血针', '碘伏', '棉签', '酒精棉球'], needsResult: true },
-  { opId: 'OP016', name: '血压监测', category: 'ResultPending', needsPreparation: true, preparationItems: ['血压计', '听诊器'], needsResult: true },
-  { opId: 'OP017', name: '体温监测', category: 'ResultPending', needsPreparation: true, preparationItems: ['体温计', '酒精棉球'], needsResult: true },
-  { opId: 'OP018', name: '尿量监测', category: 'ResultPending', needsPreparation: true, preparationItems: ['量杯', '记录单'], needsResult: true },
+  // --- 三、静脉与标本采集类 (穿刺操作) ---
+  { opId: 'OP011', name: '快速血糖监测(末梢)', category: 'ResultPending', needsPreparation: true, preparationItems: ['血糖仪', '血糖试纸', '采血笔', '75%酒精', '棉签', '锐器盒'], needsResult: true },
+  { opId: 'OP012', name: '静脉留置针置管', category: 'Immediate', needsPreparation: true, preparationItems: ['静脉留置针', '透明敷贴', '止血带', '碘伏/酒精', '肝素帽', '冲管液'], needsResult: false },
+  { opId: 'OP013', name: '静脉采血', category: 'Immediate', needsPreparation: true, preparationItems: ['真空采血管', '采血针', '止血带', '碘伏棉签', '锐器盒', '条码'], needsResult: false },
+  { opId: 'OP014', name: '动脉血气采集', category: 'Immediate', needsPreparation: true, preparationItems: ['动脉血气针', '肝素钠', '无菌手套', '软木塞/橡皮胶', '棉球'], needsResult: false },
+  { opId: 'OP015', name: '静脉输血护理', category: 'ResultPending', needsPreparation: true, preparationItems: ['输血器', '生理盐水', '无菌手套', '血液制品(需双人核对)'], needsResult: true, defaultDurationMinutes: 120 },
   
-  // 数据收集类操作（DataCollection）- 需要评估和记录
-  { opId: 'OP019', name: '意识状态评估', category: 'DataCollection', needsPreparation: false, preparationItems: [], needsResult: true },
-  { opId: 'OP020', name: '疼痛评估', category: 'DataCollection', needsPreparation: false, preparationItems: [], needsResult: true }
+  // --- 四、伤口与皮肤护理类 ---
+  { opId: 'OP016', name: '普通换药/敷料更换', category: 'Immediate', needsPreparation: true, preparationItems: ['无菌换药包', '棉球', '纱布', '胶带', '生理盐水', '碘伏'], needsResult: false },
+  { opId: 'OP017', name: '造口护理', category: 'Immediate', needsPreparation: true, preparationItems: ['造口袋', '造口底盘', '造口剪', '量尺', '护肤粉', '防漏膏', '温水'], needsResult: false },
+  { opId: 'OP018', name: '手术切口拆线', category: 'Immediate', needsPreparation: true, preparationItems: ['无菌拆线包(剪刀/镊子)', '碘伏', '敷料', '胶布'], needsResult: false },
+  
+  // --- 五、仪器监测与治疗类 ---
+  { opId: 'OP019', name: '心电监护', category: 'Duration', needsPreparation: true, preparationItems: ['心电监护仪', '电极片', '酒精棉球'], needsResult: false, defaultDurationMinutes: 1440 },
+  { opId: 'OP020', name: '微量泵/注射泵使用', category: 'Duration', needsPreparation: true, preparationItems: ['微量注射泵', '延长管', '50ml注射器', '药物标签'], needsResult: false, defaultDurationMinutes: 60 },
+  { opId: 'OP021', name: '气压治疗(预防血栓)', category: 'Duration', needsPreparation: true, preparationItems: ['气压治疗仪', '腿套'], needsResult: false, defaultDurationMinutes: 30 }
 ];
 
 // 准备物品输入
@@ -2207,18 +2210,18 @@ const onOperationNameChange = (operationName) => {
     if (selectedOp.needsResult !== undefined) {
       operationOrder.requiresResult = selectedOp.needsResult;
     } else {
-      // 如果没有明确设置，根据类别判断
-      operationOrder.requiresResult = selectedOp.category === 'ResultPending' || selectedOp.category === 'DataCollection';
+      // 如果没有明确设置，根据类别判断（操作类医嘱只有 ResultPending 需要结果）
+      operationOrder.requiresResult = selectedOp.category === 'ResultPending';
     }
     
-    // 持续类操作自动填充默认预期执行时长
-    if (selectedOp.category === 'Duration' && selectedOp.defaultDurationMinutes) {
+    // 持续类操作或需要持续时间的ResultPending类操作自动填充默认预期执行时长
+    if (selectedOp.defaultDurationMinutes) {
       // 如果用户还没有设置过，则使用默认值
       if (!operationOrder.expectedDurationMinutes) {
         operationOrder.expectedDurationMinutes = selectedOp.defaultDurationMinutes;
       }
-    } else if (selectedOp.category !== 'Duration') {
-      // 非持续类操作清空预期执行时长
+    } else if (!selectedOp.defaultDurationMinutes) {
+      // 没有默认持续时间的操作清空预期执行时长
       operationOrder.expectedDurationMinutes = null;
     }
   } else {
@@ -2244,6 +2247,15 @@ const getSelectedOperationCategory = () => {
   if (!operationOrder.operationName) return null;
   const selectedOp = operationOptions.find(op => op.name === operationOrder.operationName);
   return selectedOp ? selectedOp.category : null;
+};
+
+// 判断是否应该显示预期持续时间输入框
+const shouldShowDurationInput = () => {
+  if (!operationOrder.operationName) return false;
+  const selectedOp = operationOptions.find(op => op.name === operationOrder.operationName);
+  if (!selectedOp) return false;
+  // Duration类操作或有defaultDurationMinutes的操作都显示
+  return selectedOp.category === 'Duration' || selectedOp.defaultDurationMinutes !== undefined;
 };
 
 // 操作医嘱时间策略切换
