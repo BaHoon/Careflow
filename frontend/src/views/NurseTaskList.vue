@@ -56,6 +56,7 @@
         @start-input="handleStartInput"
         @view-detail="handleViewDetail"
         @task-cancelled="handleTaskCancelled"
+        @print-inspection-guide="handlePrintInspectionGuide"
       />
     </div>
 
@@ -73,6 +74,15 @@
       :current-nurse-id="getCurrentNurse()"
       @submit-success="handleRecordSubmit"
     />
+    
+    <!-- 检查导引单打印对话框 -->
+    <InspectionGuidePrintDialog
+      v-model="printGuideDialogVisible"
+      :task-id="currentPrintTaskId"
+      :order-id="currentPrintOrderId"
+      :nurse-id="getCurrentNurse()"
+      @print-success="handlePrintSuccess"
+    />
   </div>
 </template>
 
@@ -84,6 +94,7 @@ import TaskTimeline from '@/components/TaskTimeline.vue';
 import NursingRecordForm from '@/components/NursingRecordForm.vue';
 import ExecutionTaskDetail from '@/components/ExecutionTaskDetail.vue';
 import TaskDetailDialog from '@/components/TaskDetailDialog.vue';
+import InspectionGuidePrintDialog from '@/components/InspectionGuidePrintDialog.vue';
 import { getMyTasks, submitVitalSigns } from '@/api/nursing';
 
 // 数据状态
@@ -109,6 +120,11 @@ const currentDetailTask = ref(null);
 const recordDialogVisible = ref(false);
 const recordDialogMode = ref('input'); // 'input' 或 'view'
 const currentRecord = ref({});
+
+// 打印检查导引单相关状态
+const printGuideDialogVisible = ref(false);
+const currentPrintTaskId = ref(null);
+const currentPrintOrderId = ref(null);
 
 // 当前护士信息（从localStorage获取）
 const getCurrentNurse = () => {
@@ -251,6 +267,21 @@ const handleRecordSubmit = async (formData) => {
 
 // 处理任务取消事件
 const handleTaskCancelled = async (taskId) => {
+  // 刷新任务列表
+  await loadTasks();
+};
+
+// 处理打印检查导引单事件
+const handlePrintInspectionGuide = (data) => {
+  console.log('打印检查导引单:', data);
+  currentPrintTaskId.value = data.taskId;
+  currentPrintOrderId.value = data.orderId;
+  printGuideDialogVisible.value = true;
+};
+
+// 打印成功回调
+const handlePrintSuccess = async () => {
+  ElMessage.success('导引单已打印');
   // 刷新任务列表
   await loadTasks();
 };

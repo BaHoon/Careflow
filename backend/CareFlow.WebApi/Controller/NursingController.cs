@@ -4,6 +4,7 @@ using CareFlow.Application.Services.Scheduling;
 using CareFlow.Application.Common;
 using CareFlow.Core.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
 using CareFlow.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using CareFlow.Core.Models.Nursing;
@@ -523,10 +524,6 @@ namespace CareFlow.WebApi.Controllers
                     .Select(b => b.Id)
                     .ToListAsync();
 
-                Console.WriteLine($"🔍 查询护士 {nurse.Name}(ID:{nurse.Id}, DeptCode:{nurse.DeptCode}) 的任务");
-                Console.WriteLine($"📋 查询范围 UTC: {startOfDay} 到 {endOfDay}");
-                Console.WriteLine($"🛏️  该科室床位数: {bedIds.Count}, 床位ID: {string.Join(",", bedIds)}");
-
                 var currentTime = DateTime.UtcNow;
                 var allTasks = new List<NurseTaskDto>();
 
@@ -571,17 +568,11 @@ namespace CareFlow.WebApi.Controllers
                     string? resultPayload = null;
                     if (task.Status == ExecutionTaskStatus.Completed)
                     {
-                        Console.WriteLine($"🔍 任务 {task.Id} 已完成，查询护理数据...");
-                        
                         var vitalRecord = await _context.VitalSignsRecords
                             .FirstOrDefaultAsync(v => v.NursingTaskId == task.Id);
                         
-                        Console.WriteLine($"  体征记录: {(vitalRecord != null ? "找到" : "未找到")}");
-                        
                         var careNote = await _context.NursingCareNotes
                             .FirstOrDefaultAsync(n => n.NursingTaskId == task.Id);
-                        
-                        Console.WriteLine($"  护理笔记: {(careNote != null ? "找到" : "未找到")}");
                         
                         if (vitalRecord != null)
                         {
@@ -602,13 +593,6 @@ namespace CareFlow.WebApi.Controllers
                             // 添加护理笔记数据（如果有）
                             if (careNote != null)
                             {
-                                Console.WriteLine($"  添加护理笔记数据:");
-                                Console.WriteLine($"    Consciousness: {careNote.Consciousness}");
-                                Console.WriteLine($"    SkinCondition: {careNote.SkinCondition}");
-                                Console.WriteLine($"    Content: {careNote.Content}");
-                                Console.WriteLine($"    IntakeVolume: {careNote.IntakeVolume}");
-                                Console.WriteLine($"    OutputVolume: {careNote.OutputVolume}");
-                                
                                 resultData["consciousness"] = careNote.Consciousness;
                                 resultData["skinCondition"] = careNote.SkinCondition;
                                 resultData["intakeVolume"] = careNote.IntakeVolume > 0 ? careNote.IntakeVolume : null;
@@ -620,11 +604,8 @@ namespace CareFlow.WebApi.Controllers
                             }
                             
                             resultPayload = System.Text.Json.JsonSerializer.Serialize(resultData);
-                            Console.WriteLine($"  序列化后的ResultPayload: {resultPayload}");
                         }
                     }
-                    
-                    Console.WriteLine($"📋 任务 {task.Id}: ExecutorNurseId={task.ExecutorNurseId}, ExecutorNurseName={executorNurseName}");
                     
                     allTasks.Add(new NurseTaskDto
                     {
@@ -683,15 +664,6 @@ namespace CareFlow.WebApi.Controllers
                 }
 
                 var executionTasks = await executionTasksQuery.ToListAsync();
-
-                Console.WriteLine($"✅ 查询到 {nursingTasks.Count} 个护理任务，{executionTasks.Count} 个执行任务");
-                if (executionTasks.Count == 0)
-                {
-                    Console.WriteLine($"⚠️  没有找到执行任务，检查查询条件:");
-                    Console.WriteLine($"   - AssignedNurseId == {nurseStaffId}");
-                    Console.WriteLine($"   - bedIds: {string.Join(",", bedIds)}");
-                    Console.WriteLine($"   - PlannedStartTime 范围: {startOfDay} 到 {endOfDay}");
-                }
 
                 foreach (var task in executionTasks)
                 {
@@ -987,6 +959,8 @@ namespace CareFlow.WebApi.Controllers
                 var task = await _context.ExecutionTasks
                     .Include(t => t.Patient)
                     .Include(t => t.MedicalOrder)
+                        .ThenInclude(m => m.Items)
+                            .ThenInclude(i => i.Drug)
                     .FirstOrDefaultAsync(t => t.Id == id);
 
                 if (task == null)
@@ -1153,10 +1127,23 @@ namespace CareFlow.WebApi.Controllers
                     targetStatus = ExecutionTaskStatus.Completed;
                     actionDescription = "核对已完成";
                 }
+                // ==================== ApplicationWithPrint 类别（申请打印类） ====================
+                else if (task.Category == TaskCategory.ApplicationWithPrint)
+                {
+                    // 从 AppliedConfirmed(2) 或 Pending(3) 直接到 Completed(5)，打印即完成
+                    if (task.Status != ExecutionTaskStatus.Pending && 
+                        task.Status != ExecutionTaskStatus.AppliedConfirmed)
+                    {
+                        return BadRequest(new { message = $"ApplicationWithPrint 任务只能从待执行或已确认状态完成，当前状态: {task.Status}" });
+                    }
+
+                    targetStatus = ExecutionTaskStatus.Completed;
+                    actionDescription = "已打印完成";
+                }
                 // ==================== 其他类别（暂未实现） ====================
                 else
                 {
-                    // TODO: DataCollection, ApplicationWithPrint 的具体流程待定义
+                    // TODO: DataCollection 的具体流程待定义
                     return BadRequest(new { message = $"任务类别 {task.Category} 的完成流程暂未实现，请联系管理员" });
                 }
 
@@ -1463,6 +1450,8 @@ namespace CareFlow.WebApi.Controllers
 
                 var task = await _context.ExecutionTasks
                     .Include(t => t.Patient)
+                    .Include(t => t.MedicalOrder)
+                        .ThenInclude(m => m.Items)
                     .FirstOrDefaultAsync(t => t.Id == taskId);
 
                 if (task == null)
@@ -1559,6 +1548,9 @@ namespace CareFlow.WebApi.Controllers
 
                 var task = await _context.ExecutionTasks
                     .Include(t => t.Patient)
+                    .Include(t => t.MedicalOrder)
+                        .ThenInclude(m => m.Items)
+                            .ThenInclude(i => i.Drug)
                     .FirstOrDefaultAsync(t => t.Id == taskId);
 
                 if (task == null)
@@ -1598,17 +1590,173 @@ namespace CareFlow.WebApi.Controllers
                             });
                         }
 
-                        // 对于药品验证，记录药品ID（从条形码中识别出）
-                        // 这里可以根据实际的药品管理逻辑来验证药品是否匹配
-                        // 简单实现：只要条形码能识别就算成功
-                        return Ok(new 
-                        { 
+                        // 解析期望药品清单（从 DataPayload 或 MedicalOrder.Items）
+                        var expectedDrugIds = new List<string>();
+                        var expectedDrugs = new List<object>();
+
+                        // 1) 尝试从 DataPayload 中读取 MedicationInfo.Items 或 Items 中的 drugId
+                        try
+                        {
+                            if (!string.IsNullOrEmpty(task.DataPayload))
+                            {
+                                using var doc = JsonDocument.Parse(task.DataPayload);
+                                var root = doc.RootElement;
+
+                                // MedicationInfo.Items (生成任务时采用此结构)
+                                if (root.TryGetProperty("MedicationInfo", out var medInfo))
+                                {
+                                    if (medInfo.ValueKind == JsonValueKind.Object && medInfo.TryGetProperty("Items", out var medItems) && medItems.ValueKind == JsonValueKind.Array)
+                                    {
+                                        foreach (var it in medItems.EnumerateArray())
+                                        {
+                                            string? drugId = null;
+                                            string? drugName = null;
+                                            if (it.TryGetProperty("DrugId", out var d1)) drugId = d1.GetString();
+                                            if (it.TryGetProperty("drugId", out var d2) && drugId == null) drugId = d2.GetString();
+                                            if (it.TryGetProperty("DrugName", out var dn1)) drugName = dn1.GetString();
+                                            if (it.TryGetProperty("drugName", out var dn2) && drugName == null) drugName = dn2.GetString();
+                                            if (!string.IsNullOrEmpty(drugId))
+                                            {
+                                                expectedDrugIds.Add(drugId!);
+                                                expectedDrugs.Add(new { drugId, drugName });
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // root-level Items (备用)
+                                if (!expectedDrugIds.Any() && root.TryGetProperty("Items", out var itemsEl) && itemsEl.ValueKind == JsonValueKind.Array)
+                                {
+                                    foreach (var it in itemsEl.EnumerateArray())
+                                    {
+                                        string? drugId = null;
+                                        string? drugName = null;
+                                        if (it.TryGetProperty("DrugId", out var d1)) drugId = d1.GetString();
+                                        if (it.TryGetProperty("drugId", out var d2) && drugId == null) drugId = d2.GetString();
+                                        if (it.TryGetProperty("DrugName", out var dn1)) drugName = dn1.GetString();
+                                        if (it.TryGetProperty("drugName", out var dn2) && drugName == null) drugName = dn2.GetString();
+                                        if (!string.IsNullOrEmpty(drugId))
+                                        {
+                                            expectedDrugIds.Add(drugId!);
+                                            expectedDrugs.Add(new { drugId, drugName });
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        catch
+                        {
+                            // 忽略解析错误，后续会尝试从 MedicalOrder.Items 读取
+                        }
+
+                        // 2) 如果仍然没有，尝试从关联的 MedicalOrder.Items 获取 DrugId
+                        if (!expectedDrugIds.Any() && task.MedicalOrder != null && task.MedicalOrder.Items != null)
+                        {
+                            foreach (var it in task.MedicalOrder.Items)
+                            {
+                                if (!string.IsNullOrEmpty(it.DrugId))
+                                {
+                                    expectedDrugIds.Add(it.DrugId);
+                                    expectedDrugs.Add(new { drugId = it.DrugId, drugName = it.Drug?.GenericName ?? it.Drug?.TradeName });
+                                }
+                            }
+                        }
+
+                        var expectedCount = expectedDrugIds.Count;
+
+                        // 3) 读取并更新 ResultPayload 中的已扫描列表（字段名: scannedDrugIds）
+                        var scanned = new List<string>();
+                        try
+                        {
+                            if (!string.IsNullOrEmpty(task.ResultPayload))
+                            {
+                                using var doc = JsonDocument.Parse(task.ResultPayload);
+                                var root = doc.RootElement;
+                                if (root.TryGetProperty("scannedDrugIds", out var scannedEl) && scannedEl.ValueKind == JsonValueKind.Array)
+                                {
+                                    foreach (var s in scannedEl.EnumerateArray())
+                                    {
+                                        var v = s.GetString();
+                                        if (!string.IsNullOrEmpty(v)) scanned.Add(v!);
+                                    }
+                                }
+                            }
+                        }
+                        catch
+                        {
+                            // ignore
+                        }
+
+                        var scannedDrugId = drugRecognition.RecordId;
+
+                        // 已经扫描过
+                        if (scanned.Contains(scannedDrugId))
+                        {
+                            var progressPercent = expectedCount == 0 ? 0 : (int)Math.Round((double)scanned.Count / expectedCount * 100);
+                            return Ok(new
+                            {
+                                success = true,
+                                isMatched = expectedDrugIds.Contains(scannedDrugId),
+                                message = "该药品已扫描",
+                                taskId = task.Id,
+                                scannedDrugId,
+                                scannedCount = scanned.Count,
+                                expectedCount,
+                                progress = progressPercent
+                            });
+                        }
+
+                        // 如果期望清单为空，则无法验证，只记录扫描到的条码并返回
+                        if (expectedCount == 0)
+                        {
+                            scanned.Add(scannedDrugId);
+                        }
+                        else
+                        {
+                            // 验证是否在期望清单中
+                            if (expectedDrugIds.Contains(scannedDrugId))
+                            {
+                                scanned.Add(scannedDrugId);
+                            }
+                            else
+                            {
+                                return BadRequest(new
+                                {
+                                    success = false,
+                                    isMatched = false,
+                                    message = $"扫描的药品条码不在期望清单中: {scannedDrugId}",
+                                    taskId = task.Id
+                                });
+                            }
+                        }
+
+                        // 将更新后的 scanned 列表写回 ResultPayload
+                        try
+                        {
+                            var newResult = new Dictionary<string, object?>();
+                            newResult["scannedDrugIds"] = scanned;
+                            // 保留其他可能的结果字段? 这里只覆盖/设置扫描列表
+                            task.ResultPayload = JsonSerializer.Serialize(newResult);
+                            task.LastModifiedAt = DateTime.UtcNow;
+                            await _context.SaveChangesAsync();
+                        }
+                        catch (Exception ex)
+                        {
+                            _ = ex; // 忽略保存错误，但应记录在日志中（此处简化）
+                        }
+
+                        var progress = expectedCount == 0 ? 100 : (int)Math.Round((double)scanned.Count / expectedCount * 100);
+
+                        return Ok(new
+                        {
                             success = true,
                             isMatched = true,
                             message = "药品验证成功",
                             taskId = task.Id,
-                            scannedDrugId = drugRecognition.RecordId,
-                            drugName = $"药品-{drugRecognition.RecordId}"
+                            scannedDrugId = scannedDrugId,
+                            scannedCount = scanned.Count,
+                            expectedCount,
+                            progress
                         });
                     }
                     catch (Exception ex)
@@ -1704,11 +1852,162 @@ namespace CareFlow.WebApi.Controllers
         {
             var drugs = new List<dynamic>();
 
-            if (task.Category == TaskCategory.Verification && task.MedicalOrderId > 0)
+            // 尝试从 DataPayload 中解析期望药品
+            var expectedDrugIds = new List<string>();
+            var expectedDrugNames = new Dictionary<string, string?>();
+
+            try
             {
-                // 这里需要根据MedicalOrder获取药品列表
-                // 实现方式取决于MedicalOrder和Drug的关联关系
-                // 暂时返回空列表，具体实现需要根据业务逻辑调整
+                if (!string.IsNullOrEmpty(task.DataPayload))
+                {
+                    Console.WriteLine($"[GetTaskDrugs] 尝试从 DataPayload 读取药品 (TaskId: {task.Id})");
+                    using var doc = JsonDocument.Parse(task.DataPayload);
+                    var root = doc.RootElement;
+
+                    // 尝试方式1：MedicationInfo.Items（给药任务格式）
+                    if (root.TryGetProperty("MedicationInfo", out var medInfo) && medInfo.ValueKind == JsonValueKind.Object)
+                    {
+                        Console.WriteLine($"[GetTaskDrugs] 找到 MedicationInfo");
+                        if (medInfo.TryGetProperty("Items", out var medItems) && medItems.ValueKind == JsonValueKind.Array)
+                        {
+                            Console.WriteLine($"[GetTaskDrugs] 找到 MedicationInfo.Items，项数: {medItems.GetArrayLength()}");
+                            foreach (var it in medItems.EnumerateArray())
+                            {
+                                string? did = null;
+                                string? dname = null;
+                                if (it.TryGetProperty("DrugId", out var d1)) did = d1.GetString();
+                                if (it.TryGetProperty("drugId", out var d2) && did == null) did = d2.GetString();
+                                if (it.TryGetProperty("DrugName", out var dn1)) dname = dn1.GetString();
+                                if (it.TryGetProperty("drugName", out var dn2) && dname == null) dname = dn2.GetString();
+                                if (!string.IsNullOrEmpty(did))
+                                {
+                                    expectedDrugIds.Add(did!);
+                                    expectedDrugNames[did!] = dname;
+                                    Console.WriteLine($"[GetTaskDrugs] 提取药品: {did} - {dname}");
+                                }
+                            }
+                        }
+                    }
+
+                    // 尝试方式2：medications 数组（取药任务格式）
+                    if (!expectedDrugIds.Any() && root.TryGetProperty("medications", out var medications) && medications.ValueKind == JsonValueKind.Array)
+                    {
+                        Console.WriteLine($"[GetTaskDrugs] 找到 medications 数组，项数: {medications.GetArrayLength()}");
+                        foreach (var med in medications.EnumerateArray())
+                        {
+                            string? did = null;
+                            string? dname = null;
+                            if (med.TryGetProperty("drugId", out var d1)) did = d1.GetString();
+                            if (med.TryGetProperty("DrugId", out var d2) && did == null) did = d2.GetString();
+                            if (med.TryGetProperty("drugName", out var dn1)) dname = dn1.GetString();
+                            if (med.TryGetProperty("DrugName", out var dn2) && dname == null) dname = dn2.GetString();
+                            if (!string.IsNullOrEmpty(did))
+                            {
+                                expectedDrugIds.Add(did!);
+                                expectedDrugNames[did!] = dname;
+                                Console.WriteLine($"[GetTaskDrugs] 提取药品: {did} - {dname}");
+                            }
+                        }
+                    }
+
+                    // 尝试方式3：root-level Items（核对清单格式，items 中的对象包含 drugId）
+                    if (!expectedDrugIds.Any() && root.TryGetProperty("items", out var items) && items.ValueKind == JsonValueKind.Array)
+                    {
+                        Console.WriteLine($"[GetTaskDrugs] 找到 root-level items，项数: {items.GetArrayLength()}");
+                        foreach (var it in items.EnumerateArray())
+                        {
+                            string? did = null;
+                            string? dname = null;
+                            // 检查 items 中的 drugId 字段（取药清单中有）
+                            if (it.TryGetProperty("drugId", out var d1)) did = d1.GetString();
+                            if (it.TryGetProperty("DrugId", out var d2) && did == null) did = d2.GetString();
+                            // drugName 可能需要从 text 字段中提取
+                            if (it.TryGetProperty("text", out var textEl))
+                            {
+                                var text = textEl.GetString();
+                                // text 格式: "核对药品：药品名称 剂量" - 提取"核对药品："后的部分
+                                if (text != null && text.Contains("核对药品："))
+                                {
+                                    dname = text.Substring(text.IndexOf("核对药品：") + 5).Trim();
+                                }
+                            }
+                            if (string.IsNullOrEmpty(dname))
+                            {
+                                if (it.TryGetProperty("drugName", out var dn1)) dname = dn1.GetString();
+                                if (it.TryGetProperty("DrugName", out var dn2) && dname == null) dname = dn2.GetString();
+                            }
+                            if (!string.IsNullOrEmpty(did))
+                            {
+                                expectedDrugIds.Add(did!);
+                                expectedDrugNames[did!] = dname;
+                                Console.WriteLine($"[GetTaskDrugs] 提取药品: {did} - {dname}");
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[GetTaskDrugs] 解析 DataPayload 失败: {ex.Message}");
+                // ignore
+            }
+
+            // 如果仍无，从关联的 MedicalOrder.Items 中读取（需要传入时包含 MedicalOrder）
+            if (!expectedDrugIds.Any() && task.MedicalOrder != null && task.MedicalOrder.Items != null)
+            {
+                Console.WriteLine($"[GetTaskDrugs] DataPayload 中未找到药品，尝试从 MedicalOrder.Items 读取 (共 {task.MedicalOrder.Items.Count()} 项)");
+                foreach (var it in task.MedicalOrder.Items)
+                {
+                    if (!string.IsNullOrEmpty(it.DrugId))
+                    {
+                        expectedDrugIds.Add(it.DrugId);
+                        expectedDrugNames[it.DrugId] = it.Drug?.GenericName ?? it.Drug?.TradeName;
+                        Console.WriteLine($"[GetTaskDrugs] 提取药品: {it.DrugId} - {it.Drug?.GenericName ?? it.Drug?.TradeName}");
+                    }
+                }
+            }
+
+            if (expectedDrugIds.Any())
+            {
+                Console.WriteLine($"[GetTaskDrugs] 成功获取 {expectedDrugIds.Count} 个期望药品");
+            }
+            else
+            {
+                Console.WriteLine($"[GetTaskDrugs] 未能获取期望药品清单 (TaskId: {task.Id})");
+            }
+
+            // 读取已扫描的列表
+            var scanned = new HashSet<string>();
+            try
+            {
+                if (!string.IsNullOrEmpty(task.ResultPayload))
+                {
+                    using var doc = JsonDocument.Parse(task.ResultPayload);
+                    var root = doc.RootElement;
+                    if (root.TryGetProperty("scannedDrugIds", out var scannedEl) && scannedEl.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var s in scannedEl.EnumerateArray())
+                        {
+                            var v = s.GetString();
+                            if (!string.IsNullOrEmpty(v)) scanned.Add(v!);
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // ignore
+            }
+
+            // 构建返回对象
+            foreach (var did in expectedDrugIds)
+            {
+                drugs.Add(new {
+                    drugId = did,
+                    drugName = expectedDrugNames.ContainsKey(did) ? expectedDrugNames[did] : null,
+                    required = true,
+                    scanned = scanned.Contains(did)
+                });
             }
 
             return drugs;

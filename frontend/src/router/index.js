@@ -18,6 +18,7 @@ import OrderApplication from '../views/OrderApplication.vue'
 import NursingRecord from '../views/NursingRecord.vue'
 import TaskScan from '../views/TaskScan.vue'
 import PatientManagementView from '../views/PatientManagementView.vue'
+import NurseScheduleView from '../views/NurseScheduleView.vue'
 
 // 医生子页面
 import OrderEntry from '../views/OrderEntry.vue'
@@ -100,6 +101,12 @@ const router = createRouter({
           name: 'task-scan',
           component: TaskScan,
           meta: { title: '任务扫码执行' }
+        },
+        {
+          path: 'schedule', // 相对路径，实际路径为 /nurse/schedule
+          name: 'nurse-schedule',
+          component: NurseScheduleView,
+          meta: { title: '排班查看' }
         }
       ]
     },
