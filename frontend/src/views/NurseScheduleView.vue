@@ -67,11 +67,13 @@
               <div
                 v-for="schedule in getSchedulesForDayAndShift(day.date, shift.shiftId)"
                 :key="schedule.id"
-                :class="['schedule-item', getStatusClass(schedule.status)]"
+                :class="['schedule-item', getStatusClass(schedule.status), { 'my-schedule': isMySchedule(schedule) }]"
                 @click="showScheduleDetail(schedule)"
               >
-                <div class="nurse-name">{{ schedule.nurseName }}</div>
-                <div class="ward-name">{{ schedule.wardName }}</div>
+                <div class="schedule-content-text">
+                  <span class="nurse-name">{{ schedule.nurseName }}</span>
+                  <span class="ward-name">{{ schedule.wardName }}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -98,7 +100,8 @@
               :class="['calendar-day', { 
                 'other-month': !day.isCurrentMonth,
                 'today': day.isToday,
-                'has-schedule': day.scheduleCount > 0
+                'has-schedule': day.scheduleCount > 0,
+                'has-my-schedule': day.hasMySchedule
               }]"
               @click="selectDay(day)"
             >
@@ -154,8 +157,14 @@
       width="800px"
     >
       <div v-if="daySchedules.length > 0">
-        <el-table :data="daySchedules" style="width: 100%">
-          <el-table-column prop="nurseName" label="护士" width="120" />
+          <el-table :data="daySchedules" style="width: 100%">
+          <el-table-column prop="nurseName" label="护士" width="120">
+            <template #default="{ row }">
+              <span :class="{ 'my-schedule-text': isMySchedule(row) }">
+                {{ row.nurseName }}
+              </span>
+            </template>
+          </el-table-column>
           <el-table-column prop="wardName" label="病区" width="120" />
           <el-table-column prop="shiftName" label="班次" width="100" />
           <el-table-column label="时间" width="150">
@@ -206,6 +215,7 @@ const dayDetailDialogVisible = ref(false)
 const selectedSchedule = ref(null)
 const selectedDayDate = ref('')
 const daySchedules = ref([])
+const currentNurseId = ref(null)
 
 // 计算属性
 const currentMonthText = computed(() => {
@@ -264,24 +274,30 @@ const calendarDays = computed(() => {
     const prevMonth = month === 0 ? 12 : month
     const prevYear = month === 0 ? year - 1 : year
     const dateStr = `${prevYear}-${String(prevMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    const daySchedules = schedules.value.filter(s => s.workDate === dateStr)
+    const hasMySchedule = currentNurseId.value && daySchedules.some(s => s.nurseId === currentNurseId.value)
     days.push({
       date: dateStr,
       day,
       isCurrentMonth: false,
       isToday: false,
-      scheduleCount: getScheduleCountForDate(dateStr)
+      scheduleCount: daySchedules.length,
+      hasMySchedule
     })
   }
   
   // 当月的日期
   for (let day = 1; day <= lastDay.getDate(); day++) {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    const daySchedules = schedules.value.filter(s => s.workDate === dateStr)
+    const hasMySchedule = currentNurseId.value && daySchedules.some(s => s.nurseId === currentNurseId.value)
     days.push({
       date: dateStr,
       day,
       isCurrentMonth: true,
       isToday: dateStr === today,
-      scheduleCount: getScheduleCountForDate(dateStr)
+      scheduleCount: daySchedules.length,
+      hasMySchedule
     })
   }
   
@@ -291,12 +307,15 @@ const calendarDays = computed(() => {
   const nextYear = month === 11 ? year + 1 : year
   for (let day = 1; day <= remainingDays; day++) {
     const dateStr = `${nextYear}-${String(nextMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    const daySchedules = schedules.value.filter(s => s.workDate === dateStr)
+    const hasMySchedule = currentNurseId.value && daySchedules.some(s => s.nurseId === currentNurseId.value)
     days.push({
       date: dateStr,
       day,
       isCurrentMonth: false,
       isToday: false,
-      scheduleCount: getScheduleCountForDate(dateStr)
+      scheduleCount: daySchedules.length,
+      hasMySchedule
     })
   }
   
@@ -328,6 +347,28 @@ const loadScheduleData = async () => {
     schedules.value = scheduleRes.schedules || []
     wards.value = wardRes || []
     shiftTypes.value = shiftRes || []
+    
+    // 调试信息
+    console.log('加载的排班数据总数:', schedules.value.length)
+    if (schedules.value.length > 0) {
+      console.log('排班数据示例（第一个）:', schedules.value[0])
+      console.log('排班数据字段:', Object.keys(schedules.value[0]))
+    }
+    if (currentNurseId.value) {
+      const mySchedules = schedules.value.filter(s => s.nurseId === currentNurseId.value)
+      console.log('当前护士ID:', currentNurseId.value)
+      console.log('找到自己的排班数量:', mySchedules.length)
+      if (mySchedules.length > 0) {
+        console.log('自己的排班示例:', mySchedules[0])
+      } else {
+        console.warn('未找到自己的排班，请检查 nurseId 字段是否匹配')
+        // 显示所有排班的 nurseId 以便调试
+        const allNurseIds = [...new Set(schedules.value.map(s => s.nurseId))]
+        console.log('所有排班中的 nurseId 列表:', allNurseIds)
+      }
+    } else {
+      console.warn('当前护士ID为空，无法标识自己的排班')
+    }
   } catch (error) {
     console.error('加载排班数据失败:', error)
     ElMessage.error('加载排班数据失败')
@@ -342,6 +383,15 @@ const getSchedulesForDayAndShift = (date, shiftId) => {
 
 const getScheduleCountForDate = (date) => {
   return schedules.value.filter(s => s.workDate === date).length
+}
+
+const isMySchedule = (schedule) => {
+  if (!currentNurseId.value || !schedule) {
+    return false
+  }
+  // 排班数据中的 nurseId 字段应该与当前登录的 staffId 匹配
+  const isMatch = schedule.nurseId === currentNurseId.value
+  return isMatch
 }
 
 const getStatusClass = (status) => {
@@ -406,15 +456,33 @@ const nextMonth = () => {
 
 // 生命周期
 onMounted(() => {
+  // 获取当前登录护士ID
+  const userInfo = localStorage.getItem('userInfo')
+  if (userInfo) {
+    try {
+      const parsed = JSON.parse(userInfo)
+      // 从登录信息中获取 staffId（这是护士的ID）
+      currentNurseId.value = parsed.staffId || null
+      console.log('当前用户信息:', parsed)
+      console.log('当前护士ID:', currentNurseId.value)
+    } catch (error) {
+      console.error('解析用户信息失败:', error)
+    }
+  } else {
+    console.warn('未找到用户信息')
+  }
   loadScheduleData()
 })
 </script>
 
 <style scoped>
 .schedule-view {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 60px);
   padding: 24px;
   background: #f5f7fa;
-  min-height: calc(100vh - 60px);
+  overflow: hidden;
 }
 
 /* 工具栏 */
@@ -441,15 +509,24 @@ onMounted(() => {
 
 /* 内容区域 */
 .schedule-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   overflow: hidden;
+  min-height: 0;
 }
 
 /* 周视图 */
 .week-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   width: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .week-header {
@@ -457,6 +534,7 @@ onMounted(() => {
   grid-template-columns: 120px repeat(7, 1fr);
   background: #f5f7fa;
   border-bottom: 2px solid #e4e7ed;
+  flex-shrink: 0;
 }
 
 .time-column {
@@ -490,15 +568,17 @@ onMounted(() => {
 }
 
 .week-body {
-  max-height: 600px;
+  flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
 }
 
 .time-slot {
   display: grid;
   grid-template-columns: 120px repeat(7, 1fr);
   border-bottom: 1px solid #e4e7ed;
-  min-height: 80px;
+  min-height: 100px;
 }
 
 .time-label {
@@ -521,7 +601,7 @@ onMounted(() => {
 .schedule-cell {
   padding: 8px;
   border-right: 1px solid #e4e7ed;
-  min-height: 80px;
+  min-height: 100px;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -533,6 +613,9 @@ onMounted(() => {
   cursor: pointer;
   transition: all 0.3s;
   border: 1px solid #e4e7ed;
+  min-height: 50px;
+  display: flex;
+  align-items: center;
 }
 
 .schedule-item:hover {
@@ -555,21 +638,64 @@ onMounted(() => {
   border-color: #f5dab1;
 }
 
+/* 自己的排班特殊样式 */
+.schedule-item.my-schedule {
+  background: #fff7e6;
+  border-color: #ffd591;
+  border-width: 2px;
+  box-shadow: 0 2px 4px rgba(255, 213, 145, 0.3);
+}
+
+.schedule-item.my-schedule.status-scheduled {
+  background: #fff7e6;
+  border-color: #ffd591;
+}
+
+.schedule-item.my-schedule.status-checked-in {
+  background: #f6ffed;
+  border-color: #b7eb8f;
+}
+
+.schedule-item.my-schedule.status-leave {
+  background: #fff1f0;
+  border-color: #ffccc7;
+}
+
+.schedule-content-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
 .nurse-name {
   font-weight: 600;
   font-size: 14px;
   color: #303133;
 }
 
+.schedule-item.my-schedule .nurse-name {
+  color: #fa8c16;
+  font-weight: 700;
+}
+
 .ward-name {
-  font-size: 12px;
-  color: #909399;
-  margin-top: 4px;
+  font-size: 14px;
+  color: #606266;
+}
+
+.schedule-item.my-schedule .ward-name {
+  color: #fa8c16;
 }
 
 /* 月视图 */
 .month-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   padding: 24px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .calendar-header {
@@ -577,6 +703,7 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
+  flex-shrink: 0;
 }
 
 .month-title {
@@ -586,7 +713,11 @@ onMounted(() => {
 }
 
 .calendar-grid {
-  width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .weekday-header {
@@ -594,6 +725,7 @@ onMounted(() => {
   grid-template-columns: repeat(7, 1fr);
   background: #f5f7fa;
   border-bottom: 2px solid #e4e7ed;
+  flex-shrink: 0;
 }
 
 .weekday {
@@ -604,10 +736,14 @@ onMounted(() => {
 }
 
 .calendar-days {
+  flex: 1;
   display: grid;
   grid-template-columns: repeat(7, 1fr);
+  grid-auto-rows: minmax(120px, 1fr);
   border: 1px solid #e4e7ed;
   border-top: none;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .calendar-day {
@@ -638,6 +774,18 @@ onMounted(() => {
   background: #f0f9ff;
 }
 
+.calendar-day.has-my-schedule {
+  background: #fff7e6;
+  border: 2px solid #ffd591;
+  box-shadow: inset 0 0 0 1px rgba(255, 213, 145, 0.3);
+}
+
+.calendar-day.has-my-schedule.today {
+  background: #fff7e6;
+  border: 2px solid #409eff;
+  box-shadow: inset 0 0 0 1px rgba(255, 213, 145, 0.3);
+}
+
 .day-number {
   font-size: 16px;
   font-weight: 600;
@@ -657,6 +805,36 @@ onMounted(() => {
 /* 详情对话框 */
 .schedule-detail {
   padding: 16px 0;
+}
+
+/* 表格中自己的排班文字样式 */
+.my-schedule-text {
+  color: #fa8c16;
+  font-weight: 700;
+}
+
+/* 滚动条美化 */
+.week-body::-webkit-scrollbar,
+.calendar-days::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.week-body::-webkit-scrollbar-track,
+.calendar-days::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.week-body::-webkit-scrollbar-thumb,
+.calendar-days::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.week-body::-webkit-scrollbar-thumb:hover,
+.calendar-days::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }
 </style>
 
