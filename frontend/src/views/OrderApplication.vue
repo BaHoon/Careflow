@@ -1002,7 +1002,9 @@ const getOrderTypeName = (orderType) => {
     MedicationOrder: '药品',
     InspectionOrder: '检查',
     SurgicalOrder: '手术',
-    OperationOrder: '操作'
+    OperationOrder: '操作',
+    DischargeOrder: '出院',
+    Discharge: '出院'
   };
   return nameMap[orderType] || orderType;
 };

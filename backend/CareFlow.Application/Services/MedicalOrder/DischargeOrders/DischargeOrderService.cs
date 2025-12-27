@@ -132,6 +132,9 @@ public class DischargeOrderService : IDischargeOrderService
                         blockReason.Add("未签收");
                     }
 
+                    // 加载医嘱详细信息
+                    var (itemName, operationName, surgeryName, medicationItems) = await LoadOrderDetailsAsync(order);
+
                     result.BlockedOrders.Add(new BlockedOrderDto
                     {
                         OrderId = order.Id,
@@ -141,7 +144,11 @@ public class DischargeOrderService : IDischargeOrderService
                         Summary = GetOrderSummary(order),
                         CreateTime = order.CreateTime,
                         StartTime = order.CreateTime,
-                        EndTime = order.PlantEndTime
+                        EndTime = order.PlantEndTime,
+                        ItemName = itemName,
+                        OperationName = operationName,
+                        SurgeryName = surgeryName,
+                        MedicationOrderItems = medicationItems
                     });
                 }
 
@@ -248,7 +255,8 @@ public class DischargeOrderService : IDischargeOrderService
         }
 
         // 2. 验证出院时间
-        if (request.Orders[0].DischargeTime < validation.EarliestDischargeTime)
+        var orderDto = request.Orders[0];
+        if (orderDto.DischargeTime < validation.EarliestDischargeTime)
         {
             _logger.LogWarning("❌ 出院时间早于最早允许时间");
             
@@ -269,9 +277,9 @@ public class DischargeOrderService : IDischargeOrderService
         {
             // 3. 创建出院医嘱实体
             // 先转换出院时间为 UTC
-            var dischargeTimeUtc = request.Orders[0].DischargeTime.Kind == DateTimeKind.Utc 
-                ? request.Orders[0].DischargeTime 
-                : request.Orders[0].DischargeTime.ToUniversalTime();
+            var dischargeTimeUtc = orderDto.DischargeTime.Kind == DateTimeKind.Utc 
+                ? orderDto.DischargeTime 
+                : orderDto.DischargeTime.ToUniversalTime();
             
             var order = new DischargeOrder
             {
@@ -285,23 +293,23 @@ public class DischargeOrderService : IDischargeOrderService
                 PlantEndTime = dischargeTimeUtc,
                 
                 // 出院相关字段
-                DischargeType = (DischargeType)request.Orders[0].DischargeType,
+                DischargeType = (DischargeType)orderDto.DischargeType,
                 // 将前端传来的时间转换为 UTC（PostgreSQL 要求）
                 DischargeTime = dischargeTimeUtc,
-                DischargeDiagnosis = request.Orders[0].DischargeDiagnosis,
-                DischargeInstructions = request.Orders[0].DischargeInstructions,
-                MedicationInstructions = request.Orders[0].MedicationInstructions,
-                RequiresFollowUp = request.Orders[0].RequiresFollowUp,
+                DischargeDiagnosis = orderDto.DischargeDiagnosis,
+                DischargeInstructions = orderDto.DischargeInstructions,
+                MedicationInstructions = orderDto.MedicationInstructions,
+                RequiresFollowUp = orderDto.RequiresFollowUp,
                 // FollowUpDate 也需要转换为 UTC
-                FollowUpDate = request.Orders[0].FollowUpDate.HasValue
-                    ? (request.Orders[0].FollowUpDate.Value.Kind == DateTimeKind.Utc
-                        ? request.Orders[0].FollowUpDate.Value
-                        : request.Orders[0].FollowUpDate.Value.ToUniversalTime())
-                    : null
+                FollowUpDate = orderDto.FollowUpDate.HasValue
+                    ? (orderDto.FollowUpDate.Value.Kind == DateTimeKind.Utc
+                        ? orderDto.FollowUpDate.Value
+                        : orderDto.FollowUpDate.Value.ToUniversalTime())
+                    : (DateTime?)null
             };
 
             // 4. 添加带回药品（可选）
-            var items = request.Orders[0].Items;
+            var items = orderDto.Items;
             if (items?.Any() == true)
             {
                 _logger.LogInformation("出院医嘱包含 {Count} 项带回药品", items.Count);
@@ -620,5 +628,111 @@ public class DischargeOrderService : IDischargeOrderService
             "DischargeOrder" => $"出院医嘱 (ID: {order.Id})",
             _ => $"{order.OrderType} (ID: {order.Id})"
         };
+    }
+    
+    /// <summary>
+    /// 加载医嘱详细信息
+    /// </summary>
+    private async Task<(string? ItemName, string? OperationName, string? SurgeryName, List<CareFlow.Application.DTOs.Patient.MedicationItemDto>? MedicationItems)> 
+        LoadOrderDetailsAsync(MedicalOrderEntity order)
+    {
+        string? itemName = null;
+        string? operationName = null;
+        string? surgeryName = null;
+        List<CareFlow.Application.DTOs.Patient.MedicationItemDto>? medicationItems = null;
+
+        try
+        {
+            switch (order.OrderType)
+            {
+                case "InspectionOrder":
+                    // 加载检查医嘱详细信息
+                    var inspectionOrder = await _medicalOrderRepository.GetQueryable()
+                        .OfType<InspectionOrder>()
+                        .Where(o => o.Id == order.Id)
+                        .FirstOrDefaultAsync();
+                    if (inspectionOrder != null)
+                    {
+                        itemName = inspectionOrder.ItemName;
+                    }
+                    break;
+
+                case "OperationOrder":
+                    // 加载操作医嘱详细信息
+                    var operationOrder = await _medicalOrderRepository.GetQueryable()
+                        .OfType<OperationOrder>()
+                        .Where(o => o.Id == order.Id)
+                        .FirstOrDefaultAsync();
+                    if (operationOrder != null)
+                    {
+                        operationName = operationOrder.OperationName;
+                    }
+                    break;
+
+                case "SurgicalOrder":
+                    // 加载手术医嘱详细信息
+                    var surgicalOrder = await _medicalOrderRepository.GetQueryable()
+                        .OfType<SurgicalOrder>()
+                        .Where(o => o.Id == order.Id)
+                        .FirstOrDefaultAsync();
+                    if (surgicalOrder != null)
+                    {
+                        surgeryName = surgicalOrder.SurgeryName;
+                    }
+                    break;
+
+                case "MedicationOrder":
+                    // 加载药品医嘱详细信息
+                    var medicationOrder = await _medicalOrderRepository.GetQueryable()
+                        .OfType<MedicationOrder>()
+                        .Include(m => m.Items)
+                        .ThenInclude(item => item.Drug)
+                        .Where(o => o.Id == order.Id)
+                        .FirstOrDefaultAsync();
+                    
+                    if (medicationOrder?.Items != null && medicationOrder.Items.Any())
+                    {
+                        medicationItems = medicationOrder.Items
+                            .Select(item => new CareFlow.Application.DTOs.Patient.MedicationItemDto
+                            {
+                                Drug = item.Drug != null ? new CareFlow.Application.DTOs.Patient.DrugInfoDto
+                                {
+                                    DrugName = item.Drug.TradeName ?? item.Drug.GenericName
+                                } : null
+                            })
+                            .ToList();
+                    }
+                    break;
+
+                case "DischargeOrder":
+                    // 加载出院医嘱详细信息（出院带药清单）
+                    var dischargeOrder = await _medicalOrderRepository.GetQueryable()
+                        .OfType<DischargeOrder>()
+                        .Include(m => m.Items)
+                        .ThenInclude(item => item.Drug)
+                        .Where(o => o.Id == order.Id)
+                        .FirstOrDefaultAsync();
+                    
+                    if (dischargeOrder?.Items != null && dischargeOrder.Items.Any())
+                    {
+                        medicationItems = dischargeOrder.Items
+                            .Select(item => new CareFlow.Application.DTOs.Patient.MedicationItemDto
+                            {
+                                Drug = item.Drug != null ? new CareFlow.Application.DTOs.Patient.DrugInfoDto
+                                {
+                                    DrugName = item.Drug.TradeName ?? item.Drug.GenericName
+                                } : null
+                            })
+                            .ToList();
+                    }
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "加载医嘱 {OrderId} 详细信息失败", order.Id);
+        }
+
+        return (itemName, operationName, surgeryName, medicationItems);
     }
 }

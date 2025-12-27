@@ -285,6 +285,50 @@ public class UnfinishedTaskDto
     /// 最晚任务时间
     /// </summary>
     public DateTime? LatestTaskTime { get; set; }
+    
+    /// <summary>
+    /// 检查项目名称（检查医嘱）
+    /// </summary>
+    public string? ItemName { get; set; }
+    
+    /// <summary>
+    /// 操作名称（操作医嘱）
+    /// </summary>
+    public string? OperationName { get; set; }
+    
+    /// <summary>
+    /// 手术名称（手术医嘱）
+    /// </summary>
+    public string? SurgeryName { get; set; }
+    
+    /// <summary>
+    /// 药品项列表（药品医嘱和出院医嘱）
+    /// </summary>
+    public List<MedicationItemDto>? MedicationOrderItems { get; set; }
+}
+
+/// <summary>
+/// 药品项DTO（简化版用于未完成任务展示）
+/// </summary>
+public class MedicationItemDto
+{
+    /// <summary>
+    /// 药品信息
+    /// </summary>
+    public DrugInfoDto? Drug { get; set; }
+}
+
+/// <summary>
+/// 药品信息DTO（简化版）
+/// </summary>
+public class DrugInfoDto
+{
+    /// <summary>
+    /// 药品名称
+    /// </summary>
+    public string DrugName { get; set; } = null!;
+    /// </summary>
+    public DateTime? LatestTaskTime { get; set; }
 }
 
 /// <summary>
