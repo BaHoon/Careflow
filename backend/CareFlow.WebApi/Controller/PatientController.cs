@@ -18,6 +18,7 @@ public class PatientController : ControllerBase
     private readonly IRepository<Bed, string> _bedRepository;
     private readonly IRepository<DischargeOrder, long> _dischargeOrderRepository;
     private readonly IDischargeOrderService _dischargeOrderService;
+    private readonly INurseScheduleRepository _nurseScheduleRepository;
     private readonly ILogger<PatientController> _logger;
     private readonly ICareFlowDbContext _dbContext;
 
@@ -26,6 +27,7 @@ public class PatientController : ControllerBase
         IRepository<Bed, string> bedRepository,
         IRepository<DischargeOrder, long> dischargeOrderRepository,
         IDischargeOrderService dischargeOrderService,
+        INurseScheduleRepository nurseScheduleRepository,
         ILogger<PatientController> logger,
         ICareFlowDbContext dbContext)
     {
@@ -33,6 +35,7 @@ public class PatientController : ControllerBase
         _bedRepository = bedRepository;
         _dischargeOrderRepository = dischargeOrderRepository;
         _dischargeOrderService = dischargeOrderService;
+        _nurseScheduleRepository = nurseScheduleRepository;
         _logger = logger;
         _dbContext = dbContext;
     }
@@ -238,6 +241,7 @@ public class PatientController : ControllerBase
                 .Include(p => p.Bed)
                 .ThenInclude(b => b.Ward)
                 .ThenInclude(w => w.Department)
+                .Include(p => p.AttendingDoctor)
                 .AsQueryable();
 
             // 状态筛选
@@ -278,18 +282,46 @@ public class PatientController : ControllerBase
 
             var patients = await query.ToListAsync();
 
-            var result = patients.Select(p => new PatientCardDto
+            // 获取责任护士信息
+            var wardIds = patients.Select(p => p.Bed?.WardId).Where(id => id != null).Distinct().ToList();
+            var nurseRosters = new Dictionary<string, CareFlow.Core.Models.Nursing.NurseRoster>();
+            var now = DateTime.Now;
+            
+            foreach (var wId in wardIds)
             {
-                Id = p.Id,
-                Name = p.Name,
-                Gender = p.Gender,
-                Age = p.Age,
-                BedId = p.Bed?.Id ?? p.BedId,
-                NursingGrade = p.NursingGrade,
-                Status = p.Status,
-                StatusDisplay = GetStatusDisplayName(p.Status),
-                Department = p.Bed?.Ward?.Department?.DeptName ?? "未分配",
-                Ward = p.Bed?.Ward?.Id ?? "未分配"
+                if (wId != null)
+                {
+                    var roster = await _nurseScheduleRepository.GetNurseOnDutyAsync(wId, now);
+                    if (roster != null)
+                    {
+                        nurseRosters[wId] = roster;
+                    }
+                }
+            }
+
+            var result = patients.Select(p => {
+                var pWardId = p.Bed?.WardId;
+                var nurseRoster = pWardId != null && nurseRosters.ContainsKey(pWardId) ? nurseRosters[pWardId] : null;
+
+                return new PatientCardDto
+                {
+                    Id = p.Id,
+                    Name = p.Name,
+                    Gender = p.Gender,
+                    Age = p.Age,
+                    BedId = p.Bed?.Id ?? p.BedId,
+                    NursingGrade = p.NursingGrade,
+                    Status = p.Status,
+                    StatusDisplay = GetStatusDisplayName(p.Status),
+                    Department = p.Bed?.Ward?.Department?.DeptName ?? "未分配",
+                    Ward = p.Bed?.Ward?.Id ?? "未分配",
+                    ResponsibleDoctorId = p.AttendingDoctor?.Id,
+                    ResponsibleDoctorName = p.AttendingDoctor?.Name,
+                    ResponsibleDoctorPhone = p.AttendingDoctor?.Phone,
+                    ResponsibleNurseId = nurseRoster?.Nurse?.Id,
+                    ResponsibleNurseName = nurseRoster?.Nurse?.Name,
+                    ResponsibleNursePhone = nurseRoster?.Nurse?.Phone
+                };
             }).ToList();
 
             _logger.LogInformation("成功获取 {Count} 个患者", result.Count);
