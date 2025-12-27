@@ -1,5 +1,6 @@
 using CareFlow.Application.Interfaces;
 using CareFlow.Application.Services;
+using CareFlow.Application.Services.Admin;
 using CareFlow.Application.Services.DischargeOrders;
 using CareFlow.Application.Services.MedicalOrder;
 using CareFlow.Application.Services.MedicalOrder.InspectionOrders;
@@ -55,6 +56,10 @@ public static class DependencyInjection
         
         // 注册医生端医嘱查询服务
         services.AddScoped<IMedicalOrderQueryService, MedicalOrderQueryService>();
+        
+        // 注册管理员服务
+        services.AddScoped<OrderStatusHistoryService>();
+        services.AddScoped<StaffManagementService>();
 
         return services;
     }

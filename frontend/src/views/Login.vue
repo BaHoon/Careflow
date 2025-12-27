@@ -82,6 +82,8 @@ const handleLogin = async () => {
       router.push('/doctor');
     } else if (role === 'Nurse') {
       router.push('/nurse');
+    } else if (role === 'Admin') {
+      router.push('/admin/order-history');
     } else {
       router.push('/home');
     }
