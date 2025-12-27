@@ -1319,6 +1319,7 @@ namespace CareFlow.Infrastructure.Data
                 }
             };
             context.SurgicalOrders.AddRange(surgicalOrders);
+            context.SaveChanges(); // 保存所有医嘱（必须在创建 ExecutionTask 之前，以便获取 Id）
 
             // var medicationOrders2 = new List<MedicationOrder>{
             //     new MedicationOrder
@@ -1503,23 +1504,24 @@ namespace CareFlow.Infrastructure.Data
                 },
                 
                 // P003 的头孢曲松钠任务 (今日第二次给药 - 待执行参考)
-                new CareFlow.Core.Models.Nursing.ExecutionTask
-                {
-                    MedicalOrderId = medicationOrders[3].Id,
-                    PatientId = "P003",
-                    Category = TaskCategory.Immediate,
-                    PlannedStartTime = currentTime.Date.AddHours(8), // UTC 08:00 (北京 16:00)
-                    AssignedNurseId = "N001", // 外科默认责任护士
-                    Status = ExecutionTaskStatus.Pending,
-                    DataPayload = "{\"taskType\":\"Medication\",\"title\":\"静脉推注头孢曲松钠 1.0g\",\"drugName\":\"头孢曲松钠\",\"note\":\"皮试阴性\"}"
-                },
+                // 注释掉：对应的 medicationOrders[3] 已被注释，避免索引越界
+                // new CareFlow.Core.Models.Nursing.ExecutionTask
+                // {
+                //     MedicalOrderId = medicationOrders[3].Id,
+                //     PatientId = "P003",
+                //     Category = TaskCategory.Immediate,
+                //     PlannedStartTime = currentTime.Date.AddHours(8), // UTC 08:00 (北京 16:00)
+                //     AssignedNurseId = "N001", // 外科默认责任护士
+                //     Status = ExecutionTaskStatus.Pending,
+                //     DataPayload = "{\"taskType\":\"Medication\",\"title\":\"静脉推注头孢曲松钠 1.0g\",\"drugName\":\"头孢曲松钠\",\"note\":\"皮试阴性\"}"
+                // },
                 
                 // P001 的生命体征采集任务 (今日早晨 - 已完成参考)
                 new CareFlow.Core.Models.Nursing.ExecutionTask
                 {
                     MedicalOrderId = operationOrders[0].Id,
                     PatientId = "P001",
-                    Category = TaskCategory.DataCollection,
+                    Category = TaskCategory.ResultPending,
                     PlannedStartTime = currentTime.Date.AddHours(0), // UTC 00:00 (北京 08:00)
                     AssignedNurseId = "N004",
                     Status = ExecutionTaskStatus.Pending,
@@ -1531,7 +1533,7 @@ namespace CareFlow.Infrastructure.Data
                 {
                     MedicalOrderId = operationOrders[0].Id,
                     PatientId = "P002",
-                    Category = TaskCategory.DataCollection,
+                    Category = TaskCategory.ResultPending,
                     PlannedStartTime = currentTime.Date.AddHours(0), // UTC 00:00 (北京 08:00)
                     AssignedNurseId = "N004",
                     Status = ExecutionTaskStatus.Pending,
@@ -1577,7 +1579,7 @@ namespace CareFlow.Infrastructure.Data
                 // P006 的手术准备任务 (术前抗生素皮试 - 已完成参考)
                 new CareFlow.Core.Models.Nursing.ExecutionTask
                 {
-                    MedicalOrderId = surgicalOrders[2].Id,
+                    MedicalOrderId = surgicalOrders[1].Id,
                     PatientId = "P006",
                     Category = TaskCategory.ResultPending,
                     PlannedStartTime = currentTime.Date.AddHours(5), // UTC 05:00 (北京 13:00)

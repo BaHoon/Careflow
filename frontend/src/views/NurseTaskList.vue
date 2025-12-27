@@ -59,152 +59,10 @@
       />
     </div>
 
-    <!-- 任务详情对话框 - 仅用于NursingTask -->
-    <el-dialog
-      v-model="detailDialogVisible"
-      title="护理任务详情"
-      width="600px"
-    >
-      <div v-if="currentTask" class="task-detail">
-        <el-descriptions :column="2" border>
-          <!-- 任务基本信息 -->
-          <el-descriptions-item label="任务ID">
-            {{ currentTask.id }}
-          </el-descriptions-item>
-          <el-descriptions-item label="任务来源">
-            <el-tag :type="currentTask.taskSource === 'ExecutionTask' ? 'primary' : 'success'">
-              {{ currentTask.taskSource === 'ExecutionTask' ? '医嘱执行任务' : '护理任务' }}
-            </el-tag>
-          </el-descriptions-item>
-          
-          <!-- 操作信息（仅操作类任务显示） -->
-          <el-descriptions-item v-if="currentTask.taskSource === 'ExecutionTask'" label="操作名称" :span="2">
-            <el-tag type="primary" size="large">{{ getOperationName(currentTask) }}</el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item v-if="currentTask.taskSource === 'ExecutionTask'" label="操作代码">
-            {{ getOperationCode(currentTask) }}
-          </el-descriptions-item>
-          <el-descriptions-item v-if="currentTask.taskSource === 'ExecutionTask'" label="操作部位">
-            {{ getOperationSite(currentTask) || '-' }}
-          </el-descriptions-item>
-          
-          <!-- 患者信息 -->
-          <el-descriptions-item label="患者姓名">
-            {{ currentTask.patientName }}
-          </el-descriptions-item>
-          <el-descriptions-item label="床号">
-            {{ currentTask.bedId }}
-          </el-descriptions-item>
-          
-          <!-- 任务类别和状态 -->
-          <el-descriptions-item label="任务类别">
-            <el-tag :type="getCategoryTagType(currentTask.category)">
-              {{ getCategoryText(currentTask.category) }}
-            </el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="任务状态">
-            <el-tag :type="getStatusTagType(currentTask.status)">
-              {{ getStatusText(currentTask.status) }}
-            </el-tag>
-          </el-descriptions-item>
-          
-          <!-- 时间信息 -->
-          <el-descriptions-item label="计划开始时间" :span="2">
-            {{ formatDateTime(currentTask.plannedStartTime) }}
-          </el-descriptions-item>
-          <el-descriptions-item
-            v-if="currentTask.actualStartTime"
-            label="实际开始时间"
-            :span="2"
-          >
-            {{ formatDateTime(currentTask.actualStartTime) }}
-          </el-descriptions-item>
-          <el-descriptions-item
-            v-if="currentTask.actualEndTime"
-            label="完成时间"
-            :span="2"
-          >
-            {{ formatDateTime(currentTask.actualEndTime) }}
-          </el-descriptions-item>
-          
-          <!-- 护士信息 -->
-          <el-descriptions-item v-if="currentTask.assignedNurseName" label="负责护士">
-            {{ currentTask.assignedNurseName }}
-          </el-descriptions-item>
-          <el-descriptions-item v-if="currentTask.executorNurseName" label="执行护士">
-            {{ currentTask.executorNurseName }}
-          </el-descriptions-item>
-          
-          <!-- 延迟信息 -->
-          <el-descriptions-item v-if="currentTask.delayMinutes !== undefined && currentTask.delayMinutes !== null" label="延迟分钟数">
-            {{ currentTask.delayMinutes }} 分钟
-          </el-descriptions-item>
-          <el-descriptions-item v-if="currentTask.allowedDelayMinutes !== undefined && currentTask.allowedDelayMinutes !== null" label="允许延迟">
-            {{ currentTask.allowedDelayMinutes }} 分钟
-          </el-descriptions-item>
-          
-          <!-- 准备物品（仅操作类任务） -->
-          <el-descriptions-item
-            v-if="currentTask.taskSource === 'ExecutionTask' && getPreparationItems(currentTask).length > 0"
-            label="准备物品"
-            :span="2"
-          >
-            <el-tag
-              v-for="(item, index) in getPreparationItems(currentTask)"
-              :key="index"
-              type="info"
-              style="margin-right: 8px; margin-bottom: 4px;"
-            >
-              {{ item }}
-            </el-tag>
-          </el-descriptions-item>
-          
-          <!-- 操作说明（仅操作类任务） -->
-          <el-descriptions-item
-            v-if="currentTask.taskSource === 'ExecutionTask' && getTaskDescription(currentTask)"
-            label="操作说明"
-            :span="2"
-          >
-            {{ getTaskDescription(currentTask) }}
-          </el-descriptions-item>
-          
-          <!-- 执行结果 -->
-          <el-descriptions-item
-            v-if="currentTask.resultPayload"
-            label="执行结果"
-            :span="2"
-          >
-            <pre class="json-display">{{ formatJson(currentTask.resultPayload) }}</pre>
-          </el-descriptions-item>
-          
-          <!-- 异常原因 -->
-          <el-descriptions-item
-            v-if="currentTask.exceptionReason"
-            label="异常原因"
-            :span="2"
-          >
-            <span style="color: #f56c6c;">{{ currentTask.exceptionReason }}</span>
-          </el-descriptions-item>
-          
-          <!-- 原始数据载荷（调试用，可选） -->
-          <el-descriptions-item
-            v-if="currentTask.dataPayload && false"
-            label="数据载荷（调试）"
-            :span="2"
-          >
-            <pre class="json-display">{{ formatJson(currentTask.dataPayload) }}</pre>
-          </el-descriptions-item>
-        </el-descriptions>
-      </div>
-      <template #footer>
-        <el-button @click="detailDialogVisible = false">关闭</el-button>
-      </template>
-    </el-dialog>
-
-    <!-- ExecutionTask详情对话框 -->
-    <ExecutionTaskDetail
-      v-model="executionTaskDetailVisible"
-      :task="currentExecutionTask"
+    <!-- 统一任务详情对话框 -->
+    <TaskDetailDialog
+      v-model="taskDetailDialogVisible"
+      :task="currentDetailTask"
     />
 
     <!-- 护理记录表单对话框 -->
@@ -225,6 +83,7 @@ import { Refresh } from '@element-plus/icons-vue';
 import TaskTimeline from '@/components/TaskTimeline.vue';
 import NursingRecordForm from '@/components/NursingRecordForm.vue';
 import ExecutionTaskDetail from '@/components/ExecutionTaskDetail.vue';
+import TaskDetailDialog from '@/components/TaskDetailDialog.vue';
 import { getMyTasks, submitVitalSigns } from '@/api/nursing';
 
 // 数据状态
@@ -241,6 +100,10 @@ const currentTask = ref(null);
 // ExecutionTask详情对话框状态
 const executionTaskDetailVisible = ref(false);
 const currentExecutionTask = ref(null);
+
+// 统一任务详情对话框状态
+const taskDetailDialogVisible = ref(false);
+const currentDetailTask = ref(null);
 
 // 护理记录表单相关状态
 const recordDialogVisible = ref(false);
@@ -352,23 +215,15 @@ const handleStartInput = (task) => {
 
 // 查看详情
 const handleViewDetail = (task) => {
-  // 根据taskSource区分任务类型
-  if (task.taskSource === 'ExecutionTask') {
-    // ExecutionTask详情
-    currentExecutionTask.value = task;
-    executionTaskDetailVisible.value = true;
-  } else {
-    // NursingTask详情
-    // 如果任务已完成，显示护理记录详情
-    if (task.status === 'Completed' || task.status === 5) {
-      currentRecord.value = task;
-      recordDialogMode.value = 'view';
-      recordDialogVisible.value = true;
-    } else {
-      // 否则显示任务详情
-      currentTask.value = task;
-      detailDialogVisible.value = true;
-    }
+  console.log('handleViewDetail 触发:', task);
+  // 使用统一的任务详情对话框
+  currentDetailTask.value = task;
+  taskDetailDialogVisible.value = true;
+  console.log('taskDetailDialogVisible:', taskDetailDialogVisible.value);
+  
+  // 如果是NursingTask且已完成，可以选择查看护理记录
+  if (task.taskSource === 'NursingTask' && (task.status === 'Completed' || task.status === 5)) {
+    // 在对话框中显示完整的护理记录信息
   }
 };
 
@@ -566,31 +421,51 @@ onMounted(() => {
 
 <style scoped>
 .nurse-task-list {
-  padding: 20px;
+  padding: 24px;
   max-width: 1400px;
   margin: 0 auto;
+  background: linear-gradient(135deg, #f5f7fa 0%, #f0f2f5 100%);
+  min-height: 100vh;
+  border-radius: 0;
 }
 
 .task-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 28px;
+  background: #fff;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .header-left h2 {
-  margin: 0 0 8px 0;
-  font-size: 24px;
+  margin: 0 0 12px 0;
+  font-size: 28px;
   color: #303133;
+  font-weight: 700;
+}
+
+.header-left :deep(.el-breadcrumb__item) {
+  font-size: 14px;
 }
 
 .header-right {
   display: flex;
   align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.header-right :deep(.el-input),
+.header-right :deep(.el-select) {
+  border-radius: 6px;
 }
 
 .task-content {
-  margin-top: 20px;
+  margin-top: 0;
+  animation: fadeIn 0.3s ease-in;
 }
 
 .task-detail {
@@ -607,5 +482,16 @@ onMounted(() => {
   max-height: 300px;
   overflow-y: auto;
   margin: 0;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>

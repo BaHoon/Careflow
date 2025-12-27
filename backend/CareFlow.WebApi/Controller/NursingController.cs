@@ -1198,6 +1198,41 @@ namespace CareFlow.WebApi.Controllers
 
                 await _context.SaveChangesAsync();
 
+                // ==================== 检查医嘱是否所有任务都完成了 ====================
+                // 如果当前任务完成了，检查该医嘱下的所有任务是否都完成
+                if (targetStatus == ExecutionTaskStatus.Completed && task.MedicalOrderId > 0)
+                {
+                    var medicalOrderId = task.MedicalOrderId;
+                    
+                    // 获取该医嘱下所有的执行任务
+                    var allTasksForOrder = await _context.ExecutionTasks
+                        .Where(t => t.MedicalOrderId == medicalOrderId)
+                        .ToListAsync();
+
+                    // 检查是否所有任务都完成了（状态为 Completed）
+                    var allCompleted = allTasksForOrder.Count > 0 && 
+                                       allTasksForOrder.All(t => t.Status == ExecutionTaskStatus.Completed);
+
+                    if (allCompleted)
+                    {
+                        // 获取医嘱对象，更新其状态（支持所有继承自 MedicalOrder 的类型）
+                        var medicalOrder = await _context.Set<CareFlow.Core.Models.Medical.MedicalOrder>()
+                            .FirstOrDefaultAsync(o => o.Id == medicalOrderId);
+                        
+                        if (medicalOrder != null && 
+                            medicalOrder.Status != OrderStatus.Completed && 
+                            medicalOrder.Status != OrderStatus.Stopped && 
+                            medicalOrder.Status != OrderStatus.Cancelled)
+                        {
+                            medicalOrder.Status = OrderStatus.Completed;
+                            medicalOrder.CompletedAt = DateTime.UtcNow;
+                            await _context.SaveChangesAsync();
+                            
+                            Console.WriteLine($"[CompleteExecutionTask] 医嘱 {medicalOrderId} 下所有任务已完成，医嘱状态已更新为 Completed");
+                        }
+                    }
+                }
+
                 return Ok(new
                 {
                     message = actionDescription,
@@ -1338,7 +1373,8 @@ namespace CareFlow.WebApi.Controllers
         /// [护士端] 上传任务条形码图片进行识别
         /// </summary>
         [HttpPost("barcode/recognize-task")]
-        public async Task<IActionResult> RecognizeTaskBarcode([FromForm] IFormFile taskBarcodeImage)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> RecognizeTaskBarcode(IFormFile taskBarcodeImage)
         {
             try
             {
@@ -1415,7 +1451,8 @@ namespace CareFlow.WebApi.Controllers
         /// [护士端] 验证任务和患者条形码是否匹配
         /// </summary>
         [HttpPost("barcode/validate-patient")]
-        public async Task<IActionResult> ValidatePatientBarcode(long taskId, [FromForm] IFormFile taskBarcodeImage, [FromForm] IFormFile patientBarcodeImage)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> ValidatePatientBarcode(long taskId, IFormFile taskBarcodeImage, IFormFile patientBarcodeImage)
         {
             try
             {
@@ -1510,7 +1547,8 @@ namespace CareFlow.WebApi.Controllers
         /// [护士端] 验证任务和药品条形码是否匹配
         /// </summary>
         [HttpPost("barcode/validate-drug")]
-        public async Task<IActionResult> ValidateDrugBarcode(long taskId, [FromForm] IFormFile taskBarcodeImage, [FromForm] IFormFile drugBarcodeImage)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> ValidateDrugBarcode(long taskId, IFormFile taskBarcodeImage, IFormFile drugBarcodeImage)
         {
             try
             {
