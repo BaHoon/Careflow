@@ -60,6 +60,7 @@
                 :key="task.id"
                 :task="task"
                 :highlight="true"
+                :is-overdue="true"
                 @click="handleTaskClick"
                 @start-input="handleStartInput"
                 @view-detail="handleViewDetail"
@@ -88,6 +89,7 @@
                 :key="task.id"
                 :task="task"
                 :highlight="true"
+                :is-due-soon="true"
                 @click="handleTaskClick"
                 @start-input="handleStartInput"
                 @view-detail="handleViewDetail"
@@ -269,13 +271,15 @@ const handleTaskCancelled = (taskId) => {
 
 .stat-item {
   text-align: center;
-  padding: 12px 0;
+  padding: 16px 0;
+  transition: all 0.3s ease;
 }
 
 .stat-value {
-  font-size: 32px;
-  font-weight: bold;
+  font-size: 40px;
+  font-weight: 700;
   margin-bottom: 8px;
+  letter-spacing: -0.5px;
 }
 
 .stat-value.overdue {
@@ -295,8 +299,9 @@ const handleTaskCancelled = (taskId) => {
 }
 
 .stat-label {
-  font-size: 14px;
-  color: #909399;
+  font-size: 15px;
+  color: #606266;
+  font-weight: 500;
 }
 
 .timeline-content {
@@ -308,9 +313,13 @@ const handleTaskCancelled = (taskId) => {
 }
 
 .group-header {
-  padding: 12px 16px;
-  border-radius: 4px;
-  margin-bottom: 12px;
+  padding: 14px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.4));
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .group-header h3 {
@@ -320,28 +329,33 @@ const handleTaskCancelled = (taskId) => {
 }
 
 .overdue-header {
-  background: #fef0f0;
+  background: linear-gradient(90deg, #fef0f0, #fff);
   color: #f56c6c;
+  border-left: 4px solid #f56c6c;
 }
 
 .due-soon-header {
-  background: #fdf6ec;
+  background: linear-gradient(90deg, #fdf6ec, #fff);
   color: #e6a23c;
+  border-left: 4px solid #e6a23c;
 }
 
 .pending-header {
-  background: #ecf5ff;
+  background: linear-gradient(90deg, #ecf5ff, #fff);
   color: #409eff;
+  border-left: 4px solid #409eff;
 }
 
 .completed-header {
-  background: #f0f9ff;
+  background: linear-gradient(90deg, #f0f9ff, #fff);
   color: #67c23a;
+  border-left: 4px solid #67c23a;
 }
 
 .task-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  padding: 0 4px;
 }
 </style>
