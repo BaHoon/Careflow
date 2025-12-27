@@ -75,13 +75,14 @@
         
         <!-- Applying(0)：去申请 + 取消任务 -->
         <el-button 
-          v-if="task.status === 2 || task.status === 'AppliedConfirmed' || task.status === 3 || task.status === 'Pending'" 
+          v-if="task.status === 0 || task.status === 'Applying'" 
           type="primary" 
           size="small"
           @click.stop="handleGoToApplication"
         >
           去申请
         </el-button>
+
         <el-button 
           v-if="task.status === 0 || task.status === 'Applying'" 
           type="danger" 
@@ -121,6 +122,7 @@
         >
           打印报告单
         </el-button>
+
         <!-- AppliedConfirmed(2) 或 Pending(3)：显示根据category定制的"完成"按钮 -->
         <el-button 
           v-if="task.category !== 'ApplicationWithPrint' && (task.status === 2 || task.status === 'AppliedConfirmed' || task.status === 3 || task.status === 'Pending')" 
@@ -131,18 +133,7 @@
         >
           {{ getCompletionButtonLabel(task.category, false) }}
         </el-button>
-
-
-        <!-- AppliedConfirmed(2) 或 Pending(3)：核对完成 + 取消任务 -->
-        <el-button 
-          v-if="task.status === 2 || task.status === 'AppliedConfirmed' || task.status === 3 || task.status === 'Pending'" 
-          type="primary" 
-          size="small"
-          :icon="VideoPlay"
-          @click.stop="handleStartCompletion"
-        >
-          {{ getCompletionButtonLabel(task.category, false) }}
-        </el-button>
+        <!-- AppliedConfirmed(2) 或 Pending(3)：取消任务 -->
         <el-button 
           v-if="task.status === 2 || task.status === 'AppliedConfirmed' || task.status === 3 || task.status === 'Pending'" 
           type="danger" 

@@ -233,16 +233,13 @@ const groupedTasks = computed(() => {
     // 待执行任务：还没到前一小时的任务（包括 Applying、Applied、AppliedConfirmed、Pending、InProgress）
     pending: props.tasks.filter(t => {
       // Applying(0)、Applied(1)、AppliedConfirmed(2) - 药房申请相关状态，都属于待执行
-      if (t.status === 0 || t.status === 'Applying' ||
+      if ((t.status === 0 || t.status === 'Applying' ||
           t.status === 1 || t.status === 'Applied' ||
-          t.status === 2 || t.status === 'AppliedConfirmed') {
-        return true;
-      }
-      // Pending(3)、InProgress(4) - 正常执行状态，需要检查时间
-      if ((t.status === 3 || t.status === 'Pending' ||
-           t.status === 4 || t.status === 'InProgress') &&
-           t.excessDelayMinutes <= 0 &&
-      !(t.status === 3 || t.status === 'Pending') {
+          t.status === 2 || t.status === 'AppliedConfirmed'||
+          t.status === 3 || t.status === 'Pending' ||
+          t.status === 4 || t.status === 'InProgress') &&
+          t.excessDelayMinutes <= 0 &&
+          !(t.status === 3 || t.status === 'Pending')) {
         return true;
       }
       return false;
