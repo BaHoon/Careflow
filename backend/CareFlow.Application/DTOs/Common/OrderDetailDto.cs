@@ -138,6 +138,21 @@ public class OrderDetailDto
     /// </summary>
     public string? ItemName { get; set; }
     
+    /// <summary>
+    /// 检查报告ID（仅InspectionOrder有效）
+    /// </summary>
+    public string? ReportId { get; set; }
+    
+    /// <summary>
+    /// 报告完成时间（仅InspectionOrder有效）
+    /// </summary>
+    public DateTime? ReportTime { get; set; }
+    
+    /// <summary>
+    /// 报告附件URL（仅InspectionOrder有效，通常是PDF文件路径）
+    /// </summary>
+    public string? AttachmentUrl { get; set; }
+    
     // ==================== 操作医嘱特有字段 ====================
     
     /// <summary>

@@ -3,6 +3,7 @@ using CareFlow.Infrastructure.Services;
 using CareFlow.Infrastructure; // 引用基础设施层
 using CareFlow.Application; // 引用应用层
 using CareFlow.Application.Services; // 引用应用层服务
+using CareFlow.Application.Services.MedicalOrder.MedicationOrders; // 药品医嘱任务服务
 using CareFlow.Application.Interfaces;
 using CareFlow.Application.Services.Nursing;
 using CareFlow.Application.Services.Scheduling;
@@ -24,14 +25,17 @@ builder.Services.AddControllers();
 
 // 添加 Swagger/OpenAPI (接口文档生成器)
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    // 使用完整类型名（包含命名空间）作为 schemaId，避免同名类冲突
+    options.CustomSchemaIds(type => type.FullName);
+});
 
 // 注册 AuthService
 builder.Services.AddScoped<AuthService>();
 
-// 注册手术医嘱任务服务及工厂
-builder.Services.AddScoped<IExecutionTaskFactory, SurgicalExecutionTaskFactory>();
-builder.Services.AddScoped<ISurgicalOrderTaskService, SurgicalOrderTaskService>();
+// 注意：操作医嘱相关服务已在 Application.DependencyInjection 中注册
+// 这里不再重复注册，避免冲突
 
 // 注册检查类医嘱服务（合并到任务服务）
 builder.Services.AddScoped<CareFlow.Application.Interfaces.IInspectionService, CareFlow.Application.Services.MedicalOrder.InspectionOrderTaskService>();
@@ -149,6 +153,9 @@ if (app.Environment.IsDevelopment())
 
 // 启用 HTTPS 重定向
 app.UseHttpsRedirection();
+
+// 启用静态文件服务（用于访问 wwwroot 目录下的文件，如报告PDF、条形码图片等）
+app.UseStaticFiles();
 
 // 启用 CORS (必须放在 UseAuthorization 之前)
 app.UseCors("AllowAll");

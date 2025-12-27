@@ -786,7 +786,7 @@
                   <div class="custom-multi-select">
                     <el-checkbox-group v-model="surgicalOrder.requiredOperation" class="checkbox-grid">
                       <el-checkbox
-                        v-for="item in operationOptions"
+                        v-for="item in preoperativeOperationOptions"
                         :key="item.value"
                         :label="item.value"
                       >
@@ -915,10 +915,359 @@
 
             <!-- 操作医嘱表单 -->
             <div v-else-if="activeType === 'OperationOrder'" class="operation-form">
-              <!-- 操作基本信息 -->
-              <div class="placeholder-form">
-                ⚠️ 操作医嘱表单开发中
-                <br>需实现上述个字段的表单组件
+              <!-- 步骤1：医嘱基本信息 -->
+              <div class="form-section">
+                <div class="section-header">
+                  <i class="el-icon-document-checked"></i>
+                  <span>医嘱基本信息</span>
+                </div>
+                <div class="form-row">
+                  <label class="required">医嘱类型：</label>
+                  <el-radio-group v-model="operationOrder.isLongTerm" @change="onOperationOrderTypeChange">
+                    <el-radio-button :label="true">
+                      <i class="el-icon-time"></i> 长期医嘱
+                    </el-radio-button>
+                    <el-radio-button :label="false">
+                      <i class="el-icon-lightning"></i> 临时医嘱
+                    </el-radio-button>
+                  </el-radio-group>
+                  <span class="tip-text">{{ operationOrder.isLongTerm ? '长期医嘱需配置执行周期' : '临时医嘱为单次执行' }}</span>
+                </div>
+              </div>
+
+              <!-- 步骤2：操作信息 -->
+              <div class="form-section">
+                <div class="section-header">
+                  <i class="el-icon-setting"></i>
+                  <span>操作信息</span>
+                </div>
+                
+                <div class="form-row">
+                  <label class="required">操作项目：</label>
+                  <el-select 
+                    v-model="operationOrder.operationName" 
+                    filterable
+                    placeholder="搜索操作名称，如：更换引流袋、导尿、血糖监测等"
+                    @change="onOperationNameChange"
+                    style="width: 100%"
+                  >
+                    <el-option
+                      v-for="op in operationOptions"
+                      :key="op.opId"
+                      :label="op.name"
+                      :value="op.name"
+                    >
+                      <div>
+                        <div style="font-weight: 600;">{{ op.name }}</div>
+                        <div style="color: #666; font-size: 12px;">代码：{{ op.opId }} | 类型：{{ getCategoryLabel(op.category) }}</div>
+                      </div>
+                    </el-option>
+                  </el-select>
+                  <span class="tip-text">选择操作名称后，系统会自动匹配对应的操作代码</span>
+                </div>
+
+                <div class="form-row" v-if="operationOrder.opId">
+                  <label>操作代码：</label>
+                  <el-input 
+                    v-model="operationOrder.opId"
+                    placeholder="操作代码（选择操作名称后自动填充）"
+                    :disabled="true"
+                    style="width: 200px"
+                  />
+                  <span class="tip-text">系统自动匹配，无需手动输入</span>
+                </div>
+
+                <div class="form-row">
+                  <label>操作部位：</label>
+                  <el-input 
+                    v-model="operationOrder.operationSite"
+                    placeholder="请输入操作部位，如：左臂、腹部、背部等（可选）"
+                    clearable
+                  />
+                </div>
+
+                <div class="form-row">
+                  <label>正常/异常：</label>
+                  <el-radio-group v-model="operationOrder.normal">
+                    <el-radio :label="true">正常</el-radio>
+                    <el-radio :label="false">异常</el-radio>
+                  </el-radio-group>
+                </div>
+              </div>
+
+              <!-- 步骤3：执行时间策略（参照药品医嘱） -->
+              <div class="form-section">
+                <div class="section-header">
+                  <i class="el-icon-time"></i>
+                  <span>执行时间策略</span>
+                </div>
+
+                <!-- 临时医嘱策略 -->
+                <div class="form-row" v-if="!operationOrder.isLongTerm">
+                  <label class="required">执行时间：</label>
+                  <el-radio-group v-model="operationOrder.timingStrategy" @change="onOperationStrategyChange">
+                    <el-radio label="IMMEDIATE">
+                      <i class="el-icon-video-play"></i> 立即执行
+                    </el-radio>
+                    <el-radio label="SPECIFIC">
+                      <i class="el-icon-alarm-clock"></i> 指定时间
+                    </el-radio>
+                  </el-radio-group>
+                </div>
+
+                <!-- 长期医嘱策略 -->
+                <div class="form-row" v-if="operationOrder.isLongTerm">
+                  <label class="required">执行策略：</label>
+                  <el-radio-group v-model="operationOrder.timingStrategy" @change="onOperationStrategyChange">
+                    <el-radio label="SLOTS">
+                      <i class="el-icon-clock"></i> 按时段执行 (如早餐前、午餐后)
+                    </el-radio>
+                    <el-radio label="CYCLIC">
+                      <i class="el-icon-refresh"></i> 固定间隔执行 (如每6小时一次)
+                    </el-radio>
+                  </el-radio-group>
+                </div>
+
+                <!-- 策略配置区域 -->
+                <div class="strategy-config">
+                  <!-- IMMEDIATE策略：显示开始执行时间 -->
+                  <div class="form-row" v-if="operationOrder.timingStrategy === 'IMMEDIATE'">
+                    <label class="required">开始执行时间：</label>
+                    <el-date-picker 
+                      v-model="operationOrder.startTime"
+                      type="datetime"
+                      placeholder="立即执行时间"
+                      :disabled="true"
+                      format="YYYY-MM-DD HH:mm"
+                      value-format="YYYY-MM-DDTHH:mm:ss"
+                      style="width: 280px"
+                    />
+                    <span class="tip-text">立即执行，时间不可修改</span>
+                  </div>
+
+                  <!-- SPECIFIC策略：日期时间选择器 -->
+                  <div class="form-row" v-if="operationOrder.timingStrategy === 'SPECIFIC'">
+                    <label class="required">指定执行时间：</label>
+                    <el-date-picker 
+                      v-model="operationOrder.startTime"
+                      type="datetime"
+                      placeholder="选择具体日期和时间"
+                      :disabled-date="disablePastDates"
+                      format="YYYY-MM-DD HH:mm"
+                      value-format="YYYY-MM-DDTHH:mm:ss"
+                      style="width: 280px"
+                    />
+                  </div>
+
+                  <!-- CYCLIC策略：开始时间 + 间隔小时 + 间隔天数 -->
+                  <div v-if="operationOrder.timingStrategy === 'CYCLIC'">
+                    <div class="form-row">
+                      <label class="required">首次执行时间：</label>
+                      <el-date-picker 
+                        v-model="operationOrder.startTime"
+                        type="datetime"
+                        placeholder="选择首次执行时间"
+                        :disabled-date="disablePastDates"
+                        format="YYYY-MM-DD HH:mm"
+                        value-format="YYYY-MM-DDTHH:mm:ss"
+                        style="width: 280px"
+                      />
+                    </div>
+                    <div class="form-row">
+                      <label class="required">间隔小时数：</label>
+                      <el-input-number 
+                        v-model="operationOrder.intervalHours" 
+                        :min="0.5" 
+                        :max="168"
+                        :step="0.5"
+                        :precision="1"
+                        placeholder="执行间隔（小时）"
+                        style="width: 150px"
+                      />
+                      <span class="tip-text">每次执行的间隔时间（小时），如8表示每8小时一次</span>
+                    </div>
+                    <div class="form-row">
+                      <label class="required">间隔天数：</label>
+                      <el-input-number 
+                        v-model="operationOrder.intervalDays" 
+                        :min="1" 
+                        :max="30"
+                        placeholder="间隔天数"
+                        style="width: 150px"
+                      />
+                      <span class="tip-text">1=每天执行，2=隔天执行（通常设为1）</span>
+                    </div>
+                  </div>
+
+                  <!-- SLOTS策略：开始执行时间 + 时段选择 -->
+                  <div v-if="operationOrder.timingStrategy === 'SLOTS'">
+                    <div class="form-row">
+                      <label class="required">开始执行时间：</label>
+                      <el-date-picker 
+                        v-model="operationOrder.startTime"
+                        type="datetime"
+                        placeholder="选择开始执行时间"
+                        :disabled-date="disablePastDates"
+                        format="YYYY-MM-DD HH:mm"
+                        value-format="YYYY-MM-DDTHH:mm:ss"
+                        style="width: 280px"
+                      />
+                      <span class="tip-text">从什么时间开始按时段执行</span>
+                    </div>
+                    <div class="form-row">
+                      <label class="required">执行时段：</label>
+                      <div class="time-slots-selector" style="margin-top: 10px;">
+                        <div class="slot-category">
+                          <div class="category-title">🍽️ 三餐前后及睡前</div>
+                          <div class="slots-grid">
+                            <div v-for="slot in allTimeSlots" :key="slot.id" 
+                                 :class="['slot-tag', { selected: isOperationSlotSelected(slot.id) }]"
+                                 @click="toggleOperationSlot(slot.id)">
+                              <i class="el-icon-check" v-if="isOperationSlotSelected(slot.id)"></i>
+                              {{ slot.slotName }}
+                              <span class="time-hint">{{ formatTime(slot.defaultTime) }}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="form-row">
+                      <label class="required">间隔天数：</label>
+                      <el-input-number 
+                        v-model="operationOrder.intervalDays"
+                        :min="1"
+                        :max="30"
+                        placeholder="间隔天数" 
+                        style="width: 150px"
+                      />
+                      <span class="tip-text">1=每天执行，2=隔天执行，依此类推</span>
+                    </div>
+                    <div class="freq-reminder" v-if="operationOrder.smartSlotsMask > 0">
+                      <i class="el-icon-info"></i> 
+                      已选择 <strong>{{ getSelectedOperationSlotsCount() }}</strong> 个时段，每 <strong>{{ operationOrder.intervalDays }}</strong> 天执行 <strong>{{ getSelectedOperationSlotsCount() }}</strong> 次
+                    </div>
+                  </div>
+
+                  <!-- 医嘱结束时间（所有策略都需要，SPECIFIC策略下自动同步，不显示） -->
+                  <div class="form-row" v-if="operationOrder.timingStrategy !== 'SPECIFIC'">
+                    <label class="required">{{ operationOrder.isLongTerm ? '医嘱结束时间' : '医嘱开始时间' }}：</label>
+                    <el-date-picker 
+                      v-model="operationOrder.plantEndTime"
+                      type="datetime"
+                      :placeholder="operationOrder.isLongTerm ? '选择医嘱结束时间' : '选择医嘱开始时间'"
+                      :disabled="operationOrder.timingStrategy === 'IMMEDIATE'"
+                      :disabled-date="disablePastDates"
+                      :disabled-time="operationOrder.isLongTerm ? disableTimesBeforeStart : undefined"
+                      format="YYYY-MM-DD HH:mm"
+                      value-format="YYYY-MM-DDTHH:mm:ss"
+                      style="width: 280px"
+                    />
+                    <span class="tip-text" v-if="operationOrder.timingStrategy === 'IMMEDIATE'">立即执行，时间不可修改</span>
+                    <span class="tip-text" v-else-if="operationOrder.isLongTerm">不能早于开始执行时间</span>
+                  </div>
+                  <!-- SPECIFIC策略下，结束时间自动与开始时间同步，显示提示 -->
+                  <div class="form-row" v-if="operationOrder.timingStrategy === 'SPECIFIC' && operationOrder.startTime">
+                    <label>医嘱结束时间：</label>
+                    <el-date-picker 
+                      v-model="operationOrder.plantEndTime"
+                      type="datetime"
+                      placeholder="自动与开始时间同步"
+                      :disabled="true"
+                      format="YYYY-MM-DD HH:mm"
+                      value-format="YYYY-MM-DDTHH:mm:ss"
+                      style="width: 280px"
+                    />
+                    <span class="tip-text">指定时间策略下，结束时间自动与开始时间相同（单次执行）</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 步骤4：执行要求 -->
+              <div class="form-section">
+                <div class="section-header">
+                  <i class="el-icon-box"></i>
+                  <span>执行要求</span>
+                </div>
+                
+                <!-- 准备物品列表（根据操作类型自动显示，可编辑） -->
+                <div class="form-row" v-if="operationOrder.requiresPreparation">
+                  <label>准备物品：</label>
+                  <div class="preparation-items-container">
+                    <div class="preparation-input-row">
+                      <el-input
+                        v-model="preparationItemInput"
+                        placeholder="输入准备物品名称，按回车或点击添加"
+                        @keyup.enter="addPreparationItem"
+                        clearable
+                        style="flex: 1"
+                      >
+                        <template #append>
+                          <el-button @click="addPreparationItem" :disabled="!preparationItemInput.trim()">添加</el-button>
+                        </template>
+                      </el-input>
+                    </div>
+                    <div v-if="operationOrder.preparationItems.length > 0" class="preparation-tags">
+                      <el-tag
+                        v-for="(item, index) in operationOrder.preparationItems"
+                        :key="index"
+                        closable
+                        @close="removePreparationItem(index)"
+                        type="info"
+                        style="margin-right: 8px; margin-bottom: 8px;"
+                      >
+                        {{ item }}
+                      </el-tag>
+                    </div>
+                    <div v-else class="tip-text" style="margin-top: 8px;">
+                      <i class="el-icon-warning"></i> 请至少添加一个准备物品
+                    </div>
+                  </div>
+                </div>
+                <div v-else class="form-row">
+                  <label>准备物品：</label>
+                  <span class="tip-text">该操作无需准备物品</span>
+                </div>
+
+                <div class="form-row">
+                  <label>预期执行时长（分钟）：</label>
+                  <el-input-number 
+                    v-model="operationOrder.expectedDurationMinutes"
+                    :min="1"
+                    :max="1440"
+                    placeholder="预期执行时长"
+                    style="width: 150px"
+                  />
+                  <span class="tip-text">可选，用于持续类操作的时长记录</span>
+                </div>
+              </div>
+
+              <!-- 步骤5：任务配置（自动判定，仅显示） -->
+              <div class="form-section" v-if="operationOrder.requiresResult">
+                <div class="section-header">
+                  <i class="el-icon-setting"></i>
+                  <span>任务配置</span>
+                </div>
+                
+                <div class="form-row">
+                  <label>是否需要记录结果：</label>
+                  <el-tag type="success">需要</el-tag>
+                  <span class="tip-text">该操作需要录入执行结果（如血糖值、血压值等）</span>
+                </div>
+              </div>
+
+              <!-- 步骤6：医嘱备注 -->
+              <div class="form-section">
+                <div class="form-row">
+                  <label>医嘱备注：</label>
+                  <el-input 
+                    v-model="operationOrder.remarks"
+                    type="textarea"
+                    :rows="2"
+                    placeholder="可填写特殊嘱托、注意事项等"
+                    maxlength="200"
+                    show-word-limit
+                  />
+                </div>
               </div>
             </div>
 
@@ -1224,6 +1573,12 @@
                   <span class="info-item">🕐 {{ formatDateTime(o.scheduleTime) }}</span>
                   <span class="info-item">💉 {{ o.anesthesiaType }}</span>
                 </div>
+                
+                <!-- 操作医嘱基本信息 -->
+                <div v-else-if="o.orderType === 'OperationOrder'" class="order-basic-info">
+                  <span class="info-item">{{ getStrategyLabel(o.timingStrategy) }}</span>
+                  <span v-if="o.operationSite" class="info-item">📍 {{ o.operationSite }}</span>
+                </div>
 
                 <!-- 出院医嘱基本信息 -->
                 <div v-else-if="o.orderType === 'DischargeOrder'" class="order-basic-info">
@@ -1237,8 +1592,52 @@
 
                 <!-- 详细信息（可展开） -->
                 <div v-show="expandedOrders.includes(idx)" class="order-detail-expand">
+                  <!-- 操作医嘱详细信息 -->
+                  <template v-if="o.orderType === 'OperationOrder'">
+                    <div class="detail-section">
+                      <div class="detail-label">操作代码：</div>
+                      <div class="detail-value">{{ o.opId }}</div>
+                    </div>
+                    <div class="detail-section" v-if="o.operationSite">
+                      <div class="detail-label">操作部位：</div>
+                      <div class="detail-value">{{ o.operationSite }}</div>
+                    </div>
+                    <div class="detail-section">
+                      <div class="detail-label">时间策略：</div>
+                      <div class="detail-value">{{ getStrategyLabel(o.timingStrategy) }}</div>
+                    </div>
+                    <div class="detail-section" v-if="o.startTime">
+                      <div class="detail-label">开始时间：</div>
+                      <div class="detail-value">{{ formatDateTime(o.startTime) }}</div>
+                    </div>
+                    <div class="detail-section" v-if="o.plantEndTime">
+                      <div class="detail-label">结束时间：</div>
+                      <div class="detail-value">{{ formatDateTime(o.plantEndTime) }}</div>
+                    </div>
+                    <div class="detail-section" v-if="o.timingStrategy === 'CYCLIC' && o.intervalHours">
+                      <div class="detail-label">间隔：</div>
+                      <div class="detail-value">每 {{ o.intervalHours }} 小时</div>
+                    </div>
+                    <div class="detail-section" v-if="o.timingStrategy === 'SLOTS' && o.smartSlotsMask > 0">
+                      <div class="detail-label">执行时段：</div>
+                      <div class="detail-value">{{ getSelectedOperationSlotsText(o.smartSlotsMask) }}</div>
+                    </div>
+                    <div class="detail-section" v-if="o.requiresPreparation && o.preparationItems && o.preparationItems.length > 0">
+                      <div class="detail-label">准备物品：</div>
+                      <div class="detail-value">{{ o.preparationItems.join('、') }}</div>
+                    </div>
+                    <div class="detail-section" v-if="o.expectedDurationMinutes">
+                      <div class="detail-label">预期时长：</div>
+                      <div class="detail-value">{{ o.expectedDurationMinutes }} 分钟</div>
+                    </div>
+                    <div class="detail-section" v-if="o.remarks">
+                      <div class="detail-label">备注：</div>
+                      <div class="detail-value">{{ o.remarks }}</div>
+                    </div>
+                  </template>
+                  
                   <!-- 检查医嘱详细信息 -->
-                  <template v-if="o.orderType === 'InspectionOrder'">
+                  <template v-else-if="o.orderType === 'InspectionOrder'">
                     <div class="detail-section">
                       <div class="detail-label">检查项目：</div>
                       <div class="detail-value">{{ o.itemName || o.itemCode }}</div>
@@ -1432,13 +1831,68 @@ const dischargeOrder = reactive({
 
 // 操作医嘱的响应式数据
 // 参考DTO: DTOs/OperationOrders/BatchCreateOperationOrderDto.cs
-// const operationOrder = reactive({
-//   operationCode: '',         // 操作代码
-//   operationName: '',         // 操作名称
-//   targetSite: '',            // 操作部位（可选）
-//   scheduledTime: null,       // 执行时间
-//   remarks: ''                // 备注
-// });
+const operationOrder = reactive({
+  // === 基础信息 ===
+  isLongTerm: true,              // 医嘱类型：true=长期，false=临时
+  plantEndTime: null,            // 计划结束时间（必填，DateTime）
+  remarks: '',                   // 备注（可选，string）
+  
+  // === 操作信息 ===
+  opId: '',                      // 操作代码（必填，如 "OP001"）
+  operationName: '',             // 操作名称（必填，如 "更换引流袋"）
+  operationSite: '',             // 操作部位（可选，如 "左臂"、"腹部"）
+  normal: true,                  // 正常/异常标识（默认true，boolean）
+  
+  // === 时间策略（参照药品医嘱） ===
+  timingStrategy: '',            // 'IMMEDIATE' | 'SPECIFIC' | 'CYCLIC' | 'SLOTS'
+  startTime: null,               // DateTime? - SPECIFIC/CYCLIC/SLOTS 需要
+  intervalHours: null,           // decimal? - 仅 CYCLIC 使用（如 6, 8, 12）
+  intervalDays: 1,               // int - CYCLIC/SLOTS 使用（默认1=每天）
+  smartSlotsMask: 0,             // int - 仅 SLOTS 使用（位掩码，如 2|32=早餐后+晚餐后）
+  
+  // === 执行要求 ===
+  requiresPreparation: false,    // 是否需要准备物品（boolean）
+  preparationItems: [],          // 准备物品列表（string[]，如 ["引流袋", "无菌手套"]）
+  
+  // === 任务配置 ===
+  expectedDurationMinutes: null, // 预期执行时长（分钟，可选，int?）
+  requiresResult: false,         // 是否需要记录结果（boolean）
+  resultTemplate: null           // 结果模板（对象，可选，用于ResultPending类任务）
+});
+
+// 常用操作代码选项（参照后端 OperationOrderService.OperationNameMap）
+const operationOptions = [
+  // 持续类操作（Duration）
+  { opId: 'OP001', name: '更换引流袋', category: 'Duration', needsPreparation: true, preparationItems: ['引流袋', '无菌手套', '消毒液', '棉签'] },
+  { opId: 'OP002', name: '持续吸氧', category: 'Duration', needsPreparation: false, preparationItems: [] },
+  { opId: 'OP006', name: '鼻饲', category: 'Duration', needsPreparation: true, preparationItems: ['鼻饲管', '注射器', '营养液', '温开水'] },
+  { opId: 'OP007', name: '雾化吸入', category: 'Duration', needsPreparation: true, preparationItems: ['雾化器', '雾化药液', '面罩或口含器'] },
+  { opId: 'OP011', name: '持续心电监护', category: 'Duration', needsPreparation: false, preparationItems: [] },
+  { opId: 'OP012', name: '持续导尿', category: 'Duration', needsPreparation: true, preparationItems: ['导尿管', '无菌手套', '消毒液', '引流袋', '润滑剂'] },
+  { opId: 'OP013', name: '持续胃肠减压', category: 'Duration', needsPreparation: true, preparationItems: ['胃管', '负压吸引器', '引流袋'] },
+  { opId: 'OP014', name: '持续静脉输液', category: 'Duration', needsPreparation: false, preparationItems: [] },
+  
+  // 即刻类操作（Immediate）
+  { opId: 'OP004', name: '更换敷料', category: 'Immediate', needsPreparation: true, preparationItems: ['无菌敷料', '胶带', '消毒液', '棉签', '无菌手套'] },
+  { opId: 'OP005', name: '导尿', category: 'Immediate', needsPreparation: true, preparationItems: ['导尿管', '无菌手套', '消毒液', '引流袋', '润滑剂'] },
+  { opId: 'OP008', name: '口腔护理', category: 'Immediate', needsPreparation: false, preparationItems: [] },
+  { opId: 'OP009', name: '会阴护理', category: 'Immediate', needsPreparation: false, preparationItems: [] },
+  { opId: 'OP010', name: '皮肤护理', category: 'Immediate', needsPreparation: false, preparationItems: [] },
+  { opId: 'OP015', name: '翻身拍背', category: 'Immediate', needsPreparation: false, preparationItems: [] },
+  
+  // 结果类操作（ResultPending）
+  { opId: 'OP003', name: '血糖监测', category: 'ResultPending', needsPreparation: false, preparationItems: [], needsResult: true },
+  { opId: 'OP016', name: '血压监测', category: 'ResultPending', needsPreparation: false, preparationItems: [], needsResult: true },
+  { opId: 'OP017', name: '体温监测', category: 'ResultPending', needsPreparation: false, preparationItems: [], needsResult: true },
+  { opId: 'OP018', name: '尿量监测', category: 'ResultPending', needsPreparation: false, preparationItems: [], needsResult: true },
+  
+  // 数据收集类操作（DataCollection）
+  { opId: 'OP019', name: '意识状态评估', category: 'DataCollection', needsPreparation: false, preparationItems: [], needsResult: true },
+  { opId: 'OP020', name: '疼痛评估', category: 'DataCollection', needsPreparation: false, preparationItems: [], needsResult: true }
+];
+
+// 准备物品输入
+const preparationItemInput = ref('');
 
 // 药品医嘱响应式数据
 const currentOrder = reactive({
@@ -1525,7 +1979,7 @@ const talkOptions = [
 ];
 
 // 术前操作选项
-const operationOptions = [
+const preoperativeOperationOptions = [
   { value: '术前针注射', label: '术前针注射' },
   { value: '留置针埋置', label: '留置针埋置' },
   { value: '采血', label: '采血检查' },
@@ -1579,8 +2033,22 @@ const gridTemplateColumns = computed(() => {
 const isFormValid = computed(() => {
   // 根据医嘱类型进行不同的表单验证
   if (activeType.value === 'OperationOrder') {
-    // TODO: 操作医嘱验证：操作代码、操作名称、执行时间为必填
-    return false; // 暂时返回false，等待实现操作医嘱验证逻辑
+    // 操作医嘱验证（参照药品类医嘱，必须选择病人）
+    if (!selectedPatient.value) return false;
+    if (!operationOrder.operationName) return false;
+    if (!operationOrder.opId) return false; // OpId应该通过操作名称自动匹配
+    if (!operationOrder.timingStrategy) return false;
+    if (!operationOrder.plantEndTime) return false;
+
+    const strategy = operationOrder.timingStrategy.toUpperCase();
+    if (strategy === 'SPECIFIC' && !operationOrder.startTime) return false;
+    if (strategy === 'CYCLIC' && (!operationOrder.startTime || !operationOrder.intervalHours || operationOrder.intervalHours <= 0)) return false;
+    if (strategy === 'SLOTS' && (!operationOrder.startTime || operationOrder.smartSlotsMask <= 0)) return false;
+    
+    // 如果requiresPreparation为true，必须至少有一个准备物品
+    if (operationOrder.requiresPreparation && operationOrder.preparationItems.length === 0) return false;
+    
+    return true;
   } else if (activeType.value === 'InspectionOrder') {
     // 检查医嘱验证 - 完善版
     if (!selectedPatient.value) return false;
@@ -1710,6 +2178,185 @@ const onStrategyChange = () => {
   selectStrategy(currentOrder.timingStrategy);
 };
 
+// ==================== 操作医嘱相关函数 ====================
+
+// 操作医嘱类型切换
+const onOperationOrderTypeChange = (isLongTerm) => {
+  operationOrder.isLongTerm = isLongTerm;
+  
+  // 重置策略选择
+  operationOrder.timingStrategy = '';
+  
+  // 清空所有时间相关字段
+  operationOrder.startTime = null;
+  operationOrder.plantEndTime = null;
+  operationOrder.intervalHours = null;
+  operationOrder.intervalDays = 1;
+  operationOrder.smartSlotsMask = 0;
+};
+
+// 操作名称选择处理（医生选择操作名称，系统自动匹配OpId）
+// 注意：后端逻辑以OpId为主，OperationName是冗余字段，前端只是为了让医生更方便选择
+const onOperationNameChange = (operationName) => {
+  const selectedOp = operationOptions.find(op => op.name === operationName);
+  if (selectedOp) {
+    // 自动匹配操作代码（这是关键字段，后端逻辑都基于此）
+    operationOrder.opId = selectedOp.opId;
+    
+    // 根据操作类型自动设置是否需要准备物品（基于opId对应的操作类型）
+    if (selectedOp.needsPreparation !== undefined) {
+      operationOrder.requiresPreparation = selectedOp.needsPreparation;
+      // 如果不需要准备物品，清空准备物品列表
+      if (!selectedOp.needsPreparation) {
+        operationOrder.preparationItems = [];
+      } else {
+        // 如果需要准备物品，自动填充默认准备物品列表
+        if (selectedOp.preparationItems && selectedOp.preparationItems.length > 0) {
+          operationOrder.preparationItems = [...selectedOp.preparationItems];
+        }
+      }
+    }
+    
+    // 根据操作类型自动设置是否需要记录结果（基于opId对应的操作类型）
+    if (selectedOp.needsResult !== undefined) {
+      operationOrder.requiresResult = selectedOp.needsResult;
+    } else {
+      // 如果没有明确设置，根据类别判断
+      operationOrder.requiresResult = selectedOp.category === 'ResultPending' || selectedOp.category === 'DataCollection';
+    }
+    
+    // 根据操作类型提示是否需要配置执行时长（基于opId对应的操作类型）
+    if (selectedOp.category === 'Duration') {
+      // 持续类操作建议配置执行时长
+      if (!operationOrder.expectedDurationMinutes) {
+        // 可以设置默认值或提示用户
+      }
+    }
+  } else {
+    // 如果找不到匹配的操作，清空OpId
+    operationOrder.opId = '';
+    ElMessage.warning('未找到匹配的操作代码，请重新选择操作名称');
+  }
+};
+
+// 获取操作类别标签
+const getCategoryLabel = (category) => {
+  const categoryMap = {
+    'Immediate': '即刻类',
+    'Duration': '持续类',
+    'ResultPending': '结果类',
+    'DataCollection': '数据收集类'
+  };
+  return categoryMap[category] || category;
+};
+
+// 操作医嘱时间策略切换
+const onOperationStrategyChange = () => {
+  const strategy = operationOrder.timingStrategy.toUpperCase();
+  
+  // 清空不适用字段
+  if (strategy === 'IMMEDIATE') {
+    operationOrder.intervalHours = null;
+    operationOrder.smartSlotsMask = 0;
+    // IMMEDIATE策略：开始时间和结束时间都为当前时间
+    const immediateNow = new Date();
+    operationOrder.startTime = getLocalISOString(immediateNow);
+    operationOrder.plantEndTime = getLocalISOString(immediateNow);
+  } else if (strategy === 'SPECIFIC') {
+    operationOrder.intervalHours = null;
+    operationOrder.smartSlotsMask = 0;
+    operationOrder.intervalDays = 1;
+    // SPECIFIC策略：开始时间和结束时间相同（单次执行）
+    const specificNow = new Date();
+    operationOrder.startTime = getLocalISOString(specificNow);
+    operationOrder.plantEndTime = getLocalISOString(specificNow);
+  } else if (strategy === 'CYCLIC') {
+    operationOrder.smartSlotsMask = 0;
+    operationOrder.intervalDays = 1;
+    // CYCLIC策略：默认每8小时，从当前时间开始
+    const cyclicNow = new Date();
+    operationOrder.startTime = getLocalISOString(cyclicNow);
+    operationOrder.intervalHours = 8;
+    const cyclicEnd = new Date();
+    cyclicEnd.setDate(cyclicEnd.getDate() + 7); // 7天后
+    operationOrder.plantEndTime = getLocalISOString(cyclicEnd);
+  } else if (strategy === 'SLOTS') {
+    operationOrder.intervalHours = null;
+    operationOrder.intervalDays = 1;
+    // SLOTS策略：默认从当前时间开始
+    const slotsNow = new Date();
+    operationOrder.startTime = getLocalISOString(slotsNow);
+    const slotsEnd = new Date();
+    slotsEnd.setDate(slotsEnd.getDate() + 7); // 7天后
+    operationOrder.plantEndTime = getLocalISOString(slotsEnd);
+  }
+};
+
+// 监听 SPECIFIC 策略的 startTime 变化，自动同步到 plantEndTime（操作医嘱）
+watch(() => operationOrder.startTime, (newVal) => {
+  if (operationOrder.timingStrategy === 'SPECIFIC' && newVal) {
+    operationOrder.plantEndTime = newVal;
+  }
+});
+
+// 操作医嘱时段操作
+const toggleOperationSlot = (slotId) => {
+  operationOrder.smartSlotsMask ^= slotId;
+};
+
+const isOperationSlotSelected = (slotId) => {
+  return (operationOrder.smartSlotsMask & slotId) !== 0;
+};
+
+const getSelectedOperationSlotsCount = () => {
+  let count = 0;
+  let mask = operationOrder.smartSlotsMask;
+  while (mask) {
+    count += mask & 1;
+    mask >>= 1;
+  }
+  return count;
+};
+
+// 获取已选时段的文本描述（用于待提交清单显示）
+const getSelectedOperationSlotsText = (mask) => {
+  if (!mask || mask === 0) return '未选择';
+  
+  const slotNames = [];
+  if (mask & 1) slotNames.push('早餐前');
+  if (mask & 2) slotNames.push('早餐后');
+  if (mask & 4) slotNames.push('午餐前');
+  if (mask & 8) slotNames.push('午餐后');
+  if (mask & 16) slotNames.push('晚餐前');
+  if (mask & 32) slotNames.push('晚餐后');
+  if (mask & 64) slotNames.push('睡前');
+  
+  return slotNames.join('、');
+};
+
+// 准备物品管理
+const addPreparationItem = () => {
+  const item = preparationItemInput.value.trim();
+  if (!item) {
+    ElMessage.warning('请输入准备物品名称');
+    return;
+  }
+  
+  if (operationOrder.preparationItems.includes(item)) {
+    ElMessage.warning('该物品已存在');
+    return;
+  }
+  
+  operationOrder.preparationItems.push(item);
+  preparationItemInput.value = '';
+  ElMessage.success(`已添加：${item}`);
+};
+
+const removePreparationItem = (index) => {
+  const removed = operationOrder.preparationItems.splice(index, 1)[0];
+  ElMessage.info(`已移除：${removed}`);
+};
+
 // 获取本地时间的 ISO 格式字符串（不带时区标识，用于 el-date-picker 显示）
 const getLocalISOString = (date) => {
   const year = date.getFullYear();
@@ -1774,8 +2421,12 @@ const handlePatientClick = (patient) => {
     return;
   }
   
+  // 检查是否有未提交的数据（包括所有医嘱类型）
   const hasUnsubmittedData = 
-    currentOrder.items.some(i => i.drugId && i.dosage) || 
+    (activeType.value === 'MedicationOrder' && currentOrder.items.some(i => i.drugId && i.dosage)) ||
+    (activeType.value === 'OperationOrder' && (operationOrder.opId || operationOrder.operationName)) ||
+    (activeType.value === 'InspectionOrder' && inspectionOrder.selectedItems.length > 0) ||
+    (activeType.value === 'SurgicalOrder' && surgicalOrder.surgeryName) ||
     orderCart.value.length > 0;
   
   if (hasUnsubmittedData) {
@@ -1987,8 +2638,25 @@ const getInspectionItemName = (itemCode) => {
 // TODO: 清空表单时需根据医嘱类型清空对应的数据
 const clearForm = () => {
   if (activeType.value === 'OperationOrder') {
-    // TODO: 清空操作医嘱表单
-
+    // 清空操作医嘱表单
+    operationOrder.isLongTerm = true;
+    operationOrder.operationName = ''; // 先清空操作名称
+    operationOrder.opId = ''; // 操作代码会自动清空
+    operationOrder.operationSite = '';
+    operationOrder.normal = true;
+    operationOrder.timingStrategy = '';
+    operationOrder.startTime = null;
+    operationOrder.plantEndTime = null;
+    operationOrder.intervalHours = null;
+    operationOrder.intervalDays = 1;
+    operationOrder.smartSlotsMask = 0;
+    operationOrder.requiresPreparation = false;
+    operationOrder.preparationItems = [];
+    operationOrder.expectedDurationMinutes = null;
+    operationOrder.requiresResult = false;
+    operationOrder.resultTemplate = null;
+    operationOrder.remarks = '';
+    preparationItemInput.value = '';
   } else if (activeType.value === 'InspectionOrder') {
     // 清空检查医嘱表单
     inspectionOrder.category = '';
@@ -2053,9 +2721,32 @@ const addToCart = async () => {
   
   // 根据医嘱类型暂存对应数据
   if (activeType.value === 'OperationOrder') {
-    // TODO: 暂存操作医嘱
-    ElMessage.warning('操作类医嘱表单开发中');
-    return;
+    // 暂存操作医嘱（参照药品类医嘱，必须包含patientId）
+    const orderData = {
+      orderType: 'OperationOrder',
+      patientId: selectedPatient.value.id, // 添加patientId字段
+      isLongTerm: operationOrder.isLongTerm,
+      opId: operationOrder.opId,
+      operationName: operationOrder.operationName,
+      operationSite: operationOrder.operationSite || null,
+      normal: operationOrder.normal,
+      timingStrategy: operationOrder.timingStrategy,
+      startTime: operationOrder.startTime,
+      plantEndTime: operationOrder.plantEndTime,
+      intervalHours: operationOrder.intervalHours,
+      intervalDays: operationOrder.intervalDays,
+      smartSlotsMask: operationOrder.smartSlotsMask,
+      requiresPreparation: operationOrder.requiresPreparation,
+      preparationItems: operationOrder.preparationItems.length > 0 ? [...operationOrder.preparationItems] : null,
+      expectedDurationMinutes: operationOrder.expectedDurationMinutes,
+      requiresResult: operationOrder.requiresResult,
+      resultTemplate: operationOrder.resultTemplate,
+      remarks: operationOrder.remarks || null
+    };
+    
+    orderCart.value.push(orderData);
+    ElMessage.success('操作医嘱已暂存到待提交清单');
+    clearForm();
   } else if (activeType.value === 'InspectionOrder') {
     // 暂存检查医嘱 - 为每个选中的项目创建一条医嘱
     let hasError = false;
@@ -2469,14 +3160,26 @@ const submitAll = async () => {
     // ⚙️ 提交操作医嘱
     if (operationOrders.length > 0) {
       const requestData = {
-        patientId: selectedPatient.value?.id,
-        doctorId: currentUser.value.staffId,
-        orders: operationOrders.map(order => ({
-          operationCode: order.operationCode,
-          operationName: order.operationName,
-          targetSite: order.targetSite || null,
-          scheduledTime: toBeijingTimeISO(order.scheduledTime),
-          remarks: order.remarks || null
+        PatientId: selectedPatient.value?.id,
+        DoctorId: currentUser.value.staffId,
+        Orders: operationOrders.map(order => ({
+          IsLongTerm: order.isLongTerm,
+          PlantEndTime: toBeijingTimeISO(order.plantEndTime),
+          Remarks: order.remarks || null,
+          OpId: order.opId,
+          OperationName: order.operationName,
+          OperationSite: order.operationSite || null,
+          Normal: order.normal,
+          TimingStrategy: order.timingStrategy?.toUpperCase(),
+          StartTime: order.startTime ? toBeijingTimeISO(order.startTime) : null,
+          IntervalHours: order.intervalHours || null,
+          IntervalDays: order.intervalDays || 1,
+          SmartSlotsMask: order.smartSlotsMask || 0,
+          RequiresPreparation: order.requiresPreparation || false,
+          PreparationItems: order.preparationItems && order.preparationItems.length > 0 ? order.preparationItems : null,
+          ExpectedDurationMinutes: order.expectedDurationMinutes || null,
+          RequiresResult: order.requiresResult || false,
+          ResultTemplate: order.resultTemplate || null
         }))
       };
 
@@ -2492,7 +3195,12 @@ const submitAll = async () => {
           if (response.errors) errorMessages.push(...response.errors);
         }
       } catch (error) {
-        errorMessages.push(`操作医嘱提交异常: ${error.message}`);
+        console.error('操作医嘱提交详细错误:', error);
+        console.error('错误响应:', error.response?.data);
+        errorMessages.push(`操作医嘱提交异常: ${error.response?.data?.message || error.message}`);
+        if (error.response?.data?.errors) {
+          errorMessages.push(...Object.values(error.response.data.errors).flat());
+        }
       }
     }
 
@@ -2606,9 +3314,17 @@ const disablePastTime = (date) => {
 };
 
 const disableTimesBeforeStart = (date) => {
-  if (!currentOrder.startTime) return {};
+  // 支持药品医嘱和操作医嘱
+  let startTimeValue = null;
+  if (activeType.value === 'MedicationOrder') {
+    startTimeValue = currentOrder.startTime;
+  } else if (activeType.value === 'OperationOrder') {
+    startTimeValue = operationOrder.startTime;
+  }
   
-  const startTime = new Date(currentOrder.startTime);
+  if (!startTimeValue) return {};
+  
+  const startTime = new Date(startTimeValue);
   const selectedDate = new Date(date);
   
   // 如果选择的日期与开始日期是同一天，禁用开始时间之前的时间
@@ -2786,8 +3502,10 @@ const getOrderSummary = (order) => {
     return order.itemName || order.itemCode || '检查';
   } 
   else if (order.orderType === 'OperationOrder') {
-    // 操作医嘱摘要 (未实现)
-    return '操作医嘱';
+
+    // 操作医嘱摘要
+    const strategyLabel = getStrategyLabel(order.imingStrategy);
+    return `${order.operationName || order.opId} (${strategyLabel})`;
   } 
   else if (order.orderType === 'DischargeOrder') {
     // 出院医嘱摘要
@@ -3147,6 +3865,28 @@ watch(activeType, (newType) => {
   margin-left: 10px;
   color: var(--text-secondary);
   font-size: 0.85rem;
+}
+
+/* 准备物品容器样式 */
+.preparation-items-container {
+  width: 100%;
+}
+
+.preparation-input-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.preparation-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.preparation-tags .el-tag {
+  margin: 0;
 }
 
 /* ==================== 表单分组 ==================== */

@@ -21,6 +21,7 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
     private readonly IRepository<MedicationOrder, long> _medicationRepository;
     private readonly IRepository<SurgicalOrder, long> _surgicalRepository;
     private readonly IRepository<InspectionOrder, long> _inspectionRepository;
+    private readonly IRepository<InspectionReport, long> _inspectionReportRepository;
     private readonly IRepository<OperationOrder, long> _operationRepository;
     private readonly IRepository<ExecutionTask, long> _taskRepository;
     private readonly IRepository<Patient, string> _patientRepository;
@@ -35,6 +36,7 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
         IRepository<MedicationOrder, long> medicationRepository,
         IRepository<SurgicalOrder, long> surgicalRepository,
         IRepository<InspectionOrder, long> inspectionRepository,
+        IRepository<InspectionReport, long> inspectionReportRepository,
         IRepository<OperationOrder, long> operationRepository,
         IRepository<ExecutionTask, long> taskRepository,
         IRepository<Patient, string> patientRepository,
@@ -48,6 +50,7 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
         _medicationRepository = medicationRepository;
         _surgicalRepository = surgicalRepository;
         _inspectionRepository = inspectionRepository;
+        _inspectionReportRepository = inspectionReportRepository;
         _operationRepository = operationRepository;
         _taskRepository = taskRepository;
         _patientRepository = patientRepository;
@@ -143,6 +146,26 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
                 StopReason = order.StopReason,
                 Summary = await GenerateOrderSummaryAsync(order)
             };
+
+            // 如果是检查医嘱，填充报告相关信息
+            if (order.OrderType == "InspectionOrder")
+            {
+                var inspOrder = await _inspectionRepository.GetByIdAsync(order.Id);
+                if (inspOrder != null)
+                {
+                    summary.ReportId = inspOrder.ReportId;
+                    
+                    // 如果有报告ID，获取报告的附件URL
+                    if (!string.IsNullOrEmpty(inspOrder.ReportId) && long.TryParse(inspOrder.ReportId, out var reportId))
+                    {
+                        var report = await _inspectionReportRepository.GetByIdAsync(reportId);
+                        if (report != null)
+                        {
+                            summary.AttachmentUrl = report.AttachmentUrl;
+                        }
+                    }
+                }
+            }
 
             orderSummaries.Add(summary);
         }
@@ -570,6 +593,18 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
 
         detail.ItemCode = inspOrder.ItemCode;
         detail.ItemName = inspOrder.ItemName;
+        detail.ReportId = inspOrder.ReportId;
+        detail.ReportTime = inspOrder.ReportTime;
+        
+        // 如果有报告，获取报告附件URL
+        if (!string.IsNullOrEmpty(inspOrder.ReportId) && long.TryParse(inspOrder.ReportId, out var reportId))
+        {
+            var report = await _inspectionReportRepository.GetByIdAsync(reportId);
+            if (report != null)
+            {
+                detail.AttachmentUrl = report.AttachmentUrl;
+            }
+        }
     }
 
     /// <summary>
@@ -580,10 +615,17 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
         var opOrder = await _operationRepository.GetByIdAsync(orderId);
         if (opOrder == null) return;
 
-        // OperationOrder模型字段：OpId, Normal, FrequencyType, FrequencyValue
+        // OperationOrder模型字段：OpId, OperationName, OperationSite, Normal, FrequencyType, FrequencyValue等
         detail.OperationCode = opOrder.OpId;
-        detail.OperationName = opOrder.OpId; // 模型中没有单独的名称字段
-        detail.TargetSite = null; // 模型中没有此字段
+        detail.OperationName = opOrder.OperationName ?? opOrder.OpId; // 使用OperationName字段，如果没有则使用OpId
+        detail.TargetSite = opOrder.OperationSite; // 操作部位
+        
+        // 操作类医嘱也有时间策略相关字段，需要填充
+        detail.TimingStrategy = opOrder.TimingStrategy;
+        detail.StartTime = opOrder.StartTime;
+        detail.IntervalHours = opOrder.IntervalHours;
+        detail.IntervalDays = opOrder.IntervalDays;
+        detail.SmartSlotsMask = opOrder.SmartSlotsMask;
     }
 
     /// <summary>
@@ -648,7 +690,7 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
 
             case "OperationOrder":
                 var opOrder = await _operationRepository.GetByIdAsync(order.Id);
-                return opOrder?.OpId ?? "操作医嘱";
+                return opOrder?.OperationName ?? opOrder?.OpId ?? "操作医嘱";
 
             default:
                 return "医嘱";
