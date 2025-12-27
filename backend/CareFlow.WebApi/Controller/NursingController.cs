@@ -2099,5 +2099,98 @@ namespace CareFlow.WebApi.Controllers
                    category == TaskCategory.DataCollection ||
                    category == TaskCategory.Verification;
         }
+
+        /// <summary>
+        /// 获取护士待签收医嘱统计
+        /// 包括新开医嘱（PendingReceive）和停止医嘱（PendingStop）
+        /// </summary>
+        /// <param name="nurseId">护士ID</param>
+        /// <returns>待签收医嘱总数</returns>
+        [HttpGet("pending-orders-count")]
+        public async Task<IActionResult> GetPendingOrdersCount([FromQuery] string nurseId)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(nurseId))
+                {
+                    return BadRequest(new { message = "护士ID不能为空" });
+                }
+
+                // 查询该护士负责的待签收医嘱（新开）
+                var pendingReceiveCount = await _context.MedicalOrders
+                    .Where(o => o.NurseId == nurseId && o.Status == OrderStatus.PendingReceive)
+                    .CountAsync();
+
+                // 查询该护士负责的待签收停止医嘱
+                var pendingStopCount = await _context.MedicalOrders
+                    .Where(o => o.NurseId == nurseId && o.Status == OrderStatus.PendingStop)
+                    .CountAsync();
+
+                var totalCount = pendingReceiveCount + pendingStopCount;
+
+                Console.WriteLine($"护士 {nurseId} 的待签收医嘱统计: 新开={pendingReceiveCount}, 停止={pendingStopCount}, 总计={totalCount}");
+
+                return Ok(totalCount);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"获取待签收医嘱统计失败: {ex.Message}");
+                return StatusCode(500, new { message = "获取统计失败", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// 获取护士负责患者的待退药申请统计
+        /// 包括待退药（PendingReturn）和异常取消待退药（PendingReturnCancelled）状态的任务
+        /// </summary>
+        /// <param name="nurseId">护士ID</param>
+        /// <param name="departmentId">科室ID</param>
+        /// <returns>待退药申请总数</returns>
+        [HttpGet("pending-returns-count")]
+        public async Task<IActionResult> GetPendingReturnsCount([FromQuery] string nurseId, [FromQuery] string departmentId)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(nurseId))
+                {
+                    return BadRequest(new { message = "护士ID不能为空" });
+                }
+
+                if (string.IsNullOrEmpty(departmentId))
+                {
+                    return BadRequest(new { message = "科室ID不能为空" });
+                }
+
+                // 查询该科室所有在院患者的ID（通过 Bed -> Ward -> Department 关系）
+                var patientIds = await _context.Patients
+                    .Include(p => p.Bed)
+                        .ThenInclude(b => b.Ward)
+                    .Where(p => p.Status == PatientStatus.Hospitalized && 
+                               p.Bed.Ward.DepartmentId == departmentId)
+                    .Select(p => p.Id)
+                    .ToListAsync();
+
+                if (!patientIds.Any())
+                {
+                    return Ok(0);
+                }
+
+                // 查询这些患者的待退药任务（PendingReturn 和 PendingReturnCancelled）
+                var pendingReturnsCount = await _context.ExecutionTasks
+                    .Where(t => patientIds.Contains(t.PatientId) && 
+                               (t.Status == ExecutionTaskStatus.PendingReturn || 
+                                t.Status == ExecutionTaskStatus.PendingReturnCancelled))
+                    .CountAsync();
+
+                Console.WriteLine($"护士 {nurseId} 所在科室 {departmentId} 的待退药申请统计: {pendingReturnsCount}");
+
+                return Ok(pendingReturnsCount);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"获取待退药申请统计失败: {ex.Message}");
+                return StatusCode(500, new { message = "获取统计失败", error = ex.Message });
+            }
+        }
     }
 }
