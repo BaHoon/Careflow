@@ -62,25 +62,25 @@ public class InspectionOrderTaskService : IInspectionService
         if (fullOrder == null)
             throw new Exception($"检查医嘱 {order.Id} 不存在");
 
-        // 创建申请任务：病房护士签收后立即提交检查申请
+        // 创建申请任务：病房护士签收后立即提交检查申请，打印导引单后任务结束
         var task = new ExecutionTask
         {
             MedicalOrderId = order.Id,
             PatientId = order.PatientId,
-            Category = TaskCategory.ApplicationWithPrint,  // 申请打印类任务：申请后打印导引单即结束
+            Category = TaskCategory.ApplicationWithPrint,  // 申请打印类任务
             Status = ExecutionTaskStatus.Applying,  // 待申请状态
             PlannedStartTime = DateTime.UtcNow.AddMinutes(1),  // 签收后1分钟内申请
             CreatedAt = DateTime.UtcNow,
             DataPayload = JsonSerializer.Serialize(new
             {
                 TaskType = "InspectionApplication",
-                Title = "提交检查申请",
+                Title = "检查申请",
                 Description = $"检查项目: {order.ItemCode}，检查位置: {order.Location ?? "待定"}",
                 ItemCode = order.ItemCode,
                 Location = order.Location,
                 Source = order.Source,
                 RisLisId = order.RisLisId,
-                Instructions = "请在检查申请界面提交此检查医嘱的申请"
+                Instructions = "请提交检查申请并打印导引单，打印完成后此任务结束"
             })
         };
 
@@ -109,20 +109,9 @@ public class InspectionOrderTaskService : IInspectionService
         order.InspectionStatus = InspectionOrderStatus.Pending;  // 待前往
         await _orderRepo.UpdateAsync(order);
 
-        var tasks = new List<ExecutionTask>
-        {
-            // 任务1: 打印检查导引单（病房护士，计划时间为检查预约时间）
-            CreatePrintGuideTask(order, appointmentDetail.AppointmentTime)
-            // 检查时间1分钟后自动从检查站返回报告
-        };
-
-        // 保存任务到数据库
-        foreach (var task in tasks)
-        {
-            await _taskRepo.AddAsync(task);
-        }
-
-        return tasks;
+        // 预约确认后不再生成新的任务，检查申请任务在打印导引单后结束
+        // 检查报告在打印导引单结束后才可能返回
+        return new List<ExecutionTask>();
     }
 
     // ===== 检查医嘱状态管理(内部使用) =====
@@ -323,26 +312,9 @@ public class InspectionOrderTaskService : IInspectionService
     /// </summary>
     public async Task CreateTasks(InspectionOrder order)
     {
-        // 如果没有预约时间，暂不生成任务
-        if (!order.AppointmentTime.HasValue)
-        {
-            return;
-        }
-        
-        var appointmentTime = order.AppointmentTime.Value;
-        
-        var tasks = new List<ExecutionTask>
-        {
-            // 任务1: 打印导引单（病房护士，计划时间为检查预约时间）
-            CreatePrintGuideTask(order, appointmentTime)
-            // 检查时间1分钟后自动从检查站返回报告
-        };
-        
-        // 保存任务到数据库
-        foreach (var task in tasks)
-        {
-            await _taskRepo.AddAsync(task);
-        }
+        // 不再自动生成任务，只在签收时生成检查申请任务
+        // 预约确认后不再生成打印导引单任务
+        await Task.CompletedTask;
     }
     
     /// <summary>

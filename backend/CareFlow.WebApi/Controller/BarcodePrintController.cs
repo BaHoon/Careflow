@@ -31,16 +31,22 @@ public class BarcodePrintController : ControllerBase
     {
         try
         {
+            _logger.LogInformation("🔍 开始获取任务条形码列表，wardId: {WardId}", wardId ?? "全部");
+            
             // 获取条形码文件目录
             var barcodeDir = Path.Combine(_environment.WebRootPath, "barcodes", "ExecutionTasks");
             
+            _logger.LogInformation("📁 条形码目录: {Dir}", barcodeDir);
+            
             if (!Directory.Exists(barcodeDir))
             {
+                _logger.LogWarning("⚠️ 条形码目录不存在: {Dir}", barcodeDir);
                 return Ok(new
                 {
                     success = true,
                     count = 0,
-                    data = new List<object>()
+                    data = new List<object>(),
+                    message = "条形码目录不存在，可能还没有生成任何任务条形码"
                 });
             }
 
@@ -50,6 +56,8 @@ public class BarcodePrintController : ControllerBase
                 .Take(100) // 限制最多返回100条
                 .ToList();
 
+            _logger.LogInformation("📄 找到 {Count} 个PNG文件", barcodeFiles.Count);
+            
             var result = new List<object>();
 
             foreach (var filePath in barcodeFiles)
@@ -59,6 +67,8 @@ public class BarcodePrintController : ControllerBase
                     // 从文件名中提取任务ID：ExecutionTasks-{taskId}.png
                     var fileName = Path.GetFileNameWithoutExtension(filePath);
                     var parts = fileName.Split('-');
+                    
+                    _logger.LogDebug("处理文件: {FileName}", fileName);
                     
                     if (parts.Length >= 2 && long.TryParse(parts[1], out long taskId))
                     {
@@ -70,11 +80,16 @@ public class BarcodePrintController : ControllerBase
                             .Include(t => t.MedicalOrder)
                             .FirstOrDefaultAsync(t => t.Id == taskId);
 
-                        if (task == null) continue;
+                        if (task == null)
+                        {
+                            _logger.LogWarning("⚠️ 任务 {TaskId} 不存在，跳过", taskId);
+                            continue;
+                        }
 
                         // 如果指定了病区，则筛选
                         if (!string.IsNullOrEmpty(wardId) && task.Patient?.Bed?.Ward?.Id != wardId)
                         {
+                            _logger.LogDebug("任务 {TaskId} 不在指定病区 {WardId}，跳过", taskId, wardId);
                             continue;
                         }
 
@@ -99,6 +114,12 @@ public class BarcodePrintController : ControllerBase
                             barcodeBase64 = base64DataUrl, // 直接返回base64数据
                             generatedTime = new FileInfo(filePath).CreationTime
                         });
+                        
+                        _logger.LogDebug("✅ 添加任务 {TaskId} 的条形码到结果列表", taskId);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("⚠️ 无法从文件名 {FileName} 解析任务ID", fileName);
                     }
                 }
                 catch (Exception ex)
@@ -108,6 +129,8 @@ public class BarcodePrintController : ControllerBase
                 }
             }
 
+            _logger.LogInformation("✅ 成功加载 {Count} 个任务条形码", result.Count);
+            
             return Ok(new
             {
                 success = true,
@@ -158,6 +181,75 @@ public class BarcodePrintController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "获取任务 {TaskId} 的条形码图片失败", taskId);
+            return StatusCode(500, new { success = false, message = $"获取失败: {ex.Message}" });
+        }
+    }
+
+    /// <summary>
+    /// 生成或获取指定任务的条形码（返回base64编码）
+    /// </summary>
+    [HttpGet("generate-task-barcode")]
+    public async Task<IActionResult> GenerateTaskBarcode([FromQuery] long taskId)
+    {
+        try
+        {
+            var task = await _taskRepository.GetByIdAsync(taskId);
+            if (task == null)
+            {
+                return NotFound(new { success = false, message = "任务不存在" });
+            }
+
+            // 查找条形码文件
+            var barcodeDir = Path.Combine(_environment.WebRootPath, "barcodes", "ExecutionTasks");
+            if (!Directory.Exists(barcodeDir))
+            {
+                Directory.CreateDirectory(barcodeDir);
+            }
+
+            var barcodeFiles = Directory.GetFiles(barcodeDir, $"ExecutionTasks-{taskId}.png", SearchOption.AllDirectories);
+            
+            string filePath;
+            if (barcodeFiles.Length == 0)
+            {
+                // 条形码未生成，返回提示（实际生成逻辑应该在任务创建时完成）
+                return NotFound(new { 
+                    success = false, 
+                    message = "任务条形码未生成，请先在医嘱签收时生成条形码" 
+                });
+            }
+            else
+            {
+                filePath = barcodeFiles[0];
+            }
+            
+            if (!System.IO.File.Exists(filePath))
+            {
+                return NotFound(new { success = false, message = "条形码文件不存在" });
+            }
+
+            // 读取图片并转换为base64
+            byte[] imageBytes = await System.IO.File.ReadAllBytesAsync(filePath);
+            string base64Image = Convert.ToBase64String(imageBytes);
+            string base64DataUrl = $"data:image/png;base64,{base64Image}";
+            
+            // 构建相对URL路径
+            var relativePath = filePath.Replace(_environment.WebRootPath, "").Replace("\\", "/");
+
+            return Ok(new
+            {
+                success = true,
+                data = new
+                {
+                    taskId = task.Id,
+                    barcodeBase64 = base64DataUrl,
+                    barcodeUrl = relativePath,
+                    generatedTime = new FileInfo(filePath).CreationTime
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "获取任务 {TaskId} 的条形码失败", taskId);
             return StatusCode(500, new { success = false, message = $"获取失败: {ex.Message}" });
         }
     }
