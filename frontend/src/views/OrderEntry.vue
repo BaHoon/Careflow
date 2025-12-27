@@ -959,22 +959,11 @@
                     >
                       <div>
                         <div style="font-weight: 600;">{{ op.name }}</div>
-                        <div style="color: #666; font-size: 12px;">代码：{{ op.opId }} | 类型：{{ getCategoryLabel(op.category) }}</div>
+                        <div style="color: #666; font-size: 12px;">类型：{{ getCategoryLabel(op.category) }}</div>
                       </div>
                     </el-option>
                   </el-select>
-                  <span class="tip-text">选择操作名称后，系统会自动匹配对应的操作代码</span>
-                </div>
-
-                <div class="form-row" v-if="operationOrder.opId">
-                  <label>操作代码：</label>
-                  <el-input 
-                    v-model="operationOrder.opId"
-                    placeholder="操作代码（选择操作名称后自动填充）"
-                    :disabled="true"
-                    style="width: 200px"
-                  />
-                  <span class="tip-text">系统自动匹配，无需手动输入</span>
+                  <span class="tip-text">选择操作名称后，系统会自动匹配对应的操作代码（后台处理）</span>
                 </div>
 
                 <div class="form-row">
@@ -1228,7 +1217,8 @@
                   <span class="tip-text">该操作无需准备物品</span>
                 </div>
 
-                <div class="form-row">
+                <!-- 预期执行时长（仅持续类操作显示） -->
+                <div class="form-row" v-if="getSelectedOperationCategory() === 'Duration'">
                   <label>预期执行时长（分钟）：</label>
                   <el-input-number 
                     v-model="operationOrder.expectedDurationMinutes"
@@ -1237,7 +1227,7 @@
                     placeholder="预期执行时长"
                     style="width: 150px"
                   />
-                  <span class="tip-text">可选，用于持续类操作的时长记录</span>
+                  <span class="tip-text">持续类操作建议设置预期时长，可根据实际情况修改</span>
                 </div>
               </div>
 
@@ -1594,10 +1584,6 @@
                 <div v-show="expandedOrders.includes(idx)" class="order-detail-expand">
                   <!-- 操作医嘱详细信息 -->
                   <template v-if="o.orderType === 'OperationOrder'">
-                    <div class="detail-section">
-                      <div class="detail-label">操作代码：</div>
-                      <div class="detail-value">{{ o.opId }}</div>
-                    </div>
                     <div class="detail-section" v-if="o.operationSite">
                       <div class="detail-label">操作部位：</div>
                       <div class="detail-value">{{ o.operationSite }}</div>
@@ -1862,31 +1848,31 @@ const operationOrder = reactive({
 
 // 常用操作代码选项（参照后端 OperationOrderService.OperationNameMap）
 const operationOptions = [
-  // 持续类操作（Duration）
-  { opId: 'OP001', name: '更换引流袋', category: 'Duration', needsPreparation: true, preparationItems: ['引流袋', '无菌手套', '消毒液', '棉签'] },
-  { opId: 'OP002', name: '持续吸氧', category: 'Duration', needsPreparation: false, preparationItems: [] },
-  { opId: 'OP006', name: '鼻饲', category: 'Duration', needsPreparation: true, preparationItems: ['鼻饲管', '注射器', '营养液', '温开水'] },
-  { opId: 'OP007', name: '雾化吸入', category: 'Duration', needsPreparation: true, preparationItems: ['雾化器', '雾化药液', '面罩或口含器'] },
-  { opId: 'OP011', name: '持续心电监护', category: 'Duration', needsPreparation: false, preparationItems: [] },
-  { opId: 'OP012', name: '持续导尿', category: 'Duration', needsPreparation: true, preparationItems: ['导尿管', '无菌手套', '消毒液', '引流袋', '润滑剂'] },
-  { opId: 'OP013', name: '持续胃肠减压', category: 'Duration', needsPreparation: true, preparationItems: ['胃管', '负压吸引器', '引流袋'] },
-  { opId: 'OP014', name: '持续静脉输液', category: 'Duration', needsPreparation: false, preparationItems: [] },
+  // 持续类操作（Duration）- 需要开始和结束时间，有预期持续时间
+  { opId: 'OP001', name: '更换引流袋', category: 'Duration', needsPreparation: true, preparationItems: ['引流袋', '无菌手套', '碘伏', '棉签', '无菌纱布', '胶带'], defaultDurationMinutes: 15 },
+  { opId: 'OP002', name: '持续吸氧', category: 'Duration', needsPreparation: true, preparationItems: ['吸氧装置', '鼻导管或面罩', '湿化瓶', '蒸馏水'], defaultDurationMinutes: 60 },
+  { opId: 'OP006', name: '鼻饲', category: 'Duration', needsPreparation: true, preparationItems: ['鼻饲管', '注射器', '营养液', '温开水', '无菌纱布', '胶带'], defaultDurationMinutes: 30 },
+  { opId: 'OP007', name: '雾化吸入', category: 'Duration', needsPreparation: true, preparationItems: ['雾化器', '雾化药液', '面罩或口含器', '生理盐水', '电源'], defaultDurationMinutes: 20 },
+  { opId: 'OP011', name: '持续心电监护', category: 'Duration', needsPreparation: true, preparationItems: ['心电监护仪', '电极片', '导联线', '酒精棉球'], defaultDurationMinutes: 1440 },
+  { opId: 'OP012', name: '持续导尿', category: 'Duration', needsPreparation: true, preparationItems: ['导尿管', '无菌手套', '碘伏', '引流袋', '润滑剂', '无菌纱布', '胶带'], defaultDurationMinutes: 30 },
+  { opId: 'OP013', name: '持续胃肠减压', category: 'Duration', needsPreparation: true, preparationItems: ['胃管', '负压吸引器', '引流袋', '无菌手套', '碘伏', '胶带'], defaultDurationMinutes: 30 },
+  { opId: 'OP014', name: '持续静脉输液', category: 'Duration', needsPreparation: true, preparationItems: ['输液器', '输液袋/瓶', '输液架', '碘伏', '棉签', '胶带'], defaultDurationMinutes: 120 },
   
-  // 即刻类操作（Immediate）
-  { opId: 'OP004', name: '更换敷料', category: 'Immediate', needsPreparation: true, preparationItems: ['无菌敷料', '胶带', '消毒液', '棉签', '无菌手套'] },
-  { opId: 'OP005', name: '导尿', category: 'Immediate', needsPreparation: true, preparationItems: ['导尿管', '无菌手套', '消毒液', '引流袋', '润滑剂'] },
-  { opId: 'OP008', name: '口腔护理', category: 'Immediate', needsPreparation: false, preparationItems: [] },
-  { opId: 'OP009', name: '会阴护理', category: 'Immediate', needsPreparation: false, preparationItems: [] },
-  { opId: 'OP010', name: '皮肤护理', category: 'Immediate', needsPreparation: false, preparationItems: [] },
+  // 即刻类操作（Immediate）- 扫码即完成，无需持续时间
+  { opId: 'OP004', name: '更换敷料', category: 'Immediate', needsPreparation: true, preparationItems: ['无菌敷料', '胶带', '碘伏', '棉签', '无菌手套', '剪刀'] },
+  { opId: 'OP005', name: '导尿', category: 'Immediate', needsPreparation: true, preparationItems: ['导尿管', '无菌手套', '碘伏', '引流袋', '润滑剂', '无菌纱布', '胶带'] },
+  { opId: 'OP008', name: '口腔护理', category: 'Immediate', needsPreparation: true, preparationItems: ['口腔护理包', '生理盐水', '棉签', '无菌手套', '吸痰管'] },
+  { opId: 'OP009', name: '会阴护理', category: 'Immediate', needsPreparation: true, preparationItems: ['会阴护理包', '温开水', '无菌纱布', '无菌手套', '碘伏'] },
+  { opId: 'OP010', name: '皮肤护理', category: 'Immediate', needsPreparation: true, preparationItems: ['温水', '毛巾', '润肤霜', '无菌纱布', '爽身粉'] },
   { opId: 'OP015', name: '翻身拍背', category: 'Immediate', needsPreparation: false, preparationItems: [] },
   
-  // 结果类操作（ResultPending）
-  { opId: 'OP003', name: '血糖监测', category: 'ResultPending', needsPreparation: false, preparationItems: [], needsResult: true },
-  { opId: 'OP016', name: '血压监测', category: 'ResultPending', needsPreparation: false, preparationItems: [], needsResult: true },
-  { opId: 'OP017', name: '体温监测', category: 'ResultPending', needsPreparation: false, preparationItems: [], needsResult: true },
-  { opId: 'OP018', name: '尿量监测', category: 'ResultPending', needsPreparation: false, preparationItems: [], needsResult: true },
+  // 结果类操作（ResultPending）- 需要等待结果，录入结果后完成
+  { opId: 'OP003', name: '血糖监测', category: 'ResultPending', needsPreparation: true, preparationItems: ['血糖仪', '血糖试纸', '采血针', '碘伏', '棉签', '酒精棉球'], needsResult: true },
+  { opId: 'OP016', name: '血压监测', category: 'ResultPending', needsPreparation: true, preparationItems: ['血压计', '听诊器'], needsResult: true },
+  { opId: 'OP017', name: '体温监测', category: 'ResultPending', needsPreparation: true, preparationItems: ['体温计', '酒精棉球'], needsResult: true },
+  { opId: 'OP018', name: '尿量监测', category: 'ResultPending', needsPreparation: true, preparationItems: ['量杯', '记录单'], needsResult: true },
   
-  // 数据收集类操作（DataCollection）
+  // 数据收集类操作（DataCollection）- 需要评估和记录
   { opId: 'OP019', name: '意识状态评估', category: 'DataCollection', needsPreparation: false, preparationItems: [], needsResult: true },
   { opId: 'OP020', name: '疼痛评估', category: 'DataCollection', needsPreparation: false, preparationItems: [], needsResult: true }
 ];
@@ -2225,12 +2211,15 @@ const onOperationNameChange = (operationName) => {
       operationOrder.requiresResult = selectedOp.category === 'ResultPending' || selectedOp.category === 'DataCollection';
     }
     
-    // 根据操作类型提示是否需要配置执行时长（基于opId对应的操作类型）
-    if (selectedOp.category === 'Duration') {
-      // 持续类操作建议配置执行时长
+    // 持续类操作自动填充默认预期执行时长
+    if (selectedOp.category === 'Duration' && selectedOp.defaultDurationMinutes) {
+      // 如果用户还没有设置过，则使用默认值
       if (!operationOrder.expectedDurationMinutes) {
-        // 可以设置默认值或提示用户
+        operationOrder.expectedDurationMinutes = selectedOp.defaultDurationMinutes;
       }
+    } else if (selectedOp.category !== 'Duration') {
+      // 非持续类操作清空预期执行时长
+      operationOrder.expectedDurationMinutes = null;
     }
   } else {
     // 如果找不到匹配的操作，清空OpId
@@ -2248,6 +2237,13 @@ const getCategoryLabel = (category) => {
     'DataCollection': '数据收集类'
   };
   return categoryMap[category] || category;
+};
+
+// 获取当前选择的操作类别
+const getSelectedOperationCategory = () => {
+  if (!operationOrder.operationName) return null;
+  const selectedOp = operationOptions.find(op => op.name === operationOrder.operationName);
+  return selectedOp ? selectedOp.category : null;
 };
 
 // 操作医嘱时间策略切换
