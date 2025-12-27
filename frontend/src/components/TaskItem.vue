@@ -1091,7 +1091,6 @@ const handleCancelExecution = async () => {
 
 .task-completed {
   border-color: #67c23a;
-  background: #f0f9ff;
 }
 
 .task-completed::before {
@@ -1198,71 +1197,70 @@ const handleCancelExecution = async () => {
   flex-wrap: wrap;
 }
 
-/* 按钮美化 */
+/* 按钮样式 */
 .task-actions :deep(.el-button) {
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   font-weight: 500;
-  letter-spacing: 0.5px;
 }
 
 .task-actions :deep(.el-button.is-plain) {
+  background-color: #fff;
   border-color: #dcdfe6;
   color: #606266;
 }
 
 .task-actions :deep(.el-button.is-plain:hover) {
   background-color: #f5f7fa;
-  border-color: #bfcfe6;
+  border-color: #c0c4cc;
   color: #303133;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .task-actions :deep(.el-button--primary) {
-  background: linear-gradient(135deg, #409eff 0%, #0a66cc 100%);
-  border: none;
-  box-shadow: 0 2px 4px rgba(64, 158, 255, 0.3);
+  background-color: #409eff;
+  border-color: #409eff;
+  color: #fff;
 }
 
 .task-actions :deep(.el-button--primary:hover) {
-  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.4);
-  transform: translateY(-2px);
+  background-color: #66b1ff;
+  border-color: #66b1ff;
 }
 
 .task-actions :deep(.el-button--primary:active) {
-  transform: translateY(0);
-  box-shadow: 0 2px 4px rgba(64, 158, 255, 0.3);
+  background-color: #3a8ee6;
+  border-color: #3a8ee6;
 }
 
 .task-actions :deep(.el-button--success) {
-  background: linear-gradient(135deg, #67c23a 0%, #4ba945 100%);
-  border: none;
-  box-shadow: 0 2px 4px rgba(103, 194, 58, 0.3);
+  background-color: #67c23a;
+  border-color: #67c23a;
+  color: #fff;
 }
 
 .task-actions :deep(.el-button--success:hover) {
-  box-shadow: 0 4px 12px rgba(103, 194, 58, 0.4);
-  transform: translateY(-2px);
+  background-color: #85ce61;
+  border-color: #85ce61;
 }
 
 .task-actions :deep(.el-button--success:active) {
-  transform: translateY(0);
-  box-shadow: 0 2px 4px rgba(103, 194, 58, 0.3);
+  background-color: #5daf34;
+  border-color: #5daf34;
 }
 
 .task-actions :deep(.el-button--danger) {
-  background: linear-gradient(135deg, #f56c6c 0%, #dd4a4a 100%);
-  border: none;
-  box-shadow: 0 2px 4px rgba(245, 108, 108, 0.3);
+  background-color: #f56c6c;
+  border-color: #f56c6c;
+  color: #fff;
 }
 
 .task-actions :deep(.el-button--danger:hover) {
-  box-shadow: 0 4px 12px rgba(245, 108, 108, 0.4);
-  transform: translateY(-2px);
+  background-color: #f78989;
+  border-color: #f78989;
 }
 
 .task-actions :deep(.el-button--danger:active) {
-  transform: translateY(0);
-  box-shadow: 0 2px 4px rgba(245, 108, 108, 0.3);
+  background-color: #dd6161;
+  border-color: #dd6161;
 }
 </style>
 
