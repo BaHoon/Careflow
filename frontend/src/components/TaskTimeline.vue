@@ -65,6 +65,7 @@
                 @start-input="handleStartInput"
                 @view-detail="handleViewDetail"
                 @task-cancelled="handleTaskCancelled"
+                @print-inspection-guide="handlePrintInspectionGuide"
               />
             </div>
           </div>
@@ -94,6 +95,7 @@
                 @start-input="handleStartInput"
                 @view-detail="handleViewDetail"
                 @task-cancelled="handleTaskCancelled"
+                @print-inspection-guide="handlePrintInspectionGuide"
               />
             </div>
           </div>
@@ -121,6 +123,7 @@
                 @start-input="handleStartInput"
                 @view-detail="handleViewDetail"
                 @task-cancelled="handleTaskCancelled"
+                @print-inspection-guide="handlePrintInspectionGuide"
               />
             </div>
           </div>
@@ -148,6 +151,7 @@
                 @start-input="handleStartInput"
                 @view-detail="handleViewDetail"
                 @task-cancelled="handleTaskCancelled"
+                @print-inspection-guide="handlePrintInspectionGuide"
               />
             </div>
           </div>
@@ -175,7 +179,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['task-click', 'start-input', 'view-detail', 'task-cancelled']);
+const emit = defineEmits(['task-click', 'start-input', 'view-detail', 'task-cancelled', 'print-inspection-guide']);
 
 // 任务统计
 const statistics = computed(() => {
@@ -194,12 +198,12 @@ const statistics = computed(() => {
       t.delayMinutes >= -60 && 
       t.excessDelayMinutes <= 0
     ).length,
-    // 待执行任务：还没到前一小时的任务（包括 AppliedConfirmed、Pending、InProgress）
+    // 待执行任务：包括 AppliedConfirmed、Pending、InProgress，且没有超出容忍期
     pendingCount: props.tasks.filter(t => 
       (t.status === 2 || t.status === 'AppliedConfirmed' ||
        t.status === 3 || t.status === 'Pending' ||
        t.status === 4 || t.status === 'InProgress') &&
-      t.delayMinutes < -60
+      t.excessDelayMinutes <= 0
     ).length,
     // 已完成任务
     completedCount: props.tasks.filter(t => 
@@ -237,7 +241,8 @@ const groupedTasks = computed(() => {
       // Pending(3)、InProgress(4) - 正常执行状态，需要检查时间
       if ((t.status === 3 || t.status === 'Pending' ||
            t.status === 4 || t.status === 'InProgress') &&
-          t.delayMinutes < -60) {
+           t.excessDelayMinutes <= 0 &&
+      !(t.status === 3 || t.status === 'Pending') {
         return true;
       }
       return false;
@@ -267,6 +272,11 @@ const handleViewDetail = (task) => {
 // 任务取消事件
 const handleTaskCancelled = (taskId) => {
   emit('task-cancelled', taskId);
+};
+
+// 打印检查导引单事件
+const handlePrintInspectionGuide = (data) => {
+  emit('print-inspection-guide', data);
 };
 </script>
 

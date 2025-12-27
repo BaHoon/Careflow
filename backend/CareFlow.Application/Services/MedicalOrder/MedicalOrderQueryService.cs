@@ -190,6 +190,8 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
         // 获取基础医嘱
         var baseOrder = await _orderRepository.GetQueryable()
             .Include(o => o.Patient)
+                .ThenInclude(p => p.Bed)
+                    .ThenInclude(b => b.Ward)
             .Include(o => o.Doctor)
             .Include(o => o.Nurse)
             .Include(o => o.SignedByNurse)
@@ -215,6 +217,10 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
             Remarks = baseOrder.Remarks,
             PatientId = baseOrder.PatientId,
             PatientName = baseOrder.Patient?.Name ?? "未知患者",
+            PatientGender = baseOrder.Patient?.Gender,
+            PatientAge = baseOrder.Patient?.Age,
+            BedNumber = baseOrder.Patient?.Bed?.Id,
+            Department = baseOrder.Patient?.Bed?.Ward?.Id,
             DoctorId = baseOrder.DoctorId,
             DoctorName = baseOrder.Doctor?.Name ?? "未知医生",
             NurseId = baseOrder.NurseId,
@@ -595,6 +601,11 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
 
         detail.ItemCode = inspOrder.ItemCode;
         detail.ItemName = inspOrder.ItemName;
+        detail.RisLisId = inspOrder.RisLisId;
+        detail.Location = inspOrder.Location;
+        detail.Precautions = inspOrder.Precautions;
+        detail.AppointmentTime = inspOrder.AppointmentTime;
+        detail.AppointmentPlace = inspOrder.AppointmentPlace;
         detail.ReportId = inspOrder.ReportId;
         detail.ReportTime = inspOrder.ReportTime;
         

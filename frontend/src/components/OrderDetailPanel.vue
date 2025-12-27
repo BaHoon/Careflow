@@ -391,17 +391,26 @@
                 >
                   修改执行情况
                 </el-button>
-                <!-- 检查医嘱的检查申请任务：显示查看报告按钮 -->
-                <el-button 
-                  v-if="isInspectionApplicationTask(task, index)"
-                  :type="hasInspectionReport() ? 'success' : 'info'"
-                  size="small"
-                  @click.stop="handleInspectionReport(task)"
-                  :icon="Printer"
-                  :disabled="!hasInspectionReport()"
-                >
-                  {{ hasInspectionReport() ? '查看检查报告' : '报告未出' }}
-                </el-button>
+                <!-- 检查医嘱的检查申请任务：显示打印导引单和查看报告按钮 -->
+                <template v-if="isInspectionApplicationTask(task, index)">
+                  <el-button 
+                    type="success" 
+                    size="small"
+                    @click.stop="emit('print-inspection-guide', { taskId: task.id, orderId: detail.id })"
+                    :icon="Printer"
+                  >
+                    打印导引单
+                  </el-button>
+                  <el-button 
+                    :type="hasInspectionReport() ? 'success' : 'info'"
+                    size="small"
+                    @click.stop="handleInspectionReport(task)"
+                    :icon="Printer"
+                    :disabled="!hasInspectionReport()"
+                  >
+                    {{ hasInspectionReport() ? '查看检查报告' : '报告未出' }}
+                  </el-button>
+                </template>
                 <!-- 其他任务：显示打印执行单按钮 -->
                 <el-button 
                   v-else
@@ -444,9 +453,10 @@ const props = defineProps({
 
 // ==================== Emits ====================
 const emit = defineEmits([
-  'update-task-execution',  // 修改任务执行情况
-  'print-task-sheet',       // 打印任务执行单
-  'view-inspection-report'  // 查看检查报告
+  'update-task-execution',    // 修改任务执行情况
+  'print-task-sheet',         // 打印任务执行单
+  'print-inspection-guide',   // 打印检查导引单
+  'view-inspection-report'    // 查看检查报告
 ]);
 
 // ==================== 风琴控制 ====================
@@ -487,9 +497,10 @@ watch(() => props.detail, (newDetail) => {
 }, { immediate: true });
 
 // ==================== 检查报告相关 ====================
-// 判断是否为检查申请任务（检查医嘱的第二个任务）
+// 判断是否为检查申请任务（检查医嘱且任务类型为ApplicationWithPrint）
 const isInspectionApplicationTask = (task, index) => {
-  return props.detail.orderType === 'InspectionOrder' && index === 1;
+  // 检查医嘱的"检查申请"任务，category为6（ApplicationWithPrint）
+  return props.detail.orderType === 'InspectionOrder' && task.category === 6;
 };
 
 // 判断是否为检查类任务（用于时间线显示）
@@ -509,7 +520,7 @@ const handleInspectionReport = (task) => {
     emit('view-inspection-report', {
       orderId: props.detail.id,
       reportId: props.detail.reportId,
-      reportUrl: props.detail.attachmentUrl || 'reports/REPORT.pdf'
+      reportUrl: props.detail.attachmentUrl  // 使用真实的 attachmentUrl
     });
   } else {
     // 报告还未出来，提示用户

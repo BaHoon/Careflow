@@ -80,6 +80,15 @@
           <el-icon><PriceTag /></el-icon>
           <span>任务扫码</span>
         </router-link>
+        
+        <router-link 
+          to="/nurse/schedule" 
+          class="nav-item"
+          active-class="active"
+        >
+          <el-icon><Calendar /></el-icon>
+          <span>排班查看</span>
+        </router-link>
       </nav>
       
       <!-- 用户信息 -->
@@ -128,7 +137,8 @@ import {
   Notebook,
   ArrowDown,
   SwitchButton,
-  PriceTag 
+  PriceTag,
+  Calendar
 } from '@element-plus/icons-vue'
 
 const router = useRouter()

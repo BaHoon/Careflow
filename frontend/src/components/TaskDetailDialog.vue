@@ -58,19 +58,19 @@
           </el-descriptions-item>
           
           <!-- 护士信息 -->
-          <el-descriptions-item v-if="currentTask.assignedNurseName" label="负责护士">
-            {{ currentTask.assignedNurseName }}
+          <el-descriptions-item label="负责护士">
+            {{ currentTask.assignedNurseName || '-' }}
           </el-descriptions-item>
-          <el-descriptions-item v-if="currentTask.executorNurseName" label="执行护士">
-            {{ currentTask.executorNurseName }}
+          <el-descriptions-item label="执行护士">
+            {{ currentTask.executorNurseName || '-' }}
           </el-descriptions-item>
           
           <!-- 延迟信息 -->
-          <el-descriptions-item v-if="currentTask.delayMinutes !== undefined && currentTask.delayMinutes !== null" label="延迟分钟数">
-            {{ currentTask.delayMinutes }} 分钟
+          <el-descriptions-item label="延迟信息">
+            {{ currentTask.delayMinutes !== undefined && currentTask.delayMinutes !== null ? formatDelayMinutes(currentTask.delayMinutes) : '-' }}
           </el-descriptions-item>
-          <el-descriptions-item v-if="currentTask.allowedDelayMinutes !== undefined && currentTask.allowedDelayMinutes !== null" label="允许延迟">
-            {{ currentTask.allowedDelayMinutes }} 分钟
+          <el-descriptions-item label="允许延迟">
+            {{ currentTask.allowedDelayMinutes !== undefined && currentTask.allowedDelayMinutes !== null ? formatAllowedDelayMinutes(currentTask.allowedDelayMinutes) : '-' }}
           </el-descriptions-item>
           
           <!-- 异常原因 -->
@@ -107,8 +107,8 @@
           </el-descriptions-item>
           
           <!-- 操作信息 -->
-          <el-descriptions-item label="操作名称" :span="2">
-            <el-tag type="primary" size="large">{{ getOperationName(currentTask) }}</el-tag>
+          <el-descriptions-item label="操作名称">
+            <el-tag type="primary">{{ getOperationName(currentTask) }}</el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="操作代码">
             {{ getOperationCode(currentTask) }}
@@ -157,19 +157,19 @@
           </el-descriptions-item>
           
           <!-- 护士信息 -->
-          <el-descriptions-item v-if="currentTask.assignedNurseName" label="负责护士">
-            {{ currentTask.assignedNurseName }}
+          <el-descriptions-item label="负责护士">
+            {{ currentTask.assignedNurseName || '-' }}
           </el-descriptions-item>
-          <el-descriptions-item v-if="currentTask.executorNurseName" label="执行护士">
-            {{ currentTask.executorNurseName }}
+          <el-descriptions-item label="执行护士">
+            {{ currentTask.executorNurseName || '-' }}
           </el-descriptions-item>
           
           <!-- 延迟信息 -->
-          <el-descriptions-item v-if="currentTask.delayMinutes !== undefined && currentTask.delayMinutes !== null" label="延迟分钟数">
-            {{ currentTask.delayMinutes }} 分钟
+          <el-descriptions-item label="延迟信息">
+            {{ currentTask.delayMinutes !== undefined && currentTask.delayMinutes !== null ? formatDelayMinutes(currentTask.delayMinutes) : '-' }}
           </el-descriptions-item>
-          <el-descriptions-item v-if="currentTask.allowedDelayMinutes !== undefined && currentTask.allowedDelayMinutes !== null" label="允许延迟">
-            {{ currentTask.allowedDelayMinutes }} 分钟
+          <el-descriptions-item label="允许延迟">
+            {{ currentTask.allowedDelayMinutes !== undefined && currentTask.allowedDelayMinutes !== null ? formatAllowedDelayMinutes(currentTask.allowedDelayMinutes) : '-' }}
           </el-descriptions-item>
           
           <!-- 准备物品 -->
@@ -271,14 +271,33 @@ const formatDateTime = (dateString) => {
   }
 };
 
-// 格式化JSON
+// 格式化JSON - 增强错误处理和边界情况
 const formatJson = (jsonString) => {
   if (!jsonString) return '';
   try {
-    const obj = typeof jsonString === 'string' ? JSON.parse(jsonString) : jsonString;
+    // 处理字符串和对象两种情况
+    let obj;
+    if (typeof jsonString === 'string') {
+      // 检查是否真的是JSON格式
+      const trimmed = jsonString.trim();
+      if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+        // 不是JSON，直接返回
+        return jsonString;
+      }
+      obj = JSON.parse(jsonString);
+    } else {
+      obj = jsonString;
+    }
+    
+    if (!obj || (typeof obj !== 'object')) {
+      return String(jsonString);
+    }
+    
     return JSON.stringify(obj, null, 2);
   } catch (error) {
-    return jsonString;
+    // JSON解析失败，返回原始字符串
+    console.warn('JSON格式化失败:', error);
+    return String(jsonString);
   }
 };
 
@@ -340,93 +359,94 @@ const getStatusText = (status) => {
   return textMap[status] || status;
 };
 
+// 安全的JSON解析工具函数
+const safeParseJson = (jsonString) => {
+  if (!jsonString) return null;
+  try {
+    return typeof jsonString === 'string' 
+      ? JSON.parse(jsonString) 
+      : jsonString;
+  } catch (error) {
+    console.warn('JSON解析失败:', error);
+    return null;
+  }
+};
+
 // 获取操作名称
 const getOperationName = (task) => {
-  if (task.dataPayload) {
-    try {
-      const payload = typeof task.dataPayload === 'string' 
-        ? JSON.parse(task.dataPayload) 
-        : task.dataPayload;
-      return payload.OperationName || payload.Title || task.opId || '操作任务';
-    } catch (e) {
-      console.error('解析dataPayload失败:', e);
-    }
-  }
-  return task.opId || '操作任务';
+  if (!task || !task.dataPayload) return '操作任务';
+  
+  const payload = safeParseJson(task.dataPayload);
+  if (!payload) return task.opId || '操作任务';
+  
+  return payload.OperationName || payload.Title || task.opId || '操作任务';
 };
 
 // 获取操作代码
 const getOperationCode = (task) => {
-  if (task.dataPayload) {
-    try {
-      const payload = typeof task.dataPayload === 'string' 
-        ? JSON.parse(task.dataPayload) 
-        : task.dataPayload;
-      return payload.OpId || task.opId || '-';
-    } catch (e) {
-      console.error('解析dataPayload失败:', e);
-    }
-  }
-  return task.opId || '-';
+  if (!task || !task.dataPayload) return '-';
+  
+  const payload = safeParseJson(task.dataPayload);
+  if (!payload) return task.opId || '-';
+  
+  return payload.OpId || task.opId || '-';
 };
 
 // 获取操作部位
 const getOperationSite = (task) => {
-  if (task.dataPayload) {
-    try {
-      const payload = typeof task.dataPayload === 'string' 
-        ? JSON.parse(task.dataPayload) 
-        : task.dataPayload;
-      return payload.OperationSite || null;
-    } catch (e) {
-      console.error('解析dataPayload失败:', e);
-    }
-  }
-  return null;
+  if (!task || !task.dataPayload) return null;
+  
+  const payload = safeParseJson(task.dataPayload);
+  if (!payload) return null;
+  
+  return payload.OperationSite || null;
 };
 
 // 获取准备物品列表
 const getPreparationItems = (task) => {
-  if (task.dataPayload) {
-    try {
-      const payload = typeof task.dataPayload === 'string' 
-        ? JSON.parse(task.dataPayload) 
-        : task.dataPayload;
-      return payload.PreparationItems || [];
-    } catch (e) {
-      console.error('解析dataPayload失败:', e);
-    }
-  }
-  return [];
+  if (!task || !task.dataPayload) return [];
+  
+  const payload = safeParseJson(task.dataPayload);
+  if (!payload || !Array.isArray(payload.PreparationItems)) return [];
+  
+  return payload.PreparationItems;
 };
 
 // 获取任务说明
 const getTaskDescription = (task) => {
-  if (task.dataPayload) {
-    try {
-      const payload = typeof task.dataPayload === 'string' 
-        ? JSON.parse(task.dataPayload) 
-        : task.dataPayload;
-      return payload.Description || null;
-    } catch (e) {
-      console.error('解析dataPayload失败:', e);
-    }
-  }
-  return null;
+  if (!task || !task.dataPayload) return null;
+  
+  const payload = safeParseJson(task.dataPayload);
+  if (!payload) return null;
+  
+  return payload.Description || null;
 };
 
-// 任务类别文本
+// 任务类别文本 - 统一转换为中文，保持最简单的文本状态
 const getCategoryText = (category) => {
   const textMap = {
+    // 英文映射
     'Immediate': '即刻执行',
     'Duration': '持续任务',
     'ResultPending': '结果待定',
     'DataCollection': '数据采集',
     'Verification': '核对验证',
     'Routine': '常规护理',
-    'ReMeasure': '复测任务'
+    'ReMeasure': '复测任务',
+    'ApplicationWithPrint': '申请打印',
+    'DischargeConfirmation': '出院确认',
+    // 数字映射（如果后端返回数字枚举值）
+    1: '即刻执行',
+    2: '持续任务',
+    3: '结果待定',
+    4: '数据采集',
+    5: '核对验证',
+    6: '申请打印',
+    11: '出院确认'
   };
-  return textMap[category] || category;
+  // 如果 category 存在但不在映射表中，返回一个安全的默认值
+  const result = textMap[category];
+  return result !== undefined ? result : '未知类别';
 };
 
 // 任务类别标签类型
@@ -438,9 +458,56 @@ const getCategoryTagType = (category) => {
     'DataCollection': 'info',
     'Verification': '',
     'Routine': 'info',
-    'ReMeasure': 'warning'
+    'ReMeasure': 'warning',
+    'ApplicationWithPrint': 'info',
+    'DischargeConfirmation': 'danger',
+    // 数字映射
+    1: 'success',
+    2: 'primary',
+    3: 'warning',
+    4: 'info',
+    5: '',
+    6: 'info',
+    11: 'danger'
   };
   return typeMap[category] || '';
+};
+
+// 格式化延迟分钟数 - 处理负数和无效值
+const formatDelayMinutes = (delay) => {
+  // 检查是否为有效的数字
+  if (delay === null || delay === undefined || isNaN(delay)) {
+    return '-';
+  }
+  
+  const delayNum = Number(delay);
+  
+  // 处理负数情况（表示提前完成）
+  if (delayNum < 0) {
+    return `提前 ${Math.abs(delayNum)} 分钟`;
+  }
+  
+  // 处理零值
+  if (delayNum === 0) {
+    return '按时';
+  }
+  
+  // 处理正数（延迟）
+  return `延迟 ${delayNum} 分钟`;
+};
+
+// 格式化允许延迟分钟数
+const formatAllowedDelayMinutes = (delay) => {
+  if (delay === null || delay === undefined || isNaN(delay)) {
+    return '-';
+  }
+  
+  const delayNum = Number(delay);
+  if (delayNum <= 0) {
+    return '不允许延迟';
+  }
+  
+  return `${delayNum} 分钟`;
 };
 </script>
 
