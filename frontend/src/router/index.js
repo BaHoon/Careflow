@@ -7,19 +7,21 @@ import Home from '../views/Home.vue'
 // 布局组件
 import NurseLayout from '../layouts/NurseLayout.vue'
 import DoctorLayout from '../layouts/DoctorLayout.vue'
-import Inspection from '../views/Inspection.vue'
 
 // 护士子页面
 import NurseDashboard from '../views/NurseDashboard.vue'
 import NurseTaskList from '../views/NurseTaskList.vue'
 import OrderAcknowledgement from '../views/OrderAcknowledgement.vue'
+import NurseOrderQueryView from '../views/NurseOrderQueryView.vue'
 import OrderTest from '../views/OrderTest.vue'
 import OrderApplication from '../views/OrderApplication.vue'
 import NursingRecord from '../views/NursingRecord.vue'
 import TaskScan from '../views/TaskScan.vue'
+import PatientManagementView from '../views/PatientManagementView.vue'
 
 // 医生子页面
 import OrderEntry from '../views/OrderEntry.vue'
+import DoctorOrderView from '../views/DoctorOrderView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -66,6 +68,12 @@ const router = createRouter({
           meta: { title: '医嘱签收' }
         },
         {
+          path: 'order-query', // 相对路径，实际路径为 /nurse/order-query
+          name: 'nurse-order-query',
+          component: NurseOrderQueryView,
+          meta: { title: '医嘱查询' }
+        },
+        {
           path: 'application', // 相对路径，实际路径为 /nurse/application
           name: 'order-application',
           component: OrderApplication,
@@ -104,6 +112,19 @@ const router = createRouter({
           name: 'order-entry',
           component: OrderEntry,
           meta: { title: '医嘱开具' }
+        },
+        {
+          path: 'order-query', // 相对路径，实际路径为 /doctor/order-query
+          name: 'doctor-order-query',
+          component: DoctorOrderView,
+          meta: { title: '医嘱查询' }
+        },
+        {
+          path: 'patient-management', // 相对路径，实际路径为 /doctor/patient-management
+          name: 'doctor-patient-management',
+          component: PatientManagementView,
+          props: { userRole: 'Doctor' },
+          meta: { title: '患者管理' }
         }
       ]
     }

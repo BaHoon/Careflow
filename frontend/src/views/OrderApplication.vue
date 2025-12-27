@@ -58,6 +58,7 @@
             <el-checkbox label="Applying">待申请</el-checkbox>
             <el-checkbox label="Applied">已申请</el-checkbox>
             <el-checkbox label="AppliedConfirmed">已确认</el-checkbox>
+            <el-checkbox label="PendingReturn">待退回</el-checkbox>
           </el-checkbox-group>
         </div>
 
@@ -157,8 +158,20 @@
                 {{ getOrderTypeName(item.orderType) }}
               </el-tag>
               
-              <!-- 主要内容 -->
-              <span class="order-main-text">{{ item.displayText }}</span>
+              <!-- 医嘱ID -->
+              <span class="order-id">#{{ item.orderId }}</span>
+              
+              <!-- 主要内容：药品申请显示 "计划时间 - 第一个药品" -->
+              <!-- 手术类药品申请显示 "手术日期 - 手术名称" -->
+              <span v-if="activeTab === 'medication' && item.medications && item.medications.length > 0" class="order-main-text">
+                <template v-if="item.orderType === 'Surgical' && item.surgeryName">
+                  {{ formatDateTime(item.surgeryScheduleTime || item.plannedStartTime) }} - {{ item.surgeryName }}
+                </template>
+                <template v-else>
+                  {{ formatDateTime(item.plannedStartTime) }} - {{ item.medications[0].drugName }}{{ item.medications.length > 1 ? '等' : '' }}
+                </template>
+              </span>
+              <span v-else class="order-main-text">{{ item.displayText }}</span>
               
               <!-- 检查来源（仅检查类） -->
               <span v-if="item.inspectionSource" class="inspection-source">
@@ -184,14 +197,14 @@
                 </div>
               </div>
 
-              <div v-if="item.plannedStartTime" class="detail-section">
-                <span class="detail-label">计划时间:</span>
-                <span class="detail-value">{{ formatDateTime(item.plannedStartTime) }}</span>
+              <div class="detail-section">
+                <span class="detail-label">时间策略:</span>
+                <span class="detail-value">{{ formatTimingStrategy(item) }}</span>
               </div>
 
-              <div v-if="item.remarks" class="detail-section">
-                <span class="detail-label">备注:</span>
-                <span class="detail-value">{{ item.remarks }}</span>
+              <div class="detail-section">
+                <span class="detail-label">用法:</span>
+                <span class="detail-value">{{ formatUsageRoute(item.usageRoute) }}</span>
               </div>
 
               <div class="application-meta">
@@ -263,14 +276,39 @@
             </el-button>
           </div>
 
-          <!-- 已申请状态显示取消按钮 -->
+          <!-- 已申请状态显示撤销申请按钮 -->
           <div v-else-if="item.status === 'Applied'" class="application-actions">
             <el-button 
               type="warning" 
-              @click="handleCancelApply(item)"
+              @click="handleCancelApplication(item)"
               class="action-btn-small"
             >
-              取消
+              撤销申请
+            </el-button>
+          </div>
+
+          <!-- 已确认状态显示退药/取消安排按钮 -->
+          <div v-else-if="item.status === 'AppliedConfirmed'" class="application-actions">
+            <el-button 
+              type="danger" 
+              @click="handleReturnMedication(item)"
+              class="action-btn-small"
+            >
+              {{ item.orderType === 'Inspection' || item.orderType === 'InspectionOrder' ? '取消安排' : '退药' }}
+            </el-button>
+          </div>
+
+          <!-- 待退药/取消状态显示确认按钮 -->
+          <div v-else-if="item.status === 'PendingReturn'" class="application-actions">
+            <el-tag type="danger" size="small" class="return-notice">
+              {{ item.orderType === 'Inspection' || item.orderType === 'InspectionOrder' ? '需要取消' : '需要退药' }}
+            </el-tag>
+            <el-button 
+              type="primary" 
+              @click="handleConfirmReturn(item)"
+              class="action-btn-small"
+            >
+              {{ item.orderType === 'Inspection' || item.orderType === 'InspectionOrder' ? '确认取消' : '确认退药' }}
             </el-button>
           </div>
         </div>
@@ -299,7 +337,9 @@ import {
   submitMedicationApplication,
   submitInspectionApplication,
   cancelMedicationApplication,
-  cancelInspectionApplication
+  cancelInspectionApplication,
+  requestReturnMedication,
+  confirmReturnMedication
 } from '@/api/orderApplication';
 
 // 使用患者数据组合
@@ -478,6 +518,12 @@ const loadApplications = async () => {
     return;
   }
 
+  // 如果没有选中任何状态，直接返回空列表
+  if (!statusFilter.value || statusFilter.value.length === 0) {
+    applicationList.value = [];
+    return;
+  }
+
   loading.value = true;
   try {
     const currentNurse = getCurrentNurse();
@@ -492,10 +538,8 @@ const loadApplications = async () => {
       patientIds: [selectedPatient.value.patientId]
     };
 
-    // 添加状态筛选（如果有的话）
-    if (statusFilter.value && statusFilter.value.length > 0) {
-      requestData.statusFilter = statusFilter.value;
-    }
+    // 添加状态筛选
+    requestData.statusFilter = statusFilter.value;
 
     // 仅药品申请时添加时间范围参数
     // 需要将本地时间转换为UTC时间（PostgreSQL要求）
@@ -730,7 +774,7 @@ const handleBatchApply = async () => {
     }
 
     if (response.success) {
-      ElMessage.success(`批量申请成功：${response.data.processedIds?.length || selectedItems.length} 项`);
+      ElMessage.success(`批量申请成功：${response.processedIds?.length || selectedItems.length} 项`);
       await loadApplications(); // 刷新列表（会自动更新待申请数量）
       selectAll.value = false;
     } else {
@@ -739,6 +783,145 @@ const handleBatchApply = async () => {
   } catch (error) {
     console.error('批量申请失败:', error);
     ElMessage.error('批量申请失败');
+  } finally {
+    loading.value = false;
+  }
+};
+
+// 撤销申请（Applied状态）
+const handleCancelApplication = async (item) => {
+  try {
+    await ElMessageBox.confirm(
+      '确定要撤销此申请吗？药房可能正在配药中。',
+      '撤销申请确认',
+      {
+        confirmButtonText: '确认',
+        cancelButtonText: '取消',
+        type: 'warning',
+        customClass: 'order-action-confirm'
+      }
+    );
+  } catch {
+    return; // 用户取消
+  }
+
+  const currentNurse = getCurrentNurse();
+  if (!currentNurse) {
+    ElMessage.error('未找到当前护士信息');
+    return;
+  }
+
+  loading.value = true;
+  try {
+    const response = await cancelMedicationApplication({
+      nurseId: currentNurse.staffId,
+      ids: [item.relatedId],
+      reason: '护士撤销申请'
+    });
+
+    if (response.success) {
+      ElMessage.success('撤销成功');
+      await loadApplications();
+    } else {
+      ElMessage.error(response.message || '撤销失败');
+    }
+  } catch (error) {
+    console.error('撤销申请失败:', error);
+    ElMessage.error('撤销申请失败');
+  } finally {
+    loading.value = false;
+  }
+};
+
+// 申请退药/取消安排（AppliedConfirmed状态）
+const handleReturnMedication = async (item) => {
+  try {
+    const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
+    const { value: reason } = await ElMessageBox.prompt(
+      isInspection ? '检查科室已安排，请输入取消原因：' : '药房已配好药，请输入退药原因：',
+      isInspection ? '申请取消安排' : '申请退药',
+      {
+        confirmButtonText: isInspection ? '确认取消' : '确认退药',
+        cancelButtonText: '取消',
+        inputPattern: /\S+/,
+        inputErrorMessage: isInspection ? '取消原因不能为空' : '退药原因不能为空',
+        inputType: 'textarea'
+      }
+    );
+
+    const currentNurse = getCurrentNurse();
+    if (!currentNurse) {
+      ElMessage.error('未找到当前护士信息');
+      return;
+    }
+
+    loading.value = true;
+    const response = await requestReturnMedication(
+      item.relatedId,
+      currentNurse.staffId,
+      reason
+    );
+
+    if (response.success) {
+      const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
+      ElMessage.success(isInspection ? '取消申请已提交' : '退药申请已提交');
+      await loadApplications();
+    } else {
+      const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
+      ElMessage.error(response.message || (isInspection ? '取消申请失败' : '退药申请失败'));
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
+      console.error(isInspection ? '申请取消失败:' : '申请退药失败:', error);
+      ElMessage.error(isInspection ? '申请取消失败' : '申请退药失败');
+    }
+  } finally {
+    loading.value = false;
+  }
+};
+
+// 确认退药/取消（PendingReturn状态）
+const handleConfirmReturn = async (item) => {
+  try {
+    const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
+    await ElMessageBox.confirm(
+      isInspection ? '确认取消该检查安排？取消后任务将被停止。' : '确认退回该药品？退药后任务将被停止。',
+      isInspection ? '确认取消' : '确认退药',
+      {
+        confirmButtonText: isInspection ? '确认取消' : '确认退药',
+        cancelButtonText: '取消',
+        type: 'warning',
+        customClass: 'order-action-confirm'
+      }
+    );
+
+    const currentNurse = getCurrentNurse();
+    if (!currentNurse) {
+      ElMessage.error('未找到当前护士信息');
+      return;
+    }
+
+    loading.value = true;
+    const response = await confirmReturnMedication(
+      item.relatedId,
+      currentNurse.staffId
+    );
+
+    if (response.success) {
+      const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
+      ElMessage.success(isInspection ? '取消确认成功' : '退药确认成功');
+      await loadApplications();
+    } else {
+      const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
+      ElMessage.error(response.message || (isInspection ? '取消确认失败' : '退药确认失败'));
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
+      console.error(isInspection ? '确认取消失败:' : '确认退药失败:', error);
+      ElMessage.error(isInspection ? '确认取消失败' : '确认退药失败');
+    }
   } finally {
     loading.value = false;
   }
@@ -773,20 +956,20 @@ const handleCancelApply = async (item) => {
     if (activeTab.value === 'medication') {
       response = await cancelMedicationApplication({
         nurseId: currentNurse.staffId,
-        ids: [item.relatedId],  // ✅ 后端期望 ids 字段
-        reason: '护士取消'       // ✅ 后端期望 reason 字段
+        ids: [item.relatedId],
+        reason: '护士取消'
       });
     } else {
       response = await cancelInspectionApplication({
         nurseId: currentNurse.staffId,
-        ids: [item.relatedId],  // ✅ 后端期望 ids 字段
-        reason: '护士取消'       // ✅ 后端期望 reason 字段
+        ids: [item.relatedId],
+        reason: '护士取消'
       });
     }
 
     if (response.success) {
       ElMessage.success('取消成功');
-      await loadApplications(); // 刷新列表（会自动更新待申请数量）
+      await loadApplications();
     } else {
       ElMessage.error(response.message || '取消失败');
     }
@@ -829,7 +1012,8 @@ const getStatusColor = (status) => {
   const colorMap = {
     Applying: 'warning',
     Applied: 'primary',
-    AppliedConfirmed: 'success'
+    AppliedConfirmed: 'success',
+    PendingReturn: 'danger'
   };
   return colorMap[status] || 'info';
 };
@@ -839,7 +1023,8 @@ const getStatusText = (status) => {
   const textMap = {
     Applying: '待申请',
     Applied: '已申请',
-    AppliedConfirmed: '已确认'
+    AppliedConfirmed: '已确认',
+    PendingReturn: '待退药'
   };
   return textMap[status] || status;
 };
@@ -848,18 +1033,107 @@ const getStatusText = (status) => {
 const formatDateTime = (dateString) => {
   if (!dateString) return '-';
   try {
-    const date = new Date(dateString);
-    // 使用toLocaleString自动转换为本地时区（北京时间 GMT+8）
+    // 确保UTC时间字符串带有Z标识
+    let utcString = dateString;
+    if (!dateString.endsWith('Z') && !dateString.includes('+')) {
+      utcString = dateString + 'Z';
+    }
+    const date = new Date(utcString);
+    // JavaScript的toLocaleString会自动转换为本地时区（北京时间UTC+8）
     return date.toLocaleString('zh-CN', { 
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      timeZone: 'Asia/Shanghai'
     });
   } catch {
     return dateString;
   }
+};
+
+// 格式化时间策略
+const formatTimingStrategy = (item) => {
+  if (!item.timingStrategy) return '-';
+  
+  switch (item.timingStrategy) {
+    case 'IMMEDIATE':
+      return '立即';
+    
+    case 'SPECIFIC':
+      // 指定时间：显示开始时间
+      return `指定时间: ${formatDateTime(item.startTime || item.plannedStartTime)}`;
+    
+    case 'SLOTS':
+      // Slot 策略：显示开始结束时间 + 选定的slot中文
+      const slotText = formatSlotsMask(item.smartSlotsMask);
+      const intervalDaysText = item.intervalDays && item.intervalDays > 1 
+        ? `每${item.intervalDays}天` 
+        : '每天';
+      return `${formatDateTime(item.startTime || item.plannedStartTime)} 至 ${formatDateTime(item.plantEndTime)} (${intervalDaysText} ${slotText})`;
+    
+    case 'CYCLIC':
+      // Cycle 策略：显示开始结束时间 + 间隔时间
+      const intervalText = formatIntervalHours(item.intervalHours);
+      return `${formatDateTime(item.startTime || item.plannedStartTime)} 至 ${formatDateTime(item.plantEndTime)} (${intervalText})`;
+    
+    default:
+      return item.timingStrategy;
+  }
+};
+
+// 格式化间隔时间
+const formatIntervalHours = (hours) => {
+  if (!hours) return '未指定间隔';
+  
+  if (hours < 1) {
+    const minutes = Math.round(hours * 60);
+    return `每${minutes}分钟`;
+  } else if (hours === 1) {
+    return '每小时';
+  } else if (hours % 24 === 0) {
+    const days = hours / 24;
+    return `每${days}天`;
+  } else {
+    return `每${hours}小时`;
+  }
+};
+
+// 格式化 Slots 掩码
+const formatSlotsMask = (mask) => {
+  if (!mask) return '';
+  
+  // 根据掩码解析选定的时段
+  // 假设 bit 0-7 分别代表：早晨、上午、中午、下午、晚上、深夜、凌晨、其他
+  const slotNames = ['早晨', '上午', '中午', '下午', '晚上', '深夜', '凌晨', '其他'];
+  const selectedSlots = [];
+  
+  for (let i = 0; i < slotNames.length; i++) {
+    if (mask & (1 << i)) {
+      selectedSlots.push(slotNames[i]);
+    }
+  }
+  
+  return selectedSlots.length > 0 ? selectedSlots.join('、') : '未指定时段';
+};
+
+// 格式化用法途径
+const formatUsageRoute = (usageRoute) => {
+  if (!usageRoute) return '-';
+  
+  const usageMap = {
+    'PO': '口服',
+    'Topical': '外用/涂抹',
+    'IM': '肌内注射',
+    'SC': '皮下注射',
+    'IVP': '静脉推注',
+    'IVGTT': '静脉滴注',
+    'Inhalation': '吸氧',
+    'ST': '皮试'
+  };
+  
+  return usageMap[usageRoute] || usageRoute;
 };
 </script>
 
@@ -1124,6 +1398,16 @@ const formatDateTime = (dateString) => {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.order-id {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  background: #ecf5ff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
 }
 
 .order-main-text {

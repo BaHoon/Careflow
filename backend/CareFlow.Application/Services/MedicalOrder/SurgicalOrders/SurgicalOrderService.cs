@@ -7,7 +7,7 @@ using CareFlow.Core.Enums;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
-namespace CareFlow.Application.Services.SurgicalOrders;
+namespace CareFlow.Application.Services.MedicalOrder.SurgicalOrders;
 
 /// <summary>
 /// 手术医嘱服务实现

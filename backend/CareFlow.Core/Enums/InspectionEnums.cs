@@ -11,24 +11,19 @@ public enum InspectionOrderStatus
     Pending = 1,
     
     /// <summary>
-    /// 检查中 - 患者正在进行检查
+    /// 报告待出 - 检查时间已过，等待系统自动获取报告
     /// </summary>
-    InProgress = 2,
-    
-    /// <summary>
-    /// 报告待出 - 检查完成，等待报告生成
-    /// </summary>
-    ReportPending = 3,
+    ReportPending = 2,
     
     /// <summary>
     /// 报告已出 - 检查报告已完成
     /// </summary>
-    ReportCompleted = 4,
+    ReportCompleted = 3,
     
     /// <summary>
     /// 已取消 - 检查医嘱被取消
     /// </summary>
-    Cancelled = 5
+    Cancelled = 4
 }
 
 /// <summary>

@@ -259,4 +259,58 @@ public class InspectionController : ControllerBase
             return BadRequest(new { Success = false, Message = $"获取条形码失败: {ex.Message}" });
         }
     }
+    
+    /// <summary>
+    /// 【测试】手动为指定医嘱创建检查报告
+    /// </summary>
+    [HttpPost("orders/{orderId}/create-report-manually")]
+    public async Task<IActionResult> CreateReportManually(long orderId)
+    {
+        try
+        {
+            _logger.LogInformation("🧪 手动创建检查报告，医嘱ID: {OrderId}", orderId);
+            
+            // 1. 获取检查医嘱
+            var order = await _orderRepo.GetByIdAsync(orderId);
+            if (order == null)
+            {
+                return NotFound(new { message = $"检查医嘱 {orderId} 不存在" });
+            }
+            
+            // 2. 检查是否已经有报告
+            if (!string.IsNullOrEmpty(order.ReportId))
+            {
+                return BadRequest(new { message = $"该医嘱已经有报告了，报告ID: {order.ReportId}" });
+            }
+            
+            // 3. 创建模拟报告
+            var reportDto = new CreateInspectionReportDto
+            {
+                OrderId = orderId,
+                RisLisId = order.RisLisId,
+                Findings = "[手动测试数据] 检查所见：未见明显异常。",
+                Impression = "[手动测试数据] 诊断意见：未见异常。",
+                AttachmentUrl = "reports/REPORT.pdf", // 文件路径
+                ReviewerId = null, // 不关联审核医生，避免外键约束错误
+                ReportSource = order.Source
+            };
+            
+            // 4. 创建报告
+            var reportId = await _inspectionService.CreateInspectionReportAsync(reportDto);
+            
+            _logger.LogInformation("✅ 手动创建报告成功，医嘱ID: {OrderId}, 报告ID: {ReportId}", orderId, reportId);
+            
+            return Ok(new { 
+                success = true,
+                reportId, 
+                orderId,
+                message = "检查报告手动创建成功，可以在前端查看了" 
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ 手动创建报告失败，医嘱ID: {OrderId}", orderId);
+            return StatusCode(500, new { message = $"创建报告失败: {ex.Message}" });
+        }
+    }
 }

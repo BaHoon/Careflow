@@ -140,7 +140,7 @@ namespace CareFlow.Application.Services
                 PatientId = order.PatientId,
                 Category = TaskCategory.Verification, // 物品核对为核对类
                 PlannedStartTime = order.ScheduleTime.Add(SupplyOffset),
-                Status = ExecutionTaskStatus.Pending,
+                Status = ExecutionTaskStatus.Applying,
                 CreatedAt = DateTime.UtcNow,
                 
                 DataPayload = JsonSerializer.Serialize(new

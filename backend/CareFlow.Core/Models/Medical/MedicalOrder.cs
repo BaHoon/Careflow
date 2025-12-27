@@ -229,10 +229,87 @@ namespace CareFlow.Core.Models.Medical
     [Table("OperationOrders")]
     public class OperationOrder : MedicalOrder
     {
+        // === 基础操作信息 ===
         public string OpId { get; set; } = null!;             // 操作代码
-        public bool Normal { get; set; }             // 正常/异常标识
-        public string FrequencyType { get; set; } = null!;    // 频次类型(每天一次/一天几次)
-        public string FrequencyValue { get; set; } = null!;   // 频次值
+        public string OperationName { get; set; } = null!;    // 操作名称（冗余字段，便于查询和显示）
+        public bool Normal { get; set; } = true;               // 正常/异常标识
+        public string? OperationSite { get; set; }             // 操作部位/位置（如"左臂"、"腹部"等）
+        
+        // === 时间策略（新设计，参照药品医嘱） ===
+        /// <summary>
+        /// 时间策略类型：IMMEDIATE/SPECIFIC/CYCLIC/SLOTS
+        /// IMMEDIATE: 立即执行
+        /// SPECIFIC: 指定时间执行（仅执行一次）
+        /// CYCLIC: 周期性执行（按IntervalHours间隔）
+        /// SLOTS: 时段执行（三餐前后、睡前等，使用SmartSlotsMask）
+        /// </summary>
+        public string TimingStrategy { get; set; } = null!;
+        
+        /// <summary>
+        /// 开始/执行时间
+        /// - IMMEDIATE: 不使用（系统自动使用当前时间）
+        /// - SPECIFIC: 唯一的执行时刻（仅执行一次）
+        /// - CYCLIC: 首次执行时间（后续按 IntervalHours 递增）
+        /// - SLOTS: 起始日期（与 SmartSlotsMask 结合使用）
+        /// </summary>
+        public DateTime? StartTime { get; set; }
+        
+        /// <summary>
+        /// 执行间隔（小时数）- 仅用于 CYCLIC 策略
+        /// 例如：6 表示每6小时执行一次，24 表示每天一次
+        /// 支持小数：0.5 表示每30分钟一次
+        /// null 或 0 表示不适用（IMMEDIATE/SPECIFIC/SLOTS策略）
+        /// </summary>
+        public decimal? IntervalHours { get; set; }
+        
+        /// <summary>
+        /// 时段位掩码(Bitmask) - 仅用于 SLOTS 策略
+        /// 例如：1=早餐前, 2=早餐后, 4=午餐前, 8=午餐后, 16=晚餐前, 32=晚餐后, 64=睡前
+        /// 可以组合：2|32 表示早餐后+晚餐后
+        /// </summary>
+        public int SmartSlotsMask { get; set; }
+        
+        /// <summary>
+        /// 间隔天数(1=每天, 2=隔天) - 用于 CYCLIC 和 SLOTS 策略
+        /// </summary>
+        public int IntervalDays { get; set; } = 1;
+        
+        // === 执行要求 ===
+        /// <summary>
+        /// 操作要求/注意事项（JSON格式，存储结构化要求）
+        /// 例如：{"preparation": "空腹", "duration": "30分钟", "equipment": ["血压计", "听诊器"]}
+        /// </summary>
+        public string? OperationRequirements { get; set; }
+        
+        /// <summary>
+        /// 是否需要准备物品（true=需要准备，false=不需要）
+        /// </summary>
+        public bool RequiresPreparation { get; set; } = false;
+        
+        /// <summary>
+        /// 准备物品列表（JSON格式，存储物品清单）
+        /// 例如：["引流袋", "无菌手套", "碘伏"]
+        /// </summary>
+        public string? PreparationItems { get; set; }
+        
+        // === 任务相关配置 ===
+        /// <summary>
+        /// 执行时长（分钟），用于Duration类任务
+        /// 例如：持续吸氧可能需要记录时长
+        /// </summary>
+        public int? ExpectedDurationMinutes { get; set; }
+        
+        /// <summary>
+        /// 是否需要记录结果（true=需要录入结果，false=不需要）
+        /// 用于ResultPending类任务
+        /// </summary>
+        public bool RequiresResult { get; set; } = false;
+        
+        /// <summary>
+        /// 结果记录模板（JSON格式，定义结果字段结构）
+        /// 例如：{"Value": 0.0, "Unit": "mmol/L", "Note": ""}
+        /// </summary>
+        public string? ResultTemplate { get; set; }
     }
 
 
@@ -241,6 +318,7 @@ namespace CareFlow.Core.Models.Medical
     public class InspectionOrder : MedicalOrder
     {
         public string ItemCode { get; set; } = null!;         // 检查项目代码
+        public string ItemName { get; set; } = null!;         // 检查项目名称（如"血常规"、"头颅CT"等）
         public string RisLisId { get; set; } = null!;         // 申请单号
         public string Location { get; set; } = null!;         // 检查科室位置
         public InspectionSource Source { get; set; }          // 检查来源 (RIS/LIS)
@@ -280,6 +358,58 @@ namespace CareFlow.Core.Models.Medical
         
         public float PrepProgress { get; set; }      // 术前准备进度(0.0-1.0)
         public string PrepStatus { get; set; } = null!;       // 准备状态
+    }
+
+    // 出院医嘱 (DISCHARGE_ORDER)
+    [Table("DischargeOrders")]
+    public class DischargeOrder : MedicalOrder
+    {
+        /// <summary>
+        /// 出院类型（治愈出院、好转出院、转院、死亡等）
+        /// </summary>
+        public DischargeType DischargeType { get; set; }
+        
+        /// <summary>
+        /// 出院时间
+        /// </summary>
+        public DateTime DischargeTime { get; set; }
+        
+        /// <summary>
+        /// 出院诊断
+        /// </summary>
+        public string DischargeDiagnosis { get; set; } = null!;
+        
+        /// <summary>
+        /// 出院医嘱
+        /// </summary>
+        public string DischargeInstructions { get; set; } = string.Empty;
+        
+        /// <summary>
+        /// 出院带药说明
+        /// </summary>
+        public string MedicationInstructions { get; set; } = string.Empty;
+        
+        /// <summary>
+        /// 是否需要随访
+        /// </summary>
+        public bool RequiresFollowUp { get; set; }
+        
+        /// <summary>
+        /// 随访时间
+        /// </summary>
+        public DateTime? FollowUpDate { get; set; }
+        
+        /// <summary>
+        /// 出院确认护士ID
+        /// </summary>
+        public string? DischargeConfirmedByNurseId { get; set; }
+        
+        /// <summary>
+        /// 出院确认时间
+        /// </summary>
+        public DateTime? DischargeConfirmedAt { get; set; }
+        
+        // 注意：Items 集合已在 MedicalOrder 基类中定义，用于存储出院带药清单
     }
 
     // ==================== 医嘱状态变更历史表 ====================

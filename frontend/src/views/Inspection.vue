@@ -27,7 +27,7 @@
           <el-select v-model="filterForm.inspectionStatus" placeholder="全部" clearable style="width: 120px">
             <el-option label="全部" value="" />
             <el-option label="待前往" value="Pending" />
-            <el-option label="检查中" value="InProgress" />
+
             <el-option label="已回病房" value="BackToWard" />
             <el-option label="报告已出" value="ReportCompleted" />
           </el-select>
@@ -146,8 +146,10 @@
         <!-- 分页 -->
         <div class="pagination-container">
           <el-pagination
-            v-model:current-page="pagination.currentPage"
-            v-model:page-size="pagination.pageSize"
+            :current-page="pagination.currentPage"
+            @update:current-page="pagination.currentPage = $event"
+            :page-size="pagination.pageSize"
+            @update:page-size="pagination.pageSize = $event"
             :page-sizes="[10, 20, 50, 100]"
             :total="total"
             layout="total, sizes, prev, pager, next, jumper"
@@ -441,8 +443,7 @@ const handleBatchPrint = () => {
 const getStatusText = (status) => {
   const statusMap = {
     'Pending': '待前往',
-    'InProgress': '检查中',
-    'BackToWard': '已回病房',
+    'ReportPending': '报告待出',
     'ReportCompleted': '报告已出',
     'Cancelled': '已取消'
   }
@@ -452,8 +453,7 @@ const getStatusText = (status) => {
 const getStatusType = (status) => {
   const typeMap = {
     'Pending': 'info',
-    'InProgress': 'warning',
-    'BackToWard': 'success',
+    'ReportPending': 'warning',
     'ReportCompleted': 'success',
     'Cancelled': 'danger'
   }
@@ -463,14 +463,24 @@ const getStatusType = (status) => {
 // 时间格式化
 const formatDateTime = (dateTime) => {
   if (!dateTime) return '-'
-  const date = new Date(dateTime)
-  return date.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+  try {
+    // 确保UTC时间字符串带有Z标识
+    let utcString = dateTime;
+    if (!dateTime.endsWith('Z') && !dateTime.includes('+')) {
+      utcString = dateTime + 'Z';
+    }
+    const date = new Date(utcString)
+    return date.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Asia/Shanghai'
+    })
+  } catch {
+    return dateTime
+  }
 }
 
 // 获取条形码图片URL

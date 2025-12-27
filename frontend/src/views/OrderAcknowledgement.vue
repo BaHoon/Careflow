@@ -232,12 +232,13 @@
                   >
                     {{ getOrderTypeName(order.orderType) }}
                   </el-tag>
-                  <span class="order-text">{{ order.displayText }}</span>
+                  <span class="order-id">#{{ order.orderId }}</span>
+                  <span class="order-text">{{ formatOrderTitle(order) }}</span>
                 </div>
 
                 <!-- 医嘱详情 -->
                 <div class="order-details">
-                  <!-- 药品明细 -->
+                  <!-- 药品明细（药品医嘱和出院医嘱都显示） -->
                   <div v-if="order.items && order.items.length > 0" class="detail-section">
                     <span class="detail-label">药品:</span>
                     <div class="drug-list">
@@ -250,15 +251,27 @@
                     </div>
                   </div>
 
+                  <!-- 开始时间 -->
+                  <div v-if="order.startTime" class="detail-section">
+                    <span class="detail-label">开始时间:</span>
+                    <span class="detail-value">{{ formatDateTime(order.startTime) }}</span>
+                  </div>
+
+                  <!-- 结束时间 -->
+                  <div v-if="order.plantEndTime" class="detail-section">
+                    <span class="detail-label">结束时间:</span>
+                    <span class="detail-value">{{ formatDateTime(order.plantEndTime) }}</span>
+                  </div>
+
                   <!-- 时间策略 -->
                   <div v-if="order.timingStrategy" class="detail-section">
-                    <span class="detail-label">策略:</span>
+                    <span class="detail-label">时间策略:</span>
                     <span class="detail-value">{{ getTimingStrategyText(order) }}</span>
                   </div>
 
                   <!-- 给药途径 -->
-                  <div v-if="order.usageRoute" class="detail-section">
-                    <span class="detail-label">途径:</span>
+                  <div v-if="order.usageRoute !== null && order.usageRoute !== undefined" class="detail-section">
+                    <span class="detail-label">用药途径:</span>
                     <span class="detail-value">{{ getUsageRouteText(order.usageRoute) }}</span>
                   </div>
 
@@ -272,6 +285,12 @@
                   <div v-if="order.scheduleTime" class="detail-section">
                     <span class="detail-label">手术时间:</span>
                     <span class="detail-value">{{ formatDateTime(order.scheduleTime) }}</span>
+                  </div>
+
+                  <!-- 操作名称（操作类医嘱） -->
+                  <div v-if="order.orderType === 'OperationOrder' && order.operationName" class="detail-section">
+                    <span class="detail-label">操作名称:</span>
+                    <span class="detail-value">{{ order.operationName }}</span>
                   </div>
 
                   <!-- 元数据 -->
@@ -329,6 +348,14 @@
                 >
                   批量签收 ({{ selectedStoppedCount }})
                 </el-button>
+                <el-button 
+                  type="danger" 
+                  :disabled="selectedStoppedCount === 0"
+                  @click="rejectStoppedBatch"
+                  class="action-btn"
+                >
+                  批量退回 ({{ selectedStoppedCount }})
+                </el-button>
               </div>
             </div>
 
@@ -353,7 +380,8 @@
                   >
                     {{ getOrderTypeName(order.orderType) }}
                   </el-tag>
-                  <span class="order-text">{{ order.displayText }}</span>
+                  <span class="order-id">#{{ order.orderId }}</span>
+                  <span class="order-text">{{ formatOrderTitle(order) }}</span>
                 </div>
 
                 <div class="order-details">
@@ -379,6 +407,13 @@
                   class="action-btn-small"
                 >
                   签收
+                </el-button>
+                <el-button 
+                  type="danger"
+                  @click="rejectStoppedOne(order)"
+                  class="action-btn-small"
+                >
+                  退回
                 </el-button>
               </div>
             </div>
@@ -408,10 +443,16 @@ import {
   getPatientPendingOrders,
   acknowledgeOrders,
   rejectOrders,
+  rejectStopOrders,
   requestMedicationImmediately,
   requestInspection,
   cancelMedicationRequest
 } from '../api/orderAcknowledgement';
+// 导入退药相关API
+import { confirmReturnMedication } from '../api/orderApplication';
+// 导入出院医嘱验证API
+import { validateDischargeOrderAcknowledgement } from '../api/dischargeOrder';
+import { ElLoading } from 'element-plus';
 
 // ==================== 状态管理 ====================
 
@@ -745,21 +786,164 @@ const loadPatientPendingOrders = async (patientId) => {
 
 // 单条签收（新开医嘱）
 const acknowledgeOne = async (order) => {
+  // 如果是出院医嘱，先进行前置验证
+  if (order.orderType === 'DischargeOrder') {
+    const canProceed = await validateDischargeOrderBeforeAcknowledgement(order);
+    if (!canProceed) {
+      return; // 验证失败，不继续签收
+    }
+  }
+  
   await acknowledgeBatchInternal([order.orderId]);
+  // 签收后刷新列表和数字徽章
+  await refreshAfterAction();
 };
 
 // 批量签收（新开医嘱）
 const acknowledgeBatch = async () => {
-  const selectedIds = pendingOrders.value.newOrders
-    .filter(o => o.selected)
-    .map(o => o.orderId);
+  const selectedOrders = pendingOrders.value.newOrders.filter(o => o.selected);
   
-  if (selectedIds.length === 0) {
+  if (selectedOrders.length === 0) {
     ElMessage.warning('请至少选择一条医嘱');
     return;
   }
 
+  // 检查是否包含出院医嘱
+  const hasDischargeOrder = selectedOrders.some(o => o.orderType === 'DischargeOrder');
+  
+  if (hasDischargeOrder) {
+    // 如果包含出院医嘱，需要先验证
+    const dischargeOrder = selectedOrders.find(o => o.orderType === 'DischargeOrder');
+    const canProceed = await validateDischargeOrderBeforeAcknowledgement(dischargeOrder);
+    if (!canProceed) {
+      return; // 验证失败，不继续签收
+    }
+  }
+
+  const selectedIds = selectedOrders.map(o => o.orderId);
   await acknowledgeBatchInternal(selectedIds);
+  // 签收后刷新列表和数字徽章
+  await refreshAfterAction();
+};
+
+// 验证出院医嘱签收前置条件
+const validateDischargeOrderBeforeAcknowledgement = async (order) => {
+  const loading = ElLoading.service({
+    lock: true,
+    text: '正在验证出院医嘱签收条件...',
+    background: 'rgba(0, 0, 0, 0.7)'
+  });
+
+  try {
+    // 调用后端验证接口
+    const validationResult = await validateDischargeOrderAcknowledgement(selectedPatient.value.patientId);
+    
+    loading.close();
+    
+    // 如果不能签收，显示详细的错误弹窗
+    if (!validationResult.canAcknowledge) {
+      // 构建错误提示HTML（与医生开具出院医嘱的样式保持一致）
+      let errorHtml = '<div style="text-align: left;">';
+      errorHtml += '<h3 style="color: #f56c6c; margin-bottom: 15px;">❌ 无法签收出院医嘱</h3>';
+      
+      errorHtml += '<div style="padding: 12px; background: #fef0f0; border-left: 4px solid #f56c6c; border-radius: 4px; margin-bottom: 15px;">';
+      errorHtml += '<div style="font-size: 13px; line-height: 1.6; color: #606266;">';
+      errorHtml += validationResult.reason;
+      errorHtml += '</div></div>';
+      
+      // 判断错误原因类型，显示对应的医嘱列表
+      const hasUnacknowledgedOrders = validationResult.reason.includes('未签收');
+      const hasLateTaskOrders = validationResult.reason.includes('计划执行时间晚于出院时间');
+      
+      // 显示阻塞医嘱列表
+      if (validationResult.blockedOrders && validationResult.blockedOrders.length > 0) {
+        // 根据原因确定标题
+        let title = '';
+        if (hasUnacknowledgedOrders && !hasLateTaskOrders) {
+          title = '未签收的医嘱';
+        } else if (!hasUnacknowledgedOrders && hasLateTaskOrders) {
+          title = '任务时间冲突的医嘱';
+        } else {
+          title = '阻塞的医嘱';
+        }
+        
+        errorHtml += '<div style="margin-bottom: 15px;"><strong style="color: #f56c6c;">' + title + ' (' + validationResult.blockedOrders.length + ' 条)：</strong></div>';
+        errorHtml += '<ul style="margin: 0; padding-left: 20px; max-height: 250px; overflow-y: auto; border: 1px solid #ebeef5; border-radius: 4px; padding: 10px; background: #fafafa;">';
+        validationResult.blockedOrders.forEach(order => {
+          const createTime = order.createTime ? formatDateTime(new Date(order.createTime)) : '未知';
+          const endTime = order.endTime ? formatDateTime(new Date(order.endTime)) : '';
+          
+          errorHtml += `<li style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #ebeef5;">`;
+          errorHtml += `<div style="margin-bottom: 4px;"><strong style="color: #303133;">${order.summary}</strong></div>`;
+          errorHtml += `<div style="color: #909399; font-size: 12px; line-height: 1.5;">状态: ${order.statusDisplay}</div>`;
+          errorHtml += `<div style="color: #909399; font-size: 12px; line-height: 1.5;">创建时间: ${createTime}</div>`;
+          if (endTime) {
+            errorHtml += `<div style="color: #f56c6c; font-size: 12px; line-height: 1.5;">最晚任务时间: ${endTime}</div>`;
+          }
+          errorHtml += '</li>';
+        });
+        errorHtml += '</ul>';
+      }
+      
+      // 显示待停止医嘱（PendingStopOrderDetails）
+      if (validationResult.pendingStopOrderDetails && validationResult.pendingStopOrderDetails.length > 0) {
+        errorHtml += '<div style="margin-top: 15px; margin-bottom: 15px;"><strong style="color: #e6a23c;">待停止的医嘱 (' + validationResult.pendingStopOrderDetails.length + ' 条)：</strong></div>';
+        errorHtml += '<ul style="margin: 0; padding-left: 20px; max-height: 250px; overflow-y: auto; border: 1px solid #ebeef5; border-radius: 4px; padding: 10px; background: #fafafa;">';
+        validationResult.pendingStopOrderDetails.forEach(order => {
+          const stopTime = order.stopOrderTime ? formatDateTime(new Date(order.stopOrderTime)) : '未知';
+          errorHtml += `<li style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #ebeef5;">`;
+          errorHtml += `<div style="margin-bottom: 4px;"><strong style="color: #303133;">${order.summary}</strong></div>`;
+          errorHtml += `<div style="color: #909399; font-size: 12px; line-height: 1.5;">停止时间: ${stopTime}</div>`;
+          errorHtml += `<div style="color: #909399; font-size: 12px; line-height: 1.5;">停止原因: ${order.stopReason}</div>`;
+          errorHtml += '</li>';
+        });
+        errorHtml += '</ul>';
+      }
+      
+      // 根据错误类型给出不同的处理建议
+      errorHtml += '<div style="margin-top: 20px; padding: 12px; background: #f0f9ff; border-left: 4px solid #409eff; border-radius: 4px;">';
+      errorHtml += '<div style="font-size: 13px; line-height: 1.6;">';
+      errorHtml += '<strong style="color: #409eff;">💡 处理建议：</strong><br>';
+      
+      if (hasUnacknowledgedOrders) {
+        errorHtml += '1. 请先签收所有待签收的新开医嘱<br>';
+        errorHtml += '2. 请先签收所有待停止的医嘱<br>';
+      }
+      
+      if (hasLateTaskOrders) {
+        errorHtml += '• 部分医嘱的任务计划执行时间晚于出院时间<br>';
+        errorHtml += '• 建议退回这些医嘱，让医生重新调整<br>';
+        errorHtml += '• 或联系医生调整出院时间<br>';
+      }
+      
+      if (!hasUnacknowledgedOrders && !hasLateTaskOrders) {
+        errorHtml += '请先处理所有阻塞的医嘱<br>';
+      }
+      
+      errorHtml += '<div style="margin-top: 8px; color: #909399;">处理完成后再签收出院医嘱</div>';
+      errorHtml += '</div></div>';
+      
+      errorHtml += '</div>';
+      
+      // 显示弹窗（只有确定按钮）
+      await ElMessageBox.alert(errorHtml, '无法签收出院医嘱', {
+        dangerouslyUseHTMLString: true,
+        confirmButtonText: '确定',
+        type: 'error',
+        customClass: 'discharge-validation-dialog'
+      });
+      
+      return false; // 验证失败，不能签收
+    }
+    
+    // 验证通过，可以继续签收
+    return true;
+  } catch (error) {
+    loading.close();
+    console.error('验证出院医嘱签收条件失败:', error);
+    ElMessage.error('验证出院医嘱签收条件失败，请稍后重试');
+    return false;
+  }
 };
 
 // 签收核心逻辑
@@ -785,9 +969,6 @@ const acknowledgeBatchInternal = async (orderIds) => {
     // 清除选择状态
     selectAllNew.value = false;
     pendingOrders.value.newOrders.forEach(o => o.selected = false);
-
-    // 刷新列表
-    await refreshCurrentView();
   } catch (error) {
     console.error('签收失败:', error);
     ElMessage.error(error.message || '签收失败');
@@ -902,6 +1083,8 @@ const handleAcknowledgeResult = async (result) => {
 // 单条签收（停止医嘱）
 const acknowledgeStoppedOne = async (order) => {
   await acknowledgeStoppedBatchInternal([order.orderId]);
+  // 签收后刷新列表和数字徽章
+  await refreshAfterAction();
 };
 
 // 批量签收（停止医嘱）
@@ -916,6 +1099,8 @@ const acknowledgeStoppedBatch = async () => {
   }
 
   await acknowledgeStoppedBatchInternal(selectedIds);
+  // 签收后刷新列表和数字徽章
+  await refreshAfterAction();
 };
 
 // 停止医嘱签收核心逻辑
@@ -933,7 +1118,7 @@ const acknowledgeStoppedBatchInternal = async (orderIds) => {
 
     ElMessage.success(result.message);
 
-    // TODO: 阶段三实现 - 检查是否有待取消的申请
+    // 检查是否有待退药的申请
     for (const item of result.results) {
       if (item.hasPendingRequests) {
         await handleStoppedOrderWithPendingRequests(item);
@@ -943,47 +1128,82 @@ const acknowledgeStoppedBatchInternal = async (orderIds) => {
     // 清除选择状态
     selectAllStopped.value = false;
     pendingOrders.value.stoppedOrders.forEach(o => o.selected = false);
-
-    // 刷新列表
-    await refreshCurrentView();
   } catch (error) {
     console.error('签收停止医嘱失败:', error);
     ElMessage.error(error.message || '签收失败');
   }
 };
 
-// TODO: 阶段三实现 - 处理停止医嘱的待取消申请
+// 处理停止医嘱的待退药申请
 const handleStoppedOrderWithPendingRequests = async (result) => {
+  if (!result.pendingRequestIds || result.pendingRequestIds.length === 0) {
+    return;
+  }
+
   try {
     await ElMessageBox.confirm(
-      `该医嘱存在 ${result.pendingRequestIds.length} 个已提交但未执行的申请，是否取消这些申请？`,
-      '警告',
+      `该医嘱有 ${result.pendingRequestIds.length} 个已申请的药品需要退回药房，确认退药后任务将被停止。`,
+      '确认退药',
       {
-        confirmButtonText: '取消申请',
-        cancelButtonText: '保留申请',
-        type: 'warning'
+        confirmButtonText: '确认退药',
+        cancelButtonText: '暂不退药',
+        type: 'warning',
+        customClass: 'return-medication-confirm'
       }
     );
-    
-    // TODO: 调用取消申请接口
-    // await cancelMedicationRequest({ 
-    //   orderId: result.orderId, 
-    //   requestIds: result.pendingRequestIds 
-    // });
-    ElMessage.info('取消申请功能待阶段三实现');
-  } catch {
-    // 用户选择保留申请
+
+    // 对每个任务ID调用确认退药接口（注意：这些任务已经是PendingReturn状态）
+    const currentNurse = getCurrentNurse();
+    if (!currentNurse) {
+      ElMessage.error('未找到当前护士信息');
+      return;
+    }
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const taskId of result.pendingRequestIds) {
+      try {
+        const response = await confirmReturnMedication(
+          taskId,
+          currentNurse.staffId
+        );
+
+        if (response.success) {
+          successCount++;
+        } else {
+          failCount++;
+          console.error(`任务 ${taskId} 退药确认失败:`, response.message);
+        }
+      } catch (error) {
+        failCount++;
+        console.error(`任务 ${taskId} 退药确认异常:`, error);
+      }
+    }
+
+    if (successCount > 0) {
+      ElMessage.success(`已成功确认 ${successCount} 个退药${failCount > 0 ? `，${failCount} 个失败` : ''}`);
+    } else if (failCount > 0) {
+      ElMessage.error(`所有退药确认均失败`);
+    }
+  } catch (error) {
+    // 用户取消或其他错误
+    if (error !== 'cancel') {
+      console.error('退药确认失败:', error);
+    }
   }
 };
 
 // ==================== 退回逻辑 ====================
 
-// 单条退回
+// 单条退回（新开医嘱）
 const rejectOne = async (order) => {
   await rejectBatchInternal([order.orderId]);
+  // 退回后刷新列表和数字徽章
+  await refreshAfterAction();
 };
 
-// 批量退回
+// 批量退回（新开医嘱）
 const rejectBatch = async () => {
   const selectedIds = pendingOrders.value.newOrders
     .filter(o => o.selected)
@@ -995,9 +1215,34 @@ const rejectBatch = async () => {
   }
 
   await rejectBatchInternal(selectedIds);
+  // 退回后刷新列表和数字徽章
+  await refreshAfterAction();
 };
 
-// 退回核心逻辑
+// 单条退回（停止医嘱）
+const rejectStoppedOne = async (order) => {
+  await rejectStoppedBatchInternal([order.orderId]);
+  // 退回后刷新列表和数字徽章
+  await refreshAfterAction();
+};
+
+// 批量退回（停止医嘱）
+const rejectStoppedBatch = async () => {
+  const selectedIds = pendingOrders.value.stoppedOrders
+    .filter(o => o.selected)
+    .map(o => o.orderId);
+  
+  if (selectedIds.length === 0) {
+    ElMessage.warning('请至少选择一条医嘱');
+    return;
+  }
+
+  await rejectStoppedBatchInternal(selectedIds);
+  // 退回后刷新列表和数字徽章
+  await refreshAfterAction();
+};
+
+// 退回核心逻辑（新开医嘱）
 const rejectBatchInternal = async (orderIds) => {
   try {
     // 弹窗输入退回原因
@@ -1028,15 +1273,53 @@ const rejectBatchInternal = async (orderIds) => {
     // 清除选择状态
     selectAllNew.value = false;
     pendingOrders.value.newOrders.forEach(o => o.selected = false);
-
-    // 刷新列表
-    await refreshCurrentView();
   } catch (error) {
     if (error === 'cancel') {
       // 用户取消
       return;
     }
     console.error('退回失败:', error);
+    ElMessage.error(error.message || '退回失败');
+  }
+};
+
+// 退回核心逻辑（停止医嘱）
+const rejectStoppedBatchInternal = async (orderIds) => {
+  try {
+    // 弹窗输入拒绝原因
+    const { value: reason } = await ElMessageBox.prompt(
+      '请输入拒绝停止医嘱的原因（该医嘱将恢复为执行中状态）',
+      '拒绝停止医嘱',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        inputPattern: /\S+/,
+        inputErrorMessage: '拒绝原因不能为空'
+      }
+    );
+
+    const result = await rejectStopOrders({
+      nurseId: currentNurse.value.staffId,
+      orderIds: orderIds,
+      rejectReason: reason
+    });
+
+    if (!result.success) {
+      ElMessage.error(result.message || '退回失败');
+      return;
+    }
+
+    ElMessage.success(result.message);
+
+    // 清除选择状态
+    selectAllStopped.value = false;
+    pendingOrders.value.stoppedOrders.forEach(o => o.selected = false);
+  } catch (error) {
+    if (error === 'cancel') {
+      // 用户取消
+      return;
+    }
+    console.error('退回停止医嘱失败:', error);
     ElMessage.error(error.message || '退回失败');
   }
 };
@@ -1102,6 +1385,19 @@ const stopAutoRefresh = () => {
   }
 };
 
+// 签收/退回后的刷新逻辑（立即刷新患者列表和医嘱列表）
+const refreshAfterAction = async () => {
+  // 立即刷新患者列表（更新数字徽章）
+  await loadPatientList();
+  
+  // 根据选择模式刷新医嘱列表
+  if (enableMultiSelect.value && selectedPatients.value.length > 0) {
+    await loadSelectedPatientsOrders();
+  } else if (selectedPatient.value) {
+    await loadPatientPendingOrders(selectedPatient.value.patientId);
+  }
+};
+
 // 刷新当前视图（智能Diff更新，避免闪烁）
 const refreshCurrentView = async () => {
   await loadPatientListWithDiff();
@@ -1120,7 +1416,7 @@ const loadPatientListWithDiff = async () => {
     const deptCode = currentNurse.value.deptCode;
     if (!deptCode) return;
 
-    const newData = await getPendingOrdersSummary(deptCode);
+    const newData = await getPatientsWithPendingCount(deptCode);
     
     // Diff算法：对比新旧数据
     const oldMap = new Map(patientList.value.map(p => [p.patientId, p]));
@@ -1311,7 +1607,8 @@ const getOrderTypeName = (orderType) => {
     'MedicationOrder': '药品',
     'InspectionOrder': '检查',
     'SurgicalOrder': '手术',
-    'OperationOrder': '操作'
+    'OperationOrder': '操作',
+    'DischargeOrder': '出院'
   };
   return map[orderType] || orderType;
 };
@@ -1322,46 +1619,121 @@ const getOrderTypeColor = (orderType) => {
     'MedicationOrder': 'success',
     'InspectionOrder': 'info',
     'SurgicalOrder': 'danger',
-    'OperationOrder': 'warning'
+    'OperationOrder': 'warning',
+    'DischargeOrder': 'primary'
   };
   return map[orderType] || '';
 };
 
+// 格式化医嘱标题（为出院医嘱定制）
+const formatOrderTitle = (order) => {
+  // 如果是出院医嘱，显示特殊格式
+  if (order.orderType === 'DischargeOrder') {
+    const dischargeTime = order.plantEndTime || order.createTime;
+    return `出院医嘱-预计出院时间: ${formatDateTime(dischargeTime)}`;
+  }
+  // 其他医嘱使用原有的 displayText
+  return order.displayText;
+};
+
 // 获取时间策略文本
 const getTimingStrategyText = (order) => {
-  const map = {
-    'IMMEDIATE': '立即执行',
-    'SPECIFIC': `指定时间 ${formatDateTime(order.startTime)}`,
-    'CYCLIC': `周期执行`,
-    'SLOTS': '时段执行'
+  if (!order.timingStrategy) return '未指定';
+  
+  switch (order.timingStrategy) {
+    case 'IMMEDIATE':
+      return '立即执行';
+    
+    case 'SPECIFIC':
+      return `指定时间: ${formatDateTime(order.startTime)}`;
+    
+    case 'CYCLIC':
+      const intervalText = order.intervalHours 
+        ? (order.intervalHours < 1 
+            ? `每${Math.round(order.intervalHours * 60)}分钟` 
+            : order.intervalHours % 24 === 0 
+              ? `每${order.intervalHours / 24}天` 
+              : `每${order.intervalHours}小时`)
+        : '周期执行';
+      return intervalText;
+    
+    case 'SLOTS':
+      const slotText = getSlotNamesFromMask(order.smartSlotsMask);
+      const intervalDaysText = order.intervalDays && order.intervalDays > 1 
+        ? `每${order.intervalDays}天` 
+        : '每天';
+      return `时段执行 (${intervalDaysText} ${slotText})`;
+    
+    default:
+      return order.timingStrategy;
+  }
+};
+
+// 根据时间槽掩码获取中文时间点名称
+const getSlotNamesFromMask = (mask) => {
+  if (!mask) return '未指定';
+  
+  const slotMap = {
+    1: '早餐前',
+    2: '早餐后',
+    4: '午餐前',
+    8: '午餐后',
+    16: '晚餐前',
+    32: '晚餐后',
+    64: '睡前'
   };
-  return map[order.timingStrategy] || order.timingStrategy;
+  
+  const selectedSlots = [];
+  for (let bit = 1; bit <= 64; bit *= 2) {
+    if (mask & bit) {
+      selectedSlots.push(slotMap[bit]);
+    }
+  }
+  
+  return selectedSlots.length > 0 ? selectedSlots.join('、') : '未指定';
 };
 
 // 获取给药途径文本
 const getUsageRouteText = (route) => {
+  if (route === null || route === undefined || route === '') return '未指定';
+  
+  // 后端返回的是枚举名称字符串（如 "PO", "IM"）
   const map = {
-    '1': '口服',
-    '10': '肌肉注射',
-    '11': '皮下注射',
-    '12': '皮内注射',
-    '20': '静脉滴注',
-    '21': '静脉推注'
+    'PO': '口服',
+    'Topical': '外用/涂抹',
+    'IM': '肌内注射',
+    'SC': '皮下注射',
+    'IVP': '静脉推注',
+    'IVGTT': '静脉滴注',
+    'Inhalation': '吸氧',
+    'ST': '皮试'
   };
+  
   return map[route] || route;
 };
 
 // 格式化日期时间
 const formatDateTime = (dateTime) => {
   if (!dateTime) return '-';
-  const date = new Date(dateTime);
-  return date.toLocaleString('zh-CN', { 
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  try {
+    // 确保UTC时间字符串带有Z标识
+    let utcString = dateTime;
+    if (!dateTime.endsWith('Z') && !dateTime.includes('+')) {
+      utcString = dateTime + 'Z';
+    }
+    const date = new Date(utcString);
+    // JavaScript的toLocaleString会自动转换为本地时区（北京时间UTC+8）
+    return date.toLocaleString('zh-CN', { 
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Asia/Shanghai'
+    });
+  } catch {
+    return dateTime;
+  }
 };
 </script>
 
@@ -1997,7 +2369,18 @@ const formatDateTime = (dateTime) => {
   flex-wrap: wrap;
 }
 
+.order-id {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  background: #ecf5ff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+}
+
 .order-text {
+  flex: 1;
   font-weight: 600;
   font-size: 0.95rem;
   color: var(--text-primary);
@@ -2153,6 +2536,23 @@ const formatDateTime = (dateTime) => {
 
 :deep(.order-action-confirm .el-message-box__message > div) {
   margin-top: 10px;
+}
+
+/* 退药申请弹窗样式 */
+:deep(.return-medication-confirm) {
+  width: 520px;
+  max-width: 90vw;
+}
+
+:deep(.return-medication-confirm .el-message-box__message) {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #606266;
+}
+
+:deep(.return-medication-confirm .el-input__inner) {
+  min-height: 80px;
+  line-height: 1.5;
 }
 
 .empty-icon {

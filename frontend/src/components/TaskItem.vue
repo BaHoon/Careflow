@@ -222,6 +222,33 @@ const categoryText = computed(() => {
   return textMap[props.task.category] || props.task.category;
 });
 
+// 操作名称（优先使用dataPayload中的OperationName或Title，否则使用opId）
+const operationName = computed(() => {
+  if (props.task.dataPayload) {
+    try {
+      const payload = typeof props.task.dataPayload === 'string' 
+        ? JSON.parse(props.task.dataPayload) 
+        : props.task.dataPayload;
+      return payload.OperationName || payload.Title || props.task.opId || '操作任务';
+    } catch (e) {
+      console.error('解析dataPayload失败:', e);
+    }
+  }
+  return props.task.opId || '操作任务';
+});
+
+// 任务类别标签类型
+const getCategoryTagType = (category) => {
+  const typeMap = {
+    'Immediate': 'success',
+    'Duration': 'primary',
+    'ResultPending': 'warning',
+    'DataCollection': 'info',
+    'Verification': ''
+  };
+  return typeMap[category] || '';
+};
+
 // 状态标签类型
 const statusTagType = computed(() => {
   const status = props.task.status;
@@ -285,13 +312,23 @@ const statusText = computed(() => {
 // 格式化时间
 const formatTime = (dateString) => {
   if (!dateString) return '';
-  const date = new Date(dateString);
-  return date.toLocaleString('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  try {
+    // 确保UTC时间字符串带有Z标识
+    let utcString = dateString;
+    if (!dateString.endsWith('Z') && !dateString.includes('+')) {
+      utcString = dateString + 'Z';
+    }
+    const date = new Date(utcString);
+    return date.toLocaleString('zh-CN', {
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Asia/Shanghai'
+    });
+  } catch {
+    return dateString;
+  }
 };
 
 // 事件处理

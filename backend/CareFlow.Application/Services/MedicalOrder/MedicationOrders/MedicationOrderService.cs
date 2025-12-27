@@ -6,7 +6,7 @@ using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models.Medical;
 using Microsoft.Extensions.Logging;
 
-namespace CareFlow.Application.Services.MedicationOrders;
+namespace CareFlow.Application.Services.MedicalOrder.MedicationOrders;
 
 /// <summary>
 /// 药物医嘱服务实现

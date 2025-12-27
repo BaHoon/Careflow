@@ -6,7 +6,7 @@ using CareFlow.Core.Models.Medical;
 using CareFlow.Core.Enums;
 using Microsoft.Extensions.Logging;
 
-namespace CareFlow.Application.Services.InspectionOrders;
+namespace CareFlow.Application.Services.MedicalOrder.InspectionOrders;
 
 /// <summary>
 /// 检查医嘱服务实现
@@ -87,10 +87,6 @@ public class InspectionOrderService : IInspectionOrderService
                     // 生成 RisLisId（检查申请单号）
                     var risLisId = GenerateRisLisId(orderDto.ItemCode);
 
-                    // 自动生成预约时间和地点
-                    var appointmentTime = GenerateAppointmentTime(orderDto.ItemCode);
-                    var appointmentPlace = GetAppointmentPlace(orderDto.ItemCode);
-
                     var order = new InspectionOrder
                     {
                         PatientId = request.PatientId,
@@ -99,18 +95,19 @@ public class InspectionOrderService : IInspectionOrderService
                         Status = OrderStatus.PendingReceive, // 待护士签收
                         IsLongTerm = false, // 检查医嘱通常为临时医嘱
                         CreateTime = DateTime.UtcNow,
-                        PlantEndTime = appointmentTime.AddHours(2), // 预约时间后2小时结束
+                        PlantEndTime = DateTime.UtcNow.AddDays(1), // 默认24小时内完成，实际以检查站预约时间为准
                         
                         // 检查医嘱特有字段
                         ItemCode = orderDto.ItemCode,
+                        ItemName = orderDto.ItemName, // 检查项目名称
                         RisLisId = risLisId,
                         Location = GetInspectionLocation(orderDto.ItemCode),
                         Source = DetermineInspectionSource(orderDto.ItemCode),
                         InspectionStatus = InspectionOrderStatus.Pending, // 保持待处理状态，等护士接受
                         
-                        // 自动生成的预约信息
-                        AppointmentTime = appointmentTime,
-                        AppointmentPlace = appointmentPlace,
+                        // 预约信息暂时为空，等待检查站返回
+                        AppointmentTime = null,
+                        AppointmentPlace = null,
                         Precautions = BuildPrecautions(orderDto),
                         
                         Remarks = orderDto.Remarks
@@ -222,52 +219,6 @@ public class InspectionOrderService : IInspectionOrderService
             "PFT" => "功能检查室",
             "PATH" => "病理科",
             _ => "检查科"
-        };
-    }
-
-    /// <summary>
-    /// 自动生成预约时间（根据检查类型设置不同的时间）
-    /// </summary>
-    private DateTime GenerateAppointmentTime(string itemCode)
-    {
-        var baseTime = DateTime.UtcNow.AddDays(1); // 默认第二天
-        var itemPrefix = itemCode.Split('_')[0];
-        
-        // 根据检查类型设置不同的预约时间段
-        return itemPrefix switch
-        {
-            "CT" or "MRI" or "PETCT" => baseTime.Date.AddHours(9), // 上午9点
-            "XRAY" or "DR" => baseTime.Date.AddHours(14), // 下午2点
-            "US" => baseTime.Date.AddHours(8), // 上午8点（超声需要空腹）
-            "ENDO" => baseTime.Date.AddHours(8).AddDays(1), // 后天上午8点（内窥镜需要提前准备）
-            "ECG" or "EEG" or "PFT" => baseTime.Date.AddHours(10), // 上午10点
-            "PATH" => baseTime.Date.AddHours(9), // 上午9点
-            _ => baseTime.Date.AddHours(9)
-        };
-    }
-
-    /// <summary>
-    /// 根据检查类型自动分配预约地点
-    /// </summary>
-    private string GetAppointmentPlace(string itemCode)
-    {
-        var itemPrefix = itemCode.Split('_')[0];
-        
-        return itemPrefix switch
-        {
-            "CT" => "影像科CT室1号机房",
-            "MRI" => "影像科MRI室2号机房",
-            "XRAY" => "影像科X光室3号诊室",
-            "DR" => "影像科DR室4号诊室",
-            "PETCT" => "影像科PET-CT中心",
-            "DSA" => "影像科DSA介入室",
-            "US" => "超声科1号诊室",
-            "ENDO" => "内窥镜中心检查室",
-            "ECG" => "功能检查室心电图室",
-            "EEG" => "功能检查室脑电图室",
-            "PFT" => "功能检查室肺功能室",
-            "PATH" => "病理科标本接收处",
-            _ => "检查科登记处"
         };
     }
 

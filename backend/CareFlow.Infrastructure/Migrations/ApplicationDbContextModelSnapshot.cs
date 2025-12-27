@@ -540,6 +540,60 @@ namespace CareFlow.Infrastructure.Migrations
                     b.ToTable("ExecutionTasks");
                 });
 
+            modelBuilder.Entity("CareFlow.Core.Models.Nursing.MedicationReturnRequest", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime?>("ConfirmedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("ExecutionTaskId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("PharmacyResponse")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RequestedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ReturnType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("SubmittedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExecutionTaskId");
+
+                    b.HasIndex("RequestedBy");
+
+                    b.ToTable("MedicationReturnRequests");
+                });
+
             modelBuilder.Entity("CareFlow.Core.Models.Nursing.NurseRoster", b =>
                 {
                     b.Property<long>("Id")
@@ -901,9 +955,8 @@ namespace CareFlow.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
 
                     b.Property<float>("Weight")
                         .HasColumnType("real");
@@ -1007,6 +1060,43 @@ namespace CareFlow.Infrastructure.Migrations
                     b.ToTable("Wards");
                 });
 
+            modelBuilder.Entity("CareFlow.Core.Models.Medical.DischargeOrder", b =>
+                {
+                    b.HasBaseType("CareFlow.Core.Models.Medical.MedicalOrder");
+
+                    b.Property<DateTime?>("DischargeConfirmedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DischargeConfirmedByNurseId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("DischargeDiagnosis")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("DischargeInstructions")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("DischargeTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("DischargeType")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("FollowUpDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("MedicationInstructions")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("RequiresFollowUp")
+                        .HasColumnType("boolean");
+
+                    b.ToTable("DischargeOrders", (string)null);
+                });
+
             modelBuilder.Entity("CareFlow.Core.Models.Medical.InspectionOrder", b =>
                 {
                     b.HasBaseType("CareFlow.Core.Models.Medical.MedicalOrder");
@@ -1027,6 +1117,10 @@ namespace CareFlow.Infrastructure.Migrations
                         .HasColumnType("integer");
 
                     b.Property<string>("ItemCode")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ItemName")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -1089,18 +1183,51 @@ namespace CareFlow.Infrastructure.Migrations
                 {
                     b.HasBaseType("CareFlow.Core.Models.Medical.MedicalOrder");
 
-                    b.Property<string>("FrequencyType")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<int?>("ExpectedDurationMinutes")
+                        .HasColumnType("integer");
 
-                    b.Property<string>("FrequencyValue")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<int>("IntervalDays")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("IntervalHours")
+                        .HasColumnType("numeric");
 
                     b.Property<bool>("Normal")
                         .HasColumnType("boolean");
 
                     b.Property<string>("OpId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("OperationName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("OperationRequirements")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OperationSite")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PreparationItems")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("RequiresPreparation")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("RequiresResult")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ResultTemplate")
+                        .HasColumnType("text");
+
+                    b.Property<int>("SmartSlotsMask")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("StartTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TimingStrategy")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -1325,6 +1452,25 @@ namespace CareFlow.Infrastructure.Migrations
                     b.Navigation("Patient");
                 });
 
+            modelBuilder.Entity("CareFlow.Core.Models.Nursing.MedicationReturnRequest", b =>
+                {
+                    b.HasOne("CareFlow.Core.Models.Nursing.ExecutionTask", "ExecutionTask")
+                        .WithMany()
+                        .HasForeignKey("ExecutionTaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CareFlow.Core.Models.Organization.Nurse", "RequestedByNurse")
+                        .WithMany()
+                        .HasForeignKey("RequestedBy")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ExecutionTask");
+
+                    b.Navigation("RequestedByNurse");
+                });
+
             modelBuilder.Entity("CareFlow.Core.Models.Nursing.NurseRoster", b =>
                 {
                     b.HasOne("CareFlow.Core.Models.Nursing.ShiftType", "ShiftType")
@@ -1476,6 +1622,15 @@ namespace CareFlow.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Department");
+                });
+
+            modelBuilder.Entity("CareFlow.Core.Models.Medical.DischargeOrder", b =>
+                {
+                    b.HasOne("CareFlow.Core.Models.Medical.MedicalOrder", null)
+                        .WithOne()
+                        .HasForeignKey("CareFlow.Core.Models.Medical.DischargeOrder", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Medical.InspectionOrder", b =>

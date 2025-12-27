@@ -53,7 +53,7 @@ public class DailyTaskGeneratorService
 
             // 1. 查询所有在院患者
             var patients = await _patientRepo.GetQueryable()
-                .Where(p => p.Status != "Discharged")
+                .Where(p => p.Status == PatientStatus.Hospitalized || p.Status == PatientStatus.PendingDischarge)
                 .ToListAsync();
 
             if (patients.Count == 0)

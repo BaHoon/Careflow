@@ -21,6 +21,11 @@ public class InspectionOrderDto
     public string ItemCode { get; set; } = null!;
     
     /// <summary>
+    /// 检查项目名称（如"血常规"、"头颅CT"等）
+    /// </summary>
+    public string ItemName { get; set; } = null!;
+    
+    /// <summary>
     /// 预约时间（可选，不需要预约时为null）
     /// </summary>
     public DateTime? AppointmentTime { get; set; }

@@ -17,10 +17,16 @@ namespace CareFlow.Core.Models.Organization
         public string IdCard { get; set; } = string.Empty;
         public DateTime DateOfBirth { get; set; }
         public int Age { get; set; }
+        public float Height { get; set; }
         public float Weight { get; set; }
-        public string Status { get; set; } = string.Empty;
+        public PatientStatus Status { get; set; }
         public string PhoneNumber { get; set; } = string.Empty;
         public NursingGrade NursingGrade { get; set; }
+        
+        // 入院相关信息
+        public string? OutpatientDiagnosis { get; set; }
+        public DateTime? ScheduledAdmissionTime { get; set; }
+        public DateTime? ActualAdmissionTime { get; set; }
 
         // 外键关系
         public string BedId { get; set; } = string.Empty;
