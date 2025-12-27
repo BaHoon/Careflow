@@ -140,4 +140,29 @@ public class AdminController : ControllerBase
             return StatusCode(500, new { success = false, message = "更新失败", error = ex.Message });
         }
     }
+
+    /// <summary>
+    /// 删除员工
+    /// </summary>
+    /// <param name="staffId">员工ID</param>
+    /// <returns>操作结果</returns>
+    [HttpDelete("delete-staff/{staffId}")]
+    public async Task<IActionResult> DeleteStaff(string staffId)
+    {
+        try
+        {
+            await _staffService.DeleteStaffAsync(staffId);
+            return Ok(new { success = true, message = "员工删除成功" });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "删除员工失败: {Message}", ex.Message);
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "删除员工失败");
+            return StatusCode(500, new { success = false, message = "删除失败", error = ex.Message });
+        }
+    }
 }

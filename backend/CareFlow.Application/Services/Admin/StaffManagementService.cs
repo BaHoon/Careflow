@@ -319,6 +319,46 @@ public class StaffManagementService
     }
 
     /// <summary>
+    /// 删除员工
+    /// </summary>
+    public async Task DeleteStaffAsync(string staffId)
+    {
+        // 查找员工
+        var staff = await _staffRepository.GetByIdAsync(staffId);
+        if (staff == null)
+        {
+            throw new InvalidOperationException($"员工ID {staffId} 不存在");
+        }
+
+        // 删除员工（根据角色类型使用对应的repository）
+        switch (staff.RoleType)
+        {
+            case "Doctor":
+                var doctor = await _doctorRepository.GetByIdAsync(staffId);
+                if (doctor != null)
+                {
+                    await _doctorRepository.DeleteAsync(doctor);
+                }
+                break;
+            case "Nurse":
+                var nurse = await _nurseRepository.GetByIdAsync(staffId);
+                if (nurse != null)
+                {
+                    await _nurseRepository.DeleteAsync(nurse);
+                }
+                break;
+            case "Admin":
+                await _staffRepository.DeleteAsync(staff);
+                break;
+            default:
+                await _staffRepository.DeleteAsync(staff);
+                break;
+        }
+        
+        _logger.LogInformation("成功删除员工: {StaffId}", staffId);
+    }
+
+    /// <summary>
     /// 密码哈希方法（与 AuthService 保持一致）
     /// </summary>
     private static string HashPassword(string password)

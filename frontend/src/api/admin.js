@@ -44,3 +44,12 @@ export async function resetPassword(data) {
 export async function updateStaff(data) {
   return await api.post('/Admin/update-staff', data);
 }
+
+/**
+ * 删除员工
+ * @param {string} staffId - 员工ID
+ * @returns {Promise}
+ */
+export async function deleteStaff(staffId) {
+  return await api.delete(`/Admin/delete-staff/${staffId}`);
+}

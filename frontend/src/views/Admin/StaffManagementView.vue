@@ -246,7 +246,7 @@ import {
   Plus
 } from '@element-plus/icons-vue';
 import { useRouter } from 'vue-router';
-import { queryStaffList, addStaff, resetPassword, updateStaff } from '@/api/admin';
+import { queryStaffList, addStaff, resetPassword, updateStaff, deleteStaff } from '@/api/admin';
 
 const router = useRouter();
 const userInfo = ref(null);
@@ -506,13 +506,19 @@ const handleDelete = async (row) => {
       }
     );
     
-    // TODO: 调用实际的API
-    await new Promise(resolve => setTimeout(resolve, 500));
+    const response = await deleteStaff(row.staffId);
     
-    ElMessage.success('删除成功');
-    loadStaffList();
+    if (response.success) {
+      ElMessage.success('删除成功');
+      loadStaffList();
+    } else {
+      ElMessage.error(response.message || '删除失败');
+    }
   } catch (error) {
-    // 用户取消
+    if (error !== 'cancel') {
+      console.error('删除失败:', error);
+      ElMessage.error(error.response?.data?.message || '操作失败');
+    }
   }
 };
 
