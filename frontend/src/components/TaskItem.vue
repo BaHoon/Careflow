@@ -255,8 +255,22 @@ const isCompleted = computed(() => {
   return props.task.status === 'Completed' || props.task.status === 5;
 });
 
-// 显示标题（优先使用 taskTitle，否则使用类别文本）
+// 显示标题（优先使用 DataPayload.Title，其次 taskTitle，最后使用类别文本）
 const displayTitle = computed(() => {
+  // 尝试从 DataPayload 获取 Title
+  if (props.task.dataPayload) {
+    try {
+      const payload = typeof props.task.dataPayload === 'string' 
+        ? JSON.parse(props.task.dataPayload) 
+        : props.task.dataPayload;
+      if (payload && payload.Title) {
+        return payload.Title;
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
   if (props.task.taskSource === 'ExecutionTask' && props.task.taskTitle) {
     return props.task.taskTitle;
   }
