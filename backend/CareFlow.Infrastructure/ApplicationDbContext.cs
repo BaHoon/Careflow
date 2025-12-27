@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using CareFlow.Core.Models;
 using CareFlow.Core.Models.Organization;
 using CareFlow.Core.Models.Space;
@@ -62,6 +63,12 @@ namespace CareFlow.Infrastructure
         #region 5. Barcode (条形码系统)
         public DbSet<BarcodeIndex> BarcodeIndexes { get; set; }         // 条形码索引表
         #endregion
+
+        // 实现 ICareFlowDbContext 的 BeginTransactionAsync 方法
+        public Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
+        {
+            return Database.BeginTransactionAsync(cancellationToken);
+        }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

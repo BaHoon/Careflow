@@ -125,3 +125,40 @@ export const addSupplement = (data) => {
 export const getSupplements = (taskId) => {
   return api.get(`/Nursing/tasks/${taskId}/supplements`);
 };
+
+// ==================== ExecutionTask 操作接口 ====================
+
+/**
+ * 开始执行任务
+ * @param {number} taskId - 任务ID
+ * @param {string} nurseId - 护士ID
+ */
+export const startExecutionTask = (taskId, nurseId) => {
+  return api.post(`/Nursing/execution-tasks/${taskId}/start`, { nurseId });
+};
+
+/**
+ * 完成执行任务
+ * @param {number} taskId - 任务ID
+ * @param {string} nurseId - 护士ID
+ * @param {string} resultPayload - 执行结果（JSON字符串，可选）
+ */
+export const completeExecutionTask = (taskId, nurseId, resultPayload = null) => {
+  return api.post(`/Nursing/execution-tasks/${taskId}/complete`, { 
+    nurseId, 
+    resultPayload 
+  });
+};
+
+/**
+ * 取消执行任务
+ * @param {number} taskId - 任务ID
+ * @param {string} nurseId - 护士ID
+ * @param {string} cancelReason - 取消理由
+ */
+export const cancelExecutionTask = (taskId, nurseId, cancelReason) => {
+  return api.post(`/Nursing/execution-tasks/${taskId}/cancel`, { 
+    nurseId, 
+    cancelReason 
+  });
+};
