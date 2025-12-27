@@ -33,29 +33,39 @@ public class OperationOrderTaskService : IOperationOrderTaskService
     private readonly IRepository<HospitalTimeSlot, int> _timeSlotRepository;
     private readonly ILogger<OperationOrderTaskService> _logger;
 
-    // 操作代码到操作名称的映射（从原 Factory 合并）
+    // 操作代码到操作名称的映射
     private static readonly Dictionary<string, string> OperationNameMap = new()
     {
-        { "OP001", "更换引流袋" },
-        { "OP002", "持续吸氧" },
-        { "OP003", "血糖监测" },
-        { "OP004", "更换敷料" },
-        { "OP005", "导尿" },
-        { "OP006", "鼻饲" },
-        { "OP007", "雾化吸入" },
-        { "OP008", "口腔护理" },
-        { "OP009", "会阴护理" },
-        { "OP010", "皮肤护理" },
-        { "OP011", "持续心电监护" },
-        { "OP012", "持续导尿" },
-        { "OP013", "持续胃肠减压" },
-        { "OP014", "持续静脉输液" },
-        { "OP015", "翻身拍背" },
-        { "OP016", "血压监测" },
-        { "OP017", "体温监测" },
-        { "OP018", "尿量监测" },
-        { "OP019", "意识状态评估" },
-        { "OP020", "疼痛评估" }
+        // 一、呼吸道管理类
+        { "OP001", "持续低流量吸氧" },
+        { "OP002", "雾化吸入治疗" },
+        { "OP003", "经口/鼻吸痰" },
+        { "OP004", "气管切开护理" },
+        
+        // 二、管路置入与维护类
+        { "OP005", "留置胃管(鼻饲管置入)" },
+        { "OP006", "胃肠减压护理" },
+        { "OP007", "留置导尿术" },
+        { "OP008", "更换引流袋/尿袋" },
+        { "OP009", "膀胱冲洗" },
+        { "OP010", "大量不保留灌肠" },
+        
+        // 三、静脉与标本采集类
+        { "OP011", "快速血糖监测(末梢)" },
+        { "OP012", "静脉留置针置管" },
+        { "OP013", "静脉采血" },
+        { "OP014", "动脉血气采集" },
+        { "OP015", "静脉输血护理" },
+        
+        // 四、伤口与皮肤护理类
+        { "OP016", "普通换药/敷料更换" },
+        { "OP017", "造口护理" },
+        { "OP018", "手术切口拆线" },
+        
+        // 五、仪器监测与治疗类
+        { "OP019", "心电监护" },
+        { "OP020", "微量泵/注射泵使用" },
+        { "OP021", "气压治疗(预防血栓)" }
     };
 
     public OperationOrderTaskService(
@@ -709,12 +719,17 @@ public class OperationOrderTaskService : IOperationOrderTaskService
     {
         return opId switch
         {
-            "OP003" => System.Text.Json.JsonSerializer.Serialize(new { Value = 0.0, Unit = "mmol/L", Note = "" }), // 血糖监测
-            "OP016" => System.Text.Json.JsonSerializer.Serialize(new { Systolic = 0, Diastolic = 0, Note = "" }), // 血压监测
-            "OP017" => System.Text.Json.JsonSerializer.Serialize(new { Value = 0.0, Unit = "℃", Note = "" }), // 体温监测
-            "OP018" => System.Text.Json.JsonSerializer.Serialize(new { Value = 0.0, Unit = "ml", Note = "" }), // 尿量监测
-            "OP019" => System.Text.Json.JsonSerializer.Serialize(new { Level = "", Description = "", Note = "" }), // 意识状态评估
-            "OP020" => System.Text.Json.JsonSerializer.Serialize(new { Score = 0, Level = "", Note = "" }), // 疼痛评估
+            // ResultPending 类操作
+            "OP011" => System.Text.Json.JsonSerializer.Serialize(new { Value = 0.0, Unit = "mmol/L", Note = "" }), // 快速血糖监测(末梢)
+            
+            // Duration 类但需要记录结果的操作
+            "OP006" => System.Text.Json.JsonSerializer.Serialize(new { DrainageAmount = 0.0, Unit = "ml", Color = "", Note = "" }), // 胃肠减压护理
+            "OP009" => System.Text.Json.JsonSerializer.Serialize(new { IrrigationAmount = 0.0, Unit = "ml", Color = "", Note = "" }), // 膀胱冲洗
+            "OP015" => System.Text.Json.JsonSerializer.Serialize(new { TransfusionAmount = 0.0, Unit = "ml", Reaction = "", Note = "" }), // 静脉输血护理
+            
+            // Immediate 类但需要记录结果的操作
+            "OP010" => System.Text.Json.JsonSerializer.Serialize(new { Result = "", Amount = "", Note = "" }), // 大量不保留灌肠
+            
             _ => null
         };
     }
@@ -764,30 +779,31 @@ public class OperationOrderTaskService : IOperationOrderTaskService
         return opId switch
         {
             // Immediate 类：即刻执行，扫码即完成
-            "OP001" => TaskCategory.Immediate,  // 更换引流袋
-            "OP004" => TaskCategory.Immediate,  // 更换敷料
-            "OP005" => TaskCategory.Immediate,  // 导尿
-            "OP008" => TaskCategory.Immediate,  // 口腔护理
-            "OP009" => TaskCategory.Immediate,  // 会阴护理
-            "OP010" => TaskCategory.Immediate,  // 皮肤护理
-            "OP015" => TaskCategory.Immediate,  // 翻身拍背
+            "OP003" => TaskCategory.Immediate,  // 经口/鼻吸痰
+            "OP004" => TaskCategory.Immediate,  // 气管切开护理
+            "OP005" => TaskCategory.Immediate,  // 留置胃管(鼻饲管置入)
+            "OP007" => TaskCategory.Immediate,  // 留置导尿术
+            "OP008" => TaskCategory.Immediate,  // 更换引流袋/尿袋
+            "OP012" => TaskCategory.Immediate,  // 静脉留置针置管
+            "OP013" => TaskCategory.Immediate,  // 静脉采血
+            "OP014" => TaskCategory.Immediate,  // 动脉血气采集
+            "OP016" => TaskCategory.Immediate,  // 普通换药/敷料更换
+            "OP017" => TaskCategory.Immediate,  // 造口护理
+            "OP018" => TaskCategory.Immediate,  // 手术切口拆线
             
             // Duration 类：持续执行，需要开始和结束时间
-            "OP002" => TaskCategory.Duration,   // 持续吸氧
-            "OP006" => TaskCategory.Duration,   // 鼻饲
-            "OP007" => TaskCategory.Duration,   // 雾化吸入
-            "OP011" => TaskCategory.Duration,   // 持续心电监护
-            "OP012" => TaskCategory.Duration,   // 持续导尿
-            "OP013" => TaskCategory.Duration,   // 持续胃肠减压
-            "OP014" => TaskCategory.Duration,   // 持续静脉输液
+            "OP001" => TaskCategory.Duration,   // 持续低流量吸氧
+            "OP002" => TaskCategory.Duration,   // 雾化吸入治疗
+            "OP019" => TaskCategory.Duration,   // 心电监护
+            "OP020" => TaskCategory.Duration,   // 微量泵/注射泵使用
+            "OP021" => TaskCategory.Duration,   // 气压治疗(预防血栓)
             
             // ResultPending 类：需要等待结果，录入结果后完成
-            "OP003" => TaskCategory.ResultPending, // 血糖监测
-            "OP016" => TaskCategory.ResultPending, // 血压监测
-            "OP017" => TaskCategory.ResultPending, // 体温监测
-            "OP018" => TaskCategory.ResultPending, // 尿量监测
-            "OP019" => TaskCategory.ResultPending, // 意识状态评估
-            "OP020" => TaskCategory.ResultPending, // 疼痛评估
+            "OP006" => TaskCategory.ResultPending, // 胃肠减压护理（需要记录引流量和颜色）
+            "OP009" => TaskCategory.ResultPending, // 膀胱冲洗（需要记录冲洗量和颜色）
+            "OP010" => TaskCategory.ResultPending, // 大量不保留灌肠（需要记录结果和量）
+            "OP011" => TaskCategory.ResultPending, // 快速血糖监测(末梢)
+            "OP015" => TaskCategory.ResultPending, // 静脉输血护理（需要记录输血量和反应）
             
             // 默认为立即执行
             _ => TaskCategory.Immediate

@@ -23,6 +23,10 @@ public class OrderDetailDto
     // 人员信息
     public string PatientId { get; set; } = null!;
     public string PatientName { get; set; } = string.Empty;
+    public string? PatientGender { get; set; }
+    public int? PatientAge { get; set; }
+    public string? BedNumber { get; set; }
+    public string? Department { get; set; }
     public string DoctorId { get; set; } = null!;
     public string DoctorName { get; set; } = string.Empty;
     public string? NurseId { get; set; }
@@ -137,6 +141,31 @@ public class OrderDetailDto
     /// 检查项目名称（仅InspectionOrder有效）
     /// </summary>
     public string? ItemName { get; set; }
+    
+    /// <summary>
+    /// 申请单号（仅InspectionOrder有效）
+    /// </summary>
+    public string? RisLisId { get; set; }
+    
+    /// <summary>
+    /// 检查地点（仅InspectionOrder有效）
+    /// </summary>
+    public string? Location { get; set; }
+    
+    /// <summary>
+    /// 注意事项（仅InspectionOrder有效）
+    /// </summary>
+    public string? Precautions { get; set; }
+    
+    /// <summary>
+    /// 预约时间（仅InspectionOrder有效）
+    /// </summary>
+    public DateTime? AppointmentTime { get; set; }
+    
+    /// <summary>
+    /// 预约地点（仅InspectionOrder有效）
+    /// </summary>
+    public string? AppointmentPlace { get; set; }
     
     /// <summary>
     /// 检查报告ID（仅InspectionOrder有效）

@@ -91,7 +91,7 @@ const userName = computed(() => {
 
 const fullName = computed(() => userInfo.value?.fullName || '医生')
 const roleName = computed(() => userInfo.value?.role || 'Doctor')
-const userDepartment = computed(() => userInfo.value?.departmentName || '未指定科室')
+const userDepartment = computed(() => userInfo.value?.departmentName || 'Doctor')
 
 onMounted(() => {
   const stored = localStorage.getItem('userInfo')

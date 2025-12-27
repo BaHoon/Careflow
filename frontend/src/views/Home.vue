@@ -36,19 +36,17 @@
         </template>
 
         <template v-else-if="currentUser.role === 'Admin'">
+          <div class="card clickable" @click="router.push('/admin/order-history')">
+            <h3>📊 医嘱流转记录</h3>
+            <p>查看医嘱状态变更历史，审计追踪</p>
+            <div class="card-badge admin">管理权限</div>
+          </div>
           <div class="card clickable" @click="router.push('/staff-management')">
             <h3>⚙️ 人员管理</h3>
             <p>管理医护人员账号、权限及科室分配</p>
             <div class="card-badge admin">管理权限</div>
           </div>
         </template>
-
-        <!-- 临时测试按钮（所有角色可见） -->
-        <div class="card clickable test-card" @click="router.push('/inspection')">
-          <h3>🔬 查看检查类医嘱</h3>
-          <p>检查医嘱管理页面（临时测试用）</p>
-          <div class="card-badge test">测试</div>
-        </div>
       </div>
     </main>
   </div>
