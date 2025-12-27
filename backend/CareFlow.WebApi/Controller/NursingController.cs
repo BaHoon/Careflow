@@ -1256,9 +1256,8 @@ namespace CareFlow.WebApi.Controllers
                     return NotFound(new { message = "任务不存在" });
                 }
 
-                // 状态校验：不能取消已完成或已取消的任务
+                // 状态校验：不能取消已完成或已停止的任务
                 if (task.Status == ExecutionTaskStatus.Completed || 
-                    task.Status == ExecutionTaskStatus.Cancelled ||
                     task.Status == ExecutionTaskStatus.Stopped)
                 {
                     return BadRequest(new { message = $"任务状态不允许取消，当前状态: {task.Status}" });
@@ -1271,7 +1270,7 @@ namespace CareFlow.WebApi.Controllers
                 }
 
                 // 更新任务状态
-                task.Status = ExecutionTaskStatus.Cancelled;
+                task.Status = ExecutionTaskStatus.Stopped;
                 task.ExceptionReason = dto.CancelReason;
                 task.LastModifiedAt = DateTime.UtcNow;
 
