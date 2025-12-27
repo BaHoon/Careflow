@@ -673,8 +673,11 @@ namespace CareFlow.WebApi.Controllers
                 }
                 else
                 {
-                    // 默认只显示：AppliedConfirmed(2)、Pending(3)、InProgress(4)、Completed(5)
+                    // 默认显示：Applying(0)、Applied(1)、AppliedConfirmed(2)、Pending(3)、InProgress(4)、Completed(5)
+                    // 排除：OrderStopping(6)、Stopped(7)、Incomplete(8)、Cancelled(9)
                     executionTasksQuery = executionTasksQuery.Where(et => 
+                        et.Status == ExecutionTaskStatus.Applying ||
+                        et.Status == ExecutionTaskStatus.Applied ||
                         et.Status == ExecutionTaskStatus.AppliedConfirmed ||
                         et.Status == ExecutionTaskStatus.Pending ||
                         et.Status == ExecutionTaskStatus.InProgress ||
@@ -1219,16 +1222,48 @@ namespace CareFlow.WebApi.Controllers
                         var medicalOrder = await _context.Set<CareFlow.Core.Models.Medical.MedicalOrder>()
                             .FirstOrDefaultAsync(o => o.Id == medicalOrderId);
                         
-                        if (medicalOrder != null && 
-                            medicalOrder.Status != OrderStatus.Completed && 
-                            medicalOrder.Status != OrderStatus.Stopped && 
-                            medicalOrder.Status != OrderStatus.Cancelled)
+                        if (medicalOrder != null)
                         {
-                            medicalOrder.Status = OrderStatus.Completed;
-                            medicalOrder.CompletedAt = DateTime.UtcNow;
-                            await _context.SaveChangesAsync();
-                            
-                            Console.WriteLine($"[CompleteExecutionTask] 医嘱 {medicalOrderId} 下所有任务已完成，医嘱状态已更新为 Completed");
+                            // 特殊处理：如果医嘱是 StoppingInProgress 状态
+                            if (medicalOrder.Status == OrderStatus.StoppingInProgress)
+                            {
+                                // 检查停止节点之前的任务是否都已完成
+                                if (medicalOrder.StopAfterTaskId.HasValue)
+                                {
+                                    var stopNodeIndex = allTasksForOrder.FindIndex(t => t.Id == medicalOrder.StopAfterTaskId.Value);
+                                    
+                                    if (stopNodeIndex >= 0)
+                                    {
+                                        var tasksBeforeStop = allTasksForOrder.Take(stopNodeIndex).ToList();
+                                        
+                                        // PendingReturn 视为已完成
+                                        var allBeforeStopCompleted = tasksBeforeStop.All(t => 
+                                            t.Status == ExecutionTaskStatus.Completed ||
+                                            t.Status == ExecutionTaskStatus.PendingReturn ||
+                                            t.Status == ExecutionTaskStatus.Stopped);
+                                        
+                                        if (allBeforeStopCompleted)
+                                        {
+                                            medicalOrder.Status = OrderStatus.Stopped;
+                                            medicalOrder.CompletedAt = DateTime.UtcNow;
+                                            await _context.SaveChangesAsync();
+                                            
+                                            Console.WriteLine($"[CompleteExecutionTask] 医嘱 {medicalOrderId} 停止节点之前的任务都已完成，状态更新为 Stopped");
+                                        }
+                                    }
+                                }
+                            }
+                            // 正常医嘱的完成逻辑
+                            else if (medicalOrder.Status != OrderStatus.Completed && 
+                                     medicalOrder.Status != OrderStatus.Stopped && 
+                                     medicalOrder.Status != OrderStatus.Cancelled)
+                            {
+                                medicalOrder.Status = OrderStatus.Completed;
+                                medicalOrder.CompletedAt = DateTime.UtcNow;
+                                await _context.SaveChangesAsync();
+                                
+                                Console.WriteLine($"[CompleteExecutionTask] 医嘱 {medicalOrderId} 下所有任务已完成，医嘱状态已更新为 Completed");
+                            }
                         }
                     }
                 }

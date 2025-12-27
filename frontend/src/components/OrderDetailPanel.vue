@@ -760,21 +760,14 @@ const getTaskTimingStatus = (task) => {
     return { text: '❌异常', class: 'status-exception' };
   }
   
-  // 已完成或执行中，计算时效
-  if (task.actualStartTime) {
-    const delay = getDelayMinutes(task.plannedStartTime, task.actualStartTime);
-    if (delay === null) return { text: '', class: '' };
-    
-    if (task.status === 5) { // 已完成
-      if (delay > 15) return { text: `⏱️延迟${delay}分`, class: 'status-delay-serious' };
-      if (delay > 5) return { text: `⏱️延迟${delay}分`, class: 'status-delay-minor' };
-      if (delay < -5) return { text: `⚡提前${-delay}分`, class: 'status-early' };
-      return { text: '✓按时', class: 'status-ontime' };
-    }
-    
-    if (task.status === 4) { // 执行中
-      return { text: '进行中...', class: 'status-progress' };
-    }
+  // 已完成，不显示提前/延后信息（这些信息在展开后的详情中显示）
+  if (task.status === 5) {
+    return { text: '', class: '' };
+  }
+  
+  // 执行中
+  if (task.status === 4 && task.actualStartTime) {
+    return { text: '进行中...', class: 'status-progress' };
   }
   
   // 停嘱锁定

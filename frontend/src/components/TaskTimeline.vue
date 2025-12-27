@@ -220,18 +220,28 @@ const groupedTasks = computed(() => {
       t.status !== 'Cancelled'
     ),
     // 临期任务：前一小时到容忍期内的待执行任务（Pending状态）
+    // 注意：applying、applied状态不放在临期组，因为它们不应该有时间压力提示
     dueSoon: props.tasks.filter(t => 
       (t.status === 3 || t.status === 'Pending') &&
       t.delayMinutes >= -60 && 
       t.excessDelayMinutes <= 0
     ),
-    // 待执行任务：还没到前一小时的任务（包括 AppliedConfirmed、Pending、InProgress）
-    pending: props.tasks.filter(t => 
-      (t.status === 2 || t.status === 'AppliedConfirmed' ||
-       t.status === 3 || t.status === 'Pending' ||
-       t.status === 4 || t.status === 'InProgress') &&
-      t.delayMinutes < -60
-    ),
+    // 待执行任务：还没到前一小时的任务（包括 Applying、Applied、AppliedConfirmed、Pending、InProgress）
+    pending: props.tasks.filter(t => {
+      // Applying(0)、Applied(1)、AppliedConfirmed(2) - 药房申请相关状态，都属于待执行
+      if (t.status === 0 || t.status === 'Applying' ||
+          t.status === 1 || t.status === 'Applied' ||
+          t.status === 2 || t.status === 'AppliedConfirmed') {
+        return true;
+      }
+      // Pending(3)、InProgress(4) - 正常执行状态，需要检查时间
+      if ((t.status === 3 || t.status === 'Pending' ||
+           t.status === 4 || t.status === 'InProgress') &&
+          t.delayMinutes < -60) {
+        return true;
+      }
+      return false;
+    }),
     // 已完成任务
     completed: props.tasks.filter(t => 
       t.status === 5 || t.status === 'Completed'

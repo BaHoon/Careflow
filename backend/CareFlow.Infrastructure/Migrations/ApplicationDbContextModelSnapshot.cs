@@ -329,6 +329,9 @@ namespace CareFlow.Infrastructure.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
+                    b.Property<long?>("StopAfterTaskId")
+                        .HasColumnType("bigint");
+
                     b.Property<DateTime?>("StopConfirmedAt")
                         .HasColumnType("timestamp with time zone");
 

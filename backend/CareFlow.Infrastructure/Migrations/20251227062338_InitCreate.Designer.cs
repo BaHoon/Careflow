@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CareFlow.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251227034655_InitCreate")]
+    [Migration("20251227062338_InitCreate")]
     partial class InitCreate
     {
         /// <inheritdoc />
@@ -331,6 +331,9 @@ namespace CareFlow.Infrastructure.Migrations
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
+
+                    b.Property<long?>("StopAfterTaskId")
+                        .HasColumnType("bigint");
 
                     b.Property<DateTime?>("StopConfirmedAt")
                         .HasColumnType("timestamp with time zone");

@@ -139,6 +139,11 @@ const loadTasks = async () => {
   patientList.value = [];
   selectedPatient.value = '';
 
+  // 如果日期为空，重置为当前日期
+  if (!selectedDate.value) {
+    selectedDate.value = new Date();
+  }
+
   loading.value = true;
   try {
     // 使用本地日期格式，避免时区转换问题

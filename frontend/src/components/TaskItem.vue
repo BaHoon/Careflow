@@ -69,11 +69,28 @@
       <template v-if="task.taskSource === 'ExecutionTask'">
         <!-- 
           业务流程：
-          - Immediate(即刻执行)：Pending → Completed，显示"完成任务"
-          - Duration(持续任务)：Pending → InProgress → Completed，显示"完成"或"结束"
-          - ResultPending(结果待定)：Pending → InProgress → Completed，显示"完成"或"结束任务（需录入结果）"
+          - 药房申请流程：Applying(0) → Applied(1) → AppliedConfirmed(2)
+          - 执行流程：Pending(3) → InProgress(4) → Completed(5)
+          - Applying(0)和Applied(1)状态只能查看，不能执行，需要等待药房确认
+          - AppliedConfirmed(2)状态可以开始执行
         -->
         
+        <!-- Applying(0) 或 Applied(1)：只显示提示信息和查看详情 -->
+        <el-tag 
+          v-if="task.status === 0 || task.status === 'Applying' || task.status === 1 || task.status === 'Applied'" 
+          type="info"
+          size="default"
+        >
+          等待药房申请确认
+        </el-tag>
+        <el-button 
+          v-if="task.status === 0 || task.status === 'Applying' || task.status === 1 || task.status === 'Applied'" 
+          size="small"
+          @click.stop="handleViewDetail"
+        >
+          查看详情
+        </el-button>
+
         <!-- AppliedConfirmed(2) 或 Pending(3)：显示根据category定制的"完成"按钮 -->
         <el-button 
           v-if="task.status === 2 || task.status === 'AppliedConfirmed' || task.status === 3 || task.status === 'Pending'" 
@@ -96,7 +113,7 @@
           {{ getCompletionButtonLabel(task.category, true) }}
         </el-button>
 
-        <!-- 未完成状态显示"取消任务" -->
+        <!-- 未完成状态显示"取消任务"（但Applying和Applied状态不能取消，需要等药房处理） -->
         <el-button 
           v-if="(task.status === 2 || task.status === 'AppliedConfirmed' || 
                  task.status === 3 || task.status === 'Pending' || 

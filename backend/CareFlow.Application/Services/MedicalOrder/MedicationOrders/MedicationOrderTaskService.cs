@@ -56,6 +56,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
         if (existingOrder.Status == OrderStatus.Cancelled || 
             existingOrder.Status == OrderStatus.Completed ||
             existingOrder.Status == OrderStatus.Stopped ||
+            existingOrder.Status == OrderStatus.StoppingInProgress ||
             existingOrder.Status == OrderStatus.Draft ||
             existingOrder.Status == OrderStatus.Rejected)
         {

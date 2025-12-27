@@ -604,6 +604,7 @@ public class DischargeOrderService : IDischargeOrderService
             OrderStatus.Accepted => "已签收",
             OrderStatus.InProgress => "执行中",
             OrderStatus.Completed => "已完成",
+            OrderStatus.StoppingInProgress => "停止中",
             OrderStatus.Stopped => "已停止",
             OrderStatus.Cancelled => "已取消",
             OrderStatus.Rejected => "已退回",

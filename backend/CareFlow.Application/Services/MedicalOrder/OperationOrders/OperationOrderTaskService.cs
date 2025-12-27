@@ -98,6 +98,7 @@ public class OperationOrderTaskService : IOperationOrderTaskService
         if (existingOrder.Status == OrderStatus.Cancelled || 
             existingOrder.Status == OrderStatus.Completed ||
             existingOrder.Status == OrderStatus.Stopped ||
+            existingOrder.Status == OrderStatus.StoppingInProgress ||
             existingOrder.Status == OrderStatus.Draft ||
             existingOrder.Status == OrderStatus.Rejected)
         {
@@ -238,7 +239,8 @@ public class OperationOrderTaskService : IOperationOrderTaskService
             _logger.LogInformation("已回滚医嘱 {OrderId} 的 {TaskCount} 个未执行任务", orderId, pendingTasks.Count());
 
             // 更新医嘱状态（不删除医嘱）
-            if (existingOrder.Status != OrderStatus.Stopped)
+            if (existingOrder.Status != OrderStatus.Stopped && 
+                existingOrder.Status != OrderStatus.StoppingInProgress)
             {
                 existingOrder.Status = OrderStatus.Stopped;
                 existingOrder.StopReason = reason;

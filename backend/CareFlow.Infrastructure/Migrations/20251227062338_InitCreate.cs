@@ -318,6 +318,7 @@ namespace CareFlow.Infrastructure.Migrations
                     StopRejectReason = table.Column<string>(type: "text", nullable: true),
                     StopRejectedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     StopRejectedByNurseId = table.Column<string>(type: "text", nullable: true),
+                    StopAfterTaskId = table.Column<long>(type: "bigint", nullable: true),
                     CancelReason = table.Column<string>(type: "text", nullable: true),
                     CancelledAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     CancelledByDoctorId = table.Column<string>(type: "text", nullable: true),
