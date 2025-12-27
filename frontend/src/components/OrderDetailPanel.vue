@@ -330,6 +330,8 @@
                 >
                   {{ getTaskCategoryStyle(task.category).name }}
                 </el-tag>
+                <!-- 显示任务标题（从DataPayload中解析的Title） -->
+                <span class="task-title">{{ getTaskTitle(task) }}</span>
                 <span v-if="getTaskTimingStatus(task).text" class="timing-status" :class="getTaskTimingStatus(task).class">
                   {{ getTaskTimingStatus(task).text }}
                 </span>
@@ -516,6 +518,28 @@ const handleInspectionReport = (task) => {
 };
 
 // 直接从检查信息区域查看报告
+// ==================== DataPayload解析 ====================
+/**
+ * 解析任务的DataPayload JSON字符串，提取Title
+ * @param {Object} task - 任务对象
+ * @returns {string} 任务标题，如果解析失败则返回默认标题
+ */
+const getTaskTitle = (task) => {
+  if (!task.dataPayload) {
+    return getTaskCategoryStyle(task.category).name;
+  }
+  
+  try {
+    const payload = JSON.parse(task.dataPayload);
+    // 优先使用Title字段，如果没有则使用TaskType或默认值
+    return payload.Title || payload.title || payload.TaskType || getTaskCategoryStyle(task.category).name;
+  } catch (error) {
+    // JSON解析失败，返回默认标题
+    console.warn('解析任务DataPayload失败:', error, 'Task ID:', task.id);
+    return getTaskCategoryStyle(task.category).name;
+  }
+};
+
 // ==================== 格式化方法 ====================
 const formatDateTime = (dateString) => {
   if (!dateString) return '-';
@@ -979,6 +1003,18 @@ const getTaskTimingStatus = (task) => {
   font-weight: bold;
   border-radius: 50%;
   flex-shrink: 0;
+}
+
+.task-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #303133;
+  margin-left: 8px;
+  flex-shrink: 0;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .task-time-separator {

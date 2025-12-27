@@ -627,13 +627,14 @@ public class OperationOrderTaskService : IOperationOrderTaskService
         }
 
         // 构建完整的DataPayload
+        var operationName = order.OperationName ?? GetOperationName(order.OpId);
         var dataPayload = new
         {
             TaskType = taskType,
-            Title = order.OperationName ?? GetOperationName(order.OpId),
+            Title = $"操作：{operationName}",
             Description = BuildDescription(order, slotName),
             OpId = order.OpId,
-            OperationName = order.OperationName ?? GetOperationName(order.OpId),
+            OperationName = operationName,
             OperationSite = order.OperationSite,
             Normal = order.Normal,
             

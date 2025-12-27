@@ -377,7 +377,12 @@ const handleMultiSelectToggle = (value) => {
   --radius-large: 8px;
   --radius-medium: 6px;
   --radius-small: 4px;
-
+  /* 固定宽度，防止内容撑开或压缩 */
+  width: 250px;
+  min-width: 250px;
+  max-width: 250px;
+  flex-shrink: 0;
+  
   background: var(--bg-card);
   border-radius: var(--radius-large);
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
@@ -583,12 +588,14 @@ const handleMultiSelectToggle = (value) => {
 .bed-badge {
   background: var(--primary-color);
   color: white;
-  padding: 3px 8px;
+  padding: 4px 8px;
   border-radius: 4px;
   font-size: 0.75rem;
   font-weight: bold;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   margin-bottom: 8px;
+  width: 190px;
 }
 
 .patient-card.active .bed-badge {

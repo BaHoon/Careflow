@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CareFlow.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251226110028_hospital")]
-    partial class hospital
+    [Migration("20251227034655_InitCreate")]
+    partial class InitCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -922,6 +922,9 @@ namespace CareFlow.Infrastructure.Migrations
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
+                    b.Property<DateTime?>("ActualAdmissionTime")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int>("Age")
                         .HasColumnType("integer");
 
@@ -943,6 +946,9 @@ namespace CareFlow.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<float>("Height")
+                        .HasColumnType("real");
+
                     b.Property<string>("IdCard")
                         .IsRequired()
                         .HasColumnType("text");
@@ -954,9 +960,15 @@ namespace CareFlow.Infrastructure.Migrations
                     b.Property<int>("NursingGrade")
                         .HasColumnType("integer");
 
+                    b.Property<string>("OutpatientDiagnosis")
+                        .HasColumnType("text");
+
                     b.Property<string>("PhoneNumber")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<DateTime?>("ScheduledAdmissionTime")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");

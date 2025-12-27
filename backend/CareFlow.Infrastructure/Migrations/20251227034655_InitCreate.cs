@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CareFlow.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class hospital : Migration
+    public partial class InitCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -261,10 +261,14 @@ namespace CareFlow.Infrastructure.Migrations
                     IdCard = table.Column<string>(type: "text", nullable: false),
                     DateOfBirth = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     Age = table.Column<int>(type: "integer", nullable: false),
+                    Height = table.Column<float>(type: "real", nullable: false),
                     Weight = table.Column<float>(type: "real", nullable: false),
                     Status = table.Column<int>(type: "integer", nullable: false),
                     PhoneNumber = table.Column<string>(type: "text", nullable: false),
                     NursingGrade = table.Column<int>(type: "integer", nullable: false),
+                    OutpatientDiagnosis = table.Column<string>(type: "text", nullable: true),
+                    ScheduledAdmissionTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    ActualAdmissionTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     BedId = table.Column<string>(type: "text", nullable: false),
                     AttendingDoctorId = table.Column<string>(type: "text", nullable: false),
                     CreateTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)

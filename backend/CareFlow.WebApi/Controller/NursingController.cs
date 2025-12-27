@@ -1338,7 +1338,7 @@ namespace CareFlow.WebApi.Controllers
         /// [护士端] 上传任务条形码图片进行识别
         /// </summary>
         [HttpPost("barcode/recognize-task")]
-        public async Task<IActionResult> RecognizeTaskBarcode([FromForm] IFormFile taskBarcodeImage)
+        public async Task<IActionResult> RecognizeTaskBarcode(IFormFile taskBarcodeImage)
         {
             try
             {
@@ -1415,7 +1415,7 @@ namespace CareFlow.WebApi.Controllers
         /// [护士端] 验证任务和患者条形码是否匹配
         /// </summary>
         [HttpPost("barcode/validate-patient")]
-        public async Task<IActionResult> ValidatePatientBarcode(long taskId, [FromForm] IFormFile taskBarcodeImage, [FromForm] IFormFile patientBarcodeImage)
+        public async Task<IActionResult> ValidatePatientBarcode(long taskId, IFormFile taskBarcodeImage, IFormFile patientBarcodeImage)
         {
             try
             {
@@ -1510,7 +1510,7 @@ namespace CareFlow.WebApi.Controllers
         /// [护士端] 验证任务和药品条形码是否匹配
         /// </summary>
         [HttpPost("barcode/validate-drug")]
-        public async Task<IActionResult> ValidateDrugBarcode(long taskId, [FromForm] IFormFile taskBarcodeImage, [FromForm] IFormFile drugBarcodeImage)
+        public async Task<IActionResult> ValidateDrugBarcode(long taskId, IFormFile taskBarcodeImage, IFormFile drugBarcodeImage)
         {
             try
             {

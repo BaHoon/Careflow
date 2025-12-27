@@ -650,7 +650,8 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
             ExecutorStaffId = t.ExecutorStaffId,
             ExecutorName = t.Executor?.Name,
             StatusBeforeLocking = t.StatusBeforeLocking,
-            ExceptionReason = t.ExceptionReason
+            ExceptionReason = t.ExceptionReason,
+            DataPayload = t.DataPayload // 添加DataPayload字段，包含Title等任务详细信息
         }).ToList();
     }
 

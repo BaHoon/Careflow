@@ -136,6 +136,7 @@ public class DischargeOrderTaskService : IDischargeOrderTaskService
         // 构建任务数据负载
         var taskData = new Dictionary<string, object>
         {
+            { "Title", "取药：出院带回药品" },
             { "OrderId", order.Id },
             { "OrderType", "DischargeOrder" },
             { "DischargeType", order.DischargeType.ToString() },
@@ -188,6 +189,7 @@ public class DischargeOrderTaskService : IDischargeOrderTaskService
         // 构建任务数据负载
         var taskData = new Dictionary<string, object>
         {
+            { "Title", $"出院确认：{GetDischargeTypeDisplay(order.DischargeType)}" },
             { "OrderId", order.Id },
             { "OrderType", "DischargeOrder" },
             { "DischargeType", order.DischargeType.ToString() },
