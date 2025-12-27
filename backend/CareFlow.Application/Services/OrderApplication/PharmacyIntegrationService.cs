@@ -1,5 +1,6 @@
 using CareFlow.Application.DTOs.OrderApplication;
 using CareFlow.Application.Interfaces;
+using CareFlow.Application.Common;
 using CareFlow.Core.Enums;
 using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models.Nursing;
@@ -169,14 +170,10 @@ public class PharmacyIntegrationService : IPharmacyIntegrationService
                     
                     if (payload != null)
                     {
-                        payload["PharmacyConfirmedAt"] = JsonSerializer.SerializeToElement(DateTime.UtcNow);
-                        payload["PharmacyConfirmedMessage"] = JsonSerializer.SerializeToElement("配药完成");
+                        payload["PharmacyConfirmedAt"] = JsonSerializer.SerializeToElement(DateTime.UtcNow, JsonConfig.DefaultOptions);
+                        payload["PharmacyConfirmedMessage"] = JsonSerializer.SerializeToElement("配药完成", JsonConfig.DefaultOptions);
                         
-                        task.DataPayload = JsonSerializer.Serialize(payload, new JsonSerializerOptions
-                        {
-                            WriteIndented = false,
-                            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-                        });
+                        task.DataPayload = JsonSerializer.Serialize(payload, JsonConfig.DefaultOptions);
                     }
                 }
                 catch (Exception payloadEx)

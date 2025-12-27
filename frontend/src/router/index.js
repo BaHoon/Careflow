@@ -16,6 +16,8 @@ import NurseOrderQueryView from '../views/NurseOrderQueryView.vue'
 import OrderTest from '../views/OrderTest.vue'
 import OrderApplication from '../views/OrderApplication.vue'
 import NursingRecord from '../views/NursingRecord.vue'
+import TaskScan from '../views/TaskScan.vue'
+import PatientManagementView from '../views/PatientManagementView.vue'
 
 // 医生子页面
 import OrderEntry from '../views/OrderEntry.vue'
@@ -88,6 +90,12 @@ const router = createRouter({
           name: 'nursing-record',
           component: NursingRecord,
           meta: { title: '护理记录' }
+        },
+        {
+          path: 'task-scan', // 相对路径，实际路径为 /nurse/task-scan
+          name: 'task-scan',
+          component: TaskScan,
+          meta: { title: '任务扫码执行' }
         }
       ]
     },
@@ -110,6 +118,13 @@ const router = createRouter({
           name: 'doctor-order-query',
           component: DoctorOrderView,
           meta: { title: '医嘱查询' }
+        },
+        {
+          path: 'patient-management', // 相对路径，实际路径为 /doctor/patient-management
+          name: 'doctor-patient-management',
+          component: PatientManagementView,
+          props: { userRole: 'Doctor' },
+          meta: { title: '患者管理' }
         }
       ]
     }
