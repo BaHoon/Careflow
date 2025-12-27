@@ -141,11 +141,15 @@ const props = defineProps({
   taskId: {
     type: [String, Number],
     default: null
+  },
+  nurseId: {
+    type: String,
+    default: null
   }
 });
 
 // ==================== Emits ====================
-const emit = defineEmits(['update:modelValue']);
+const emit = defineEmits(['update:modelValue', 'printSuccess']);
 
 // ==================== 数据 ====================
 const visible = computed({
@@ -283,271 +287,48 @@ const formatDateTime = (dateString) => {
 /**
  * 打印导引单
  */
-const handlePrint = () => {
+const handlePrint = async () => {
   if (!guideData.value) {
     ElMessage.warning('导引单数据未加载');
     return;
   }
 
-  // 创建打印窗口
-  const printWindow = window.open('', '_blank', 'width=800,height=600');
-  
-  if (!printWindow) {
-    ElMessage.error('无法打开打印窗口，请检查浏览器弹窗拦截设置');
+  if (!props.nurseId) {
+    ElMessage.error('未获取到护士ID');
     return;
   }
 
-  // 构建打印内容
-  const printContent = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <title>检查导引单 - ${guideData.value.patientName}</title>
-      <style>
-        * {
-          margin: 0;
-          padding: 0;
-          box-sizing: border-box;
-        }
-        
-        body {
-          font-family: "Microsoft YaHei", Arial, sans-serif;
-          padding: 20px;
-          font-size: 14px;
-          line-height: 1.6;
-        }
-        
-        .guide-header {
-          text-align: center;
-          margin-bottom: 30px;
-          border-bottom: 3px solid #409eff;
-          padding-bottom: 15px;
-        }
-        
-        .guide-header h1 {
-          font-size: 24px;
-          color: #303133;
-          margin-bottom: 10px;
-        }
-        
-        .guide-header h2 {
-          font-size: 20px;
-          color: #606266;
-        }
-        
-        .section {
-          margin-bottom: 20px;
-          border: 1px solid #dcdfe6;
-          border-radius: 4px;
-          padding: 15px;
-        }
-        
-        .section-title {
-          font-size: 16px;
-          font-weight: bold;
-          color: #409eff;
-          margin-bottom: 15px;
-          padding-bottom: 8px;
-          border-bottom: 2px solid #409eff;
-        }
-        
-        .info-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 12px;
-        }
-        
-        .info-item {
-          display: flex;
-        }
-        
-        .info-item.full-width {
-          grid-column: 1 / -1;
-        }
-        
-        .label {
-          font-weight: bold;
-          color: #606266;
-          min-width: 90px;
-          flex-shrink: 0;
-        }
-        
-        .value {
-          color: #303133;
-          flex: 1;
-        }
-        
-        .value.highlight {
-          color: #409eff;
-          font-weight: bold;
-          font-size: 15px;
-        }
-        
-        .precautions-section .precautions-content {
-          background: #fff3e0;
-          padding: 15px;
-          border-left: 4px solid #ff9800;
-          color: #e65100;
-          line-height: 1.8;
-          white-space: pre-line;
-        }
-        
-        .barcode-section {
-          text-align: center;
-        }
-        
-        .barcode-display {
-          padding: 20px;
-        }
-        
-        .barcode-image {
-          max-width: 100%;
-          height: auto;
-          margin-bottom: 10px;
-        }
-        
-        .barcode-label {
-          font-size: 12px;
-          color: #909399;
-        }
-        
-        .guide-footer {
-          margin-top: 30px;
-          padding-top: 15px;
-          border-top: 1px dashed #dcdfe6;
-          text-align: center;
-          color: #606266;
-        }
-        
-        .guide-footer p {
-          margin: 8px 0;
-        }
-        
-        .print-time {
-          font-size: 12px;
-          color: #909399;
-        }
-        
-        @media print {
-          body {
-            padding: 10px;
-          }
-          
-          .section {
-            page-break-inside: avoid;
-          }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="guide-header">
-        <h1>${hospitalName.value}</h1>
-        <h2>检查导引单</h2>
-      </div>
-      
-      <div class="section patient-section">
-        <div class="section-title">患者信息</div>
-        <div class="info-grid">
-          <div class="info-item">
-            <span class="label">姓名:</span>
-            <span class="value">${guideData.value.patientName}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">患者ID:</span>
-            <span class="value">${guideData.value.patientId}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">性别:</span>
-            <span class="value">${guideData.value.gender || '-'}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">年龄:</span>
-            <span class="value">${guideData.value.age || '-'}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">床号:</span>
-            <span class="value">${guideData.value.bedNumber || '-'}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">科室:</span>
-            <span class="value">${guideData.value.department || '-'}</span>
-          </div>
-        </div>
-      </div>
-      
-      <div class="section inspection-section">
-        <div class="section-title">检查信息</div>
-        <div class="info-grid">
-          <div class="info-item full-width">
-            <span class="label">检查项目:</span>
-            <span class="value highlight">${guideData.value.itemName}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">申请单号:</span>
-            <span class="value">${guideData.value.risLisId}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">检查地点:</span>
-            <span class="value">${guideData.value.location}</span>
-          </div>
-          ${guideData.value.appointmentTime ? `
-          <div class="info-item">
-            <span class="label">预约时间:</span>
-            <span class="value highlight">${formatDateTime(guideData.value.appointmentTime)}</span>
-          </div>
-          ` : ''}
-          ${guideData.value.appointmentPlace ? `
-          <div class="info-item">
-            <span class="label">预约地点:</span>
-            <span class="value">${guideData.value.appointmentPlace}</span>
-          </div>
-          ` : ''}
-          <div class="info-item">
-            <span class="label">开单医生:</span>
-            <span class="value">${guideData.value.doctorName}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">开单时间:</span>
-            <span class="value">${formatDateTime(guideData.value.createTime)}</span>
-          </div>
-        </div>
-      </div>
-      
-      ${guideData.value.precautions ? `
-      <div class="section precautions-section">
-        <div class="section-title">⚠️ 注意事项</div>
-        <div class="precautions-content">${guideData.value.precautions}</div>
-      </div>
-      ` : ''}
-      
-      <div class="section barcode-section">
-        <div class="section-title">任务条形码</div>
-        <div class="barcode-display">
-          <img src="${barcodeImage.value}" alt="任务条形码" class="barcode-image" />
-          <div class="barcode-label">任务ID: ${guideData.value.taskId}</div>
-        </div>
-      </div>
-      
-      <div class="guide-footer">
-        <p>请持此导引单前往检查地点，工作人员将扫描条形码确认身份。</p>
-        <p class="print-time">打印时间: ${currentDateTime.value}</p>
-      </div>
-    </body>
-    </html>
-  `;
-
-  printWindow.document.write(printContent);
-  printWindow.document.close();
-  
-  // 等待内容加载完成后打印
-  printWindow.onload = () => {
-    setTimeout(() => {
-      printWindow.print();
-    }, 250);
-  };
-  
-  ElMessage.success('正在准备打印...');
+  try {
+    // 调用API完成任务
+    const response = await fetch(
+      `http://localhost:5181/api/Nursing/execution-tasks/${props.taskId}/complete`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          nurseId: props.nurseId
+        })
+      }
+    );
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
+    
+    const result = await response.json();
+    
+    ElMessage.success('导引单已打印，任务已完成');
+    // 通知父组件刷新任务列表
+    emit('printSuccess');
+    // 关闭对话框
+    visible.value = false;
+  } catch (error) {
+    console.error('❌ 完成任务失败:', error);
+    ElMessage.error('完成任务失败: ' + error.message);
+  }
 };
 
 /**

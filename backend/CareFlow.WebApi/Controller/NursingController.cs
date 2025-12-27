@@ -524,10 +524,6 @@ namespace CareFlow.WebApi.Controllers
                     .Select(b => b.Id)
                     .ToListAsync();
 
-                Console.WriteLine($"🔍 查询护士 {nurse.Name}(ID:{nurse.Id}, DeptCode:{nurse.DeptCode}) 的任务");
-                Console.WriteLine($"📋 查询范围 UTC: {startOfDay} 到 {endOfDay}");
-                Console.WriteLine($"🛏️  该科室床位数: {bedIds.Count}, 床位ID: {string.Join(",", bedIds)}");
-
                 var currentTime = DateTime.UtcNow;
                 var allTasks = new List<NurseTaskDto>();
 
@@ -572,17 +568,11 @@ namespace CareFlow.WebApi.Controllers
                     string? resultPayload = null;
                     if (task.Status == ExecutionTaskStatus.Completed)
                     {
-                        Console.WriteLine($"🔍 任务 {task.Id} 已完成，查询护理数据...");
-                        
                         var vitalRecord = await _context.VitalSignsRecords
                             .FirstOrDefaultAsync(v => v.NursingTaskId == task.Id);
                         
-                        Console.WriteLine($"  体征记录: {(vitalRecord != null ? "找到" : "未找到")}");
-                        
                         var careNote = await _context.NursingCareNotes
                             .FirstOrDefaultAsync(n => n.NursingTaskId == task.Id);
-                        
-                        Console.WriteLine($"  护理笔记: {(careNote != null ? "找到" : "未找到")}");
                         
                         if (vitalRecord != null)
                         {
@@ -603,13 +593,6 @@ namespace CareFlow.WebApi.Controllers
                             // 添加护理笔记数据（如果有）
                             if (careNote != null)
                             {
-                                Console.WriteLine($"  添加护理笔记数据:");
-                                Console.WriteLine($"    Consciousness: {careNote.Consciousness}");
-                                Console.WriteLine($"    SkinCondition: {careNote.SkinCondition}");
-                                Console.WriteLine($"    Content: {careNote.Content}");
-                                Console.WriteLine($"    IntakeVolume: {careNote.IntakeVolume}");
-                                Console.WriteLine($"    OutputVolume: {careNote.OutputVolume}");
-                                
                                 resultData["consciousness"] = careNote.Consciousness;
                                 resultData["skinCondition"] = careNote.SkinCondition;
                                 resultData["intakeVolume"] = careNote.IntakeVolume > 0 ? careNote.IntakeVolume : null;
@@ -621,11 +604,8 @@ namespace CareFlow.WebApi.Controllers
                             }
                             
                             resultPayload = System.Text.Json.JsonSerializer.Serialize(resultData);
-                            Console.WriteLine($"  序列化后的ResultPayload: {resultPayload}");
                         }
                     }
-                    
-                    Console.WriteLine($"📋 任务 {task.Id}: ExecutorNurseId={task.ExecutorNurseId}, ExecutorNurseName={executorNurseName}");
                     
                     allTasks.Add(new NurseTaskDto
                     {
@@ -684,15 +664,6 @@ namespace CareFlow.WebApi.Controllers
                 }
 
                 var executionTasks = await executionTasksQuery.ToListAsync();
-
-                Console.WriteLine($"✅ 查询到 {nursingTasks.Count} 个护理任务，{executionTasks.Count} 个执行任务");
-                if (executionTasks.Count == 0)
-                {
-                    Console.WriteLine($"⚠️  没有找到执行任务，检查查询条件:");
-                    Console.WriteLine($"   - AssignedNurseId == {nurseStaffId}");
-                    Console.WriteLine($"   - bedIds: {string.Join(",", bedIds)}");
-                    Console.WriteLine($"   - PlannedStartTime 范围: {startOfDay} 到 {endOfDay}");
-                }
 
                 foreach (var task in executionTasks)
                 {
@@ -1156,10 +1127,23 @@ namespace CareFlow.WebApi.Controllers
                     targetStatus = ExecutionTaskStatus.Completed;
                     actionDescription = "核对已完成";
                 }
+                // ==================== ApplicationWithPrint 类别（申请打印类） ====================
+                else if (task.Category == TaskCategory.ApplicationWithPrint)
+                {
+                    // 从 AppliedConfirmed(2) 或 Pending(3) 直接到 Completed(5)，打印即完成
+                    if (task.Status != ExecutionTaskStatus.Pending && 
+                        task.Status != ExecutionTaskStatus.AppliedConfirmed)
+                    {
+                        return BadRequest(new { message = $"ApplicationWithPrint 任务只能从待执行或已确认状态完成，当前状态: {task.Status}" });
+                    }
+
+                    targetStatus = ExecutionTaskStatus.Completed;
+                    actionDescription = "已打印完成";
+                }
                 // ==================== 其他类别（暂未实现） ====================
                 else
                 {
-                    // TODO: DataCollection, ApplicationWithPrint 的具体流程待定义
+                    // TODO: DataCollection 的具体流程待定义
                     return BadRequest(new { message = $"任务类别 {task.Category} 的完成流程暂未实现，请联系管理员" });
                 }
 

@@ -72,11 +72,23 @@
           - Immediate(即刻执行)：Pending → Completed，显示"完成任务"
           - Duration(持续任务)：Pending → InProgress → Completed，显示"完成"或"结束"
           - ResultPending(结果待定)：Pending → InProgress → Completed，显示"完成"或"结束任务（需录入结果）"
+          - ApplicationWithPrint(申请打印)：Pending，显示"打印报告单"
         -->
+        
+        <!-- ApplicationWithPrint: 显示打印报告单按钮 -->
+        <el-button 
+          v-if="task.category === 'ApplicationWithPrint' && (task.status === 2 || task.status === 'AppliedConfirmed' || task.status === 3 || task.status === 'Pending')" 
+          type="success" 
+          size="small"
+          :icon="Printer"
+          @click.stop="handlePrintReport"
+        >
+          打印报告单
+        </el-button>
         
         <!-- AppliedConfirmed(2) 或 Pending(3)：显示根据category定制的"完成"按钮 -->
         <el-button 
-          v-if="task.status === 2 || task.status === 'AppliedConfirmed' || task.status === 3 || task.status === 'Pending'" 
+          v-if="task.category !== 'ApplicationWithPrint' && (task.status === 2 || task.status === 'AppliedConfirmed' || task.status === 3 || task.status === 'Pending')" 
           type="primary" 
           size="small"
           :icon="VideoPlay"
@@ -170,7 +182,8 @@ import {
   Bell,
   Edit,
   Close,
-  VideoPlay
+  VideoPlay,
+  Printer
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { 
@@ -198,7 +211,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['click', 'start-input', 'view-detail', 'task-cancelled']);
+const emit = defineEmits(['click', 'start-input', 'view-detail', 'task-cancelled', 'print-inspection-guide']);
 
 // 已完成任务判断
 const isCompleted = computed(() => {
@@ -222,6 +235,7 @@ const categoryIcon = computed(() => {
     'ResultPending': Document,
     'DataCollection': Bell,
     'Verification': Check,
+    'ApplicationWithPrint': Document,
     // NursingTask 类别
     'Routine': Bell,
     'ReMeasure': VideoCamera
@@ -238,6 +252,7 @@ const categoryText = computed(() => {
     'ResultPending': '结果待定',
     'DataCollection': '数据采集',
     'Verification': '核对验证',
+    'ApplicationWithPrint': '申请打印',
     // NursingTask 类别
     'Routine': '常规护理',
     'ReMeasure': '复测任务'
@@ -564,6 +579,16 @@ const parseDataPayload = (dataPayload) => {
       任务已准备就绪，请确认执行
     </div>`;
   }
+};
+
+// 打印报告单处理函数
+const handlePrintReport = () => {
+  // 发射事件给父组件，由父组件打开打印对话框
+  emit('print-inspection-guide', { 
+    taskId: props.task.id, 
+    orderId: props.task.medicalOrderId,
+    task: props.task
+  });
 };
 
 // 获取完成按钮标签
