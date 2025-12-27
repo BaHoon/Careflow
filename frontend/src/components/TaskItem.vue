@@ -4,7 +4,8 @@
     :class="{ 
       'task-highlight': highlight,
       'task-overdue': isOverdue,
-      'task-due-soon': isDueSoon
+      'task-due-soon': isDueSoon,
+      'task-completed': isCompleted
     }"
   >
     <div class="task-clickable-area" @click="handleClick">
@@ -198,6 +199,11 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['click', 'start-input', 'view-detail', 'task-cancelled']);
+
+// 已完成任务判断
+const isCompleted = computed(() => {
+  return props.task.status === 'Completed' || props.task.status === 5;
+});
 
 // 显示标题（优先使用 taskTitle，否则使用类别文本）
 const displayTitle = computed(() => {
@@ -834,7 +840,7 @@ const handleCancelExecution = async () => {
   top: 0;
   bottom: 0;
   width: 4px;
-  background: linear-gradient(to bottom, #409eff, #85ce61);
+  background: #409eff;
   transition: all 0.3s ease;
 }
 
@@ -842,7 +848,7 @@ const handleCancelExecution = async () => {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
   transform: translateY(-2px);
   border-color: #409eff;
-  background: linear-gradient(to bottom right, #fff, #f5f7fa);
+  background: #fff;
 }
 
 .task-item:hover::before {
@@ -869,22 +875,32 @@ const handleCancelExecution = async () => {
 
 .task-overdue {
   border-color: #f56c6c;
-  background: linear-gradient(135deg, #fff 0%, #fef0f0 100%);
+  background: #fef0f0;
   box-shadow: 0 0 0 1px #f56c6c inset;
 }
 
 .task-overdue::before {
-  background: linear-gradient(to bottom, #f56c6c, #fd7271);
+  background: #f56c6c;
   width: 6px;
 }
 
 .task-due-soon {
   border-color: #e6a23c;
-  background: linear-gradient(135deg, #fff 0%, #fdf6ec 100%);
+  background: #fdf6ec;
 }
 
 .task-due-soon::before {
-  background: linear-gradient(to bottom, #e6a23c, #f5a623);
+  background: #e6a23c;
+  width: 6px;
+}
+
+.task-completed {
+  border-color: #67c23a;
+  background: #f0f9ff;
+}
+
+.task-completed::before {
+  background: #67c23a;
   width: 6px;
 }
 

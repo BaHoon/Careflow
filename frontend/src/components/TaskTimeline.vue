@@ -318,7 +318,7 @@ const handleTaskCancelled = (taskId) => {
   margin-bottom: 16px;
   display: flex;
   align-items: center;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.4));
+  background: #f5f7fa;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
@@ -329,25 +329,25 @@ const handleTaskCancelled = (taskId) => {
 }
 
 .overdue-header {
-  background: linear-gradient(90deg, #fef0f0, #fff);
+  background: #fef0f0;
   color: #f56c6c;
   border-left: 4px solid #f56c6c;
 }
 
 .due-soon-header {
-  background: linear-gradient(90deg, #fdf6ec, #fff);
+  background: #fdf6ec;
   color: #e6a23c;
   border-left: 4px solid #e6a23c;
 }
 
 .pending-header {
-  background: linear-gradient(90deg, #ecf5ff, #fff);
+  background: #ecf5ff;
   color: #409eff;
   border-left: 4px solid #409eff;
 }
 
 .completed-header {
-  background: linear-gradient(90deg, #f0f9ff, #fff);
+  background: #f0f9ff;
   color: #67c23a;
   border-left: 4px solid #67c23a;
 }
