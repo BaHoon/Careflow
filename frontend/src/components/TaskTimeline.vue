@@ -17,6 +17,19 @@
           </el-card>
         </el-col>
         <el-col :span="4">
+          <el-card shadow="hover" class="stat-card in-progress-card" @click="handleStatCardClick('inProgress')">
+            <div class="stat-item">
+              <div class="stat-icon">
+                <el-icon><Loading /></el-icon>
+              </div>
+              <div class="stat-content">
+                <div class="stat-value in-progress">{{ statistics.inProgressCount }}</div>
+                <div class="stat-label">执行中</div>
+              </div>
+            </div>
+          </el-card>
+        </el-col>
+        <el-col :span="4">
           <el-card shadow="hover" class="stat-card due-soon-card" @click="handleStatCardClick('dueSoon')">
             <div class="stat-item">
               <div class="stat-icon">
@@ -38,19 +51,6 @@
               <div class="stat-content">
                 <div class="stat-value pending">{{ statistics.pendingCount }}</div>
                 <div class="stat-label">待执行</div>
-              </div>
-            </div>
-          </el-card>
-        </el-col>
-        <el-col :span="4">
-          <el-card shadow="hover" class="stat-card completed-card" @click="handleStatCardClick('completed')">
-            <div class="stat-item">
-              <div class="stat-icon">
-                <el-icon><Check /></el-icon>
-              </div>
-              <div class="stat-content">
-                <div class="stat-value completed">{{ statistics.completedCount }}</div>
-                <div class="stat-label">已完成</div>
               </div>
             </div>
           </el-card>
@@ -115,6 +115,35 @@
                 :task="task"
                 :highlight="true"
                 :is-overdue="true"
+                @click="handleTaskClick"
+                @start-input="handleStartInput"
+                @view-detail="handleViewDetail"
+                @task-cancelled="handleTaskCancelled"
+                @print-inspection-guide="handlePrintInspectionGuide"
+              />
+            </div>
+          </div>
+        </el-timeline-item>
+
+        <!-- 执行中任务组 -->
+        <el-timeline-item
+          v-if="groupedTasks.inProgress.length > 0"
+          color="#13c2c2"
+          size="large"
+        >
+          <template #dot>
+            <el-icon :size="20"><Loading /></el-icon>
+          </template>
+          <div class="timeline-group">
+            <div class="group-header in-progress-header">
+              <h3>执行中任务 ({{ groupedTasks.inProgress.length }})</h3>
+            </div>
+            <div class="task-list">
+              <TaskItem
+                v-for="task in groupedTasks.inProgress"
+                :key="task.id"
+                :task="task"
+                :highlight="true"
                 @click="handleTaskClick"
                 @start-input="handleStartInput"
                 @view-detail="handleViewDetail"
@@ -224,7 +253,7 @@
 <script setup>
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { WarningFilled, Clock, List, Check, DocumentChecked, RefreshLeft } from '@element-plus/icons-vue';
+import { WarningFilled, Clock, List, Check, DocumentChecked, RefreshLeft, Loading } from '@element-plus/icons-vue';
 import TaskItem from './TaskItem.vue';
 
 const router = useRouter();
@@ -273,6 +302,10 @@ const statistics = computed(() => {
       isExecutableStatus(t.status) &&
       t.excessDelayMinutes > 0
     ).length,
+    // 执行中任务：InProgress状态的任务
+    inProgressCount: props.tasks.filter(t => 
+      t.status === 4 || t.status === 'InProgress'
+    ).length,
     // 临期任务：前一小时到容忍期内的可执行状态任务
     dueSoonCount: props.tasks.filter(t => 
       isExecutableStatus(t.status) &&
@@ -307,6 +340,10 @@ const groupedTasks = computed(() => {
     overdue: props.tasks.filter(t => 
       isExecutableStatus(t.status) &&
       t.excessDelayMinutes > 0
+    ),
+    // 执行中任务：InProgress状态的任务
+    inProgress: props.tasks.filter(t => 
+      t.status === 4 || t.status === 'InProgress'
     ),
     // 临期任务：前一小时到容忍期内的可执行状态任务
     // Applying、Applied、AppliedConfirmed、Pending 都按时间统一处理
@@ -416,10 +453,6 @@ const handlePrintInspectionGuide = (data) => {
 }
 
 /* 超时任务卡片 */
-.overdue-card {
-  border-left: 4px solid #f56c6c;
-}
-
 .overdue-card .stat-icon {
   background: linear-gradient(135deg, #fef0f0 0%, #fde2e2 100%);
   color: #f56c6c;
@@ -434,11 +467,22 @@ const handlePrintInspectionGuide = (data) => {
   color: #f56c6c;
 }
 
-/* 临期任务卡片 */
-.due-soon-card {
-  border-left: 4px solid #e6a23c;
+/* 执行中任务卡片 */
+.in-progress-card .stat-icon {
+  background: linear-gradient(135deg, #e6fffb 0%, #b5f5ec 100%);
+  color: #13c2c2;
 }
 
+.in-progress-card:hover .stat-icon {
+  background: linear-gradient(135deg, #b5f5ec 0%, #13c2c2 100%);
+  color: white;
+}
+
+.stat-value.in-progress {
+  color: #13c2c2;
+}
+
+/* 临期任务卡片 */
 .due-soon-card .stat-icon {
   background: linear-gradient(135deg, #fdf6ec 0%, #faecd8 100%);
   color: #e6a23c;
@@ -454,10 +498,6 @@ const handlePrintInspectionGuide = (data) => {
 }
 
 /* 待执行任务卡片 */
-.pending-card {
-  border-left: 4px solid #409eff;
-}
-
 .pending-card .stat-icon {
   background: linear-gradient(135deg, #ecf5ff 0%, #d9ecff 100%);
   color: #409eff;
@@ -473,10 +513,6 @@ const handlePrintInspectionGuide = (data) => {
 }
 
 /* 已完成任务卡片 */
-.completed-card {
-  border-left: 4px solid #67c23a;
-}
-
 .completed-card .stat-icon {
   background: linear-gradient(135deg, #f0f9ff 0%, #e1f3d8 100%);
   color: #67c23a;
@@ -492,10 +528,6 @@ const handlePrintInspectionGuide = (data) => {
 }
 
 /* 待签收医嘱卡片 */
-.pending-orders-card {
-  border-left: 4px solid #9c27b0;
-}
-
 .pending-orders-card .stat-icon {
   background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
   color: #9c27b0;
@@ -511,10 +543,6 @@ const handlePrintInspectionGuide = (data) => {
 }
 
 /* 待退药申请卡片 */
-.pending-returns-card {
-  border-left: 4px solid #ff5722;
-}
-
 .pending-returns-card .stat-icon {
   background: linear-gradient(135deg, #fbe9e7 0%, #ffccbc 100%);
   color: #ff5722;
@@ -557,6 +585,12 @@ const handlePrintInspectionGuide = (data) => {
   background: #fef0f0;
   color: #f56c6c;
   border-left: 4px solid #f56c6c;
+}
+
+.in-progress-header {
+  background: #e6fffb;
+  color: #13c2c2;
+  border-left: 4px solid #13c2c2;
 }
 
 .due-soon-header {
