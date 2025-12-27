@@ -18,7 +18,8 @@ public class PatientController : ControllerBase
     private readonly IRepository<Bed, string> _bedRepository;
     private readonly IRepository<DischargeOrder, long> _dischargeOrderRepository;
     private readonly IDischargeOrderService _dischargeOrderService;
-    private readonly INurseScheduleRepository _nurseScheduleRepository;
+    private readonly INurseAssignmentService _nurseAssignmentService;
+    private readonly IRepository<Nurse, string> _nurseRepository;
     private readonly ILogger<PatientController> _logger;
     private readonly ICareFlowDbContext _dbContext;
 
@@ -27,7 +28,8 @@ public class PatientController : ControllerBase
         IRepository<Bed, string> bedRepository,
         IRepository<DischargeOrder, long> dischargeOrderRepository,
         IDischargeOrderService dischargeOrderService,
-        INurseScheduleRepository nurseScheduleRepository,
+        INurseAssignmentService nurseAssignmentService,
+        IRepository<Nurse, string> nurseRepository,
         ILogger<PatientController> logger,
         ICareFlowDbContext dbContext)
     {
@@ -35,7 +37,8 @@ public class PatientController : ControllerBase
         _bedRepository = bedRepository;
         _dischargeOrderRepository = dischargeOrderRepository;
         _dischargeOrderService = dischargeOrderService;
-        _nurseScheduleRepository = nurseScheduleRepository;
+        _nurseAssignmentService = nurseAssignmentService;
+        _nurseRepository = nurseRepository;
         _logger = logger;
         _dbContext = dbContext;
     }
@@ -282,26 +285,45 @@ public class PatientController : ControllerBase
 
             var patients = await query.ToListAsync();
 
-            // 获取责任护士信息
-            var wardIds = patients.Select(p => p.Bed?.WardId).Where(id => id != null).Distinct().ToList();
-            var nurseRosters = new Dictionary<string, CareFlow.Core.Models.Nursing.NurseRoster>();
-            var now = DateTime.Now;
-            
-            foreach (var wId in wardIds)
+            // 获取责任护士信息（使用UTC时间，与数据库排班表一致）
+            var now = DateTime.UtcNow;
+            var patientNurseMap = new Dictionary<string, Nurse>();
+
+            // 串行计算每位患者的责任护士ID (避免 DbContext 并发问题)
+            var nurseIdResults = new List<(string PatientId, string? NurseId)>();
+            foreach (var p in patients)
             {
-                if (wId != null)
+                var nurseId = await _nurseAssignmentService.CalculateResponsibleNurseAsync(p.Id, now);
+                nurseIdResults.Add((p.Id, nurseId));
+            }
+            
+            // 获取所有涉及的护士ID并查询详情
+            var nurseIds = nurseIdResults
+                .Where(x => !string.IsNullOrEmpty(x.NurseId))
+                .Select(x => x.NurseId!)
+                .Distinct()
+                .ToList();
+
+            if (nurseIds.Any())
+            {
+                var nurses = await _nurseRepository.GetQueryable()
+                    .Where(n => nurseIds.Contains(n.Id))
+                    .ToListAsync();
+                
+                var nurseDict = nurses.ToDictionary(n => n.Id);
+                
+                // 建立患者ID到护士实体的映射
+                foreach (var item in nurseIdResults)
                 {
-                    var roster = await _nurseScheduleRepository.GetNurseOnDutyAsync(wId, now);
-                    if (roster != null)
+                    if (!string.IsNullOrEmpty(item.NurseId) && nurseDict.TryGetValue(item.NurseId, out var nurse))
                     {
-                        nurseRosters[wId] = roster;
+                        patientNurseMap[item.PatientId] = nurse;
                     }
                 }
             }
 
             var result = patients.Select(p => {
-                var pWardId = p.Bed?.WardId;
-                var nurseRoster = pWardId != null && nurseRosters.ContainsKey(pWardId) ? nurseRosters[pWardId] : null;
+                var responsibleNurse = patientNurseMap.ContainsKey(p.Id) ? patientNurseMap[p.Id] : null;
 
                 return new PatientCardDto
                 {
@@ -318,9 +340,9 @@ public class PatientController : ControllerBase
                     ResponsibleDoctorId = p.AttendingDoctor?.Id,
                     ResponsibleDoctorName = p.AttendingDoctor?.Name,
                     ResponsibleDoctorPhone = p.AttendingDoctor?.Phone,
-                    ResponsibleNurseId = nurseRoster?.Nurse?.Id,
-                    ResponsibleNurseName = nurseRoster?.Nurse?.Name,
-                    ResponsibleNursePhone = nurseRoster?.Nurse?.Phone
+                    ResponsibleNurseId = responsibleNurse?.Id,
+                    ResponsibleNurseName = responsibleNurse?.Name,
+                    ResponsibleNursePhone = responsibleNurse?.Phone
                 };
             }).ToList();
 

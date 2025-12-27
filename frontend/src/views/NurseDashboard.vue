@@ -81,7 +81,7 @@
               size="default"
               class="ward-select"
             >
-              <el-option label="全部病区" :value="null" />
+              <el-option label="全部病区" :value="''" />
               <el-option
                 v-for="ward in availableWards"
                 :key="ward.wardId"
@@ -102,7 +102,7 @@
               size="default"
               class="status-select"
             >
-              <el-option label="全部状态" :value="null" />
+              <el-option label="全部状态" :value="-1" />
               <el-option label="待入院" :value="0" />
               <el-option label="在院" :value="1" />
               <el-option label="待出院" :value="2" />
@@ -637,13 +637,13 @@ const overview = reactive({
 
 // 病区数据
 const availableWards = ref([]);
-const selectedWardId = ref(null);
+const selectedWardId = ref('');
 
 // 患者管理相关状态
 const loadingPatients = ref(false);
 const patientList = ref([]);
 const patientWardGroups = ref([]); // 患者按病区分组
-const patientFilterStatus = ref(null);
+const patientFilterStatus = ref(-1);
 const patientSearchKeyword = ref('');
 let patientSearchTimer = null;
 
@@ -803,7 +803,7 @@ const loadPatientData = async () => {
     }
     
     // 添加状态筛选
-    if (patientFilterStatus.value !== null && patientFilterStatus.value !== undefined) {
+    if (patientFilterStatus.value !== null && patientFilterStatus.value !== undefined && patientFilterStatus.value !== -1) {
       params.status = patientFilterStatus.value;
     }
     // 注意：后端默认已排除待入院和已出院患者，无需前端额外处理
