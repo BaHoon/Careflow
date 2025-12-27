@@ -2033,7 +2033,8 @@ const gridTemplateColumns = computed(() => {
 const isFormValid = computed(() => {
   // 根据医嘱类型进行不同的表单验证
   if (activeType.value === 'OperationOrder') {
-    // 操作医嘱验证（opId是关键字段，必须通过选择操作名称自动匹配）
+    // 操作医嘱验证（参照药品类医嘱，必须选择病人）
+    if (!selectedPatient.value) return false;
     if (!operationOrder.operationName) return false;
     if (!operationOrder.opId) return false; // OpId应该通过操作名称自动匹配
     if (!operationOrder.timingStrategy) return false;
@@ -2720,9 +2721,10 @@ const addToCart = async () => {
   
   // 根据医嘱类型暂存对应数据
   if (activeType.value === 'OperationOrder') {
-    // 暂存操作医嘱
+    // 暂存操作医嘱（参照药品类医嘱，必须包含patientId）
     const orderData = {
       orderType: 'OperationOrder',
+      patientId: selectedPatient.value.id, // 添加patientId字段
       isLongTerm: operationOrder.isLongTerm,
       opId: operationOrder.opId,
       operationName: operationOrder.operationName,

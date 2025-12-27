@@ -157,6 +157,18 @@ public class NurseTaskDto
     public bool IsDueSoon { get; set; }
     
     /// <summary>
+    /// 医嘱类型名称（ExecutionTask专用）
+    /// 如：药品医嘱、手术医嘱、检查医嘱等
+    /// </summary>
+    public string? OrderTypeName { get; set; }
+    
+    /// <summary>
+    /// 任务标题（ExecutionTask专用）
+    /// 从DataPayload中提取的任务描述，如"口服阿司匹林 100mg"
+    /// </summary>
+    public string? TaskTitle { get; set; }
+    
+    /// <summary>
     /// 体征数据（仅已完成的护理任务有此数据）
     /// </summary>
     public object? VitalSigns { get; set; }

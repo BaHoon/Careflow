@@ -1,5 +1,6 @@
 using CareFlow.Application.DTOs.OrderApplication;
 using CareFlow.Application.Interfaces;
+using CareFlow.Application.Common;
 using CareFlow.Core.Enums;
 using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models.Medical;
@@ -260,13 +261,9 @@ public class OrderApplicationService : IOrderApplicationService
                             AppliedAt = DateTime.UtcNow,
                             AppliedBy = request.NurseId,
                             Remarks = request.Remarks ?? ""
-                        });
+                        }, JsonConfig.DefaultOptions);
 
-                        task.DataPayload = JsonSerializer.Serialize(payload, new JsonSerializerOptions
-                        {
-                            WriteIndented = false,
-                            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-                        });
+                        task.DataPayload = JsonSerializer.Serialize(payload, JsonConfig.DefaultOptions);
                     }
                 }
                 catch (Exception payloadEx)
@@ -366,10 +363,10 @@ public class OrderApplicationService : IOrderApplicationService
                     var payload = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(applicationTask.DataPayload);
                     if (payload != null)
                     {
-                        payload["SubmittedAt"] = JsonSerializer.SerializeToElement(DateTime.UtcNow);
-                        payload["SubmittedBy"] = JsonSerializer.SerializeToElement(request.NurseId);
-                        payload["IsUrgent"] = JsonSerializer.SerializeToElement(request.IsUrgent);
-                        applicationTask.DataPayload = JsonSerializer.Serialize(payload);
+                        payload["SubmittedAt"] = JsonSerializer.SerializeToElement(DateTime.UtcNow, JsonConfig.DefaultOptions);
+                        payload["SubmittedBy"] = JsonSerializer.SerializeToElement(request.NurseId, JsonConfig.DefaultOptions);
+                        payload["IsUrgent"] = JsonSerializer.SerializeToElement(request.IsUrgent, JsonConfig.DefaultOptions);
+                        applicationTask.DataPayload = JsonSerializer.Serialize(payload, JsonConfig.DefaultOptions);
                     }
                 }
                 catch (Exception ex)

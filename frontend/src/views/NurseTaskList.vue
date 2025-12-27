@@ -59,10 +59,10 @@
       />
     </div>
 
-    <!-- 任务详情对话框 -->
+    <!-- 任务详情对话框 - 仅用于NursingTask -->
     <el-dialog
       v-model="detailDialogVisible"
-      title="任务详情"
+      title="护理任务详情"
       width="600px"
     >
       <div v-if="currentTask" class="task-detail">
@@ -201,6 +201,12 @@
       </template>
     </el-dialog>
 
+    <!-- ExecutionTask详情对话框 -->
+    <ExecutionTaskDetail
+      v-model="executionTaskDetailVisible"
+      :task="currentExecutionTask"
+    />
+
     <!-- 护理记录表单对话框 -->
     <NursingRecordForm
       v-model="recordDialogVisible"
@@ -218,6 +224,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { Refresh } from '@element-plus/icons-vue';
 import TaskTimeline from '@/components/TaskTimeline.vue';
 import NursingRecordForm from '@/components/NursingRecordForm.vue';
+import ExecutionTaskDetail from '@/components/ExecutionTaskDetail.vue';
 import { getMyTasks, submitVitalSigns } from '@/api/nursing';
 
 // 数据状态
@@ -230,6 +237,10 @@ const selectedPatient = ref('');
 const patientList = ref([]);
 const detailDialogVisible = ref(false);
 const currentTask = ref(null);
+
+// ExecutionTask详情对话框状态
+const executionTaskDetailVisible = ref(false);
+const currentExecutionTask = ref(null);
 
 // 护理记录表单相关状态
 const recordDialogVisible = ref(false);
@@ -341,15 +352,23 @@ const handleStartInput = (task) => {
 
 // 查看详情
 const handleViewDetail = (task) => {
-  // 如果任务已完成，显示护理记录详情
-  if (task.status === 'Completed' || task.status === 5) {
-    currentRecord.value = task;
-    recordDialogMode.value = 'view';
-    recordDialogVisible.value = true;
+  // 根据taskSource区分任务类型
+  if (task.taskSource === 'ExecutionTask') {
+    // ExecutionTask详情
+    currentExecutionTask.value = task;
+    executionTaskDetailVisible.value = true;
   } else {
-    // 否则显示任务详情
-    currentTask.value = task;
-    detailDialogVisible.value = true;
+    // NursingTask详情
+    // 如果任务已完成，显示护理记录详情
+    if (task.status === 'Completed' || task.status === 5) {
+      currentRecord.value = task;
+      recordDialogMode.value = 'view';
+      recordDialogVisible.value = true;
+    } else {
+      // 否则显示任务详情
+      currentTask.value = task;
+      detailDialogVisible.value = true;
+    }
   }
 };
 

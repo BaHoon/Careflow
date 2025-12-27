@@ -26,6 +26,7 @@ public static class DependencyInjection
         // 注册应用服务
         services.AddScoped<IBarcodeMatchingService, BarcodeMatchingService>();
         
+        
         // 注册任务生成服务
         services.AddScoped<IMedicationOrderTaskService, MedicationOrderTaskService>();
         services.AddScoped<ISurgicalOrderTaskService, SurgicalOrderTaskService>();

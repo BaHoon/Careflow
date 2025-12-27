@@ -182,22 +182,27 @@ const statistics = computed(() => {
     overdueCount: props.tasks.filter(t => 
       t.excessDelayMinutes > 0 && 
       t.status !== 5 && 
+      t.status !== 'Completed' &&
       t.status !== 9 && 
       t.status !== 'Cancelled'
     ).length,
-    // 临期任务：前一小时到容忍期内的待执行任务
+    // 临期任务：前一小时到容忍期内的待执行任务（Pending状态）
     dueSoonCount: props.tasks.filter(t => 
-      t.status === 3 && 
+      (t.status === 3 || t.status === 'Pending') &&
       t.delayMinutes >= -60 && 
       t.excessDelayMinutes <= 0
     ).length,
-    // 待执行任务：还没到前一小时的任务
+    // 待执行任务：还没到前一小时的任务（包括 AppliedConfirmed、Pending、InProgress）
     pendingCount: props.tasks.filter(t => 
-      t.status === 3 && 
+      (t.status === 2 || t.status === 'AppliedConfirmed' ||
+       t.status === 3 || t.status === 'Pending' ||
+       t.status === 4 || t.status === 'InProgress') &&
       t.delayMinutes < -60
     ).length,
     // 已完成任务
-    completedCount: props.tasks.filter(t => t.status === 5).length
+    completedCount: props.tasks.filter(t => 
+      t.status === 5 || t.status === 'Completed'
+    ).length
   };
 });
 
@@ -208,22 +213,27 @@ const groupedTasks = computed(() => {
     overdue: props.tasks.filter(t => 
       t.excessDelayMinutes > 0 && 
       t.status !== 5 && 
+      t.status !== 'Completed' &&
       t.status !== 9 && 
       t.status !== 'Cancelled'
     ),
-    // 临期任务：前一小时到容忍期内的待执行任务
+    // 临期任务：前一小时到容忍期内的待执行任务（Pending状态）
     dueSoon: props.tasks.filter(t => 
-      t.status === 3 && 
+      (t.status === 3 || t.status === 'Pending') &&
       t.delayMinutes >= -60 && 
       t.excessDelayMinutes <= 0
     ),
-    // 待执行任务：还没到前一小时的任务
+    // 待执行任务：还没到前一小时的任务（包括 AppliedConfirmed、Pending、InProgress）
     pending: props.tasks.filter(t => 
-      t.status === 3 && 
+      (t.status === 2 || t.status === 'AppliedConfirmed' ||
+       t.status === 3 || t.status === 'Pending' ||
+       t.status === 4 || t.status === 'InProgress') &&
       t.delayMinutes < -60
     ),
     // 已完成任务
-    completed: props.tasks.filter(t => t.status === 5)
+    completed: props.tasks.filter(t => 
+      t.status === 5 || t.status === 'Completed'
+    )
   };
 });
 

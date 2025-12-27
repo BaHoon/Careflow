@@ -20,8 +20,15 @@ var builder = WebApplication.CreateBuilder(args);
 // 1. 配置服务 (Services) - 依赖注入的注册
 // ==============================================
 
-// 添加控制器
-builder.Services.AddControllers();
+// 添加控制器，并配置 JSON 序列化选项（禁用 Unicode 转义）
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // 禁用 Unicode 转义，让中文字符正常显示
+        options.JsonSerializerOptions.Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
+        // 可选：设置属性命名策略为驼峰式
+        //options.JsonSerializerOptions.PropertyNamingPolicy = null; // 保持原有命名
+    });
 
 // 添加 Swagger/OpenAPI (接口文档生成器)
 builder.Services.AddEndpointsApiExplorer();
