@@ -3,16 +3,25 @@
     class="task-item" 
     :class="{ 
       'task-highlight': highlight,
-      'task-overdue': task.excessDelayMinutes > 0 && task.status !== 'Completed' && task.status !== 5,
-      'task-due-soon': task.status === 'Pending' && task.delayMinutes >= -60 && task.excessDelayMinutes <= 0
+      'task-overdue': isOverdue,
+      'task-due-soon': isDueSoon,
+      'task-completed': isCompleted
     }"
-    @click="handleClick"
   >
+    <div class="task-clickable-area" @click="handleClick">
     <div class="task-header">
       <div class="task-title">
         <el-icon :size="18" class="task-icon">
           <component :is="categoryIcon" />
         </el-icon>
+        <!-- 任务类型标签 -->
+        <el-tag 
+          :type="task.taskSource === 'ExecutionTask' ? 'success' : 'info'" 
+          size="small"
+          class="task-type-tag"
+        >
+          {{ task.taskSource === 'ExecutionTask' ? '医嘱任务' : '护理任务' }}
+        </el-tag>
         <!-- ExecutionTask 显示医嘱类型和任务标题 -->
         <span v-if="task.taskSource === 'ExecutionTask' && task.orderTypeName" class="task-order-type">
           {{ task.orderTypeName }}
@@ -144,6 +153,7 @@
         </el-button>
       </template>
     </div>
+    </div>
   </div>
 </template>
 
@@ -177,10 +187,23 @@ const props = defineProps({
   highlight: {
     type: Boolean,
     default: false
+  },
+  isOverdue: {
+    type: Boolean,
+    default: false
+  },
+  isDueSoon: {
+    type: Boolean,
+    default: false
   }
 });
 
 const emit = defineEmits(['click', 'start-input', 'view-detail', 'task-cancelled']);
+
+// 已完成任务判断
+const isCompleted = computed(() => {
+  return props.task.status === 'Completed' || props.task.status === 5;
+});
 
 // 显示标题（优先使用 taskTitle，否则使用类别文本）
 const displayTitle = computed(() => {
@@ -331,9 +354,11 @@ const formatTime = (dateString) => {
   }
 };
 
-// 事件处理
 const handleClick = () => {
+  console.log('TaskItem handleClick 触发');
   emit('click', props.task);
+  // 当点击任务块时，自动打开详情
+  emit('view-detail', props.task);
 };
 
 const handleStartInput = () => {
@@ -796,29 +821,97 @@ const handleCancelExecution = async () => {
 .task-item {
   background: #fff;
   border: 1px solid #ebeef5;
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 16px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+}
+
+.task-clickable-area {
   cursor: pointer;
+}
+
+.task-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: #409eff;
   transition: all 0.3s ease;
 }
 
 .task-item:hover {
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-  transform: translateX(4px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+  border-color: #409eff;
+  background: #fff;
+}
+
+.task-item:hover::before {
+  width: 6px;
+}
+
+.task-item:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .task-highlight {
   border-width: 2px;
 }
 
+.task-highlight.task-overdue {
+  border-color: #f56c6c;
+  animation: overdue-pulse 2s infinite;
+}
+
+.task-highlight.task-due-soon {
+  border-color: #e6a23c;
+}
+
 .task-overdue {
   border-color: #f56c6c;
   background: #fef0f0;
+  box-shadow: 0 0 0 1px #f56c6c inset;
+}
+
+.task-overdue::before {
+  background: #f56c6c;
+  width: 6px;
 }
 
 .task-due-soon {
   border-color: #e6a23c;
   background: #fdf6ec;
+}
+
+.task-due-soon::before {
+  background: #e6a23c;
+  width: 6px;
+}
+
+.task-completed {
+  border-color: #67c23a;
+  background: #f0f9ff;
+}
+
+.task-completed::before {
+  background: #67c23a;
+  width: 6px;
+}
+
+/* 超时任务闪烁动画 */
+@keyframes overdue-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(245, 108, 108, 0.7), inset 0 0 0 1px #f56c6c;
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(245, 108, 108, 0), inset 0 0 0 1px #f56c6c;
+  }
 }
 
 .task-header {
@@ -834,10 +927,31 @@ const handleCancelExecution = async () => {
   gap: 8px;
   font-size: 16px;
   font-weight: 600;
+  flex: 1;
+  flex-wrap: wrap;
 }
 
 .task-icon {
   color: #409eff;
+  flex-shrink: 0;
+}
+
+.task-type-tag {
+  flex-shrink: 0;
+  margin-right: 4px;
+  font-weight: 600;
+}
+
+.task-order-type {
+  color: #909399;
+  font-size: 14px;
+  font-weight: 400;
+  margin: 0 4px;
+}
+
+.task-category {
+  color: #303133;
+  flex-wrap: nowrap;
 }
 
 .task-content {
@@ -852,11 +966,17 @@ const handleCancelExecution = async () => {
   margin-bottom: 8px;
   font-size: 14px;
   color: #606266;
+  flex-wrap: wrap;
 }
 
 .task-patient .el-icon,
 .task-time .el-icon {
   color: #909399;
+  flex-shrink: 0;
+}
+
+.task-patient .el-tag {
+  flex-shrink: 0;
 }
 
 .overdue-text {
@@ -880,5 +1000,6 @@ const handleCancelExecution = async () => {
   gap: 8px;
   padding-top: 12px;
   border-top: 1px solid #ebeef5;
+  flex-wrap: wrap;
 }
 </style>
