@@ -1,5 +1,7 @@
 using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models.Nursing;
+using CareFlow.Core.Models.Medical;
+using CareFlow.Core.Enums;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -266,18 +268,54 @@ public class BarcodePrintController : ControllerBase
         {
             if (!string.IsNullOrEmpty(task.DataPayload))
             {
-                var payload = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(task.DataPayload);
-                if (payload != null && payload.ContainsKey("Title"))
+                _logger.LogDebug("任务 {TaskId} 的 DataPayload: {Payload}", task.Id, task.DataPayload);
+                
+                using var doc = System.Text.Json.JsonDocument.Parse(task.DataPayload);
+                
+                // 尝试不区分大小写查找 Title
+                foreach (var property in doc.RootElement.EnumerateObject())
                 {
-                    return payload["Title"].ToString() ?? "执行任务";
+                    _logger.LogDebug("发现属性: {PropertyName} = {PropertyValue}", property.Name, property.Value);
+                    
+                    if (property.Name.Equals("Title", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var title = property.Value.GetString();
+                        if (!string.IsNullOrEmpty(title))
+                        {
+                            _logger.LogDebug("成功提取 Title: {Title}", title);
+                            return title;
+                        }
+                    }
                 }
+                
+                _logger.LogWarning("任务 {TaskId} 的 DataPayload 中未找到 Title 字段", task.Id);
+            }
+            else
+            {
+                _logger.LogDebug("任务 {TaskId} 的 DataPayload 为空", task.Id);
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // 解析失败，使用默认值
+            _logger.LogWarning(ex, "解析任务 {TaskId} 的 DataPayload 失败", task.Id);
         }
 
+        // 如果没有 Title，返回任务ID
         return $"任务 #{task.Id}";
+    }
+
+    private string GetTaskCategoryName(TaskCategory category)
+    {
+        return category switch
+        {
+            TaskCategory.Immediate => "即刻执行",
+            TaskCategory.Duration => "持续执行",
+            TaskCategory.ResultPending => "结果等待",
+            TaskCategory.DataCollection => "数据采集",
+            TaskCategory.Verification => "核对用药",
+            TaskCategory.ApplicationWithPrint => "检查申请",
+            TaskCategory.DischargeConfirmation => "出院确认",
+            _ => "其他任务"
+        };
     }
 }

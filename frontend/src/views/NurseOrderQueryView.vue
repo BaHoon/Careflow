@@ -971,13 +971,15 @@ const printSelectedBarcodes = () => {
  */
 const getTaskCategoryName = (category) => {
   const categoryMap = {
-    'ApplicationWithPrint': '申请打印类',
-    'ResultPending': '结果等待类',
-    'DataCollection': '数据采集类',
-    'VerificationWithDosage': '核对用药类',
-    'ExecutionOnly': '纯执行类'
+    'Immediate': '即刻执行',
+    'Duration': '持续执行',
+    'ResultPending': '结果等待',
+    'DataCollection': '数据采集',
+    'Verification': '核对用药',
+    'ApplicationWithPrint': '检查申请',
+    'DischargeConfirmation': '出院确认'
   };
-  return categoryMap[category] || category;
+  return categoryMap[category] || '其他任务';
 };
 
 // ==================== 新开/新停判断 ====================
