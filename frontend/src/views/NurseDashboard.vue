@@ -485,9 +485,10 @@
             >
               <div class="task-header">
                 <span class="task-number">{{ index + 1 }}.</span>
-                <span class="task-name">{{ task.orderSummary }}</span>
-                <el-tag :type="task.orderType === 'MedicationOrder' ? 'primary' : 'warning'" size="small">
-                  {{ task.orderType }}
+                <span class="task-name">{{ formatTaskTitle(task) }}</span>
+                <span class="task-id">(ID: {{ task.orderId }})</span>
+                <el-tag :type="getOrderTypeTagColor(task.orderType)" size="small">
+                  {{ getOrderTypeDisplayName(task.orderType) }}
                 </el-tag>
               </div>
               <div class="task-details">
@@ -949,6 +950,96 @@ const handleSavePatientDetail = async () => {
 const handlePatientAdmission = async (patient) => {
   // TODO: 实现入院办理功能
   ElMessage.info(`入院办理功能将在后续版本实现（患者: ${patient.name}）`);
+};
+
+/**
+ * 格式化任务标题
+ */
+const formatTaskTitle = (task) => {
+  if (!task) return '';
+  
+  // 根据医嘱类型格式化标题
+  switch (task.orderType) {
+    case 'DischargeOrder':
+    case 'Discharge':
+      // 出院医嘱：显示 "出院医嘱-代取药品：药品名称"
+      // 从 medicationOrderItems 中提取药品名称（兼容大小写）
+      const dischargeMeds = task.medicationOrderItems || task.MedicationOrderItems;
+      if (dischargeMeds && dischargeMeds.length > 0) {
+        const firstDrug = dischargeMeds[0].drug?.drugName || dischargeMeds[0].Drug?.DrugName || '未知药品';
+        const suffix = dischargeMeds.length > 1 ? '等' : '';
+        return `出院医嘱-代取药品：${firstDrug}${suffix}`;
+      }
+      return `出院医嘱-代取药品：${task.orderSummary || '未知药品'}`;
+    
+    case 'MedicationOrder':
+    case 'Medication':
+      // 药品医嘱：显示 "待用药：药品名称"
+      // 从 medicationOrderItems 中提取药品名称（兼容大小写）
+      const meds = task.medicationOrderItems || task.MedicationOrderItems;
+      if (meds && meds.length > 0) {
+        const firstDrug = meds[0].drug?.drugName || meds[0].Drug?.DrugName || '未知药品';
+        const suffix = meds.length > 1 ? '等' : '';
+        return `待用药：${firstDrug}${suffix}`;
+      }
+      return `待用药：${task.orderSummary || '未知药品'}`;
+    
+    case 'OperationOrder':
+    case 'Operation':
+      // 操作医嘱：显示操作名称 operationName
+      return task.operationName || task.OperationName || task.orderSummary || '未知操作';
+    
+    case 'SurgicalOrder':
+    case 'Surgical':
+      // 手术医嘱：显示手术名称 surgeryName
+      return task.surgeryName || task.SurgeryName || task.orderSummary || '未知手术';
+    
+    case 'InspectionOrder':
+    case 'Inspection':
+      // 检查医嘱：显示检查项目名称 itemName
+      return task.itemName || task.ItemName || task.orderSummary || '未知检查';
+    
+    default:
+      return task.orderSummary || '未知医嘱';
+  }
+};
+
+/**
+ * 获取医嘱类型中文名称
+ */
+const getOrderTypeDisplayName = (orderType) => {
+  const typeMap = {
+    'MedicationOrder': '药品',
+    'Medication': '药品',
+    'OperationOrder': '操作',
+    'Operation': '操作',
+    'SurgicalOrder': '手术',
+    'Surgical': '手术',
+    'InspectionOrder': '检查',
+    'Inspection': '检查',
+    'DischargeOrder': '出院',
+    'Discharge': '出院'
+  };
+  return typeMap[orderType] || orderType;
+};
+
+/**
+ * 获取医嘱类型标签颜色
+ */
+const getOrderTypeTagColor = (orderType) => {
+  const colorMap = {
+    'MedicationOrder': 'primary',
+    'Medication': 'primary',
+    'OperationOrder': 'warning',
+    'Operation': 'warning',
+    'SurgicalOrder': 'danger',
+    'Surgical': 'danger',
+    'InspectionOrder': 'info',
+    'Inspection': 'info',
+    'DischargeOrder': 'success',
+    'Discharge': 'success'
+  };
+  return colorMap[orderType] || 'info';
 };
 
 /**
@@ -1455,7 +1546,17 @@ onMounted(() => {
   font-size: 15px;
   font-weight: 500;
   color: #303133;
-  flex: 1;
+}
+
+.task-id {
+  font-size: 12px;
+  color: #909399;
+  font-family: 'Courier New', monospace;
+  margin-right: 8px;
+}
+
+.task-header .el-tag {
+  margin-left: auto;
 }
 
 .task-details {

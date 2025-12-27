@@ -56,6 +56,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
         if (existingOrder.Status == OrderStatus.Cancelled || 
             existingOrder.Status == OrderStatus.Completed ||
             existingOrder.Status == OrderStatus.Stopped ||
+            existingOrder.Status == OrderStatus.StoppingInProgress ||
             existingOrder.Status == OrderStatus.Draft ||
             existingOrder.Status == OrderStatus.Rejected)
         {
@@ -661,7 +662,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
             var dataPayload = new
             {
                 TaskType = "MEDICATION_ADMINISTRATION",
-                Title = "药品给药核对",
+                Title = $"给药：{drugDescription}",
                 Description = fullDescription,
                 IsChecklist = true,
                 Items = items,
@@ -700,7 +701,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
             return JsonSerializer.Serialize(new
             {
                 TaskType = "MEDICATION_ADMINISTRATION",
-                Title = "药品给药核对",
+                Title = $"给药：{drugName}",
                 Description = $"药品给药 - {drugName} - {order.UsageRoute}",
                 IsChecklist = true,
                 Items = new[] { new { id = 1, text = "执行给药任务", isChecked = false, required = true } }
@@ -932,7 +933,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
         var payload = new
         {
             TaskType = "RetrieveMedication",
-            Title = "药房取药核对",
+            Title = "取药核对：药房取药",
             Description = "请从药房取药并核对药品信息",
             IsChecklist = true,
             Items = items, // 符合通用协议的 Items 数组

@@ -37,6 +37,13 @@ public class CancelExecutionTaskDto
     [Required(ErrorMessage = "取消理由不能为空")]
     [MinLength(2, ErrorMessage = "取消理由至少2个字符")]
     public string CancelReason { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// 是否需要直接退药（仅对AppliedConfirmed状态有效）
+    /// true: 直接改为Incomplete状态
+    /// false: 改为PendingReturnCancelled状态（任务异常取消待退药）
+    /// </summary>
+    public bool NeedReturn { get; set; } = false;
 }
 /// <summary>
 /// 更新执行任务状态 DTO（用于扫码任务页面）

@@ -82,9 +82,9 @@
               <el-checkbox :label="1">未签收</el-checkbox>
               <el-checkbox :label="2">已签收</el-checkbox>
               <el-checkbox :label="3">进行中</el-checkbox>
-              <el-checkbox :label="4">已完成</el-checkbox>
-              <el-checkbox :label="5">已停止</el-checkbox>
-              <el-checkbox :label="8">等待停嘱</el-checkbox>
+              <el-checkbox :label="4">已结束</el-checkbox>
+              <el-checkbox :label="7">已退回</el-checkbox>
+              <el-checkbox :label="9">停止中</el-checkbox>
             </el-checkbox-group>
           </div>
 
@@ -494,8 +494,8 @@ const sortBy = ref('time');
 const timeRange = ref(null);
 // 医嘱类型（默认显示所有类型）
 const typeFilter = ref(['MedicationOrder', 'InspectionOrder', 'OperationOrder', 'SurgicalOrder', 'DischargeOrder']);
-// 医嘱状态（默认显示未签收、已签收、进行中）
-const statusFilter = ref([1, 2, 3]);
+// 医嘱状态（默认显示未签收(1)、已签收(2)、进行中(3)、停止中(9)）
+const statusFilter = ref([1, 2, 3, 9]);
 // 新开医嘱筛选
 const showNewCreated = ref(false);
 // 新停医嘱筛选
@@ -624,9 +624,28 @@ const loadOrders = async () => {
   try {
     console.log(`🔄 开始加载 ${selectedPatients.value.length} 位患者的医嘱...`);
 
+    // 状态映射：将前端筛选项映射为后端状态值
+    const statusMapping = {
+      1: [1, 8],  // 未签收 → PendingReceive(1), PendingStop(8)
+      2: [2],     // 已签收 → Accepted(2)
+      3: [3],     // 进行中 → InProgress(3)
+      4: [4, 5],  // 已结束 → Completed(4), Stopped(5)
+      6: [6],     // 已撤回 → Cancelled(6)
+      7: [7],     // 已退回 → Rejected(7)
+      9: [9]      // 停止中 → StoppingInProgress(9)
+    };
+
+    // 将选中的筛选项映射为实际状态值
+    const mappedStatuses = [];
+    statusFilter.value.forEach(filterValue => {
+      if (statusMapping[filterValue]) {
+        mappedStatuses.push(...statusMapping[filterValue]);
+      }
+    });
+
     // 构建筛选条件
     const filters = {
-      statuses: statusFilter.value,
+      statuses: mappedStatuses,
       orderTypes: typeFilter.value.length > 0 ? typeFilter.value : null,
       sortBy: 'CreateTime',
       sortDescending: true
@@ -997,10 +1016,33 @@ const isNewlyCreated = (order) => {
 };
 
 /**
- * 判断是否为新停医嘱
+ * 判断是否为新停医嘱（24h内的PendingStop、StoppingInProgress、Stopped）
  */
 const isNewlyStopped = (order) => {
-  return isNewlyStoppedOrder(order, 24);
+  // 检查状态是否为停止相关状态
+  if (order.status !== 8 && order.status !== 9 && order.status !== 5) {
+    return false;
+  }
+  
+  // 检查是否在24小时内
+  if (!order.stopConfirmedAt && !order.createTime) {
+    return false;
+  }
+  
+  try {
+    // 使用停止确认时间或创建时间
+    const timeString = order.stopConfirmedAt || order.createTime;
+    let utcString = timeString;
+    if (!timeString.endsWith('Z') && !timeString.includes('+')) {
+      utcString = timeString + 'Z';
+    }
+    const orderTime = new Date(utcString);
+    const now = new Date();
+    const hoursDiff = (now - orderTime) / (1000 * 60 * 60);
+    return hoursDiff <= 24;
+  } catch {
+    return false;
+  }
 };
 
 // ==================== 计算任务进度 ====================
