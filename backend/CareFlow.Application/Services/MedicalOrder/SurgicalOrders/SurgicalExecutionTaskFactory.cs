@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
+using CareFlow.Application.Common;
 using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models.Medical;
 using CareFlow.Core.Models.Nursing;
@@ -65,7 +66,7 @@ namespace CareFlow.Application.Services
                             Title = talkContent,
                             Description = $"针对手术【{order.SurgeryName}】的术前宣教",
                             IsChecklist = false
-                        })
+                        }, JsonConfig.DefaultOptions)
                     });
                 }
             }
@@ -101,7 +102,7 @@ namespace CareFlow.Application.Services
                             Title = opContent,
                             Description = $"切口部位：{order.IncisionSite}",
                             RequiresScan = true // 标记前端需要扫码
-                        })
+                        }, JsonConfig.DefaultOptions)
                     });
                 }
             }
@@ -149,7 +150,7 @@ namespace CareFlow.Application.Services
                     Description = "请核对带入手术室的所有物品",
                     IsChecklist = true,
                     Items = supplyList
-                })
+                }, JsonConfig.DefaultOptions)
             });
         }
     }
