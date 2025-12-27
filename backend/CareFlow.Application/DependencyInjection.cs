@@ -9,6 +9,7 @@ using CareFlow.Application.Services.MedicalOrder.OperationOrders;
 using CareFlow.Application.Services.MedicalOrder.SurgicalOrders;
 using CareFlow.Application.Services.OrderAcknowledgement;
 using CareFlow.Application.Services.OrderApplication;
+using CareFlow.Application.Services.Report;
 using CareFlow.Core.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -26,6 +27,8 @@ public static class DependencyInjection
         // 注册应用服务
         services.AddScoped<IBarcodeMatchingService, BarcodeMatchingService>();
         
+        // 注册报告生成服务
+        services.AddScoped<InspectionReportPdfService>();
         
         // 注册任务生成服务
         services.AddScoped<IMedicationOrderTaskService, MedicationOrderTaskService>();

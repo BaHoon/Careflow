@@ -750,6 +750,12 @@ const handlePrintInspectionGuide = ({ taskId, orderId }) => {
 const handleViewInspectionReport = (reportInfo) => {
   console.log('📄 查看检查报告:', reportInfo);
   
+  // 验证报告URL是否存在
+  if (!reportInfo.reportUrl) {
+    ElMessage.warning('报告文件不存在或尚未生成');
+    return;
+  }
+  
   // 构建报告URL，使用后端静态文件服务
   const baseUrl = 'http://localhost:5181';
   const reportUrl = `${baseUrl}/${reportInfo.reportUrl}`;

@@ -3,12 +3,14 @@ using CareFlow.Application.DTOs.Inspection;
 using CareFlow.Application.DTOs.InspectionOrders;
 using CareFlow.Application.DTOs.OrderApplication;
 using CareFlow.Application.Interfaces;
+using CareFlow.Application.Services.Report;
 using CareFlow.Core.Enums;
 using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models;
 using CareFlow.Core.Models.Medical;
 using CareFlow.Core.Models.Nursing;
 using CareFlow.Core.Models.Organization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 
 namespace CareFlow.Application.Services.MedicalOrder;
@@ -30,6 +32,8 @@ public class InspectionOrderTaskService : IInspectionService
     private readonly IRepository<Doctor, string> _doctorRepo;
     private readonly IRepository<Nurse, string> _nurseRepo;
     private readonly IRepository<ExecutionTask, long> _taskRepo;
+    private readonly InspectionReportPdfService _pdfService;
+    private readonly IWebHostEnvironment _environment;
 
     public InspectionOrderTaskService(
         IRepository<InspectionOrder, long> orderRepo,
@@ -37,7 +41,9 @@ public class InspectionOrderTaskService : IInspectionService
         IRepository<Patient, string> patientRepo,
         IRepository<Doctor, string> doctorRepo,
         IRepository<Nurse, string> nurseRepo,
-        IRepository<ExecutionTask, long> taskRepo)
+        IRepository<ExecutionTask, long> taskRepo,
+        InspectionReportPdfService pdfService,
+        IWebHostEnvironment environment)
     {
         _orderRepo = orderRepo;
         _reportRepo = reportRepo;
@@ -45,6 +51,8 @@ public class InspectionOrderTaskService : IInspectionService
         _doctorRepo = doctorRepo;
         _nurseRepo = nurseRepo;
         _taskRepo = taskRepo;
+        _pdfService = pdfService;
+        _environment = environment;
     }
 
     // ===== 任务生成相关 =====
@@ -177,10 +185,64 @@ public class InspectionOrderTaskService : IInspectionService
     {
         var order = await _orderRepo.GetQueryable()
             .Include(o => o.Patient)
+                .ThenInclude(p => p.Bed)
+                    .ThenInclude(b => b.Ward)
+                        .ThenInclude(w => w.Department)
+            .Include(o => o.Doctor)
             .FirstOrDefaultAsync(o => o.Id == dto.OrderId);
 
         if (order == null) throw new Exception("检查医嘱不存在");
 
+        var patient = order.Patient;
+        
+        // 生成报告编号
+        var reportNumber = $"R{DateTime.Now:yyyyMMddHHmmss}{order.Id}";
+        
+        // 生成 PDF 文件路径
+        var reportsFolder = Path.Combine(_environment.WebRootPath, "reports");
+        if (!Directory.Exists(reportsFolder))
+        {
+            Directory.CreateDirectory(reportsFolder);
+        }
+        
+        var fileName = $"Report_{reportNumber}.pdf";
+        var filePath = Path.Combine(reportsFolder, fileName);
+        var relativeUrl = $"reports/{fileName}";
+        
+        // 准备报告数据
+        var reportData = new InspectionReportData
+        {
+            HospitalName = "医疗机构",
+            PatientId = patient.Id,
+            PatientName = patient.Name,
+            PatientGender = patient.Gender,
+            PatientAge = CalculateAge(patient.DateOfBirth),
+            Department = patient.Bed?.Ward?.Department?.DeptName ?? "未知科室",
+            BedNumber = patient.Bed?.Id ?? "未分配",
+            RequestingDoctor = order.Doctor?.Name ?? "未知医生",
+            ItemCode = order.ItemCode,
+            ItemName = order.ItemName,
+            RisLisId = dto.RisLisId,
+            ExaminationDate = order.AppointmentTime ?? order.CreateTime,
+            ReportDate = DateTime.Now,
+            Findings = dto.Findings,
+            Impression = dto.Impression,
+            ReviewerName = dto.ReviewerId != null ? 
+                (await _doctorRepo.GetByIdAsync(dto.ReviewerId))?.Name : "检查站",
+            ReportNumber = reportNumber
+        };
+        
+        // 生成 PDF
+        try
+        {
+            _pdfService.GenerateReportPdf(reportData, filePath);
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"生成 PDF 报告失败: {ex.Message}", ex);
+        }
+
+        // 创建报告记录
         var report = new InspectionReport
         {
             OrderId = dto.OrderId,
@@ -190,7 +252,7 @@ public class InspectionOrderTaskService : IInspectionService
             ReportStatus = InspectionReportStatus.Completed,
             Findings = dto.Findings,
             Impression = dto.Impression,
-            AttachmentUrl = dto.AttachmentUrl,
+            AttachmentUrl = relativeUrl,  // 使用生成的 PDF 路径
             ReviewerId = dto.ReviewerId,
             ReportSource = dto.ReportSource,
             CreateTime = DateTime.UtcNow
@@ -208,6 +270,17 @@ public class InspectionOrderTaskService : IInspectionService
         // await CreateReportReviewTask(order, report.Id);
 
         return report.Id;
+    }
+    
+    /// <summary>
+    /// 计算年龄
+    /// </summary>
+    private int CalculateAge(DateTime birthDate)
+    {
+        var today = DateTime.Today;
+        var age = today.Year - birthDate.Year;
+        if (birthDate.Date > today.AddYears(-age)) age--;
+        return age;
     }
 
     public async Task<InspectionReportDetailDto> GetInspectionReportDetailAsync(long reportId)

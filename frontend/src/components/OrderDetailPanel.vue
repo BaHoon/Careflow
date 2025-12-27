@@ -518,7 +518,7 @@ const handleInspectionReport = (task) => {
     emit('view-inspection-report', {
       orderId: props.detail.id,
       reportId: props.detail.reportId,
-      reportUrl: props.detail.attachmentUrl || 'reports/REPORT.pdf'
+      reportUrl: props.detail.attachmentUrl  // 使用真实的 attachmentUrl
     });
   } else {
     // 报告还未出来，提示用户
