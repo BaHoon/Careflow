@@ -45,6 +45,23 @@
             
             <div class="current-task">{{ currentTask.patientName }} - {{ getCategoryName(currentTask.category) }}</div>
 
+            <!-- 药品清单（仅在核对药品时显示） -->
+            <div v-if="currentTask.category === 5 && currentTask.drugs" class="drug-list-panel">
+              <h4>📋 期望核对的药品清单</h4>
+              <div class="drug-list">
+                <div v-for="(drug, idx) in currentTask.drugs" :key="idx" :class="['drug-item', getDrugStatus(drug)]">
+                  <div class="drug-status-icon">
+                    <span v-if="drug.scanned" class="scanned-icon">✓</span>
+                    <span v-else class="unscanned-icon">○</span>
+                  </div>
+                  <div class="drug-info">
+                    <div class="drug-name">{{ drug.drugName || drug.drugId }}</div>
+                    <div class="drug-id">{{ drug.drugId }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div class="upload-box">
               <input ref="secondInput" type="file" accept="image/*" @change="handleSecondUpload" style="display:none" />
               <div class="upload-area" @click="$refs.secondInput?.click()">
@@ -54,12 +71,27 @@
               <img v-if="secondPreview" :src="secondPreview" class="preview" />
             </div>
 
+            <!-- 进度条与统计 -->
             <div v-if="currentTask.category === 5" class="progress">
-              <p>已核对: <strong>{{ confirmedCount }}</strong> / {{ totalCount }}</p>
-              <el-progress :percentage="totalCount > 0 ? Math.round((confirmedCount / totalCount) * 100) : 0" />
+              <div class="progress-stats">
+                <span>已核对: <strong class="count-scanned">{{ confirmedCount }}</strong></span>
+                <span class="separator">/</span>
+                <span>期望: <strong class="count-total">{{ totalCount }}</strong></span>
+                <span v-if="totalCount === 0" class="warning-note">（未能读取清单）</span>
+              </div>
+              <el-progress 
+                :percentage="totalCount > 0 ? Math.round((confirmedCount / totalCount) * 100) : 0" 
+                :color="getProgressColor(confirmedCount, totalCount)"
+              />
             </div>
 
-            <div v-if="message" :class="['msg', message.type]">{{ message.text }}</div>
+            <!-- 消息提示（成功、警告、错误） -->
+            <div v-if="message" :class="['msg', message.type]">
+              <span v-if="message.type === 'error'" class="msg-icon">⚠️</span>
+              <span v-else-if="message.type === 'success'" class="msg-icon">✓</span>
+              <span v-else-if="message.type === 'warning'" class="msg-icon">ℹ️</span>
+              {{ message.text }}
+            </div>
           </div>
 
           <!-- 步骤3：结束任务 (仅类别2) -->
@@ -216,7 +248,19 @@ const handleTaskUpload = async (e) => {
     
     if (currentTask.value.category === 5) {
       totalCount.value = currentTask.value.drugs?.length || 0;
-      confirmedCount.value = 0;
+      // 从后端返回的 drugs 列表中统计已扫描项
+      confirmedCount.value = (currentTask.value.drugs || []).filter(d => d.scanned).length;
+      if (totalCount.value === 0) {
+        message.value = { type: 'warning', text: '未能从任务中读取期望药品清单，扫码将仅记录条码' };
+      }
+      // 前端调试：打印任务信息与清单
+      console.log('[TaskScan] 任务加载完成:', {
+        taskId: currentTask.value.id,
+        category: currentTask.value.category,
+        totalDrugs: totalCount.value,
+        drugs: currentTask.value.drugs,
+        dataPayload: currentTask.value.dataPayload
+      });
     }
     
     // 任务加载成功后自动进入第2步
@@ -255,28 +299,41 @@ const handleSecondUpload = async (e) => {
 
     if (result.isMatched) {
       if (currentTask.value.category === 5) {
-        // 药品验证成功
-        confirmedCount.value++;
-        message.value = { type: 'success', text: '✓ 药品已核对' };
-        
-        if (confirmedCount.value === totalCount.value) {
-          // 所有药品已核对，进入第3步
+        // 从后端结果更新已确认数和总数（后端返回 scannedCount/expectedCount/progress）
+        if (typeof result.scannedCount === 'number') {
+          confirmedCount.value = result.scannedCount;
+        } else {
+          // 回退：重新拉取任务详情
+          const refreshed = await api.getExecutionTaskDetail(currentTask.value.id);
+          confirmedCount.value = (refreshed.drugs || []).filter(d => d.scanned).length;
+        }
+
+        if (typeof result.expectedCount === 'number') {
+          totalCount.value = result.expectedCount;
+        }
+
+        message.value = { type: 'success', text: `✓ 药品已核对 （${confirmedCount.value}/${totalCount.value}）` };
+
+        // 如果后端返回 progress 并且完成
+        const progress = typeof result.progress === 'number' ? result.progress : (totalCount.value > 0 ? Math.round((confirmedCount.value / totalCount.value) * 100) : 0);
+        if (progress >= 100 && totalCount.value > 0) {
           ElMessage.success('所有药品已核对');
           setTimeout(() => nextStep(), 1500);
         } else {
+          // 保持在当前步骤，清除预览便于下一次扫描
           secondPreview.value = '';
         }
       } else {
         // 患者验证成功
         message.value = { type: 'success', text: '✓ 患者验证成功' };
-        
-        // 所有类型都是进入第3步，不在这里调用 API
         ElMessage.success('进入完成步骤');
         setTimeout(() => nextStep(), 1500);
       }
     } else {
-      message.value = { type: 'error', text: '✗ 验证失败: ' + (result.message || '条形码不匹配') };
-      ElMessage.error(result.message || '验证失败');
+      // 显示后端返回的详细错误（例如扫描条码不在期望清单）
+      const txt = result && result.message ? result.message : '条形码不匹配';
+      message.value = { type: 'error', text: `✗ 验证失败: ${txt}` };
+      ElMessage.error(txt);
       secondPreview.value = '';
     }
   } catch (err) {
@@ -345,13 +402,34 @@ const finish = async () => {
     let resultPayload = null;
     
     if (category === 1 || category === 4) {
-      // Immediate 和 Verification：一次完成（Pending → Completed）
+      // Immediate：一次完成（Pending → Completed）
       if (remarks.value) {
         resultPayload = remarks.value;
       }
       await api.completeExecutionTask(currentTask.value.id, nurseId, resultPayload);
-    } else if (category === 2 || category === 3 || category === 5) {
-      // Duration、ResultPending、Verification(核对药品)：两步完成
+    } else if (category === 5) {
+      // Verification(核对药品)：一次完成（Pending → Completed）
+      // 所有药品已核对完毕，直接完成任务
+      if (remarks.value) {
+        resultPayload = `核对备注：${remarks.value}`;
+      }
+      await api.completeExecutionTask(currentTask.value.id, nurseId, resultPayload);
+      
+      msg.close();
+      ElMessage.success(`任务已由 ${currentUser.value.fullName} 完成！`);
+      
+      // 添加到历史
+      history.value.unshift({
+        id: currentTask.value.id,
+        patientName: currentTask.value.patientName,
+        time: new Date()
+      });
+
+      // 重置
+      reset();
+      return;
+    } else if (category === 2 || category === 3) {
+      // Duration、ResultPending：两步完成
       
       if (currentStatus === 3 || currentStatus === 'Pending') {
         // 第一次调用：Pending → InProgress
@@ -387,17 +465,14 @@ const finish = async () => {
         return;
       }
     }
-    
     // 如果是第一次调用（Pending→InProgress），不清空数据，重置为第0步让护士再扫一次
-    if (category === 2 || category === 3 || category === 5) {
-      if (currentStatus === 3 || currentStatus === 'Pending') {
-        currentStep.value = 0;
-        remarks.value = '';
-        taskPreview.value = '';
-        secondPreview.value = '';
-        message.value = null;
-        return;
-      }
+    if ((category === 2 || category === 3) && (currentStatus === 3 || currentStatus === 'Pending')) {
+      currentStep.value = 0;
+      remarks.value = '';
+      taskPreview.value = '';
+      secondPreview.value = '';
+      message.value = null;
+      return;
     }
     
     msg.close();
@@ -441,6 +516,29 @@ const getCategoryName = (cat) => {
 const formatTime = (dt) => {
   if (!dt) return '-';
   return new Date(dt).toLocaleString('zh-CN');
+};
+
+/**
+ * 获取药品的状态类名（用于高亮样式）
+ * @param {Object} drug - 药品对象
+ * @returns {String} 状态类名：'scanned' 或 'unscanned'
+ */
+const getDrugStatus = (drug) => {
+  return drug && drug.scanned ? 'scanned' : 'unscanned';
+};
+
+/**
+ * 根据进度计算进度条颜色
+ * @param {Number} scanned - 已扫数
+ * @param {Number} total - 总数
+ * @returns {String} 颜色值
+ */
+const getProgressColor = (scanned, total) => {
+  if (total === 0) return '#E6A23C'; // 黄色：无清单
+  const percent = Math.round((scanned / total) * 100);
+  if (percent === 100) return '#67C23A'; // 绿色：完成
+  if (percent >= 50) return '#409EFF'; // 蓝色：进行中
+  return '#F56C6C'; // 红色：开始阶段
 };
 </script>
 
@@ -635,8 +733,32 @@ const formatTime = (dt) => {
   border-radius: 6px;
 }
 
-.progress p {
-  margin: 0 0 10px 0;
+.progress-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.progress-stats .count-scanned {
+  color: #67c23a;
+  font-size: 1.1em;
+}
+
+.progress-stats .count-total {
+  color: #606266;
+  font-size: 1.1em;
+}
+
+.progress-stats .separator {
+  color: #c0c4cc;
+}
+
+.progress-stats .warning-note {
+  color: #e6a23c;
+  font-size: 12px;
+  font-weight: normal;
 }
 
 .msg {
@@ -644,6 +766,10 @@ const formatTime = (dt) => {
   border-radius: 6px;
   text-align: center;
   font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .msg.success {
@@ -656,6 +782,117 @@ const formatTime = (dt) => {
   background: #fef0f0;
   color: #f56c6c;
   border: 1px solid #f56c6c;
+}
+
+.msg.warning {
+  background: #fdf6ec;
+  color: #e6a23c;
+  border: 1px solid #e6a23c;
+}
+
+.msg-icon {
+  font-size: 1.2em;
+}
+
+/* 药品清单样式 */
+.drug-list-panel {
+  background: #fafbfc;
+  border: 1px solid #dcdfe6;
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.drug-list-panel h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: #303133;
+  font-weight: 600;
+}
+
+.drug-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.drug-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 4px;
+  border: 1px solid #e4e7eb;
+  background: white;
+  transition: all 0.3s;
+}
+
+.drug-item.scanned {
+  background: #f0f9ff;
+  border-color: #67c23a;
+}
+
+.drug-item.unscanned {
+  background: #fafbfc;
+  border-color: #dcdfe6;
+}
+
+.drug-item.scanned:hover {
+  box-shadow: 0 2px 8px rgba(103, 194, 58, 0.15);
+}
+
+.drug-item.unscanned:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.drug-status-icon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: bold;
+  font-size: 1.2em;
+}
+
+.drug-item.scanned .drug-status-icon {
+  background: #67c23a;
+  color: white;
+}
+
+.drug-item.unscanned .drug-status-icon {
+  background: #e4e7eb;
+  color: #909399;
+}
+
+.scanned-icon {
+  display: inline-block;
+}
+
+.unscanned-icon {
+  display: inline-block;
+}
+
+.drug-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.drug-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #303133;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.drug-id {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 2px;
 }
 
 .action-btns {
