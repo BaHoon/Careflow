@@ -1339,8 +1339,32 @@ namespace CareFlow.WebApi.Controllers
                     return BadRequest(new { message = "请填写取消理由" });
                 }
 
+                // 根据当前状态和是否需要退药决定目标状态
+                ExecutionTaskStatus targetStatus;
+                
+                if (task.Status == ExecutionTaskStatus.AppliedConfirmed || 
+                    task.Status == ExecutionTaskStatus.Pending)
+                {
+                    // AppliedConfirmed或Pending状态取消时，根据needReturn参数决定
+                    if (dto.NeedReturn)
+                    {
+                        // 勾选了需要直接退药，改为Incomplete
+                        targetStatus = ExecutionTaskStatus.Incomplete;
+                    }
+                    else
+                    {
+                        // 未勾选，改为PendingReturnCancelled（任务异常取消待退药）
+                        targetStatus = ExecutionTaskStatus.PendingReturnCancelled;
+                    }
+                }
+                else
+                {
+                    // 其他状态直接改为Stopped
+                    targetStatus = ExecutionTaskStatus.Stopped;
+                }
+
                 // 更新任务状态
-                task.Status = ExecutionTaskStatus.Stopped;
+                task.Status = targetStatus;
                 task.ExceptionReason = dto.CancelReason;
                 task.LastModifiedAt = DateTime.UtcNow;
 
@@ -1350,7 +1374,7 @@ namespace CareFlow.WebApi.Controllers
                 {
                     message = "任务已取消",
                     taskId = task.Id,
-                    status = task.Status,
+                    status = task.Status.ToString(),
                     cancelReason = task.ExceptionReason
                 });
             }

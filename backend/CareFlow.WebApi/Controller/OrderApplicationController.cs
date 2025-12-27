@@ -305,6 +305,50 @@ public class OrderApplicationController : ControllerBase
     }
 
     /// <summary>
+    /// 确认异常取消退药（PendingReturnCancelled状态，将任务改为Incomplete）
+    /// </summary>
+    /// <param name="taskId">任务ID</param>
+    /// <param name="request">确认请求</param>
+    /// <returns>确认结果</returns>
+    [HttpPost("medication/return/{taskId}/confirm-cancelled")]
+    [ProducesResponseType(typeof(ApplicationResponseDto), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(500)]
+    public async Task<ActionResult<ApplicationResponseDto>> ConfirmCancelledReturn(
+        long taskId,
+        [FromBody] ConfirmReturnRequestDto request)
+    {
+        try
+        {
+            _logger.LogInformation("✅ 确认异常取消退药，任务: {TaskId}, 护士: {NurseId}", taskId, request.NurseId);
+            
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var result = await _applicationService.ConfirmCancelledReturnAsync(
+                taskId, request.NurseId);
+            
+            if (result.Success)
+            {
+                _logger.LogInformation("✅ 异常取消退药确认成功，任务已改为Incomplete");
+                return Ok(result);
+            }
+            else
+            {
+                _logger.LogWarning("⚠️ 异常取消退药确认失败: {Message}", result.Message);
+                return Ok(result);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ 确认异常取消退药失败");
+            return StatusCode(500, new { message = "确认异常取消退药失败", error = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// 撤销检查申请
     /// </summary>
     /// <param name="request">撤销请求</param>

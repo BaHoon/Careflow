@@ -65,7 +65,10 @@ public enum ExecutionTaskStatus
     Incomplete = 8,
     
     /// <summary>待退药 - 医嘱停止后需要护士确认退药，或护士主动申请退药</summary>
-    PendingReturn = 9
+    PendingReturn = 9,
+    
+    /// <summary>任务异常取消待退药 - 任务取消但需要退药确认（已申请确认状态取消时）</summary>
+    PendingReturnCancelled = 10
 }
 
 /// <summary>
