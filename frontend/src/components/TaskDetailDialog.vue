@@ -107,8 +107,8 @@
           </el-descriptions-item>
           
           <!-- 操作信息 -->
-          <el-descriptions-item label="操作名称">
-            <el-tag type="primary">{{ getOperationName(currentTask) }}</el-tag>
+          <el-descriptions-item label="操作名称" :span="2">
+            {{ getDisplayTitle(currentTask) }}
           </el-descriptions-item>
           <el-descriptions-item label="操作代码">
             {{ getOperationCode(currentTask) }}
@@ -382,6 +382,52 @@ const getOperationName = (task) => {
   return payload.OperationName || payload.Title || task.opId || '操作任务';
 };
 
+// 获取显示标题（与 TaskItem.vue 中的 displayTitle 逻辑保持一致）
+// 优先使用 DataPayload.Title，其次使用 taskTitle，最后使用操作名称
+const getDisplayTitle = (task) => {
+  if (!task) return '操作任务';
+  
+  // 首先尝试从 DataPayload 获取 Title
+  if (task.dataPayload) {
+    try {
+      const payload = safeParseJson(task.dataPayload);
+      if (payload && payload.Title) {
+        return payload.Title;
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+  
+  // 其次尝试使用 taskTitle
+  if (task.taskSource === 'ExecutionTask' && task.taskTitle) {
+    return task.taskTitle;
+  }
+  
+  // 最后使用操作名称
+  return getOperationName(task);
+};
+
+// 获取操作名称（带详细信息）- 优先显示详细的描述而不仅仅是操作代码
+const getOperationNameWithDetails = (task) => {
+  if (!task || !task.dataPayload) return '操作任务';
+  
+  const payload = safeParseJson(task.dataPayload);
+  if (!payload) return task.opId || '操作任务';
+  
+  // 优先返回 Title（这通常包含详细信息），然后是 OperationName
+  // 避免仅返回"操作任务"这样的通用文本
+  if (payload.Title && payload.Title !== '操作任务' && !payload.Title.startsWith('操作：操作')) {
+    return payload.Title;
+  }
+  
+  if (payload.OperationName && payload.OperationName !== '操作任务') {
+    return payload.OperationName;
+  }
+  
+  return payload.OpId || payload.opId || '操作任务';
+};
+
 // 获取操作代码
 const getOperationCode = (task) => {
   if (!task || !task.dataPayload) return '-';
@@ -569,10 +615,17 @@ const formatAllowedDelayMinutes = (delay) => {
 :deep(.el-descriptions__label) {
   font-weight: 600;
   color: #303133;
+  width: 100px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 :deep(.el-descriptions__content) {
+  width: 100px;
   color: #606266;
+  word-break: break-word;
+  word-wrap: break-word;
+  white-space: normal;
 }
 
 :deep(.el-tag) {
