@@ -296,7 +296,6 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
                 
                 // 更新状态为Rejected，让医生重新修改
                 order.Status = OrderStatus.Rejected;
-                order.NurseId = request.NurseId;
                 order.RejectReason = request.RejectReason;
                 order.RejectedAt = DateTime.UtcNow;
                 order.RejectedByNurseId = request.NurseId;
@@ -443,8 +442,22 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
                 foreach (var task in lockedTasks)
                 {
                     // ✅ 关键逻辑：恢复到锁定前的状态
-                    var restoredStatus = task.StatusBeforeLocking ?? ExecutionTaskStatus.Pending;
+                    var statusBeforeLocking = task.StatusBeforeLocking ?? ExecutionTaskStatus.Pending;
                     var originalStatus = task.Status;
+                    
+                    // 🆕 如果锁定前是 Applied 或 AppliedConfirmed，恢复为 Applying
+                    ExecutionTaskStatus restoredStatus;
+                    if (statusBeforeLocking == ExecutionTaskStatus.Applied || 
+                        statusBeforeLocking == ExecutionTaskStatus.AppliedConfirmed)
+                    {
+                        restoredStatus = ExecutionTaskStatus.Applying;
+                        _logger.LogInformation("任务 {TaskId} 锁定前状态为 {BeforeStatus}，恢复为 Applying", 
+                            task.Id, statusBeforeLocking);
+                    }
+                    else
+                    {
+                        restoredStatus = statusBeforeLocking;
+                    }
                     
                     task.Status = restoredStatus;
                     task.StatusBeforeLocking = null; // 清空锁定前状态字段
@@ -531,7 +544,6 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
         
         // 1. 更新医嘱状态
         order.Status = OrderStatus.Accepted;
-        order.NurseId = nurseId;
         order.SignedAt = DateTime.UtcNow;
         order.SignedByNurseId = nurseId;
         
@@ -660,22 +672,57 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
 
         var previousStatus = order.Status;
         
-        // 1. 更新医嘱状态为 Stopped
-        order.Status = OrderStatus.Stopped;
-        order.NurseId = nurseId;
+        // 1. 判断停止节点之前是否还有未完成的任务
+        var hasUnfinishedTasksBeforeStop = false;
+
+        if (order.StopAfterTaskId.HasValue)
+        {
+            // 获取所有任务，按计划时间排序
+            var allTasks = await _taskRepository.GetQueryable()
+                .Where(t => t.MedicalOrderId == order.Id)
+                .OrderBy(t => t.PlannedStartTime)
+                .ToListAsync();
+            
+            // 找到停止节点的位置
+            var stopNodeIndex = allTasks.FindIndex(t => t.Id == order.StopAfterTaskId.Value);
+            
+            if (stopNodeIndex >= 0)
+            {
+                // 检查停止节点之前的任务是否都已完成
+                var tasksBeforeStop = allTasks.Take(stopNodeIndex).ToList();
+                
+                // PendingReturn 视为已完成（因为已经不会用到患者身上）
+                hasUnfinishedTasksBeforeStop = tasksBeforeStop.Any(t => 
+                    t.Status != ExecutionTaskStatus.Completed && 
+                    t.Status != ExecutionTaskStatus.PendingReturn &&
+                    t.Status != ExecutionTaskStatus.Stopped);
+            }
+        }
+
+        // 2. 根据判断结果设置医嘱状态
+        if (hasUnfinishedTasksBeforeStop)
+        {
+            order.Status = OrderStatus.StoppingInProgress;  // 停止中
+            _logger.LogInformation("医嘱 {OrderId} 状态设为 StoppingInProgress，停止节点之前还有未完成的任务", order.Id);
+        }
+        else
+        {
+            order.Status = OrderStatus.Stopped;  // 完全停止
+            _logger.LogInformation("医嘱 {OrderId} 状态设为 Stopped，停止节点之前的任务都已完成", order.Id);
+        }
         order.StopConfirmedAt = DateTime.UtcNow;
         order.StopConfirmedByNurseId = nurseId;
         
         await _orderRepository.UpdateAsync(order);
         
-        _logger.LogInformation("✅ 医嘱 {OrderId} 状态已从 PendingStop 更新为 Stopped", order.Id);
+        _logger.LogInformation("✅ 医嘱 {OrderId} 状态已从 PendingStop 更新为 {NewStatus}", order.Id, order.Status);
         
-        // 2. 插入状态历史记录
+        // 3. 插入状态历史记录
         var history = new MedicalOrderStatusHistory
         {
             MedicalOrderId = order.Id,
             FromStatus = previousStatus,
-            ToStatus = OrderStatus.Stopped,
+            ToStatus = order.Status,  // 使用实际设置的状态
             ChangedAt = DateTime.UtcNow,
             ChangedById = nurseId,
             ChangedByType = "Nurse",
@@ -683,7 +730,7 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
         };
         await _statusHistoryRepository.AddAsync(history);
 
-        // 3. ✅ 核心修复：查找所有被锁定的任务（OrderStopping 状态）
+        // 4. ✅ 核心修复：查找所有被锁定的任务（OrderStopping 状态）
         var lockedTasks = await _taskRepository.ListAsync(t =>
             t.MedicalOrderId == order.Id &&
             t.Status == ExecutionTaskStatus.OrderStopping);
@@ -770,8 +817,8 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
         }
         
         // 6. ✅ 统计所有任务状态（用于完整性检查）
-        var allTasks = await _taskRepository.ListAsync(t => t.MedicalOrderId == order.Id);
-        var taskStatusSummary = allTasks
+        var allTasksForSummary = await _taskRepository.ListAsync(t => t.MedicalOrderId == order.Id);
+        var taskStatusSummary = allTasksForSummary
             .GroupBy(t => t.Status)
             .ToDictionary(g => g.Key.ToString(), g => g.Count());
         

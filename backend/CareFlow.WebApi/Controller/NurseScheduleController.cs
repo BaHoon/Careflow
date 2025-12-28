@@ -45,7 +45,8 @@ public class NurseScheduleController : ControllerBase
 
             _logger.LogInformation("查询护士 {NurseId} 当前排班病区", nurseId);
 
-            var currentTime = DateTime.Now;
+            // 使用UTC时间，与排班表数据一致
+            var currentTime = DateTime.UtcNow;
             
             // 查询护士在各病区的排班记录
             var rosters = await _scheduleRepository.ListAsync(r => 

@@ -25,7 +25,9 @@ public enum OrderStatus
     /// <summary>已退回</summary>
     Rejected=7,
     /// <summary>待签收停止医嘱</summary>
-    PendingStop=8
+    PendingStop=8,
+    /// <summary>停止中 - 护士已签收停止医嘱，停止节点之前的任务仍在执行</summary>
+    StoppingInProgress=9
 }
 
 public enum TaskType { Dispensing = 1, Administration = 2, Patrol = 3 } // 配药/给药/巡视
@@ -63,7 +65,10 @@ public enum ExecutionTaskStatus
     Incomplete = 8,
     
     /// <summary>待退药 - 医嘱停止后需要护士确认退药，或护士主动申请退药</summary>
-    PendingReturn = 9
+    PendingReturn = 9,
+    
+    /// <summary>任务异常取消待退药 - 任务取消但需要退药确认（已申请确认状态取消时）</summary>
+    PendingReturnCancelled = 10
 }
 
 /// <summary>

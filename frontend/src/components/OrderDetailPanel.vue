@@ -330,6 +330,8 @@
                 >
                   {{ getTaskCategoryStyle(task.category).name }}
                 </el-tag>
+                <!-- 显示任务标题（从DataPayload中解析的Title） -->
+                <span class="task-title">{{ getTaskTitle(task) }}</span>
                 <span v-if="getTaskTimingStatus(task).text" class="timing-status" :class="getTaskTimingStatus(task).class">
                   {{ getTaskTimingStatus(task).text }}
                 </span>
@@ -365,60 +367,127 @@
                   </span>
                 </div>
               </div>
-              
-              <!-- 执行信息 -->
-              <div v-if="task.executorName || task.exceptionReason" class="task-section">
-                <div class="section-title">👤 执行信息</div>
-                <div v-if="task.executorName" class="timeline-item">
-                  <span class="timeline-label">负责护士:</span>
-                  <span class="timeline-value">{{ task.executorName }}</span>
-                </div>
-                <div v-if="task.exceptionReason" class="timeline-item">
-                  <span class="timeline-label">异常原因:</span>
-                  <span class="timeline-value danger">{{ task.exceptionReason }}</span>
-                </div>
-              </div>
 
               <!-- 护士模式：任务操作按钮 -->
               <div v-if="nurseMode" class="nurse-actions">
-                <el-button 
-                  type="primary" 
-                  size="small"
-                  @click.stop="emit('update-task-execution', task.id)"
-                  :icon="EditPen"
-                >
-                  修改执行情况
-                </el-button>
-                <!-- 检查医嘱的检查申请任务：显示打印导引单和查看报告按钮 -->
-                <template v-if="isInspectionApplicationTask(task, index)">
+                <!-- Applying(0)：去申请 + 取消任务 -->
+                <template v-if="task.status === 0 || task.status === 'Applying'">
+                  <el-button 
+                    type="primary" 
+                    size="small"
+                    @click.stop="handleGoToApplication(task)"
+                  >
+                    去申请
+                  </el-button>
+                  <el-button 
+                    type="danger" 
+                    plain
+                    size="small"
+                    @click.stop="handleCancelExecution(task)"
+                  >
+                    取消任务
+                  </el-button>
+                </template>
+
+                <!-- Applied(1)：等待药房确认 + 去退药 -->
+                <template v-if="task.status === 1 || task.status === 'Applied'">
+                  <el-tag 
+                    type="info"
+                    size="default"
+                  >
+                    等待药房确认
+                  </el-tag>
+                  <el-button 
+                    type="warning"
+                    size="small"
+                    @click.stop="handleGoToReturn(task)"
+                  >
+                    去退药
+                  </el-button>
+                </template>
+
+                <!-- AppliedConfirmed(2) 或 Pending(3) -->
+                <template v-if="task.status === 2 || task.status === 'AppliedConfirmed' || task.status === 3 || task.status === 'Pending'">
+                  <!-- ApplicationWithPrint: 显示打印报告单按钮 -->
+                  <template v-if="task.category === 6 || task.category === 'ApplicationWithPrint'">
+                    <el-button 
+                      type="success" 
+                      size="small"
+                      :icon="Printer"
+                      @click.stop="emit('print-inspection-guide', { taskId: task.id, orderId: detail.id, task: task })"
+                    >
+                      打印导引单
+                    </el-button>
+                    <!-- 检查医嘱显示查看报告按钮 -->
+                    <el-button 
+                      v-if="detail.orderType === 'InspectionOrder'"
+                      :type="hasInspectionReport() ? 'success' : 'info'"
+                      size="small"
+                      @click.stop="handleInspectionReport(task)"
+                      :icon="Printer"
+                      :disabled="!hasInspectionReport()"
+                    >
+                      {{ hasInspectionReport() ? '查看检查报告' : '报告未出' }}
+                    </el-button>
+                  </template>
+                  <!-- 其他任务：显示完成任务按钮 -->
+                  <template v-else>
+                    <el-button 
+                      type="primary" 
+                      size="small"
+                      @click.stop="handleStartCompletion(task)"
+                    >
+                      {{ getCompletionButtonLabel(task.category, false) }}
+                    </el-button>
+                  </template>
+                  <!-- 取消任务按钮 -->
+                  <el-button 
+                    type="danger" 
+                    plain
+                    size="small"
+                    @click.stop="handleCancelWithReturn(task)"
+                  >
+                    取消任务
+                  </el-button>
+                </template>
+
+                <!-- InProgress(4)：结束任务 -->
+                <template v-if="task.status === 4 || task.status === 'InProgress'">
                   <el-button 
                     type="success" 
                     size="small"
-                    @click.stop="emit('print-inspection-guide', { taskId: task.id, orderId: detail.id })"
-                    :icon="Printer"
+                    @click.stop="handleFinishTask(task)"
                   >
-                    打印导引单
-                  </el-button>
-                  <el-button 
-                    :type="hasInspectionReport() ? 'success' : 'info'"
-                    size="small"
-                    @click.stop="handleInspectionReport(task)"
-                    :icon="Printer"
-                    :disabled="!hasInspectionReport()"
-                  >
-                    {{ hasInspectionReport() ? '查看检查报告' : '报告未出' }}
+                    {{ getCompletionButtonLabel(task.category, true) }}
                   </el-button>
                 </template>
-                <!-- 其他任务：显示打印执行单按钮 -->
-                <el-button 
-                  v-else
-                  type="success" 
-                  size="small"
-                  @click.stop="emit('print-task-sheet', task.id)"
-                  :icon="Printer"
-                >
-                  打印执行单
-                </el-button>
+
+                <!-- Completed(5)：打印执行单（除了检查类医嘱） -->
+                <template v-if="task.status === 5 || task.status === 'Completed'">
+                  <el-button 
+                    v-if="detail.orderType !== 'InspectionOrder'"
+                    type="success"
+                    size="small"
+                    :icon="Printer"
+                    @click.stop="handlePrintTaskBarcode(task)"
+                  >
+                    打印执行单
+                  </el-button>
+                </template>
+                
+                <!-- 所有非检查类医嘱的任务显示打印执行单按钮 -->
+                <template v-if="detail.orderType !== 'InspectionOrder' && task.status !== 5 && task.status !== 'Completed'">
+                  <el-button 
+                    type="primary"
+                    size="small"
+                    :icon="Printer"
+                    @click.stop="handlePrintTaskBarcode(task)"
+                  >
+                    打印执行单
+                  </el-button>
+                </template>
+
+                <!-- 其他状态(OrderStopping, Stopped, Skipped, PendingReturn等)：无按钮 -->
               </div>
             </div>
           </el-collapse-item>
@@ -434,7 +503,15 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue';
-import { EditPen, Printer } from '@element-plus/icons-vue';
+import { useRouter } from 'vue-router';
+import { EditPen, Printer, Close, VideoPlay, Check } from '@element-plus/icons-vue';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import { 
+  completeExecutionTask, 
+  cancelExecutionTask 
+} from '@/api/nursing';
+
+const router = useRouter();
 
 // ==================== Props ====================
 const props = defineProps({
@@ -454,7 +531,9 @@ const emit = defineEmits([
   'update-task-execution',    // 修改任务执行情况
   'print-task-sheet',         // 打印任务执行单
   'print-inspection-guide',   // 打印检查导引单
-  'view-inspection-report'    // 查看检查报告
+  'view-inspection-report',   // 查看检查报告
+  'task-cancelled',           // 任务已取消，需要刷新数据
+  'view-task-detail'          // 查看任务详情
 ]);
 
 // ==================== 风琴控制 ====================
@@ -526,7 +605,532 @@ const handleInspectionReport = (task) => {
   }
 };
 
+// ==================== ExecutionTask 按钮处理逻辑 ====================
+// 获取当前护士ID
+const getCurrentNurseId = () => {
+  const userInfo = localStorage.getItem('userInfo');
+  if (userInfo) {
+    const user = JSON.parse(userInfo);
+    return user.staffId;
+  }
+  return null;
+};
+
+// 获取完成按钮标签
+const getCompletionButtonLabel = (category, isFinishing) => {
+  if (category === 1 || category === 'Immediate') {
+    return '完成任务';
+  } else if (category === 2 || category === 'Duration') {
+    return isFinishing ? '结束任务' : '完成任务';
+  } else if (category === 3 || category === 'ResultPending') {
+    return isFinishing ? '结束任务（需录入结果）' : '完成任务';
+  } else if (category === 5 || category === 'Verification') {
+    return '核对完成';
+  }
+  return isFinishing ? '结束任务' : '完成任务';
+};
+
+// 解析药品医嘱的DataPayload
+const parseMedicationPayload = (payload) => {
+  let html = `<div style="font-size: 13px; line-height: 1.8; color: #333;">`;
+  
+  if (payload.Title) {
+    html += `<div style="margin-bottom: 12px;">`;
+    html += `<h4 style="margin: 0 0 8px 0; color: #409eff; font-size: 14px; font-weight: 600;">📋 ${payload.Title}</h4>`;
+    html += `</div>`;
+  }
+  
+  if (payload.Description) {
+    html += `<div style="margin-bottom: 12px; padding: 10px 14px; background: #f0f9ff; border-radius: 6px; box-shadow: 0 1px 4px rgba(64, 158, 255, 0.1);">`;
+    html += `${payload.Description}`;
+    html += `</div>`;
+  }
+  
+  if (payload.MedicationInfo) {
+    const med = payload.MedicationInfo;
+    html += `<div style="margin-bottom: 12px; padding: 14px; background: #f5f7fa; border-radius: 6px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);">`;
+    html += `<h4 style="margin: 0 0 10px 0; color: #409eff; font-size: 14px; font-weight: 600;">💊 药品信息</h4>`;
+    
+    const medDetails = [];
+    if (med.DrugName) medDetails.push(`${med.DrugName}`);
+    if (med.Specification) medDetails.push(`规格：${med.Specification}`);
+    if (med.Dosage) medDetails.push(`剂量：${med.Dosage}`);
+    if (med.Route) medDetails.push(`途径：${med.Route}`);
+    if (med.Frequency) medDetails.push(`频次：${med.Frequency}`);
+    
+    html += `<div style="display: grid; gap: 6px;">`;
+    medDetails.forEach(detail => {
+      html += `<div style="padding: 4px 0; color: #606266;">• ${detail}</div>`;
+    });
+    html += `</div>`;
+    html += `</div>`;
+  }
+  
+  if (payload.IsChecklist && payload.Items && Array.isArray(payload.Items)) {
+    html += `<div style="margin-bottom: 0; padding: 14px; background: #f5f7fa; border-radius: 6px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);">`;
+    html += `<h4 style="margin: 0 0 10px 0; color: #67c23a; font-size: 14px; font-weight: 600;">✓ 核对项目</h4>`;
+    html += `<div style="display: flex; flex-direction: column; gap: 8px;">`;
+    
+    payload.Items.forEach((item) => {
+      if (item.text) {
+        const status = item.isChecked 
+          ? '<span style="color: #67c23a; font-weight: 600;">✓</span>' 
+          : '<span style="color: #dcdfe6;">☐</span>';
+        const required = item.required ? '<span style="color: #f56c6c; margin-left: 2px;">*必填</span>' : '';
+        html += `<div style="display: flex; align-items: center; gap: 8px; padding: 4px 0; color: #606266;">
+          ${status} <span>${item.text}</span> ${required}
+        </div>`;
+      }
+    });
+    
+    html += `</div></div>`;
+  }
+  
+  html += `</div>`;
+  return html;
+};
+
+// 解析通用DataPayload
+const parseTaskDataPayload = (dataPayload) => {
+  if (!dataPayload) return '';
+  
+  try {
+    const payload = JSON.parse(dataPayload);
+    
+    if (payload.TaskType === 'MEDICATION_ADMINISTRATION' || payload.taskType === 'RetrieveMedication') {
+      return parseMedicationPayload(payload);
+    }
+    
+    let html = `<div style="font-size: 13px; line-height: 1.8; color: #333;">`;
+    
+    const friendlyFields = {
+      'Title': '标题',
+      'title': '标题',
+      'Description': '说明',
+      'description': '说明',
+      'Content': '内容',
+      'content': '内容',
+      'Remark': '备注',
+      'remark': '备注',
+      'Notes': '说明',
+      'notes': '说明'
+    };
+    
+    let hasContent = false;
+    
+    Object.entries(payload).forEach(([key, value]) => {
+      const label = friendlyFields[key];
+      if (!label) return;
+      
+      if (typeof value === 'object' && value !== null) {
+        const objStr = JSON.stringify(value, null, 2);
+        if (objStr.length < 100) {
+          html += `<div style="margin-bottom: 8px; padding: 8px 12px; background: #f5f7fa; border-radius: 4px;">`;
+          html += `<div style="font-weight: 600; color: #409eff; margin-bottom: 4px;">${label}</div>`;
+          html += `<div style="white-space: pre-wrap; word-break: break-word;">${objStr}</div>`;
+          html += `</div>`;
+          hasContent = true;
+        }
+      } else if (value && value.toString().trim() !== '') {
+        html += `<div style="margin-bottom: 8px; padding: 8px 12px; background: #f5f7fa; border-radius: 4px;">`;
+        html += `<div style="font-weight: 600; color: #409eff; margin-bottom: 4px;">${label}</div>`;
+        html += `<div style="color: #606266; word-break: break-word;">${value}</div>`;
+        html += `</div>`;
+        hasContent = true;
+      }
+    });
+    
+    if (!hasContent) {
+      html += `<div style="padding: 8px 12px; background: #f5f7fa; border-radius: 4px; color: #606266;">`;
+      html += `任务已准备就绪，请确认执行`;
+      html += `</div>`;
+    }
+    
+    html += `</div>`;
+    return html;
+  } catch {
+    return `<div style="padding: 8px 12px; background: #f5f7fa; border-radius: 4px; color: #606266;">
+      任务已准备就绪，请确认执行
+    </div>`;
+  }
+};
+
+// 跳转到医嘱申请界面
+const handleGoToApplication = (task) => {
+  router.push({
+    path: '/nurse/application',
+    query: {
+      patientId: props.detail.patientId
+    }
+  });
+};
+
+// 跳转到医嘱申请界面（退药）
+const handleGoToReturn = (task) => {
+  router.push({
+    path: '/nurse/application',
+    query: {
+      patientId: props.detail.patientId,
+      returnMode: 'true'
+    }
+  });
+};
+
+// 开始完成（第一阶段）
+const handleStartCompletion = async (task) => {
+  try {
+    const category = task.category;
+    const taskDetails = parseTaskDataPayload(task.dataPayload);
+
+    let message = `<div style="text-align: left; font-size: 13px; line-height: 1.8;">
+      <div style="margin-bottom: 16px; padding: 16px; background: #f0f9ff; border-radius: 8px; box-shadow: 0 2px 8px rgba(64, 158, 255, 0.1);">
+        <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; align-items: center;">
+          <span style="color: #909399;">👤 患者：</span>
+          <span style="color: #303133; font-weight: 600;">${props.detail.patientName}</span>
+          
+          <span style="color: #909399;">📋 类型：</span>
+          <span style="color: #303133; font-weight: 600;">${getOrderTypeName(props.detail.orderType)}</span>
+          
+          <span style="color: #909399;">📝 任务：</span>
+          <span style="color: #303133; font-weight: 600;">${getTaskTitle(task)}</span>
+          
+          <span style="color: #909399;">🕑 计划时间：</span>
+          <span style="color: #606266;">${formatDateTime(task.plannedStartTime)}</span>
+          
+          <span style="color: #909399;">📊 当前状态：</span>
+          <span style="color: #606266;">${getTaskStatusText(task.status)}</span>
+        </div>
+      </div>`;
+    
+    if (taskDetails) {
+      message += `<div style="margin-top: 12px; padding: 16px; background: #f5f7fa; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);">
+        <div style="color: #409eff; font-weight: 600; margin-bottom: 10px; font-size: 14px;">📌 任务详情</div>
+        <div>${taskDetails}</div>
+      </div>`;
+    }
+    
+    if (category === 1 || category === 'Immediate') {
+      message += `<div style="margin-top: 12px; padding: 8px 12px; background: #fdf6ec; border-radius: 4px; color: #e6a23c; font-size: 12px;">
+        ⚡ 此任务将直接标记为完成
+      </div></div>`;
+      
+      await ElMessageBox.confirm(message, '确认完成任务', {
+        confirmButtonText: '确认完成',
+        cancelButtonText: '取消',
+        type: 'warning',
+        dangerouslyUseHTMLString: true,
+        customClass: 'task-completion-dialog'
+      });
+    } else if (category === 5 || category === 'Verification') {
+      message += `<div style="margin-top: 12px; padding: 8px 12px; background: #f0f9ff; border-radius: 4px; color: #409eff; font-size: 12px;">
+        ✓ 核对完成后将更新任务状态
+      </div></div>`;
+      
+      await ElMessageBox.confirm(message, '确认核对完成', {
+        confirmButtonText: '确认完成',
+        cancelButtonText: '取消',
+        type: 'warning',
+        dangerouslyUseHTMLString: true,
+        customClass: 'task-completion-dialog'
+      });
+    } else if (category === 2 || category === 'Duration' || category === 3 || category === 'ResultPending') {
+      message += `<div style="margin-top: 12px; padding: 8px 12px; background: #f0f9ff; border-radius: 4px; color: #409eff; font-size: 12px;">
+        ▶ 任务开始执行，稍后需要完成或上传结果
+      </div></div>`;
+      
+      await ElMessageBox.confirm(message, '确认开始执行', {
+        confirmButtonText: '确认开始',
+        cancelButtonText: '取消',
+        type: 'info',
+        dangerouslyUseHTMLString: true,
+        customClass: 'task-completion-dialog'
+      });
+    } else {
+      ElMessage.warning(`任务类别 ${category} 的流程暂未实现`);
+      return;
+    }
+
+    const nurseId = getCurrentNurseId();
+    if (!nurseId) {
+      ElMessage.error('未找到护士信息');
+      return;
+    }
+
+    const response = await completeExecutionTask(task.id, nurseId, null);
+    ElMessage.success(response.message || '任务已更新');
+    emit('task-cancelled', task.id);
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('开始完成任务失败:', error);
+      ElMessage.error(error.response?.data?.message || '操作失败');
+    }
+  }
+};
+
+// 结束任务（第二阶段）
+const handleFinishTask = async (task) => {
+  try {
+    const category = task.category;
+    let resultPayload = null;
+    const taskDetails = parseTaskDataPayload(task.dataPayload);
+
+    let message = `<div style="text-align: left; font-size: 13px; line-height: 1.8;">
+      <div style="margin-bottom: 16px; padding: 16px; background: #f0f9ff; border-radius: 8px; box-shadow: 0 2px 8px rgba(64, 158, 255, 0.1);">
+        <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; align-items: center;">
+          <span style="color: #909399;">👤 患者：</span>
+          <span style="color: #303133; font-weight: 600;">${props.detail.patientName}</span>
+          
+          <span style="color: #909399;">📋 类型：</span>
+          <span style="color: #303133; font-weight: 600;">${getOrderTypeName(props.detail.orderType)}</span>
+          
+          <span style="color: #909399;">📝 任务：</span>
+          <span style="color: #303133; font-weight: 600;">${getTaskTitle(task)}</span>
+          
+          <span style="color: #909399;">🕑 计划时间：</span>
+          <span style="color: #606266;">${formatDateTime(task.plannedStartTime)}</span>`;
+    
+    if (task.actualStartTime) {
+      message += `
+          <span style="color: #909399;">▶️ 开始时间：</span>
+          <span style="color: #67c23a; font-weight: 600;">${formatDateTime(task.actualStartTime)}</span>`;
+      
+      const startTime = new Date(task.actualStartTime.endsWith('Z') ? task.actualStartTime : task.actualStartTime + 'Z');
+      const now = new Date();
+      const durationMinutes = Math.floor((now - startTime) / (1000 * 60));
+      if (durationMinutes >= 0) {
+        message += `
+          <span style="color: #909399;">⏱️ 执行时长：</span>
+          <span style="color: #606266;">${durationMinutes} 分钟</span>`;
+      }
+    }
+    
+    message += `
+          <span style="color: #909399;">📊 当前状态：</span>
+          <span style="color: #409eff; font-weight: 600;">执行中</span>
+        </div>
+      </div>`;
+    
+    if (taskDetails) {
+      message += `<div style="margin-bottom: 12px; padding: 16px; background: #f5f7fa; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);">
+        <div style="color: #409eff; font-weight: 600; margin-bottom: 10px; font-size: 14px;">📌 任务详情</div>
+        <div>${taskDetails}</div>
+      </div>`;
+    }
+
+    if (category === 3 || category === 'ResultPending') {
+      message += `<div style="margin-top: 12px; padding: 8px 12px; background: #fdf6ec; border-radius: 4px; color: #e6a23c; font-size: 12px;">
+        📥 请在下方输入执行结果
+      </div></div>`;
+      
+      const { value } = await ElMessageBox.prompt(message, '结束任务并录入结果', {
+        confirmButtonText: '确认完成',
+        cancelButtonText: '取消',
+        inputType: 'textarea',
+        inputPlaceholder: '请输入执行结果（必填）...',
+        inputValidator: (value) => {
+          if (!value || value.trim().length === 0) {
+            return '执行结果不能为空';
+          }
+          return true;
+        },
+        dangerouslyUseHTMLString: true,
+        customClass: 'task-completion-dialog'
+      });
+      resultPayload = value;
+    } else if (category === 2 || category === 'Duration') {
+      message += `<div style="margin-top: 12px; padding: 8px 12px; background: #f0f9ff; border-radius: 4px; color: #409eff; font-size: 12px;">
+        ✓ 任务完成后将更新为已完成状态
+      </div></div>`;
+      
+      await ElMessageBox.confirm(message, '结束任务', {
+        confirmButtonText: '确认完成',
+        cancelButtonText: '取消',
+        type: 'success',
+        dangerouslyUseHTMLString: true,
+        customClass: 'task-completion-dialog'
+      });
+    } else {
+      ElMessage.warning(`任务类别 ${category} 的流程暂未实现`);
+      return;
+    }
+
+    const nurseId = getCurrentNurseId();
+    if (!nurseId) {
+      ElMessage.error('未找到护士信息');
+      return;
+    }
+
+    const response = await completeExecutionTask(task.id, nurseId, resultPayload);
+    ElMessage.success(response.message || '任务已完成');
+    emit('task-cancelled', task.id);
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('结束任务失败:', error);
+      ElMessage.error(error.response?.data?.message || '操作失败');
+    }
+  }
+};
+
+// 取消执行任务（Applying状态）
+const handleCancelExecution = async (task) => {
+  try {
+    const { value: cancelReason } = await ElMessageBox.prompt(
+      `<div style="text-align: left; font-size: 13px; line-height: 1.8;">
+        <div style="margin-bottom: 12px; padding: 16px; background: #fef0f0; border-radius: 8px; box-shadow: 0 2px 8px rgba(245, 108, 108, 0.1);">
+          <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; align-items: center;">
+            <span style="color: #909399;">👤 患者：</span>
+            <span style="color: #303133; font-weight: 600;">${props.detail.patientName}</span>
+            
+            <span style="color: #909399;">📋 类型：</span>
+            <span style="color: #303133; font-weight: 600;">${getOrderTypeName(props.detail.orderType)}</span>
+            
+            <span style="color: #909399;">📝 任务：</span>
+            <span style="color: #303133; font-weight: 600;">${getTaskTitle(task)}</span>
+            
+            <span style="color: #909399;">🕑 计划时间：</span>
+            <span style="color: #606266;">${formatDateTime(task.plannedStartTime)}</span>
+            
+            <span style="color: #909399;">📊 当前状态：</span>
+            <span style="color: #f56c6c; font-weight: 600;">${getTaskStatusText(task.status)}</span>
+          </div>
+        </div>
+        <div style="padding: 12px; background: #fdf6ec; border-radius: 8px; color: #e6a23c; font-size: 12px; box-shadow: 0 2px 8px rgba(230, 162, 60, 0.1);">
+          ⚠️ 请说明取消此任务的原因，该操作将被记录
+        </div>
+      </div>`,
+      '确认取消任务',
+      {
+        confirmButtonText: '确认取消',
+        cancelButtonText: '不取消',
+        inputType: 'textarea',
+        inputPlaceholder: '请输入取消理由...',
+        inputValidator: (value) => {
+          if (!value || value.trim().length === 0) {
+            return '取消理由不能为空';
+          }
+          return true;
+        },
+        dangerouslyUseHTMLString: true,
+        customClass: 'task-completion-dialog'
+      }
+    );
+
+    const nurseId = getCurrentNurseId();
+    if (!nurseId) {
+      ElMessage.error('未找到护士信息');
+      return;
+    }
+
+    const response = await cancelExecutionTask(task.id, nurseId, cancelReason);
+    ElMessage.success(response.message || '任务已取消');
+    emit('task-cancelled', task.id);
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('取消执行任务失败:', error);
+      ElMessage.error(error.response?.data?.message || '取消任务失败');
+    }
+  }
+};
+
+// 取消任务（AppliedConfirmed/Pending状态，带退药选项）
+const handleCancelWithReturn = async (task) => {
+  try {
+    const { value: formData } = await ElMessageBox({
+      title: '确认取消任务',
+      message: `
+        <div style="font-size: 14px;">
+          <p style="margin-bottom: 12px; color: #606266;">请填写取消任务的理由：</p>
+          <textarea 
+            id="cancel-reason-input" 
+            placeholder="请输入取消理由..." 
+            style="width: 100%; height: 80px; padding: 8px; border: 1px solid #dcdfe6; border-radius: 4px; resize: vertical; font-family: inherit;"
+          ></textarea>
+          <div style="margin-top: 12px;">
+            <label style="display: flex; align-items: center; cursor: pointer;">
+              <input type="checkbox" id="need-return-checkbox" style="margin-right: 8px; cursor: pointer;" />
+              <span>需要直接退药</span>
+            </label>
+            <p style="margin: 8px 0 0 24px; font-size: 12px; color: #909399;">
+              勾选后将直接标记为异常状态，不勾选则进入待退药状态
+            </p>
+          </div>
+        </div>
+      `,
+      dangerouslyUseHTMLString: true,
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      beforeClose: (action, instance, done) => {
+        if (action === 'confirm') {
+          const reasonInput = document.getElementById('cancel-reason-input');
+          const needReturnCheckbox = document.getElementById('need-return-checkbox');
+          const reason = reasonInput?.value?.trim();
+          
+          if (!reason) {
+            ElMessage.error('取消理由不能为空');
+            return;
+          }
+          
+          instance.confirmButtonLoading = true;
+          instance.confirmButtonText = '处理中...';
+          
+          done({
+            reason: reason,
+            needReturn: needReturnCheckbox?.checked || false
+          });
+        } else {
+          done();
+        }
+      }
+    });
+
+    if (!formData) return;
+
+    const nurseId = getCurrentNurseId();
+    if (!nurseId) {
+      ElMessage.error('未找到护士信息');
+      return;
+    }
+
+    const response = await cancelExecutionTask(task.id, nurseId, formData.reason, formData.needReturn);
+    ElMessage.success(response.message || '任务已取消');
+    emit('task-cancelled', task.id);
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('取消执行任务失败:', error);
+      ElMessage.error(error.response?.data?.message || '取消任务失败');
+    }
+  }
+};
+
+// 查看任务详情
+const handleViewTaskDetail = (task) => {
+  emit('view-task-detail', task);
+};
+
+
 // 直接从检查信息区域查看报告
+// ==================== DataPayload解析 ====================
+/**
+ * 解析任务的DataPayload JSON字符串，提取Title
+ * @param {Object} task - 任务对象
+ * @returns {string} 任务标题，如果解析失败则返回默认标题
+ */
+const getTaskTitle = (task) => {
+  if (!task.dataPayload) {
+    return getTaskCategoryStyle(task.category).name;
+  }
+  
+  try {
+    const payload = JSON.parse(task.dataPayload);
+    // 优先使用Title字段，如果没有则使用TaskType或默认值
+    return payload.Title || payload.title || payload.TaskType || getTaskCategoryStyle(task.category).name;
+  } catch (error) {
+    // JSON解析失败，返回默认标题
+    console.warn('解析任务DataPayload失败:', error, 'Task ID:', task.id);
+    return getTaskCategoryStyle(task.category).name;
+  }
+};
+
 // ==================== 格式化方法 ====================
 const formatDateTime = (dateString) => {
   if (!dateString) return '-';
@@ -747,21 +1351,14 @@ const getTaskTimingStatus = (task) => {
     return { text: '❌异常', class: 'status-exception' };
   }
   
-  // 已完成或执行中，计算时效
-  if (task.actualStartTime) {
-    const delay = getDelayMinutes(task.plannedStartTime, task.actualStartTime);
-    if (delay === null) return { text: '', class: '' };
-    
-    if (task.status === 5) { // 已完成
-      if (delay > 15) return { text: `⏱️延迟${delay}分`, class: 'status-delay-serious' };
-      if (delay > 5) return { text: `⏱️延迟${delay}分`, class: 'status-delay-minor' };
-      if (delay < -5) return { text: `⚡提前${-delay}分`, class: 'status-early' };
-      return { text: '✓按时', class: 'status-ontime' };
-    }
-    
-    if (task.status === 4) { // 执行中
-      return { text: '进行中...', class: 'status-progress' };
-    }
+  // 已完成，不显示提前/延后信息（这些信息在展开后的详情中显示）
+  if (task.status === 5) {
+    return { text: '', class: '' };
+  }
+  
+  // 执行中
+  if (task.status === 4 && task.actualStartTime) {
+    return { text: '进行中...', class: 'status-progress' };
   }
   
   // 停嘱锁定
@@ -770,6 +1367,133 @@ const getTaskTimingStatus = (task) => {
   }
   
   return { text: '', class: '' };
+};
+
+// 打印任务条形码
+const handlePrintTaskBarcode = async (task) => {
+  const taskId = task.id;
+  if (!taskId) {
+    ElMessage.error('任务ID无效');
+    return;
+  }
+
+  try {
+    // 先从API获取条形码数据
+    const response = await fetch(`http://localhost:5181/api/BarcodePrint/generate-task-barcode?taskId=${taskId}`);
+    const result = await response.json();
+    
+    if (!result.success || !result.data) {
+      throw new Error(result.message || '获取条形码失败');
+    }
+    
+    const barcodeData = result.data;
+    
+    // 获取任务类别名称的函数（与任务单据打印页面一致）
+    const getTaskCategoryName = (category) => {
+      const categoryMap = {
+        'Immediate': '即刻执行',
+        'Duration': '持续执行',
+        'ResultPending': '结果等待',
+        'DataCollection': '数据采集',
+        'Verification': '核对用药',
+        'ApplicationWithPrint': '检查申请',
+        'DischargeConfirmation': '出院确认'
+      };
+      return categoryMap[category] || '其他任务';
+    };
+    
+    // 打开新窗口显示条形码并打印
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    
+    if (!printWindow) {
+      ElMessage.error('无法打开打印窗口，请检查浏览器弹窗拦截设置');
+      return;
+    }
+
+    // 构建打印内容 - 使用任务单据打印格式
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>打印条形码 - ${taskId}</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+          }
+          .barcode-item {
+            page-break-inside: avoid;
+            margin-bottom: 30px;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 8px;
+          }
+          .barcode-image {
+            text-align: center;
+            margin-bottom: 15px;
+          }
+          .barcode-image img {
+            max-width: 100%;
+            height: auto;
+          }
+          .barcode-info {
+            font-size: 14px;
+            line-height: 1.8;
+          }
+          .info-row {
+            margin-bottom: 5px;
+          }
+          .label {
+            font-weight: bold;
+            color: #666;
+            margin-right: 10px;
+          }
+          .value {
+            color: #333;
+          }
+          @media print {
+            body {
+              padding: 0;
+            }
+            .barcode-item {
+              page-break-inside: avoid;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="barcode-item">
+          <div class="barcode-image">
+            <img src="${barcodeData.barcodeBase64}" alt="任务 ${taskId}" onload="window.print(); setTimeout(() => window.close(), 1000);" />
+          </div>
+          <div class="barcode-info">
+            <div class="info-row">
+              <span class="label">患者:</span>
+              <span class="value">${barcodeData.patientName || props.detail.patientName || '-'} (${barcodeData.patientId || props.detail.patientId || '-'})</span>
+            </div>
+            <div class="info-row">
+              <span class="label">任务:</span>
+              <span class="value">${barcodeData.orderSummary}</span>
+            </div>
+            <div class="info-row">
+              <span class="label">类型:</span>
+              <span class="value">${getTaskCategoryName(barcodeData.taskCategory)}</span>
+            </div>
+            <div class="info-row">
+              <span class="label">计划时间:</span>
+              <span class="value">${formatDateTime(task.plannedStartTime)}</span>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `);
+    
+    printWindow.document.close();
+  } catch (error) {
+    console.error('打印条形码失败:', error);
+    ElMessage.error('打印失败: ' + error.message);
+  }
 };
 </script>
 
@@ -990,6 +1714,18 @@ const getTaskTimingStatus = (task) => {
   font-weight: bold;
   border-radius: 50%;
   flex-shrink: 0;
+}
+
+.task-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #303133;
+  margin-left: 8px;
+  flex-shrink: 0;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .task-time-separator {

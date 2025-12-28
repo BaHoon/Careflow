@@ -52,6 +52,8 @@
     <div class="task-content" v-loading="loading">
       <TaskTimeline
         :tasks="filteredTasks"
+        :pending-orders-count="pendingOrdersCount"
+        :pending-returns-count="pendingReturnsCount"
         @task-click="handleTaskClick"
         @start-input="handleStartInput"
         @view-detail="handleViewDetail"
@@ -95,7 +97,7 @@ import NursingRecordForm from '@/components/NursingRecordForm.vue';
 import ExecutionTaskDetail from '@/components/ExecutionTaskDetail.vue';
 import TaskDetailDialog from '@/components/TaskDetailDialog.vue';
 import InspectionGuidePrintDialog from '@/components/InspectionGuidePrintDialog.vue';
-import { getMyTasks, submitVitalSigns } from '@/api/nursing';
+import { getMyTasks, submitVitalSigns, getPendingOrdersCount, getPendingReturnsCount } from '@/api/nursing';
 
 // 数据状态
 const loading = ref(false);
@@ -105,6 +107,10 @@ const selectedDate = ref(new Date());
 const selectedStatus = ref('');
 const selectedPatient = ref('');
 const patientList = ref([]);
+
+// 新增统计数据
+const pendingOrdersCount = ref(0);
+const pendingReturnsCount = ref(0);
 const detailDialogVisible = ref(false);
 const currentTask = ref(null);
 
@@ -140,6 +146,49 @@ const getCurrentNurse = () => {
   return null;
 };
 
+// 获取当前科室ID
+const getCurrentDepartment = () => {
+  const userInfo = localStorage.getItem('userInfo');
+  if (userInfo) {
+    try {
+      const user = JSON.parse(userInfo);
+      return user.deptCode; // Login.vue 存储的字段名是 deptCode
+    } catch (error) {
+      console.error('解析用户信息失败:', error);
+    }
+  }
+  return null;
+};
+
+// 加载待签收医嘱统计
+const loadPendingOrders = async () => {
+  const nurseId = getCurrentNurse();
+  if (!nurseId) return;
+  
+  try {
+    const count = await getPendingOrdersCount(nurseId);
+    pendingOrdersCount.value = count;
+  } catch (error) {
+    console.error('获取待签收医嘱统计失败:', error);
+    pendingOrdersCount.value = 0;
+  }
+};
+
+// 加载待退药申请统计
+const loadPendingReturns = async () => {
+  const nurseId = getCurrentNurse();
+  const departmentId = getCurrentDepartment();
+  if (!nurseId || !departmentId) return;
+  
+  try {
+    const count = await getPendingReturnsCount(nurseId, departmentId);
+    pendingReturnsCount.value = count;
+  } catch (error) {
+    console.error('获取待退药申请统计失败:', error);
+    pendingReturnsCount.value = 0;
+  }
+};
+
 // 加载任务列表
 const loadTasks = async () => {
   const nurseId = getCurrentNurse();
@@ -155,6 +204,11 @@ const loadTasks = async () => {
   patientList.value = [];
   selectedPatient.value = '';
 
+  // 如果日期为空，重置为当前日期
+  if (!selectedDate.value) {
+    selectedDate.value = new Date();
+  }
+
   loading.value = true;
   try {
     // 使用本地日期格式，避免时区转换问题
@@ -162,6 +216,10 @@ const loadTasks = async () => {
     const month = String(selectedDate.value.getMonth() + 1).padStart(2, '0');
     const day = String(selectedDate.value.getDate()).padStart(2, '0');
     const dateStr = `${year}-${month}-${day}`;
+    // 同时加载统计数据
+    loadPendingOrders();
+    loadPendingReturns();
+    
     
     const response = await getMyTasks(nurseId, dateStr, null); // 不在API层过滤状态
     tasks.value = response.tasks || [];
