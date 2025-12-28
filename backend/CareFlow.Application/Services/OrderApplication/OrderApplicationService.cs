@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
+using PatientModel = CareFlow.Core.Models.Organization.Patient;
 
 namespace CareFlow.Application.Services.OrderApplication;
 
@@ -22,7 +23,7 @@ public class OrderApplicationService : IOrderApplicationService
     private readonly IRepository<ExecutionTask, long> _taskRepository;
     private readonly IRepository<InspectionOrder, long> _inspectionOrderRepository;
     private readonly IRepository<MedicationOrder, long> _medicationOrderRepository;
-    private readonly IRepository<Patient, string> _patientRepository;
+    private readonly IRepository<PatientModel, string> _patientRepository;
     private readonly IRepository<BarcodeIndex, string> _barcodeRepository;
     private readonly IRepository<MedicationReturnRequest, long> _returnRequestRepository;
     private readonly IPharmacyIntegrationService _pharmacyService;
@@ -37,7 +38,7 @@ public class OrderApplicationService : IOrderApplicationService
         IRepository<ExecutionTask, long> taskRepository,
         IRepository<InspectionOrder, long> inspectionOrderRepository,
         IRepository<MedicationOrder, long> medicationOrderRepository,
-        IRepository<Patient, string> patientRepository,
+        IRepository<PatientModel, string> patientRepository,
         IRepository<BarcodeIndex, string> barcodeRepository,
         IRepository<MedicationReturnRequest, long> returnRequestRepository,
         IPharmacyIntegrationService pharmacyService,

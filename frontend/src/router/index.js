@@ -100,6 +100,12 @@ const router = createRouter({
           name: 'nurse-schedule',
           component: NurseScheduleView,
           meta: { title: '排班查看' }
+        },
+        {
+          path: 'patient-log', // 相对路径，实际路径为 /nurse/patient-log
+          name: 'nurse-patient-log',
+          component: () => import('../views/PatientLogView.vue'),
+          meta: { title: '患者日志' }
         }
       ]
     },
@@ -129,6 +135,12 @@ const router = createRouter({
           component: PatientManagementView,
           props: { userRole: 'Doctor' },
           meta: { title: '患者管理' }
+        },
+        {
+          path: 'patient-log', // 相对路径，实际路径为 /doctor/patient-log
+          name: 'doctor-patient-log',
+          component: () => import('../views/PatientLogView.vue'),
+          meta: { title: '患者日志' }
         }
       ]
     },

@@ -8,6 +8,7 @@ using CareFlow.Core.Models.Organization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
+using PatientModel = CareFlow.Core.Models.Organization.Patient;
 
 namespace CareFlow.Application.Services.MedicalOrder;
 
@@ -24,7 +25,7 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
     private readonly IRepository<InspectionReport, long> _inspectionReportRepository;
     private readonly IRepository<OperationOrder, long> _operationRepository;
     private readonly IRepository<ExecutionTask, long> _taskRepository;
-    private readonly IRepository<Patient, string> _patientRepository;
+    private readonly IRepository<PatientModel, string> _patientRepository;
     private readonly IRepository<Doctor, string> _doctorRepository;
     private readonly IRepository<Nurse, string> _nurseRepository;
     private readonly IRepository<Drug, string> _drugRepository;
@@ -39,7 +40,7 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
         IRepository<InspectionReport, long> inspectionReportRepository,
         IRepository<OperationOrder, long> operationRepository,
         IRepository<ExecutionTask, long> taskRepository,
-        IRepository<Patient, string> patientRepository,
+        IRepository<PatientModel, string> patientRepository,
         IRepository<Doctor, string> doctorRepository,
         IRepository<Nurse, string> nurseRepository,
         IRepository<Drug, string> drugRepository,

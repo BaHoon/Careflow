@@ -3,6 +3,7 @@ using CareFlow.Core.Enums;
 using CareFlow.Core.Models.Nursing;
 using CareFlow.Core.Models.Organization;
 using Microsoft.EntityFrameworkCore;
+using PatientModel = CareFlow.Core.Models.Organization.Patient;
 
 namespace CareFlow.Application.Services.Nursing
 {
@@ -27,7 +28,7 @@ namespace CareFlow.Application.Services.Nursing
         {
             // 1. 获取该科室所有在院患者
             // Include Bed 和 Ward 是为了确保患者位置信息存在（虽然排班服务里可能也会查，但这里预加载比较稳妥）
-            var patients = await _context.Set<Patient>()
+            var patients = await _context.Set<PatientModel>()
                 .Include(p => p.Bed)
                 .ThenInclude(b => b.Ward)
                 .Where(p => p.Bed.Ward.DepartmentId == departmentId && p.Status == PatientStatus.Hospitalized)//TODO

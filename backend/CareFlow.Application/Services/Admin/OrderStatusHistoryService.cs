@@ -4,6 +4,7 @@ using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models.Organization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using PatientModel = CareFlow.Core.Models.Organization.Patient;
 
 namespace CareFlow.Application.Services.Admin;
 
@@ -14,13 +15,13 @@ public class OrderStatusHistoryService
 {
     private readonly IRepository<CareFlow.Core.Models.Medical.MedicalOrderStatusHistory, long> _historyRepository;
     private readonly IRepository<CareFlow.Core.Models.Medical.MedicalOrder, long> _orderRepository;
-    private readonly IRepository<Patient, string> _patientRepository;
+    private readonly IRepository<PatientModel, string> _patientRepository;
     private readonly ILogger<OrderStatusHistoryService> _logger;
 
     public OrderStatusHistoryService(
         IRepository<CareFlow.Core.Models.Medical.MedicalOrderStatusHistory, long> historyRepository,
         IRepository<CareFlow.Core.Models.Medical.MedicalOrder, long> orderRepository,
-        IRepository<Patient, string> patientRepository,
+        IRepository<PatientModel, string> patientRepository,
         ILogger<OrderStatusHistoryService> logger)
     {
         _historyRepository = historyRepository;

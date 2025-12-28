@@ -288,7 +288,7 @@
         <template #title>
           <div class="collapse-title">
             <span class="title-icon">📋</span>
-            <span class="title-text">关联任务 ({{ detail.tasks.length }})</span>
+            <span class="title-text">关联任务 ({{ filteredTasks.length }})</span>
             <el-button 
               v-if="!expandAllTasks" 
               text 
@@ -312,7 +312,7 @@
         
         <el-collapse v-model="activeTaskIds" class="task-collapse">
           <el-collapse-item 
-            v-for="(task, index) in detail.tasks" 
+            v-for="(task, index) in filteredTasks" 
             :key="task.id"
             :name="task.id"
             class="task-collapse-item"
@@ -336,6 +336,10 @@
                   {{ getTaskTimingStatus(task).text }}
                 </span>
                 <span class="task-time-separator">|</span>
+                <!-- 显示执行护士信息 -->
+                <span v-if="task.executorName" class="task-executor">执行: {{ task.executorName }}</span>
+                <span v-else-if="task.assignedNurseName" class="task-executor">负责: {{ task.assignedNurseName }}</span>
+                <span class="task-time-separator" v-if="task.executorName || task.assignedNurseName">|</span>
                 <span class="task-time">计划: {{ formatDateTime(task.plannedStartTime) }}</span>
                 <span v-if="task.statusBeforeLocking !== null" class="lock-indicator" title="此任务已被停嘱锁定">
                   🔒 锁前: {{ getTaskStatusText(task.statusBeforeLocking) }}
@@ -493,8 +497,8 @@
           </el-collapse-item>
         </el-collapse>
         
-        <div v-if="detail.tasks.length === 0" class="no-tasks">
-          暂无关联任务
+        <div v-if="filteredTasks.length === 0" class="no-tasks">
+          {{ props.filterDate ? `该日期（${props.filterDate}）无执行任务` : '暂无关联任务' }}
         </div>
       </el-collapse-item>
     </el-collapse>
@@ -523,6 +527,11 @@ const props = defineProps({
   nurseMode: {
     type: Boolean,
     default: false
+  },
+  // 日期过滤：只显示指定日期的任务（用于患者日志）
+  filterDate: {
+    type: String,
+    default: null
   }
 });
 
@@ -544,13 +553,29 @@ const activeNames = ref(['basic', 'tasks']); // 默认展开基础信息和任�
 const activeTaskIds = ref([]);
 const expandAllTasks = ref(false);
 
+// ==================== 任务过滤（用于患者日志） ====================
+// 过滤后的任务列表：如果指定了filterDate，只显示该日期的任务
+const filteredTasks = computed(() => {
+  if (!props.filterDate || !props.detail.tasks) {
+    return props.detail.tasks || [];
+  }
+  
+  // 过滤出指定日期的任务
+  return props.detail.tasks.filter(task => {
+    if (!task.actualStartTime) return false;
+    
+    const taskDate = new Date(task.actualStartTime).toISOString().split('T')[0];
+    return taskDate === props.filterDate;
+  });
+});
+
 // 全部展开/收起任务
 const toggleExpandAllTasks = () => {
   if (expandAllTasks.value) {
     activeTaskIds.value = [];
     expandAllTasks.value = false;
   } else {
-    activeTaskIds.value = props.detail.tasks.map(t => t.id);
+    activeTaskIds.value = filteredTasks.value.map(t => t.id);
     expandAllTasks.value = true;
   }
 };
@@ -1726,6 +1751,14 @@ const handlePrintTaskBarcode = async (task) => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.task-executor {
+  font-size: 0.85rem;
+  color: #606266;
+  font-weight: 500;
+  margin-left: 8px;
+  flex-shrink: 0;
 }
 
 .task-time-separator {

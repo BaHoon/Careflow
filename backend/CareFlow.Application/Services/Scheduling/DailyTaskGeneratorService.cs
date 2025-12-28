@@ -7,6 +7,7 @@ using CareFlow.Core.Models.Organization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using PatientModel = CareFlow.Core.Models.Organization.Patient;
 
 namespace CareFlow.Application.Services.Scheduling;
 
@@ -16,7 +17,7 @@ namespace CareFlow.Application.Services.Scheduling;
 /// </summary>
 public class DailyTaskGeneratorService
 {
-    private readonly IRepository<Patient, string> _patientRepo;
+    private readonly IRepository<PatientModel, string> _patientRepo;
     private readonly IRepository<NursingTask, long> _nursingTaskRepo;
     private readonly INurseAssignmentService _nurseAssignmentService;
     private readonly NursingScheduleOptions _options;
@@ -24,7 +25,7 @@ public class DailyTaskGeneratorService
     private readonly TimeZoneInfo _chinaTimeZone;
 
     public DailyTaskGeneratorService(
-        IRepository<Patient, string> patientRepo,
+        IRepository<PatientModel, string> patientRepo,
         IRepository<NursingTask, long> nursingTaskRepo,
         INurseAssignmentService nurseAssignmentService,
         IOptions<NursingScheduleOptions> options,

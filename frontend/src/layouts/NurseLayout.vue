@@ -71,6 +71,15 @@
           <el-icon><PriceTag /></el-icon>
           <span>任务扫码</span>
         </router-link>
+        
+        <router-link 
+          to="/nurse/patient-log" 
+          class="nav-item"
+          active-class="active"
+        >
+          <el-icon><Document /></el-icon>
+          <span>患者日志</span>
+        </router-link>
       </nav>
       
       <!-- 用户信息 -->

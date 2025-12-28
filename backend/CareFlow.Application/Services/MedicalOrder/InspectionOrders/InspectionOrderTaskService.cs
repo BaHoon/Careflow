@@ -12,6 +12,7 @@ using CareFlow.Core.Models.Nursing;
 using CareFlow.Core.Models.Organization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
+using PatientModel = CareFlow.Core.Models.Organization.Patient;
 
 namespace CareFlow.Application.Services.MedicalOrder;
 
@@ -28,7 +29,7 @@ public class InspectionOrderTaskService : IInspectionService
     // Repositories for orders and reports
     private readonly IRepository<InspectionOrder, long> _orderRepo;
     private readonly IRepository<InspectionReport, long> _reportRepo;
-    private readonly IRepository<Patient, string> _patientRepo;
+    private readonly IRepository<PatientModel, string> _patientRepo;
     private readonly IRepository<Doctor, string> _doctorRepo;
     private readonly IRepository<Nurse, string> _nurseRepo;
     private readonly IRepository<ExecutionTask, long> _taskRepo;
@@ -38,7 +39,7 @@ public class InspectionOrderTaskService : IInspectionService
     public InspectionOrderTaskService(
         IRepository<InspectionOrder, long> orderRepo,
         IRepository<InspectionReport, long> reportRepo,
-        IRepository<Patient, string> patientRepo,
+        IRepository<PatientModel, string> patientRepo,
         IRepository<Doctor, string> doctorRepo,
         IRepository<Nurse, string> nurseRepo,
         IRepository<ExecutionTask, long> taskRepo,

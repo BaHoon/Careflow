@@ -11,6 +11,7 @@ using CareFlow.Core.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using MedicalOrderEntity = CareFlow.Core.Models.Medical.MedicalOrder;
+using PatientModel = CareFlow.Core.Models.Organization.Patient;
 
 namespace CareFlow.Application.Services.OrderAcknowledgement;
 
@@ -20,7 +21,7 @@ namespace CareFlow.Application.Services.OrderAcknowledgement;
 public class OrderAcknowledgementService : IOrderAcknowledgementService
 {
     private readonly IRepository<MedicalOrderEntity, long> _orderRepository;
-    private readonly IRepository<Patient, string> _patientRepository;
+    private readonly IRepository<PatientModel, string> _patientRepository;
     private readonly IRepository<ExecutionTask, long> _taskRepository;
     private readonly IRepository<Doctor, string> _doctorRepository;
     private readonly IRepository<Drug, string> _drugRepository;
@@ -39,7 +40,7 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
 
     public OrderAcknowledgementService(
         IRepository<MedicalOrderEntity, long> orderRepository,
-        IRepository<Patient, string> patientRepository,
+        IRepository<PatientModel, string> patientRepository,
         IRepository<ExecutionTask, long> taskRepository,
         IRepository<Doctor, string> doctorRepository,
         IRepository<Drug, string> drugRepository,
