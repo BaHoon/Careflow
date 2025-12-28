@@ -8,6 +8,7 @@
       :multi-select="false"
       title="患者列表"
       :show-pending-filter="false"
+      :show-badge="false"
       :collapsed="false"
       @patient-select="handlePatientSelect"
     />

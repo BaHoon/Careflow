@@ -14,6 +14,7 @@
       :multi-select="false"
       :enable-multi-select-mode="false"
       :show-pending-filter="false"
+      :show-badge="false"
       title="患者列表"
       @patient-select="handlePatientSelect"
     />
