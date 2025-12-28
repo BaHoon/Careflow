@@ -46,6 +46,36 @@ public class PatientCardDto
     /// 状态显示文本
     /// </summary>
     public string StatusDisplay { get; set; } = null!;
+
+    /// <summary>
+    /// 责任医生ID
+    /// </summary>
+    public string? ResponsibleDoctorId { get; set; }
+
+    /// <summary>
+    /// 责任医生姓名
+    /// </summary>
+    public string? ResponsibleDoctorName { get; set; }
+
+    /// <summary>
+    /// 责任医生电话
+    /// </summary>
+    public string? ResponsibleDoctorPhone { get; set; }
+
+    /// <summary>
+    /// 责任护士ID
+    /// </summary>
+    public string? ResponsibleNurseId { get; set; }
+
+    /// <summary>
+    /// 责任护士姓名
+    /// </summary>
+    public string? ResponsibleNurseName { get; set; }
+
+    /// <summary>
+    /// 责任护士电话
+    /// </summary>
+    public string? ResponsibleNursePhone { get; set; }
     
     /// <summary>
     /// 科室

@@ -81,7 +81,7 @@
               size="default"
               class="ward-select"
             >
-              <el-option label="全部病区" :value="null" />
+              <el-option label="全部病区" :value="''" />
               <el-option
                 v-for="ward in availableWards"
                 :key="ward.wardId"
@@ -102,7 +102,7 @@
               size="default"
               class="status-select"
             >
-              <el-option label="全部状态" :value="null" />
+              <el-option label="全部状态" :value="-1" />
               <el-option label="待入院" :value="0" />
               <el-option label="在院" :value="1" />
               <el-option label="待出院" :value="2" />
@@ -176,12 +176,19 @@
 
             <div class="patient-cards-grid">
               <!-- 患者卡片 -->
-              <div 
+              <el-popover
                 v-for="patient in wardGroup.patients" 
                 :key="patient.id"
-                class="patient-card"
-                @click="handlePatientCardClick(patient)"
+                placement="right"
+                :width="280"
+                trigger="hover"
+                popper-class="patient-staff-popover"
               >
+                <template #reference>
+                  <div 
+                    class="patient-card"
+                    @click="handlePatientCardClick(patient)"
+                  >
                 <!-- 卡片头部 -->
                 <div class="patient-card-header">
                   <!-- 状态标签 -->
@@ -265,6 +272,52 @@
                   </el-button>
                 </div>
               </div>
+                </template>
+
+                <div class="staff-info-content">
+                  <div class="staff-group">
+                    <div class="group-title">
+                      <el-icon><Avatar /></el-icon> 责任医生
+                    </div>
+                    <div class="info-list">
+                      <div class="info-item">
+                        <span class="label">姓名:</span>
+                        <span class="value">{{ patient.responsibleDoctorName || '未分配' }}</span>
+                      </div>
+                      <div class="info-item">
+                        <span class="label">ID:</span>
+                        <span class="value">{{ patient.responsibleDoctorId || '-' }}</span>
+                      </div>
+                      <div class="info-item">
+                        <span class="label">电话:</span>
+                        <span class="value">{{ patient.responsibleDoctorPhone || '-' }}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <el-divider style="margin: 12px 0" />
+                  
+                  <div class="staff-group">
+                    <div class="group-title">
+                      <el-icon><FirstAidKit /></el-icon> 责任护士 (当前)
+                    </div>
+                    <div class="info-list">
+                      <div class="info-item">
+                        <span class="label">姓名:</span>
+                        <span class="value">{{ patient.responsibleNurseName || '未分配' }}</span>
+                      </div>
+                      <div class="info-item">
+                        <span class="label">ID:</span>
+                        <span class="value">{{ patient.responsibleNurseId || '-' }}</span>
+                      </div>
+                      <div class="info-item">
+                        <span class="label">电话:</span>
+                        <span class="value">{{ patient.responsibleNursePhone || '-' }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </el-popover>
 
               <!-- 空闲床位卡片 -->
               <div 
@@ -537,7 +590,9 @@ import {
   Plus,
   Loading,
   LocationInformation,
-  OfficeBuilding
+  OfficeBuilding,
+  Avatar,
+  FirstAidKit
 } from '@element-plus/icons-vue';
 import { 
   getPatientManagementList,
@@ -582,13 +637,13 @@ const overview = reactive({
 
 // 病区数据
 const availableWards = ref([]);
-const selectedWardId = ref(null);
+const selectedWardId = ref('');
 
 // 患者管理相关状态
 const loadingPatients = ref(false);
 const patientList = ref([]);
 const patientWardGroups = ref([]); // 患者按病区分组
-const patientFilterStatus = ref(null);
+const patientFilterStatus = ref(-1);
 const patientSearchKeyword = ref('');
 let patientSearchTimer = null;
 
@@ -748,7 +803,7 @@ const loadPatientData = async () => {
     }
     
     // 添加状态筛选
-    if (patientFilterStatus.value !== null && patientFilterStatus.value !== undefined) {
+    if (patientFilterStatus.value !== null && patientFilterStatus.value !== undefined && patientFilterStatus.value !== -1) {
       params.status = patientFilterStatus.value;
     }
     // 注意：后端默认已排除待入院和已出院患者，无需前端额外处理
@@ -1580,5 +1635,53 @@ onMounted(() => {
 
 .detail-value {
   color: #606266;
+}
+
+/* 医护人员信息弹窗样式 */
+.staff-info-content {
+  padding: 4px;
+}
+
+.staff-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.group-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #303133;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.group-title .el-icon {
+  color: #409eff;
+}
+
+.info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 22px;
+}
+
+.info-item {
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+}
+
+.info-item .label {
+  color: #909399;
+  width: 40px;
+  margin-right: 8px;
+}
+
+.info-item .value {
+  color: #606266;
+  font-family: 'Consolas', monospace;
 }
 </style>

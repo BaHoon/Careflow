@@ -254,15 +254,23 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
         var tasks = new List<ExecutionTask>();
         
         // 1. 生成取药任务（必须）
+        // 计算取药时间，确保不早于当前时间
+        var retrieveTime = executionTime.AddMinutes(-30);
+        if (retrieveTime < DateTime.UtcNow)
+        {
+            retrieveTime = DateTime.UtcNow;
+            _logger.LogInformation("立即类取药任务的计划时间已调整为当前时间，医嘱ID: {OrderId}", order.Id);
+        }
+        
         var retrieveTask = new ExecutionTask
         {
             MedicalOrderId = order.Id,
             PatientId = order.PatientId,
             Category = TaskCategory.Verification, // 取药为核对类
-            PlannedStartTime = executionTime.AddMinutes(-30), // 提前30分钟取药
+            PlannedStartTime = retrieveTime,
             Status = ExecutionTaskStatus.Applying, // 修改：立即执行的取药任务也应该是Applying状态
             CreatedAt = DateTime.UtcNow,
-            DataPayload = GenerateRetrieveMedicationDataPayload(order, executionTime.AddMinutes(-30))
+            DataPayload = GenerateRetrieveMedicationDataPayload(order, retrieveTime)
         };
         
         // 2. 生成给药任务
@@ -308,15 +316,23 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
         var tasks = new List<ExecutionTask>();
         
         // 1. 生成取药任务（必须）
+        // 计算取药时间，确保不早于当前时间
+        var retrieveTime = executionTime.AddMinutes(-30);
+        if (retrieveTime < DateTime.UtcNow)
+        {
+            retrieveTime = DateTime.UtcNow;
+            _logger.LogInformation("指定时间类取药任务的计划时间已调整为当前时间，医嘱ID: {OrderId}", order.Id);
+        }
+        
         var retrieveTask = new ExecutionTask
         {
             MedicalOrderId = order.Id,
             PatientId = order.PatientId,
             Category = TaskCategory.Verification, // 取药为核对类
-            PlannedStartTime = executionTime.AddMinutes(-30), // 提前30分钟取药
+            PlannedStartTime = retrieveTime,
             Status = ExecutionTaskStatus.Applying,
             CreatedAt = DateTime.UtcNow,
-            DataPayload = GenerateRetrieveMedicationDataPayload(order, executionTime.AddMinutes(-30))
+            DataPayload = GenerateRetrieveMedicationDataPayload(order, retrieveTime)
         };
         
         // 2. 生成给药任务

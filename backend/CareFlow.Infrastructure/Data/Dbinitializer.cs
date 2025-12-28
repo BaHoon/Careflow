@@ -1317,33 +1317,36 @@ namespace CareFlow.Infrastructure.Data
             context.SaveChanges(); // 保存班次类型
             
             // 护士排班表数据 - 每个病区每个班次均分配护士
+            // 注意：使用 DateTime.UtcNow 确保日期为 UTC 日期，与查询时的 UTC 时间一致
+            var todayUtc = DateTime.UtcNow;
             var nurseRosters = new NurseRoster[]
             {
                 // 内科一病区 IM-W01
-                new NurseRoster { StaffId = "N004", WardId = "IM-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(DateTime.Today), Status = "Scheduled" },
-                new NurseRoster { StaffId = "N003", WardId = "IM-W01", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(DateTime.Today), Status = "Scheduled" },
-                new NurseRoster { StaffId = "N007", WardId = "IM-W01", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(DateTime.Today), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N004", WardId = "IM-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N003", WardId = "IM-W01", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N007", WardId = "IM-W01", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
 
                 // 内科二病区 IM-W02
-                new NurseRoster { StaffId = "N001", WardId = "IM-W02", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(DateTime.Today), Status = "Scheduled" },
-                new NurseRoster { StaffId = "N004", WardId = "IM-W02", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(DateTime.Today), Status = "Scheduled" },
-                new NurseRoster { StaffId = "N003", WardId = "IM-W02", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(DateTime.Today), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N001", WardId = "IM-W02", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N004", WardId = "IM-W02", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N003", WardId = "IM-W02", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
 
                 // 外科病区 SUR-W01
-                new NurseRoster { StaffId = "N002", WardId = "SUR-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(DateTime.Today), Status = "Scheduled" },
-                new NurseRoster { StaffId = "N008", WardId = "SUR-W01", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(DateTime.Today), Status = "Scheduled" },
-                new NurseRoster { StaffId = "N001", WardId = "SUR-W01", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(DateTime.Today), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N001", WardId = "SUR-W01", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc.AddDays(-1)), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N002", WardId = "SUR-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N008", WardId = "SUR-W01", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N001", WardId = "SUR-W01", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
 
                 // 儿科病区 PED-W01
-                new NurseRoster { StaffId = "N006", WardId = "PED-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(DateTime.Today), Status = "Scheduled" },
-                new NurseRoster { StaffId = "N005", WardId = "PED-W01", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(DateTime.Today), Status = "Scheduled" },
-                new NurseRoster { StaffId = "N010", WardId = "PED-W01", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(DateTime.Today), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N006", WardId = "PED-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N005", WardId = "PED-W01", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N010", WardId = "PED-W01", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
 
                 // 备用/明日部分排班（保持原来的简单轮换示例）
-                new NurseRoster { StaffId = "N002", WardId = "SUR-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(DateTime.Today.AddDays(1)), Status = "Scheduled" },
-                new NurseRoster { StaffId = "N001", WardId = "SUR-W01", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(DateTime.Today.AddDays(1)), Status = "Scheduled" },
-                new NurseRoster { StaffId = "N003", WardId = "IM-W02", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(DateTime.Today.AddDays(1)), Status = "Scheduled" },
-                new NurseRoster { StaffId = "N005", WardId = "PED-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(DateTime.Today.AddDays(1)), Status = "Scheduled" }
+                new NurseRoster { StaffId = "N002", WardId = "SUR-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc.AddDays(1)), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N001", WardId = "SUR-W01", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc.AddDays(1)), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N003", WardId = "IM-W02", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc.AddDays(1)), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N005", WardId = "PED-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc.AddDays(1)), Status = "Scheduled" }
             };
             context.NurseRosters.AddRange(nurseRosters);
             context.SaveChanges(); // 保存排班数据

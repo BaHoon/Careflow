@@ -442,8 +442,22 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
                 foreach (var task in lockedTasks)
                 {
                     // ✅ 关键逻辑：恢复到锁定前的状态
-                    var restoredStatus = task.StatusBeforeLocking ?? ExecutionTaskStatus.Pending;
+                    var statusBeforeLocking = task.StatusBeforeLocking ?? ExecutionTaskStatus.Pending;
                     var originalStatus = task.Status;
+                    
+                    // 🆕 如果锁定前是 Applied 或 AppliedConfirmed，恢复为 Applying
+                    ExecutionTaskStatus restoredStatus;
+                    if (statusBeforeLocking == ExecutionTaskStatus.Applied || 
+                        statusBeforeLocking == ExecutionTaskStatus.AppliedConfirmed)
+                    {
+                        restoredStatus = ExecutionTaskStatus.Applying;
+                        _logger.LogInformation("任务 {TaskId} 锁定前状态为 {BeforeStatus}，恢复为 Applying", 
+                            task.Id, statusBeforeLocking);
+                    }
+                    else
+                    {
+                        restoredStatus = statusBeforeLocking;
+                    }
                     
                     task.Status = restoredStatus;
                     task.StatusBeforeLocking = null; // 清空锁定前状态字段

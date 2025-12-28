@@ -15,7 +15,8 @@ namespace CareFlow.Infrastructure.Repositories
 
         public async Task<NurseRoster?> GetNurseOnDutyAsync(string wardId, DateTime currentTime)
         {
-            // 1. 获取当天的日期 (DateOnly) 和 当前时刻 (TimeSpan)
+            // 重要：currentTime 应该是 UTC 时间，与数据库中的 WorkDate（UTC日期）保持一致
+            // 1. 获取当天的日期 (DateOnly，UTC) 和 当前时刻 (TimeSpan)
             var today = DateOnly.FromDateTime(currentTime);
             var timeNow = currentTime.TimeOfDay;
 
