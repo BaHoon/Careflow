@@ -209,6 +209,16 @@
                     {{ getPatientNursingGradeText(patient.nursingGrade) }}
                   </el-tag>
 
+                  <!-- 异常状态标签 -->
+                  <el-tag 
+                    v-if="patient.nursingAnomalyStatus === 1"
+                    type="danger"
+                    size="small"
+                    class="anomaly-tag"
+                  >
+                    异常
+                  </el-tag>
+
                   <!-- 患者ID -->
                   <span class="patient-id">{{ patient.id }}</span>
                 </div>
@@ -592,7 +602,8 @@ import {
   LocationInformation,
   OfficeBuilding,
   Avatar,
-  FirstAidKit
+  FirstAidKit,
+  WarningFilled
 } from '@element-plus/icons-vue';
 import { 
   getPatientManagementList,
@@ -1635,6 +1646,11 @@ onMounted(() => {
 
 .detail-value {
   color: #606266;
+}
+
+.anomaly-tag {
+  min-width: 40px;
+  text-align: center;
 }
 
 /* 医护人员信息弹窗样式 */

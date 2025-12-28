@@ -283,7 +283,11 @@ public class PatientController : ControllerBase
                     p.Name.Contains(searchKeyword));
             }
 
-            var patients = await query.ToListAsync();
+            // 按病区和床号排序，保证顺序稳定
+            var patients = await query
+                .OrderBy(p => p.Bed.WardId)
+                .ThenBy(p => p.BedId)
+                .ToListAsync();
 
             // 获取责任护士信息（使用UTC时间，与数据库排班表一致）
             var now = DateTime.UtcNow;
@@ -335,6 +339,7 @@ public class PatientController : ControllerBase
                     NursingGrade = p.NursingGrade,
                     Status = p.Status,
                     StatusDisplay = GetStatusDisplayName(p.Status),
+                    NursingAnomalyStatus = p.NursingAnomalyStatus,
                     Department = p.Bed?.Ward?.Department?.DeptName ?? "未分配",
                     Ward = p.Bed?.Ward?.Id ?? "未分配",
                     ResponsibleDoctorId = p.AttendingDoctor?.Id,
@@ -398,6 +403,9 @@ public class PatientController : ControllerBase
                 ScheduledAdmissionTime = patient.ScheduledAdmissionTime,
                 ActualAdmissionTime = patient.ActualAdmissionTime,
                 NursingGrade = patient.NursingGrade,
+                
+                // 异常状态
+                NursingAnomalyStatus = patient.NursingAnomalyStatus,
                 
                 // 关联信息（只读）
                 BedId = patient.Bed?.Id ?? patient.BedId,

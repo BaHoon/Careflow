@@ -104,6 +104,16 @@
               {{ getNursingGradeText(patient.nursingGrade) }}
             </el-tag>
 
+            <!-- 异常状态标签 -->
+            <el-tag 
+              v-if="patient.nursingAnomalyStatus === 1"
+              type="danger"
+              size="small"
+              class="anomaly-tag"
+            >
+              异常
+            </el-tag>
+
             <!-- 患者ID -->
             <span class="patient-id">{{ patient.id }}</span>
           </div>
@@ -355,7 +365,8 @@ import {
   Plus, 
   Loading,
   LocationInformation,
-  OfficeBuilding
+  OfficeBuilding,
+  WarningFilled
 } from '@element-plus/icons-vue';
 import { 
   getPatientManagementList,
@@ -907,6 +918,11 @@ const getNursingGradeColor = (grade) => {
   .patient-grid {
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   }
+}
+
+.anomaly-tag {
+  min-width: 40px;
+  text-align: center;
 }
 
 @media (max-width: 768px) {
