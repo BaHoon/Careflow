@@ -346,6 +346,7 @@
           @print-task-sheet="handlePrintTaskSheet"
           @print-inspection-guide="handlePrintInspectionGuide"
           @view-inspection-report="handleViewInspectionReport"
+          @task-updated="handleTaskUpdated"
         />
       </div>
     </el-dialog>
@@ -741,6 +742,30 @@ const handleUpdateTaskExecution = (taskId) => {
   ElMessage.warning('此功能接口尚未实现，请等待后端开发');
   // TODO: 打开修改执行情况弹窗
   // TODO: 调用 updateTaskExecution(taskId, data) 接口
+};
+
+/**
+ * 任务更新后的处理：刷新医嘱详情和医嘱列表
+ */
+const handleTaskUpdated = async (taskId) => {
+  console.log('🔄 任务已更新，刷新数据:', taskId);
+  
+  try {
+    // 1. 刷新当前医嘱详情
+    if (currentOrderDetail.value && currentOrderDetail.value.id) {
+      const orderId = currentOrderDetail.value.id;
+      const detail = await getOrderDetail(orderId);
+      currentOrderDetail.value = detail; // API 拦截器已自动解包 response.data
+      console.log('✅ 医嘱详情已刷新');
+    }
+    
+    // 2. 刷新医嘱列表
+    await loadOrders();
+    console.log('✅ 医嘱列表已刷新');
+  } catch (error) {
+    console.error('❌ 刷新数据失败:', error);
+    // 不显示错误提示，因为任务已经成功执行
+  }
 };
 
 /**

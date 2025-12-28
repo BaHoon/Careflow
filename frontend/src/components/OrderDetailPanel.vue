@@ -558,7 +558,7 @@ const emit = defineEmits([
   'print-task-sheet',         // 打印任务执行单
   'print-inspection-guide',   // 打印检查导引单
   'view-inspection-report',   // 查看检查报告
-  'task-cancelled',           // 任务已取消，需要刷新数据
+  'task-updated',             // 任务已更新，需要刷新数据
   'view-task-detail'          // 查看任务详情
 ]);
 
@@ -900,7 +900,7 @@ const handleStartCompletion = async (task) => {
 
     const response = await completeExecutionTask(task.id, nurseId, null);
     ElMessage.success(response.message || '任务已更新');
-    emit('task-cancelled', task.id);
+    emit('task-updated', task.id);
   } catch (error) {
     if (error !== 'cancel') {
       console.error('开始完成任务失败:', error);
@@ -1004,7 +1004,7 @@ const handleFinishTask = async (task) => {
 
     const response = await completeExecutionTask(task.id, nurseId, resultPayload);
     ElMessage.success(response.message || '任务已完成');
-    emit('task-cancelled', task.id);
+    emit('task-updated', task.id);
   } catch (error) {
     if (error !== 'cancel') {
       console.error('结束任务失败:', error);
@@ -1065,7 +1065,7 @@ const handleCancelExecution = async (task) => {
 
     const response = await cancelExecutionTask(task.id, nurseId, cancelReason);
     ElMessage.success(response.message || '任务已取消');
-    emit('task-cancelled', task.id);
+    emit('task-updated', task.id);
   } catch (error) {
     if (error !== 'cancel') {
       console.error('取消执行任务失败:', error);
@@ -1135,7 +1135,7 @@ const handleCancelWithReturn = async (task) => {
 
     const response = await cancelExecutionTask(task.id, nurseId, formData.reason, formData.needReturn);
     ElMessage.success(response.message || '任务已取消');
-    emit('task-cancelled', task.id);
+    emit('task-updated', task.id);
   } catch (error) {
     if (error !== 'cancel') {
       console.error('取消执行任务失败:', error);
