@@ -195,7 +195,14 @@ public class BarcodePrintController : ControllerBase
     {
         try
         {
-            var task = await _taskRepository.GetByIdAsync(taskId);
+            // 查询任务信息（包含关联数据）
+            var task = await _taskRepository.GetQueryable()
+                .Include(t => t.Patient)
+                    .ThenInclude(p => p.Bed)
+                        .ThenInclude(b => b.Ward)
+                .Include(t => t.MedicalOrder)
+                .FirstOrDefaultAsync(t => t.Id == taskId);
+                
             if (task == null)
             {
                 return NotFound(new { success = false, message = "任务不存在" });
@@ -243,6 +250,12 @@ public class BarcodePrintController : ControllerBase
                 data = new
                 {
                     taskId = task.Id,
+                    patientId = task.PatientId,
+                    patientName = task.Patient?.Name,
+                    orderId = task.MedicalOrderId,
+                    orderSummary = GetOrderSummary(task),
+                    taskCategory = task.Category.ToString(),
+                    plannedTime = task.PlannedStartTime,
                     barcodeBase64 = base64DataUrl,
                     barcodeUrl = relativePath,
                     generatedTime = new FileInfo(filePath).CreationTime

@@ -367,19 +367,6 @@
                   </span>
                 </div>
               </div>
-              
-              <!-- 执行信息 -->
-              <div v-if="task.executorName || task.exceptionReason" class="task-section">
-                <div class="section-title">👤 执行信息</div>
-                <div v-if="task.executorName" class="timeline-item">
-                  <span class="timeline-label">负责护士:</span>
-                  <span class="timeline-value">{{ task.executorName }}</span>
-                </div>
-                <div v-if="task.exceptionReason" class="timeline-item">
-                  <span class="timeline-label">异常原因:</span>
-                  <span class="timeline-value danger">{{ task.exceptionReason }}</span>
-                </div>
-              </div>
 
               <!-- 护士模式：任务操作按钮 -->
               <div v-if="nurseMode" class="nurse-actions">
@@ -429,7 +416,7 @@
                       :icon="Printer"
                       @click.stop="emit('print-inspection-guide', { taskId: task.id, orderId: detail.id, task: task })"
                     >
-                      打印报告单
+                      打印导引单
                     </el-button>
                     <!-- 检查医嘱显示查看报告按钮 -->
                     <el-button 
@@ -475,13 +462,28 @@
                   </el-button>
                 </template>
 
-                <!-- Completed(5)：查看详情 -->
+                <!-- Completed(5)：打印执行单（除了检查类医嘱） -->
                 <template v-if="task.status === 5 || task.status === 'Completed'">
                   <el-button 
+                    v-if="detail.orderType !== 'InspectionOrder'"
+                    type="success"
                     size="small"
-                    @click.stop="handleViewTaskDetail(task)"
+                    :icon="Printer"
+                    @click.stop="handlePrintTaskBarcode(task)"
                   >
-                    查看详情
+                    打印执行单
+                  </el-button>
+                </template>
+                
+                <!-- 所有非检查类医嘱的任务显示打印执行单按钮 -->
+                <template v-if="detail.orderType !== 'InspectionOrder' && task.status !== 5 && task.status !== 'Completed'">
+                  <el-button 
+                    type="primary"
+                    size="small"
+                    :icon="Printer"
+                    @click.stop="handlePrintTaskBarcode(task)"
+                  >
+                    打印执行单
                   </el-button>
                 </template>
 
@@ -1365,6 +1367,133 @@ const getTaskTimingStatus = (task) => {
   }
   
   return { text: '', class: '' };
+};
+
+// 打印任务条形码
+const handlePrintTaskBarcode = async (task) => {
+  const taskId = task.id;
+  if (!taskId) {
+    ElMessage.error('任务ID无效');
+    return;
+  }
+
+  try {
+    // 先从API获取条形码数据
+    const response = await fetch(`http://localhost:5181/api/BarcodePrint/generate-task-barcode?taskId=${taskId}`);
+    const result = await response.json();
+    
+    if (!result.success || !result.data) {
+      throw new Error(result.message || '获取条形码失败');
+    }
+    
+    const barcodeData = result.data;
+    
+    // 获取任务类别名称的函数（与任务单据打印页面一致）
+    const getTaskCategoryName = (category) => {
+      const categoryMap = {
+        'Immediate': '即刻执行',
+        'Duration': '持续执行',
+        'ResultPending': '结果等待',
+        'DataCollection': '数据采集',
+        'Verification': '核对用药',
+        'ApplicationWithPrint': '检查申请',
+        'DischargeConfirmation': '出院确认'
+      };
+      return categoryMap[category] || '其他任务';
+    };
+    
+    // 打开新窗口显示条形码并打印
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    
+    if (!printWindow) {
+      ElMessage.error('无法打开打印窗口，请检查浏览器弹窗拦截设置');
+      return;
+    }
+
+    // 构建打印内容 - 使用任务单据打印格式
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>打印条形码 - ${taskId}</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+          }
+          .barcode-item {
+            page-break-inside: avoid;
+            margin-bottom: 30px;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 8px;
+          }
+          .barcode-image {
+            text-align: center;
+            margin-bottom: 15px;
+          }
+          .barcode-image img {
+            max-width: 100%;
+            height: auto;
+          }
+          .barcode-info {
+            font-size: 14px;
+            line-height: 1.8;
+          }
+          .info-row {
+            margin-bottom: 5px;
+          }
+          .label {
+            font-weight: bold;
+            color: #666;
+            margin-right: 10px;
+          }
+          .value {
+            color: #333;
+          }
+          @media print {
+            body {
+              padding: 0;
+            }
+            .barcode-item {
+              page-break-inside: avoid;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="barcode-item">
+          <div class="barcode-image">
+            <img src="${barcodeData.barcodeBase64}" alt="任务 ${taskId}" onload="window.print(); setTimeout(() => window.close(), 1000);" />
+          </div>
+          <div class="barcode-info">
+            <div class="info-row">
+              <span class="label">患者:</span>
+              <span class="value">${barcodeData.patientName || props.detail.patientName || '-'} (${barcodeData.patientId || props.detail.patientId || '-'})</span>
+            </div>
+            <div class="info-row">
+              <span class="label">任务:</span>
+              <span class="value">${barcodeData.orderSummary}</span>
+            </div>
+            <div class="info-row">
+              <span class="label">类型:</span>
+              <span class="value">${getTaskCategoryName(barcodeData.taskCategory)}</span>
+            </div>
+            <div class="info-row">
+              <span class="label">计划时间:</span>
+              <span class="value">${formatDateTime(task.plannedStartTime)}</span>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `);
+    
+    printWindow.document.close();
+  } catch (error) {
+    console.error('打印条形码失败:', error);
+    ElMessage.error('打印失败: ' + error.message);
+  }
 };
 </script>
 
