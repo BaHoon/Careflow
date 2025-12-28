@@ -332,14 +332,10 @@
                 </el-tag>
                 <!-- 显示任务标题（从DataPayload中解析的Title） -->
                 <span class="task-title">{{ getTaskTitle(task) }}</span>
-                <span v-if="getTaskTimingStatus(task).text" class="timing-status" :class="getTaskTimingStatus(task).class">
+                <!-- <span v-if="getTaskTimingStatus(task).text" class="timing-status" :class="getTaskTimingStatus(task).class">
                   {{ getTaskTimingStatus(task).text }}
-                </span>
+                </span> -->
                 <span class="task-time-separator">|</span>
-                <!-- 显示执行护士信息 -->
-                <span v-if="task.executorName" class="task-executor">执行: {{ task.executorName }}</span>
-                <span v-else-if="task.assignedNurseName" class="task-executor">负责: {{ task.assignedNurseName }}</span>
-                <span class="task-time-separator" v-if="task.executorName || task.assignedNurseName">|</span>
                 <span class="task-time">计划: {{ formatDateTime(task.plannedStartTime) }}</span>
                 <span v-if="task.statusBeforeLocking !== null" class="lock-indicator" title="此任务已被停嘱锁定">
                   🔒 锁前: {{ getTaskStatusText(task.statusBeforeLocking) }}
@@ -369,6 +365,23 @@
                   <span v-if="getDurationMinutes(task.actualStartTime, task.actualEndTime) && !isInspectionTask(task)" class="timeline-badge duration">
                     [耗时{{ getDurationMinutes(task.actualStartTime, task.actualEndTime) }}分钟]
                   </span>
+                </div>
+              </div>
+
+              <!-- 护士信息 -->
+              <div class="task-section">
+                <div class="section-title">👨‍⚕️ 护士信息</div>
+                <div v-if="task.assignedNurseName" class="timeline-item">
+                  <span class="timeline-label">理论执行护士:</span>
+                  <span class="timeline-value">{{ task.assignedNurseName }}</span>
+                </div>
+                <div v-if="task.executorName" class="timeline-item">
+                  <span class="timeline-label">实际执行护士:</span>
+                  <span class="timeline-value">{{ task.executorName }}</span>
+                </div>
+                <div v-if="!task.assignedNurseName && !task.executorName" class="timeline-item">
+                  <span class="timeline-label">护士信息:</span>
+                  <span class="timeline-value" style="color: #909399;">暂无</span>
                 </div>
               </div>
 
@@ -1381,11 +1394,6 @@ const getTaskTimingStatus = (task) => {
     return { text: '', class: '' };
   }
   
-  // 执行中
-  if (task.status === 4 && task.actualStartTime) {
-    return { text: '进行中...', class: 'status-progress' };
-  }
-  
   // 停嘱锁定
   if (task.status === 6) {
     return { text: '🔒锁定', class: 'status-locked' };
@@ -1805,11 +1813,6 @@ const handlePrintTaskBarcode = async (task) => {
   background: #fef0f0;
   color: #f56c6c;
   font-weight: 600;
-}
-
-.timing-status.status-progress {
-  background: #f0f9ff;
-  color: #409eff;
 }
 
 .timing-status.status-locked {

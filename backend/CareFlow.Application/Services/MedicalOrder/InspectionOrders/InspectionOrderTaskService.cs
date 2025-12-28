@@ -33,8 +33,10 @@ public class InspectionOrderTaskService : IInspectionService
     private readonly IRepository<Doctor, string> _doctorRepo;
     private readonly IRepository<Nurse, string> _nurseRepo;
     private readonly IRepository<ExecutionTask, long> _taskRepo;
+    private readonly IRepository<MedicalOrderStatusHistory, long> _statusHistoryRepository;
     private readonly InspectionReportPdfService _pdfService;
     private readonly IWebHostEnvironment _environment;
+    private readonly ICareFlowDbContext _context;
 
     public InspectionOrderTaskService(
         IRepository<InspectionOrder, long> orderRepo,
@@ -43,8 +45,10 @@ public class InspectionOrderTaskService : IInspectionService
         IRepository<Doctor, string> doctorRepo,
         IRepository<Nurse, string> nurseRepo,
         IRepository<ExecutionTask, long> taskRepo,
+        IRepository<MedicalOrderStatusHistory, long> statusHistoryRepository,
         InspectionReportPdfService pdfService,
-        IWebHostEnvironment environment)
+        IWebHostEnvironment environment,
+        ICareFlowDbContext context)
     {
         _orderRepo = orderRepo;
         _reportRepo = reportRepo;
@@ -52,8 +56,10 @@ public class InspectionOrderTaskService : IInspectionService
         _doctorRepo = doctorRepo;
         _nurseRepo = nurseRepo;
         _taskRepo = taskRepo;
+        _statusHistoryRepository = statusHistoryRepository;
         _pdfService = pdfService;
         _environment = environment;
+        _context = context;
     }
 
     // ===== 任务生成相关 =====
@@ -345,6 +351,34 @@ public class InspectionOrderTaskService : IInspectionService
             task.ActualStartTime = DateTime.UtcNow;
             task.ActualEndTime = DateTime.UtcNow;
             task.ExecutorStaffId = dto.NurseId;
+            
+            // ==================== 检查并更新医嘱状态 ====================
+            // 当任务完成时，如果医嘱状态是Accepted，则更新为InProgress
+            if (task.MedicalOrderId > 0)
+            {
+                var medicalOrder = await _context.Set<CareFlow.Core.Models.Medical.MedicalOrder>()
+                    .FirstOrDefaultAsync(o => o.Id == task.MedicalOrderId);
+                
+                if (medicalOrder != null && medicalOrder.Status == OrderStatus.Accepted)
+                {
+                    var originalStatus = medicalOrder.Status;
+                    medicalOrder.Status = OrderStatus.InProgress;
+                    
+                    // 添加医嘱状态变更历史记录
+                    var history = new MedicalOrderStatusHistory
+                    {
+                        MedicalOrderId = medicalOrder.Id,
+                        FromStatus = originalStatus,
+                        ToStatus = OrderStatus.InProgress,
+                        ChangedAt = DateTime.UtcNow,
+                        ChangedById = dto.NurseId,
+                        ChangedByType = "Nurse",
+                        Reason = "护士执行检查任务，医嘱状态自动更新为执行中"
+                    };
+                    await _statusHistoryRepository.AddAsync(history);
+                }
+            }
+            
             await _taskRepo.UpdateAsync(task);
 
             return new { message = "✅ 导引单已打印，患者可前往检查", taskType = "print" };

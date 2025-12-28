@@ -988,6 +988,35 @@ namespace CareFlow.WebApi.Controllers
                 task.Status = ExecutionTaskStatus.InProgress;
                 task.LastModifiedAt = DateTime.UtcNow;
 
+                // ==================== 检查并更新医嘱状态 ====================
+                // 当任务开始执行时，如果医嘱状态是Accepted，则更新为InProgress
+                if (task.MedicalOrderId > 0)
+                {
+                    var medicalOrder = await _context.Set<CareFlow.Core.Models.Medical.MedicalOrder>()
+                        .FirstOrDefaultAsync(o => o.Id == task.MedicalOrderId);
+                    
+                    if (medicalOrder != null && medicalOrder.Status == OrderStatus.Accepted)
+                    {
+                        var originalStatus = medicalOrder.Status;
+                        medicalOrder.Status = OrderStatus.InProgress;
+                        
+                        // 添加医嘱状态变更历史记录
+                        var history = new MedicalOrderStatusHistory
+                        {
+                            MedicalOrderId = medicalOrder.Id,
+                            FromStatus = originalStatus,
+                            ToStatus = OrderStatus.InProgress,
+                            ChangedAt = DateTime.UtcNow,
+                            ChangedById = nurseStaffId,
+                            ChangedByType = "Nurse",
+                            Reason = "护士开始执行任务，医嘱状态自动更新为执行中"
+                        };
+                        await _statusHistoryRepository.AddAsync(history);
+                        
+                        Console.WriteLine($"[StartExecutionTask] 医嘱 {task.MedicalOrderId} 状态从 Accepted 更新为 InProgress");
+                    }
+                }
+
                 await _context.SaveChangesAsync();
 
                 return Ok(new
@@ -1160,6 +1189,35 @@ namespace CareFlow.WebApi.Controllers
                 {
                     task.ExecutorStaffId = nurseStaffId;
                     task.ActualStartTime = DateTime.UtcNow;
+                    
+                    // ==================== 检查并更新医嘱状态 ====================
+                    // 当任务首次开始执行（变为InProgress）时，如果医嘱状态是Accepted，则更新为InProgress
+                    if (targetStatus == ExecutionTaskStatus.InProgress && task.MedicalOrderId > 0)
+                    {
+                        var medicalOrder = await _context.Set<CareFlow.Core.Models.Medical.MedicalOrder>()
+                            .FirstOrDefaultAsync(o => o.Id == task.MedicalOrderId);
+                        
+                        if (medicalOrder != null && medicalOrder.Status == OrderStatus.Accepted)
+                        {
+                            var originalStatus = medicalOrder.Status;
+                            medicalOrder.Status = OrderStatus.InProgress;
+                            
+                            // 添加医嘱状态变更历史记录
+                            var history = new MedicalOrderStatusHistory
+                            {
+                                MedicalOrderId = medicalOrder.Id,
+                                FromStatus = originalStatus,
+                                ToStatus = OrderStatus.InProgress,
+                                ChangedAt = DateTime.UtcNow,
+                                ChangedById = nurseStaffId,
+                                ChangedByType = "Nurse",
+                                Reason = "护士开始执行任务，医嘱状态自动更新为执行中"
+                            };
+                            await _statusHistoryRepository.AddAsync(history);
+                            
+                            Console.WriteLine($"[CompleteExecutionTask] 医嘱 {task.MedicalOrderId} 状态从 Accepted 更新为 InProgress");
+                        }
+                    }
                 }
 
                 // 更新任务信息 - 处理备注
@@ -1935,6 +1993,36 @@ namespace CareFlow.WebApi.Controllers
                 if (!string.IsNullOrEmpty(dto.ResultPayload))
                 {
                     task.ResultPayload = dto.ResultPayload;
+                }
+
+                // ==================== 检查并更新医嘱状态 ====================
+                // 当任务状态变为InProgress或Completed时，如果医嘱状态是Accepted，则更新为InProgress
+                if ((targetStatus == ExecutionTaskStatus.InProgress || targetStatus == ExecutionTaskStatus.Completed) 
+                    && task.MedicalOrderId > 0)
+                {
+                    var medicalOrder = await _context.Set<CareFlow.Core.Models.Medical.MedicalOrder>()
+                        .FirstOrDefaultAsync(o => o.Id == task.MedicalOrderId);
+                    
+                    if (medicalOrder != null && medicalOrder.Status == OrderStatus.Accepted)
+                    {
+                        var originalStatus = medicalOrder.Status;
+                        medicalOrder.Status = OrderStatus.InProgress;
+                        
+                        // 添加医嘱状态变更历史记录
+                        var history = new MedicalOrderStatusHistory
+                        {
+                            MedicalOrderId = medicalOrder.Id,
+                            FromStatus = originalStatus,
+                            ToStatus = OrderStatus.InProgress,
+                            ChangedAt = DateTime.UtcNow,
+                            ChangedById = nurse.Id,
+                            ChangedByType = "Nurse",
+                            Reason = "护士执行任务，医嘱状态自动更新为执行中"
+                        };
+                        await _statusHistoryRepository.AddAsync(history);
+                        
+                        Console.WriteLine($"[UpdateExecutionTaskStatus] 医嘱 {task.MedicalOrderId} 状态从 Accepted 更新为 InProgress");
+                    }
                 }
 
                 await _context.SaveChangesAsync();

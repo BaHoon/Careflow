@@ -648,6 +648,7 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
     private async Task<List<TaskSummaryDto>> GetOrderTasksAsync(long orderId)
     {
         var tasks = await _taskRepository.GetQueryable()
+            .Include(t => t.AssignedNurse)
             .Include(t => t.Executor)
             .Where(t => t.MedicalOrderId == orderId)
             .OrderBy(t => t.PlannedStartTime)
@@ -661,6 +662,8 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
             ActualStartTime = t.ActualStartTime,
             ActualEndTime = t.ActualEndTime,
             Category = t.Category,
+            AssignedNurseId = t.AssignedNurseId,
+            AssignedNurseName = t.AssignedNurse?.Name,
             ExecutorStaffId = t.ExecutorStaffId,
             ExecutorName = t.Executor?.Name,
             StatusBeforeLocking = t.StatusBeforeLocking,

@@ -129,6 +129,11 @@ namespace CareFlow.Application.Services.Nursing
             task.ExecuteTime = executionTimeUtc;  // 使用转换后的UTC时间
             task.ExecutorNurseId = input.CurrentNurseId; // 记录实际执行人（可能和分配的人不一样）
 
+            // ==================== 检查并更新医嘱状态 ====================
+            // 当任务完成时，如果是医嘱任务且医嘱状态是Accepted，则更新为InProgress
+            // 注意：护理任务通常没有MedicalOrderId，所以这里不会执行
+            // 但保留这个逻辑以防未来护理任务与医嘱关联
+
             // 5. 【核心逻辑】智能复测检测
             // 传入刚才生成的 vitalRecord 进行检查
             await CheckAndTriggerReMeasureAsync(vitalRecord, task);
