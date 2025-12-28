@@ -1,4 +1,5 @@
 using CareFlow.Core.Enums;
+using System.Text.Json.Serialization;
 
 namespace CareFlow.Application.DTOs.Patient;
 
@@ -46,6 +47,12 @@ public class PatientCardDto
     /// 状态显示文本
     /// </summary>
     public string StatusDisplay { get; set; } = null!;
+
+    /// <summary>
+    /// 近期护理任务异常状态：0=正常，1=异常
+    /// </summary>
+    [JsonPropertyName("nursingAnomalyStatus")]
+    public int NursingAnomalyStatus { get; set; }
 
     /// <summary>
     /// 责任医生ID
@@ -161,6 +168,12 @@ public class PatientFullInfoDto
     /// 护理级别
     /// </summary>
     public NursingGrade NursingGrade { get; set; }
+    
+    /// <summary>
+    /// 近期护理任务异常状态：0=正常，1=异常
+    /// </summary>
+    [JsonPropertyName("nursingAnomalyStatus")]
+    public int NursingAnomalyStatus { get; set; }
     
     // ==================== 关联信息（只读） ====================
     

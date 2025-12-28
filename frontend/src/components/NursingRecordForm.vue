@@ -223,6 +223,42 @@
           show-word-limit
         />
       </el-form-item>
+
+      <!-- 异常标记 -->
+      <el-divider content-position="left">
+        <el-icon><WarningFilled /></el-icon>
+        <span>异常标记（可选）</span>
+      </el-divider>
+
+      <el-row :gutter="20">
+        <el-col :span="24">
+          <el-form-item label="手动标记异常">
+            <el-switch 
+              v-model="formData.isManuallyMarkedAbnormal"
+              active-text="异常"
+              inactive-text="正常"
+              :active-value="true"
+              :inactive-value="false"
+            />
+            <span class="switch-hint">{{ formData.isManuallyMarkedAbnormal ? '将患者标记为异常状态' : '患者状态将根据体征数据判断' }}</span>
+          </el-form-item>
+        </el-col>
+      </el-row>
+
+      <el-row v-if="formData.isManuallyMarkedAbnormal" :gutter="20">
+        <el-col :span="24">
+          <el-form-item label="异常原因">
+            <el-input
+              v-model="formData.abnormalReason"
+              type="textarea"
+              :rows="2"
+              placeholder="请说明患者异常的原因..."
+              maxlength="200"
+              show-word-limit
+            />
+          </el-form-item>
+        </el-col>
+      </el-row>
     </el-form>
 
     <!-- 查看模式 -->
@@ -502,7 +538,10 @@ const formData = ref({
   intakeVolume: null,
   outputVolume: null,
   noteContent: '',
-  healthEducation: ''
+  healthEducation: '',
+  // 异常标记（可选）
+  isManuallyMarkedAbnormal: false,
+  abnormalReason: ''
 });
 
 // 查看模式的体征数据（从 API 获取）
@@ -693,7 +732,10 @@ const resetForm = () => {
     intakeVolume: null,
     outputVolume: null,
     noteContent: '',
-    healthEducation: ''
+    healthEducation: '',
+    // 异常标记（可选）
+    isManuallyMarkedAbnormal: false,
+    abnormalReason: ''
   };
 };
 
@@ -767,7 +809,10 @@ const handleSubmit = async () => {
       outputVolume: formData.value.outputVolume ? parseFloat(formData.value.outputVolume) : null,
       outputType: formData.value.outputVolume ? '尿液+引流' : null,
       noteContent: formData.value.noteContent || null,
-      healthEducation: formData.value.healthEducation || null
+      healthEducation: formData.value.healthEducation || null,
+      // 异常标记
+      isManuallyMarkedAbnormal: formData.value.isManuallyMarkedAbnormal,
+      abnormalReason: formData.value.abnormalReason || null
     };
     
     console.log('📋 提交数据详情:');
@@ -910,6 +955,12 @@ const getTaskTypeTagType = (record) => {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+}
+
+.switch-hint {
+  margin-left: 12px;
+  color: #909399;
+  font-size: 12px;
 }
 
 /* 自定义 descriptions 样式 */

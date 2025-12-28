@@ -28,6 +28,9 @@ namespace CareFlow.Core.Models.Organization
         public DateTime? ScheduledAdmissionTime { get; set; }
         public DateTime? ActualAdmissionTime { get; set; }
 
+        // 近期护理任务异常状态：0=正常, 1=异常
+        public int NursingAnomalyStatus { get; set; } = 0;
+
         // 外键关系
         public string? BedId { get; set; }  // 允许为NULL（待入院患者没有床位）
         [ForeignKey("BedId")]
