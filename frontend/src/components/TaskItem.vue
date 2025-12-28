@@ -190,15 +190,7 @@
         >
           取消任务
         </el-button>
-        <!-- 所有状态都显示打印执行单按钮 -->
-        <el-button 
-          type="primary"
-          size="small"
-          :icon="Printer"
-          @click.stop="handlePrintBarcode"
-        >
-          打印执行单
-        </el-button>
+        <!-- 护理任务不显示打印执行单按钮 -->
       </template>
     </div>
     </div>
@@ -291,7 +283,8 @@ const categoryIcon = computed(() => {
     'ApplicationWithPrint': Document,
     // NursingTask 类别
     'Routine': Bell,
-    'ReMeasure': VideoCamera
+    'ReMeasure': VideoCamera,
+    'Supplement': Edit
   };
   return iconMap[props.task.category] || Document;
 });
@@ -308,7 +301,8 @@ const categoryText = computed(() => {
     'ApplicationWithPrint': '申请打印',
     // NursingTask 类别
     'Routine': '常规护理',
-    'ReMeasure': '复测任务'
+    'ReMeasure': '复测任务',
+    'Supplement': '补充录入'
   };
   return textMap[props.task.category] || props.task.category;
 });

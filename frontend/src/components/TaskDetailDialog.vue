@@ -479,6 +479,7 @@ const getCategoryText = (category) => {
     'Verification': '核对验证',
     'Routine': '常规护理',
     'ReMeasure': '复测任务',
+    'Supplement': '补充录入',
     'ApplicationWithPrint': '申请打印',
     'DischargeConfirmation': '出院确认',
     // 数字映射（如果后端返回数字枚举值）
@@ -505,6 +506,7 @@ const getCategoryTagType = (category) => {
     'Verification': 'info',
     'Routine': 'info',
     'ReMeasure': 'warning',
+    'Supplement': 'primary',
     'ApplicationWithPrint': 'info',
     'DischargeConfirmation': 'danger',
     // 数字映射
