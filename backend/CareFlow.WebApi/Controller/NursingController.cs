@@ -1296,13 +1296,14 @@ namespace CareFlow.WebApi.Controllers
                 // 更新任务信息 - 处理备注
                 if (!string.IsNullOrEmpty(dto.ResultPayload))
                 {
-                    // 对于 Duration 和 ResultPending，如果是第二次调用，需要追加备注
-                    if ((task.Category == TaskCategory.Duration || task.Category == TaskCategory.ResultPending || task.Category == TaskCategory.Verification) &&
+                    // 对于 Duration 和 ResultPending，如果是第二次调用，需要合并备注为指定格式
+                    if ((task.Category == TaskCategory.Duration || task.Category == TaskCategory.ResultPending) &&
                         targetStatus == ExecutionTaskStatus.Completed &&
                         !string.IsNullOrEmpty(task.ResultPayload))
                     {
-                        // 已经有备注，追加新的
-                        task.ResultPayload = task.ResultPayload + "\n" + dto.ResultPayload;
+                        // 已经有备注（开始备注），追加结束备注
+                        // 格式：开始备注：内容1.结束备注：内容2.
+                        task.ResultPayload = task.ResultPayload + "结束备注：" + dto.ResultPayload + ".";
                     }
                     else
                     {
