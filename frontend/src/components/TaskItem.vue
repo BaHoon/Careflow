@@ -443,6 +443,20 @@ const handleViewDetail = () => {
   emit('view-detail', props.task);
 };
 
+// UsageRoute 枚举到中文的映射
+const getUsageRouteName = (routeValue) => {
+  const routeMap = {
+    1: '口服',           // PO
+    2: '外用/涂抹',      // Topical
+    10: '肌内注射',      // IM
+    11: '皮下注射',      // SC
+    12: '静脉推注',      // IVP
+    20: '静脉滴注',      // IVGTT
+    30: '皮试'           // ST
+  };
+  return routeMap[routeValue] || `未知途径(${routeValue})`;
+};
+
 // 获取当前护士ID
 const getCurrentNurseId = () => {
   const userInfo = localStorage.getItem('userInfo');
@@ -531,7 +545,11 @@ const parseMedicationPayload = (payload) => {
     if (med.DrugName) medDetails.push(`${med.DrugName}`);
     if (med.Specification) medDetails.push(`规格：${med.Specification}`);
     if (med.Dosage) medDetails.push(`剂量：${med.Dosage}`);
-    if (med.Route) medDetails.push(`途径：${med.Route}`);
+    if (med.Route) {
+      // 使用 UsageRoute 枚举映射到中文
+      const routeName = getUsageRouteName(med.Route);
+      medDetails.push(`途径：${routeName}`);
+    }
     if (med.Frequency) medDetails.push(`频次：${med.Frequency}`);
     
     html += `<div style="display: grid; gap: 6px;">`;
