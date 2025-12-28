@@ -61,8 +61,8 @@
           <el-descriptions-item label="负责护士">
             {{ currentTask.assignedNurseName || '-' }}
           </el-descriptions-item>
-          <el-descriptions-item label="执行护士">
-            {{ currentTask.executorNurseName || '-' }}
+          <el-descriptions-item v-if="currentTask.executorNurseName && currentTask.status === 5" label="执行护士">
+            {{ currentTask.executorNurseName }}
           </el-descriptions-item>
           
           <!-- 延迟信息 -->
@@ -160,8 +160,8 @@
           <el-descriptions-item label="负责护士">
             {{ currentTask.assignedNurseName || '-' }}
           </el-descriptions-item>
-          <el-descriptions-item label="执行护士">
-            {{ currentTask.executorNurseName || '-' }}
+          <el-descriptions-item v-if="currentTask.executorNurseName && currentTask.status === 5" label="执行护士">
+            {{ currentTask.executorNurseName }}
           </el-descriptions-item>
           
           <!-- 延迟信息 -->
