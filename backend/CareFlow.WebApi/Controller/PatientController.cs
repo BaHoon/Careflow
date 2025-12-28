@@ -518,7 +518,11 @@ public class PatientController : ControllerBase
                     Status = order.Status,
                     StatusDisplay = order.StatusDisplay,
                     UnfinishedTaskCount = ParseUnfinishedTaskCount(order.StatusDisplay),
-                    LatestTaskTime = order.EndTime
+                    LatestTaskTime = order.EndTime,
+                    ItemName = order.ItemName,
+                    OperationName = order.OperationName,
+                    SurgeryName = order.SurgeryName,
+                    MedicationOrderItems = order.MedicationOrderItems
                 }).ToList();
 
                 _logger.LogWarning("出院检查失败，患者ID: {PatientId}, 未完成医嘱数: {Count}", 

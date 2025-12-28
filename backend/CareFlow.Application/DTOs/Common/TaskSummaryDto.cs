@@ -57,4 +57,9 @@ public class TaskSummaryDto
     /// 异常原因（如果任务状态为Incomplete）
     /// </summary>
     public string? ExceptionReason { get; set; }
+    
+    /// <summary>
+    /// 任务数据载荷（JSON格式，包含Title、Description等任务详细信息）
+    /// </summary>
+    public string? DataPayload { get; set; }
 }

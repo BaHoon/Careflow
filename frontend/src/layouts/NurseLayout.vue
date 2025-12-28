@@ -55,15 +55,6 @@
         </router-link>
         
         <router-link 
-          to="/nurse/order-test" 
-          class="nav-item"
-          active-class="active"
-        >
-          <el-icon><Operation /></el-icon>
-          <span>医嘱测试</span>
-        </router-link>
-        
-        <router-link 
           to="/nurse/nursing-record" 
           class="nav-item"
           active-class="active"

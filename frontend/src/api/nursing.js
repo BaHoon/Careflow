@@ -155,10 +155,12 @@ export const completeExecutionTask = (taskId, nurseId, resultPayload = null) => 
  * @param {number} taskId - 任务ID
  * @param {string} nurseId - 护士ID
  * @param {string} cancelReason - 取消理由
+ * @param {boolean} needReturn - 是否需要直接退药（仅对AppliedConfirmed状态有效）
  */
-export const cancelExecutionTask = (taskId, nurseId, cancelReason) => {
+export const cancelExecutionTask = (taskId, nurseId, cancelReason, needReturn = false) => {
   return api.post(`/Nursing/execution-tasks/${taskId}/cancel`, { 
     nurseId, 
-    cancelReason 
+    cancelReason,
+    needReturn
   });
 };

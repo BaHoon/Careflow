@@ -64,10 +64,10 @@
             <el-checkbox :label="1">未签收</el-checkbox>
             <el-checkbox :label="2">已签收</el-checkbox>
             <el-checkbox :label="3">进行中</el-checkbox>
-            <el-checkbox :label="4">已完成</el-checkbox>
-            <el-checkbox :label="5">已停止</el-checkbox>
+            <el-checkbox :label="4">已结束</el-checkbox>
+            <el-checkbox :label="6">已撤回</el-checkbox>
             <el-checkbox :label="7">已退回</el-checkbox>
-            <el-checkbox :label="8">等待停嘱</el-checkbox>
+            <el-checkbox :label="9">停止中</el-checkbox>
           </el-checkbox-group>
         </div>
 
@@ -130,11 +130,11 @@
 
             <!-- 停嘱标识：只在医嘱处于停嘱相关状态时显示 -->
             <span 
-              v-if="order.stopReason && (order.status === 8 || order.status === 5)" 
+              v-if="order.stopReason && (order.status === 8 || order.status === 5 || order.status === 9)" 
               class="stop-badge" 
               :title="order.stopReason"
             >
-              🛑 已停嘱
+              🛑 {{ order.status === 9 ? '停止中' : '已停嘱' }}
             </span>
           </div>
 
@@ -283,8 +283,8 @@ const {
 } = usePatientData();
 
 // ==================== 筛选条件 ====================
-// 默认显示未签收(1)、已签收(2)、进行中(3)的医嘱
-const statusFilter = ref([1, 2, 3]);
+// 默认显示未签收(1,8)、已签收(2)、进行中(3)、停止中(9)的医嘱
+const statusFilter = ref([1, 8, 2, 3, 9]);
 // 默认显示所有类型
 const typeFilter = ref(['MedicationOrder', 'InspectionOrder', 'OperationOrder', 'SurgicalOrder', 'DischargeOrder']);
 // 时间范围
@@ -335,9 +335,28 @@ const loadOrders = async () => {
 
   loading.value = true;
   try {
+    // 状态映射：将前端筛选项映射为后端状态值
+    const statusMapping = {
+      1: [1, 8],  // 未签收 → PendingReceive(1), PendingStop(8)
+      2: [2],     // 已签收 → Accepted(2)
+      3: [3],     // 进行中 → InProgress(3)
+      4: [4, 5],  // 已结束 → Completed(4), Stopped(5)
+      6: [6],     // 已撤回 → Cancelled(6)
+      7: [7],     // 已退回 → Rejected(7)
+      9: [9]      // 停止中 → StoppingInProgress(9)
+    };
+
+    // 将选中的筛选项映射为实际状态值
+    const mappedStatuses = [];
+    statusFilter.value.forEach(filterValue => {
+      if (statusMapping[filterValue]) {
+        mappedStatuses.push(...statusMapping[filterValue]);
+      }
+    });
+
     const requestData = {
       patientId: selectedPatient.value.patientId,
-      statuses: statusFilter.value,
+      statuses: mappedStatuses,
       orderTypes: typeFilter.value.length > 0 ? typeFilter.value : null,
       sortBy: sortBy.value,
       sortDescending: sortDescending.value
@@ -487,19 +506,12 @@ const handleStopConfirm = async (stopData) => {
 
 // ==================== 判断是否可以停止医嘱 ====================
 const canStopOrder = (order) => {
-  // 待签收(1)、已签收(2)、进行中(3)或已停止(5)状态的医嘱可以停止
-  // 未签收的医嘱停止后直接取消，不需要护士签收
-  // 已停止的医嘱如果还有未完成的任务，可以再次停止（更改停止节点）
-  if (order.status === 1 || order.status === 2 || order.status === 3) {
+  // 待签收(1)、已签收(2)、进行中(3)或停止中(9)状态可以停止
+  if (order.status === 1 || order.status === 2 || order.status === 3 || order.status === 9) {
     return true;
   }
   
-  // 已停止状态(5)：检查是否有未完成的任务（通过任务计数判断）
-  if (order.status === 5) {
-    // 如果有未完成的任务（完成数 < 总数），则可以再次停止
-    return order.completedTaskCount < order.taskCount;
-  }
-  
+  // 不允许已停止(5)状态再次停止
   return false;
 };
 
@@ -619,7 +631,8 @@ const getStatusText = (status) => {
     5: '已停止',
     6: '已取消',
     7: '已退回',
-    8: '等待停嘱'
+    8: '等待停嘱',
+    9: '停止中'
   };
   return statusMap[status] || `状态${status}`;
 };
@@ -634,7 +647,8 @@ const getStatusColor = (status) => {
     5: 'info',
     6: 'info',
     7: 'danger',
-    8: 'warning'
+    8: 'warning',
+    9: 'warning'  // 停止中显示为警告色
   };
   return colorMap[status] || 'info';
 };

@@ -69,12 +69,49 @@
       <template v-if="task.taskSource === 'ExecutionTask'">
         <!-- 
           业务流程：
-          - Immediate(即刻执行)：Pending → Completed，显示"完成任务"
-          - Duration(持续任务)：Pending → InProgress → Completed，显示"完成"或"结束"
-          - ResultPending(结果待定)：Pending → InProgress → Completed，显示"完成"或"结束任务（需录入结果）"
-          - ApplicationWithPrint(申请打印)：Pending，显示"打印报告单"
+          - 药房申请流程：Applying(0) → Applied(1) → AppliedConfirmed(2)
+          - 执行流程：Pending(3) → InProgress(4) → Completed(5)
         -->
         
+        <!-- Applying(0)：去申请 + 取消任务 -->
+        <el-button 
+          v-if="task.status === 0 || task.status === 'Applying'" 
+          type="primary" 
+          size="small"
+          @click.stop="handleGoToApplication"
+        >
+          去申请
+        </el-button>
+
+        <el-button 
+          v-if="task.status === 0 || task.status === 'Applying'" 
+          type="danger" 
+          plain
+          size="small"
+          :icon="Close"
+          @click.stop="handleCancelExecution"
+        >
+          取消任务
+        </el-button>
+
+        <!-- Applied(1)：等待药房确认 + 去退药 -->
+        <el-tag 
+          v-if="task.status === 1 || task.status === 'Applied'" 
+          type="info"
+          size="default"
+        >
+          等待药房确认
+        </el-tag>
+
+        <el-button 
+          v-if="task.status === 1 || task.status === 'Applied'" 
+          type="warning"
+          size="small"
+          @click.stop="handleGoToReturn"
+        >
+          去退药
+        </el-button>
+
         <!-- ApplicationWithPrint: 显示打印报告单按钮 -->
         <el-button 
           v-if="task.category === 'ApplicationWithPrint' && (task.status === 2 || task.status === 'AppliedConfirmed' || task.status === 3 || task.status === 'Pending')" 
@@ -85,7 +122,7 @@
         >
           打印报告单
         </el-button>
-        
+
         <!-- AppliedConfirmed(2) 或 Pending(3)：显示根据category定制的"完成"按钮 -->
         <el-button 
           v-if="task.category !== 'ApplicationWithPrint' && (task.status === 2 || task.status === 'AppliedConfirmed' || task.status === 3 || task.status === 'Pending')" 
@@ -96,8 +133,19 @@
         >
           {{ getCompletionButtonLabel(task.category, false) }}
         </el-button>
+        <!-- AppliedConfirmed(2) 或 Pending(3)：取消任务 -->
+        <el-button 
+          v-if="task.status === 2 || task.status === 'AppliedConfirmed' || task.status === 3 || task.status === 'Pending'" 
+          type="danger" 
+          plain
+          size="small"
+          :icon="Close"
+          @click.stop="handleCancelWithReturn"
+        >
+          取消任务
+        </el-button>
 
-        <!-- InProgress(4)：显示"结束任务"或"结束任务（需录入结果）" -->
+        <!-- InProgress(4)：结束任务 -->
         <el-button 
           v-if="task.status === 4 || task.status === 'InProgress'" 
           type="success" 
@@ -106,20 +154,6 @@
           @click.stop="handleFinishTask"
         >
           {{ getCompletionButtonLabel(task.category, true) }}
-        </el-button>
-
-        <!-- 未完成状态显示"取消任务" -->
-        <el-button 
-          v-if="(task.status === 2 || task.status === 'AppliedConfirmed' || 
-                 task.status === 3 || task.status === 'Pending' || 
-                 task.status === 4 || task.status === 'InProgress')" 
-          type="danger" 
-          plain
-          size="small"
-          :icon="Close"
-          @click.stop="handleCancelExecution"
-        >
-          取消任务
         </el-button>
 
         <!-- Completed(5)：显示"查看详情" -->
@@ -171,6 +205,7 @@
 
 <script setup>
 import { computed } from 'vue';
+import { useRouter } from 'vue-router';
 import {
   User,
   Clock,
@@ -191,6 +226,8 @@ import {
   completeExecutionTask, 
   cancelExecutionTask 
 } from '@/api/nursing';
+
+const router = useRouter();
 
 const props = defineProps({
   task: {
@@ -218,8 +255,22 @@ const isCompleted = computed(() => {
   return props.task.status === 'Completed' || props.task.status === 5;
 });
 
-// 显示标题（优先使用 taskTitle，否则使用类别文本）
+// 显示标题（优先使用 DataPayload.Title，其次 taskTitle，最后使用类别文本）
 const displayTitle = computed(() => {
+  // 尝试从 DataPayload 获取 Title
+  if (props.task.dataPayload) {
+    try {
+      const payload = typeof props.task.dataPayload === 'string' 
+        ? JSON.parse(props.task.dataPayload) 
+        : props.task.dataPayload;
+      if (payload && payload.Title) {
+        return payload.Title;
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
   if (props.task.taskSource === 'ExecutionTask' && props.task.taskTitle) {
     return props.task.taskTitle;
   }
@@ -312,7 +363,10 @@ const statusTagType = computed(() => {
     'Skipped': 'info',
     8: 'info',
     'Cancelled': 'danger',
-    9: 'danger'
+    9: 'danger',
+    'PendingReturn': 'danger',
+    'PendingReturnCancelled': 'danger',
+    10: 'danger'
   };
   return typeMap[status] || 'info';
 });
@@ -342,7 +396,10 @@ const statusText = computed(() => {
     'Skipped': '已跳过',
     8: '异常',
     'Cancelled': '已取消',
-    9: '已取消'
+    9: '已取消',
+    'PendingReturn': '待退药',
+    'PendingReturnCancelled': '异常取消待退药',
+    10: '异常取消待退药'
   };
   return textMap[status] || status;
 });
@@ -1010,6 +1067,115 @@ const handleCancelExecution = async () => {
     }
   }
 };
+
+// AppliedConfirmed状态的取消任务（带是否退药选项）
+const handleCancelWithReturn = async () => {
+  try {
+    // 自定义弹窗内容
+    const { value: formData } = await ElMessageBox({
+      title: '确认取消任务',
+      message: `
+        <div style="font-size: 14px;">
+          <p style="margin-bottom: 12px; color: #606266;">请填写取消任务的理由：</p>
+          <textarea 
+            id="cancel-reason-input" 
+            placeholder="请输入取消理由..." 
+            style="width: 100%; height: 80px; padding: 8px; border: 1px solid #dcdfe6; border-radius: 4px; resize: vertical; font-family: inherit;"
+          ></textarea>
+          <div style="margin-top: 12px;">
+            <label style="display: flex; align-items: center; cursor: pointer;">
+              <input type="checkbox" id="need-return-checkbox" style="margin-right: 8px; cursor: pointer;" />
+              <span>需要直接退药</span>
+            </label>
+            <p style="margin: 8px 0 0 24px; font-size: 12px; color: #909399;">
+              勾选后将直接标记为异常状态，不勾选则进入待退药状态
+            </p>
+          </div>
+        </div>
+      `,
+      dangerouslyUseHTMLString: true,
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      beforeClose: (action, instance, done) => {
+        if (action === 'confirm') {
+          const reasonInput = document.getElementById('cancel-reason-input');
+          const needReturnCheckbox = document.getElementById('need-return-checkbox');
+          const reason = reasonInput?.value?.trim();
+          
+          if (!reason) {
+            ElMessage.error('取消理由不能为空');
+            return;
+          }
+          
+          instance.confirmButtonLoading = true;
+          instance.confirmButtonText = '处理中...';
+          
+          // 返回表单数据
+          done({
+            reason: reason,
+            needReturn: needReturnCheckbox?.checked || false
+          });
+        } else {
+          done();
+        }
+      }
+    });
+
+    if (!formData) return;
+
+    const nurseId = getCurrentNurseId();
+    if (!nurseId) {
+      ElMessage.error('未找到护士信息');
+      return;
+    }
+
+    const taskId = props.task.id;
+    if (!taskId) {
+      ElMessage.error('任务ID无效');
+      return;
+    }
+
+    // 调用API取消任务，传递needReturn参数
+    const response = await cancelExecutionTask(
+      taskId, 
+      nurseId, 
+      formData.reason, 
+      formData.needReturn
+    );
+    
+    ElMessage.success(response.message || '任务已取消');
+    
+    // 通知父组件刷新数据
+    emit('task-cancelled', taskId);
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('取消执行任务失败:', error);
+      ElMessage.error(error.response?.data?.message || '取消任务失败');
+    }
+  }
+};
+
+// 跳转到医嘱申请界面
+const handleGoToApplication = () => {
+  router.push({
+    path: '/nurse/application',
+    query: {
+      patientId: props.task.patientId
+    }
+  });
+};
+
+// 跳转到医嘱申请界面（退药）
+const handleGoToReturn = () => {
+  router.push({
+    path: '/nurse/application',
+    query: {
+      patientId: props.task.patientId,
+      returnMode: 'true'
+    }
+  });
+};
+
 </script>
 
 <style scoped>

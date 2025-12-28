@@ -82,7 +82,7 @@ public class InspectionOrderTaskService : IInspectionService
             DataPayload = JsonSerializer.Serialize(new
             {
                 TaskType = "InspectionApplication",
-                Title = "检查申请",
+                Title = $"检查申请：{order.ItemName}",
                 Description = $"检查项目: {order.ItemCode}，检查位置: {order.Location ?? "待定"}",
                 ItemCode = order.ItemCode,
                 Location = order.Location,
@@ -437,7 +437,7 @@ public class InspectionOrderTaskService : IInspectionService
             DataPayload = JsonSerializer.Serialize(new
             {
                 TaskType = "INSP_PRINT_GUIDE",
-                Title = "打印检查导引单",
+                Title = $"打印导引单：{order.ItemCode}",
                 Description = $"请打印 {order.ItemCode} 检查导引单并交给患者",
                 IsChecklist = true,
                 Items = items

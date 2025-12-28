@@ -59,6 +59,7 @@
             <el-checkbox label="Applied">已申请</el-checkbox>
             <el-checkbox label="AppliedConfirmed">已确认</el-checkbox>
             <el-checkbox label="PendingReturn">待退回</el-checkbox>
+            <el-checkbox label="PendingReturnCancelled">异常取消待退药</el-checkbox>
           </el-checkbox-group>
         </div>
 
@@ -311,6 +312,20 @@
               {{ item.orderType === 'Inspection' || item.orderType === 'InspectionOrder' ? '确认取消' : '确认退药' }}
             </el-button>
           </div>
+
+          <!-- 异常取消待退药状态显示确认退药按钮 -->
+          <div v-else-if="item.status === 'PendingReturnCancelled'" class="application-actions">
+            <el-tag type="danger" size="small" class="return-notice">
+              任务已取消，{{ item.orderType === 'Inspection' || item.orderType === 'InspectionOrder' ? '需要取消安排' : '需要退药' }}
+            </el-tag>
+            <el-button 
+              type="primary" 
+              @click="handleConfirmCancelledReturn(item)"
+              class="action-btn-small"
+            >
+              {{ item.orderType === 'Inspection' || item.orderType === 'InspectionOrder' ? '确认取消' : '确认退药' }}
+            </el-button>
+          </div>
         </div>
       </div>
 
@@ -339,7 +354,8 @@ import {
   cancelMedicationApplication,
   cancelInspectionApplication,
   requestReturnMedication,
-  confirmReturnMedication
+  confirmReturnMedication,
+  confirmCancelledReturn
 } from '@/api/orderApplication';
 
 // 使用患者数据组合
@@ -927,6 +943,54 @@ const handleConfirmReturn = async (item) => {
   }
 };
 
+// 确认异常取消退药（PendingReturnCancelled状态，将任务改为Incomplete）
+const handleConfirmCancelledReturn = async (item) => {
+  try {
+    const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
+    await ElMessageBox.confirm(
+      isInspection 
+        ? '确认该任务已取消安排？确认后任务将标记为异常状态。' 
+        : '确认该任务已退药？确认后任务将标记为异常状态。',
+      isInspection ? '确认取消' : '确认退药',
+      {
+        confirmButtonText: '确认',
+        cancelButtonText: '取消',
+        type: 'warning',
+        customClass: 'order-action-confirm'
+      }
+    );
+
+    const currentNurse = getCurrentNurse();
+    if (!currentNurse) {
+      ElMessage.error('未找到当前护士信息');
+      return;
+    }
+
+    loading.value = true;
+    const response = await confirmCancelledReturn(
+      item.relatedId,
+      currentNurse.staffId
+    );
+
+    if (response.success) {
+      const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
+      ElMessage.success(isInspection ? '取消确认成功，任务已标记为异常' : '退药确认成功，任务已标记为异常');
+      await loadApplications();
+    } else {
+      const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
+      ElMessage.error(response.message || (isInspection ? '确认失败' : '确认失败'));
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
+      console.error(isInspection ? '确认取消失败:' : '确认退药失败:', error);
+      ElMessage.error(isInspection ? '确认失败' : '确认失败');
+    }
+  } finally {
+    loading.value = false;
+  }
+};
+
 // 取消申请
 const handleCancelApply = async (item) => {
   try {
@@ -1002,7 +1066,9 @@ const getOrderTypeName = (orderType) => {
     MedicationOrder: '药品',
     InspectionOrder: '检查',
     SurgicalOrder: '手术',
-    OperationOrder: '操作'
+    OperationOrder: '操作',
+    DischargeOrder: '出院',
+    Discharge: '出院'
   };
   return nameMap[orderType] || orderType;
 };
@@ -1013,7 +1079,8 @@ const getStatusColor = (status) => {
     Applying: 'warning',
     Applied: 'primary',
     AppliedConfirmed: 'success',
-    PendingReturn: 'danger'
+    PendingReturn: 'danger',
+    PendingReturnCancelled: 'danger'
   };
   return colorMap[status] || 'info';
 };
@@ -1024,7 +1091,8 @@ const getStatusText = (status) => {
     Applying: '待申请',
     Applied: '已申请',
     AppliedConfirmed: '已确认',
-    PendingReturn: '待退药'
+    PendingReturn: '待退药',
+    PendingReturnCancelled: '异常取消待退药'
   };
   return textMap[status] || status;
 };

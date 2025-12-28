@@ -330,6 +330,8 @@
                 >
                   {{ getTaskCategoryStyle(task.category).name }}
                 </el-tag>
+                <!-- 显示任务标题（从DataPayload中解析的Title） -->
+                <span class="task-title">{{ getTaskTitle(task) }}</span>
                 <span v-if="getTaskTimingStatus(task).text" class="timing-status" :class="getTaskTimingStatus(task).class">
                   {{ getTaskTimingStatus(task).text }}
                 </span>
@@ -527,6 +529,28 @@ const handleInspectionReport = (task) => {
 };
 
 // 直接从检查信息区域查看报告
+// ==================== DataPayload解析 ====================
+/**
+ * 解析任务的DataPayload JSON字符串，提取Title
+ * @param {Object} task - 任务对象
+ * @returns {string} 任务标题，如果解析失败则返回默认标题
+ */
+const getTaskTitle = (task) => {
+  if (!task.dataPayload) {
+    return getTaskCategoryStyle(task.category).name;
+  }
+  
+  try {
+    const payload = JSON.parse(task.dataPayload);
+    // 优先使用Title字段，如果没有则使用TaskType或默认值
+    return payload.Title || payload.title || payload.TaskType || getTaskCategoryStyle(task.category).name;
+  } catch (error) {
+    // JSON解析失败，返回默认标题
+    console.warn('解析任务DataPayload失败:', error, 'Task ID:', task.id);
+    return getTaskCategoryStyle(task.category).name;
+  }
+};
+
 // ==================== 格式化方法 ====================
 const formatDateTime = (dateString) => {
   if (!dateString) return '-';
@@ -747,21 +771,14 @@ const getTaskTimingStatus = (task) => {
     return { text: '❌异常', class: 'status-exception' };
   }
   
-  // 已完成或执行中，计算时效
-  if (task.actualStartTime) {
-    const delay = getDelayMinutes(task.plannedStartTime, task.actualStartTime);
-    if (delay === null) return { text: '', class: '' };
-    
-    if (task.status === 5) { // 已完成
-      if (delay > 15) return { text: `⏱️延迟${delay}分`, class: 'status-delay-serious' };
-      if (delay > 5) return { text: `⏱️延迟${delay}分`, class: 'status-delay-minor' };
-      if (delay < -5) return { text: `⚡提前${-delay}分`, class: 'status-early' };
-      return { text: '✓按时', class: 'status-ontime' };
-    }
-    
-    if (task.status === 4) { // 执行中
-      return { text: '进行中...', class: 'status-progress' };
-    }
+  // 已完成，不显示提前/延后信息（这些信息在展开后的详情中显示）
+  if (task.status === 5) {
+    return { text: '', class: '' };
+  }
+  
+  // 执行中
+  if (task.status === 4 && task.actualStartTime) {
+    return { text: '进行中...', class: 'status-progress' };
   }
   
   // 停嘱锁定
@@ -990,6 +1007,18 @@ const getTaskTimingStatus = (task) => {
   font-weight: bold;
   border-radius: 50%;
   flex-shrink: 0;
+}
+
+.task-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #303133;
+  margin-left: 8px;
+  flex-shrink: 0;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .task-time-separator {
