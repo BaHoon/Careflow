@@ -13,7 +13,6 @@ import NurseDashboard from '../views/NurseDashboard.vue'
 import NurseTaskList from '../views/NurseTaskList.vue'
 import OrderAcknowledgement from '../views/OrderAcknowledgement.vue'
 import NurseOrderQueryView from '../views/NurseOrderQueryView.vue'
-import OrderTest from '../views/OrderTest.vue'
 import OrderApplication from '../views/OrderApplication.vue'
 import NursingRecord from '../views/NursingRecord.vue'
 import TaskScan from '../views/TaskScan.vue'
@@ -24,6 +23,10 @@ import PatientAdmission from '../views/PatientAdmission.vue'
 // 医生子页面
 import OrderEntry from '../views/OrderEntry.vue'
 import DoctorOrderView from '../views/DoctorOrderView.vue'
+
+// 管理员子页面
+import OrderStatusHistoryView from '../views/Admin/OrderStatusHistoryView.vue'
+import StaffManagementView from '../views/Admin/StaffManagementView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -82,12 +85,6 @@ const router = createRouter({
           meta: { title: '医嘱申请' }
         },
         {
-          path: 'order-test', // 相对路径，实际路径为 /nurse/order-test
-          name: 'order-test',
-          component: OrderTest,
-          meta: { title: '医嘱测试' }
-        },
-        {
           path: 'nursing-record', // 相对路径，实际路径为 /nurse/nursing-record
           name: 'nursing-record',
           component: NursingRecord,
@@ -141,6 +138,25 @@ const router = createRouter({
           meta: { title: '患者管理' }
         }
       ]
+    },
+
+    // ========== 管理员工作台 ==========
+    {
+      path: '/admin',
+      redirect: '/admin/order-history',
+      meta: { requiresAuth: true, role: 'Admin' }
+    },
+    {
+      path: '/admin/order-history',
+      name: 'admin-order-history',
+      component: OrderStatusHistoryView,
+      meta: { requiresAuth: true, role: 'Admin', title: '医嘱状态流转记录' }
+    },
+    {
+      path: '/staff-management',
+      name: 'staff-management',
+      component: StaffManagementView,
+      meta: { requiresAuth: true, role: 'Admin', title: '人员管理' }
     }
   ]
 })

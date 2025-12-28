@@ -49,6 +49,13 @@ namespace CareFlow.Application.Services
 
                 foreach (var talkContent in talkItems)
                 {
+                    var plannedTime = order.ScheduleTime.Add(TalkOffset);
+                    // 如果计算出的时间为过去，改为当前时间
+                    if (plannedTime < DateTime.UtcNow)
+                    {
+                        plannedTime = DateTime.UtcNow;
+                    }
+
                     tasks.Add(new ExecutionTask
                     {
                         MedicalOrderId = order.Id,
@@ -56,14 +63,14 @@ namespace CareFlow.Application.Services
                         Category = TaskCategory.Immediate, // 术前宣教为即刻执行类
                         // 导航属性通常在Save时由EF自动处理，这里主要保证ID正确
                         
-                        PlannedStartTime = order.ScheduleTime.Add(TalkOffset),
+                        PlannedStartTime = plannedTime,
                         Status = ExecutionTaskStatus.Pending,
                         CreatedAt = DateTime.UtcNow,
                         
                         DataPayload = JsonSerializer.Serialize(new
                         {
                             TaskType = "EDUCATION",
-                            Title = talkContent,
+                            Title = $"术前宣讲：{talkContent}",
                             Description = $"针对手术【{order.SurgeryName}】的术前宣教",
                             IsChecklist = false
                         }, JsonConfig.DefaultOptions)
@@ -87,19 +94,26 @@ namespace CareFlow.Application.Services
 
                 foreach (var opContent in opItems)
                 {
+                    var plannedTime = order.ScheduleTime.Add(OpOffset);
+                    // 如果计算出的时间为过去，改为当前时间
+                    if (plannedTime < DateTime.UtcNow)
+                    {
+                        plannedTime = DateTime.UtcNow;
+                    }
+
                     tasks.Add(new ExecutionTask
                     {
                         MedicalOrderId = order.Id,
                         PatientId = order.PatientId,
                         Category = TaskCategory.Duration, // 术前操作通常需要持续时间
-                        PlannedStartTime = order.ScheduleTime.Add(OpOffset),
+                        PlannedStartTime = plannedTime,
                         Status = ExecutionTaskStatus.Pending,
                         CreatedAt = DateTime.UtcNow,
                         
                         DataPayload = JsonSerializer.Serialize(new
                         {
                             TaskType = "NURSING_OP",
-                            Title = opContent,
+                            Title = $"术前操作：{opContent}",
                             Description = $"切口部位：{order.IncisionSite}",
                             RequiresScan = true // 标记前端需要扫码
                         }, JsonConfig.DefaultOptions)
@@ -134,19 +148,26 @@ namespace CareFlow.Application.Services
             }
 
             // 生成唯一的聚合任务
+            var supplyPlannedTime = order.ScheduleTime.Add(SupplyOffset);
+            // 如果计算出的时间为过去，改为当前时间
+            if (supplyPlannedTime < DateTime.UtcNow)
+            {
+                supplyPlannedTime = DateTime.UtcNow;
+            }
+
             tasks.Add(new ExecutionTask
             {
                 MedicalOrderId = order.Id,
                 PatientId = order.PatientId,
                 Category = TaskCategory.Verification, // 物品核对为核对类
-                PlannedStartTime = order.ScheduleTime.Add(SupplyOffset),
+                PlannedStartTime = supplyPlannedTime,
                 Status = ExecutionTaskStatus.Applying,
                 CreatedAt = DateTime.UtcNow,
                 
                 DataPayload = JsonSerializer.Serialize(new
                 {
                     TaskType = "SUPPLY_CHECK",
-                    Title = "术前物品与药品核对",
+                    Title = "物品核对：术前器械与药品",
                     Description = "请核对带入手术室的所有物品",
                     IsChecklist = true,
                     Items = supplyList

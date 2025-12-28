@@ -32,6 +32,8 @@
           @view-detail="handleViewDetail"
           @date-change="handleDateChange"
           @task-cancelled="handleTaskCancelled"
+          @add-supplement-record="handleAddSupplementRecord"
+          @view-recent-stats="handleViewRecentStats"
         />
       </div>
     </div>
@@ -42,6 +44,11 @@
       :mode="dialogMode"
       :current-nurse-id="currentNurseId"
       @submit-success="handleSubmitRecord"
+    />
+
+    <VitalSignsChart
+      v-model="chartVisible"
+      :patient-id="selectedPatient?.patientId || ''"
     />
   </div>
 </template>
@@ -56,6 +63,7 @@ import PatientListPanel from '@/components/PatientListPanel.vue';
 import PatientInfoBar from '@/components/PatientInfoBar.vue';
 import NursingRecordList from '@/components/NursingRecordList.vue';
 import NursingRecordForm from '@/components/NursingRecordForm.vue';
+import VitalSignsChart from '@/components/VitalSignsChart.vue';
 
 // API 与 Composable 导入
 import { usePatientData } from '@/composables/usePatientData';
@@ -76,6 +84,7 @@ const {
 const nursingRecords = ref([]);
 const loading = ref(false);
 const dialogVisible = ref(false);
+const chartVisible = ref(false);
 const dialogMode = ref('input'); // 'input' 或 'view'
 const currentRecord = ref({});
 const selectedDate = ref(new Date().toISOString().split('T')[0]);
@@ -170,6 +179,39 @@ const handleDateChange = (date) => {
   if (selectedPatient.value) {
     loadNursingRecords(selectedPatient.value.patientId, date);
   }
+};
+
+/**
+ * 处理添加补充护理记录
+ */
+const handleAddSupplementRecord = () => {
+  if (!selectedPatient.value) {
+    ElMessage.warning('请先选择患者');
+    return;
+  }
+  
+  // 创建一个新的空记录用于补充录入
+  currentRecord.value = {
+    patientId: selectedPatient.value.patientId,
+    isSupplementRecord: true, // 标记为补充记录
+    assignedNurseId: currentNurseId.value,
+    assignedNurseName: localStorage.getItem('userName') || '当前护士',
+    plannedStartTime: new Date().toISOString(),
+    taskType: 'Supplement' // 设置为补充检测类型
+  };
+  dialogMode.value = 'input';
+  dialogVisible.value = true;
+};
+
+/**
+ * 查看近期体征情况
+ */
+const handleViewRecentStats = () => {
+  if (!selectedPatient.value) {
+    ElMessage.warning('请先选择患者');
+    return;
+  }
+  chartVisible.value = true;
 };
 
 /**

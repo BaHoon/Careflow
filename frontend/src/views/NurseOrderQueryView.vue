@@ -82,9 +82,9 @@
               <el-checkbox :label="1">未签收</el-checkbox>
               <el-checkbox :label="2">已签收</el-checkbox>
               <el-checkbox :label="3">进行中</el-checkbox>
-              <el-checkbox :label="4">已完成</el-checkbox>
-              <el-checkbox :label="5">已停止</el-checkbox>
-              <el-checkbox :label="8">等待停嘱</el-checkbox>
+              <el-checkbox :label="4">已结束</el-checkbox>
+              <el-checkbox :label="7">已退回</el-checkbox>
+              <el-checkbox :label="9">停止中</el-checkbox>
             </el-checkbox-group>
           </div>
 
@@ -344,10 +344,18 @@
           :nurse-mode="true"
           @update-task-execution="handleUpdateTaskExecution"
           @print-task-sheet="handlePrintTaskSheet"
+          @print-inspection-guide="handlePrintInspectionGuide"
           @view-inspection-report="handleViewInspectionReport"
         />
       </div>
     </el-dialog>
+
+    <!-- ==================== 检查导引单打印弹窗 ==================== -->
+    <InspectionGuidePrintDialog
+      v-model="guidePrintDialogVisible"
+      :order-id="currentGuideOrderId"
+      :task-id="currentGuideTaskId"
+    />
 
     <!-- ==================== 单据打印弹窗 ==================== -->
     <el-dialog
@@ -358,6 +366,21 @@
       class="barcode-print-dialog"
     >
       <div class="barcode-print-container">
+        <!-- 患者姓名搜索 -->
+        <div v-if="!loadingBarcodes && barcodeList.length > 0" class="barcode-search-bar">
+          <el-input
+            v-model="barcodeSearchText"
+            placeholder="输入患者姓名搜索..."
+            clearable
+            prefix-icon="Search"
+            class="search-input"
+          >
+            <template #append>
+              <span class="search-count">{{ filteredBarcodeList.length }}/{{ barcodeList.length }}</span>
+            </template>
+          </el-input>
+        </div>
+
         <div v-if="loadingBarcodes" class="loading-state">
           <el-icon class="is-loading"><Loading /></el-icon>
           <p>加载条形码中...</p>
@@ -367,9 +390,13 @@
           <p>暂无生成的任务条形码</p>
         </div>
 
+        <div v-else-if="filteredBarcodeList.length === 0" class="empty-state">
+          <p>未找到匹配的患者</p>
+        </div>
+
         <div v-else class="barcode-grid">
           <div
-            v-for="barcode in barcodeList"
+            v-for="barcode in filteredBarcodeList"
             :key="barcode.taskId"
             class="barcode-item"
             :class="{ 'selected': selectedBarcodes.includes(barcode.taskId) }"
@@ -433,6 +460,7 @@ import { InfoFilled, Search, Loading } from '@element-plus/icons-vue';
 import PatientListPanel from '@/components/PatientListPanel.vue';
 import PatientInfoBar from '@/components/PatientInfoBar.vue';
 import OrderDetailPanel from '@/components/OrderDetailPanel.vue';
+import InspectionGuidePrintDialog from '@/components/InspectionGuidePrintDialog.vue';
 import { usePatientData } from '@/composables/usePatientData';
 import { 
   queryMultiPatientOrders, 
@@ -466,8 +494,8 @@ const sortBy = ref('time');
 const timeRange = ref(null);
 // 医嘱类型（默认显示所有类型）
 const typeFilter = ref(['MedicationOrder', 'InspectionOrder', 'OperationOrder', 'SurgicalOrder', 'DischargeOrder']);
-// 医嘱状态（默认显示未签收、已签收、进行中）
-const statusFilter = ref([1, 2, 3]);
+// 医嘱状态（默认显示未签收(1)、已签收(2)、进行中(3)、停止中(9)）
+const statusFilter = ref([1, 2, 3, 9]);
 // 新开医嘱筛选
 const showNewCreated = ref(false);
 // 新停医嘱筛选
@@ -483,11 +511,30 @@ const loading = ref(false);
 const detailDialogVisible = ref(false);
 const currentOrderDetail = ref(null);
 
+// ==================== 检查导引单打印弹窗 ====================
+const guidePrintDialogVisible = ref(false);
+const currentGuideOrderId = ref(null);
+const currentGuideTaskId = ref(null);
+
 // ==================== 单据打印弹窗 ====================
 const barcodePrintDialogVisible = ref(false);
 const loadingBarcodes = ref(false);
 const barcodeList = ref([]);
 const selectedBarcodes = ref([]);
+const barcodeSearchText = ref(''); // 患者姓名搜索
+
+/**
+ * 根据患者姓名筛选后的条形码列表
+ */
+const filteredBarcodeList = computed(() => {
+  if (!barcodeSearchText.value.trim()) {
+    return barcodeList.value;
+  }
+  const searchText = barcodeSearchText.value.trim().toLowerCase();
+  return barcodeList.value.filter(barcode => 
+    barcode.patientName && barcode.patientName.toLowerCase().includes(searchText)
+  );
+});
 
 // ==================== 计算属性 ====================
 /**
@@ -577,9 +624,28 @@ const loadOrders = async () => {
   try {
     console.log(`🔄 开始加载 ${selectedPatients.value.length} 位患者的医嘱...`);
 
+    // 状态映射：将前端筛选项映射为后端状态值
+    const statusMapping = {
+      1: [1, 8],  // 未签收 → PendingReceive(1), PendingStop(8)
+      2: [2],     // 已签收 → Accepted(2)
+      3: [3],     // 进行中 → InProgress(3)
+      4: [4, 5],  // 已结束 → Completed(4), Stopped(5)
+      6: [6],     // 已撤回 → Cancelled(6)
+      7: [7],     // 已退回 → Rejected(7)
+      9: [9]      // 停止中 → StoppingInProgress(9)
+    };
+
+    // 将选中的筛选项映射为实际状态值
+    const mappedStatuses = [];
+    statusFilter.value.forEach(filterValue => {
+      if (statusMapping[filterValue]) {
+        mappedStatuses.push(...statusMapping[filterValue]);
+      }
+    });
+
     // 构建筛选条件
     const filters = {
-      statuses: statusFilter.value,
+      statuses: mappedStatuses,
       orderTypes: typeFilter.value.length > 0 ? typeFilter.value : null,
       sortBy: 'CreateTime',
       sortDescending: true
@@ -688,10 +754,26 @@ const handlePrintTaskSheet = (taskId) => {
 };
 
 /**
+ * 打印检查导引单
+ */
+const handlePrintInspectionGuide = ({ taskId, orderId }) => {
+  console.log('🔬 打印检查导引单:', { taskId, orderId });
+  currentGuideTaskId.value = taskId;
+  currentGuideOrderId.value = orderId;
+  guidePrintDialogVisible.value = true;
+};
+
+/**
  * 查看检查报告
  */
 const handleViewInspectionReport = (reportInfo) => {
   console.log('📄 查看检查报告:', reportInfo);
+  
+  // 验证报告URL是否存在
+  if (!reportInfo.reportUrl) {
+    ElMessage.warning('报告文件不存在或尚未生成');
+    return;
+  }
   
   // 构建报告URL，使用后端静态文件服务
   const baseUrl = 'http://localhost:5181';
@@ -743,16 +825,14 @@ const openBarcodePrintDialog = async () => {
 const loadTaskBarcodes = async () => {
   loadingBarcodes.value = true;
   try {
-    // 获取当前病区ID（如果有选中患者）
-    const wardId = currentScheduledWardId.value;
-    
-    const response = await fetch(`http://localhost:5181/api/BarcodePrint/task-barcodes${wardId ? `?wardId=${wardId}` : ''}`);
+    // 不传递 wardId，显示所有条形码
+    const response = await fetch(`http://localhost:5181/api/BarcodePrint/task-barcodes`);
     const result = await response.json();
     
     if (result.success) {
       barcodeList.value = result.data || [];
       selectedBarcodes.value = [];
-      console.log(`✅ 加载了 ${barcodeList.value.length} 个任务条形码`);
+      console.log(`✅ 加载了 ${barcodeList.value.length} 个任务条形码`, result);
     } else {
       throw new Error(result.message || '加载失败');
     }
@@ -916,13 +996,15 @@ const printSelectedBarcodes = () => {
  */
 const getTaskCategoryName = (category) => {
   const categoryMap = {
-    'ApplicationWithPrint': '申请打印类',
-    'ResultPending': '结果等待类',
-    'DataCollection': '数据采集类',
-    'VerificationWithDosage': '核对用药类',
-    'ExecutionOnly': '纯执行类'
+    'Immediate': '即刻执行',
+    'Duration': '持续执行',
+    'ResultPending': '结果等待',
+    'DataCollection': '数据采集',
+    'Verification': '核对用药',
+    'ApplicationWithPrint': '检查申请',
+    'DischargeConfirmation': '出院确认'
   };
-  return categoryMap[category] || category;
+  return categoryMap[category] || '其他任务';
 };
 
 // ==================== 新开/新停判断 ====================
@@ -934,10 +1016,33 @@ const isNewlyCreated = (order) => {
 };
 
 /**
- * 判断是否为新停医嘱
+ * 判断是否为新停医嘱（24h内的PendingStop、StoppingInProgress、Stopped）
  */
 const isNewlyStopped = (order) => {
-  return isNewlyStoppedOrder(order, 24);
+  // 检查状态是否为停止相关状态
+  if (order.status !== 8 && order.status !== 9 && order.status !== 5) {
+    return false;
+  }
+  
+  // 检查是否在24小时内
+  if (!order.stopConfirmedAt && !order.createTime) {
+    return false;
+  }
+  
+  try {
+    // 使用停止确认时间或创建时间
+    const timeString = order.stopConfirmedAt || order.createTime;
+    let utcString = timeString;
+    if (!timeString.endsWith('Z') && !timeString.includes('+')) {
+      utcString = timeString + 'Z';
+    }
+    const orderTime = new Date(utcString);
+    const now = new Date();
+    const hoursDiff = (now - orderTime) / (1000 * 60 * 60);
+    return hoursDiff <= 24;
+  } catch {
+    return false;
+  }
 };
 
 // ==================== 计算任务进度 ====================
@@ -1443,6 +1548,21 @@ onMounted(async () => {
 
 .barcode-print-container {
   min-height: 400px;
+}
+
+.barcode-search-bar {
+  margin-bottom: 20px;
+}
+
+.barcode-search-bar .search-input {
+  width: 100%;
+}
+
+.barcode-search-bar .search-count {
+  color: #909399;
+  font-size: 14px;
+  padding: 0 10px;
+  white-space: nowrap;
 }
 
 .barcode-grid {

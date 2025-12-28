@@ -4,6 +4,7 @@ using CareFlow.Application.Services.Scheduling;
 using CareFlow.Application.Common;
 using CareFlow.Core.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
 using CareFlow.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using CareFlow.Core.Models.Nursing;
@@ -171,6 +172,57 @@ namespace CareFlow.WebApi.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "获取补充说明失败", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// [护士端] 创建补充护理任务
+        /// </summary>
+        /// <param name="dto">创建补充任务的数据</param>
+        /// <returns></returns>
+        [HttpPost("tasks/create-supplement")]
+        public async Task<IActionResult> CreateSupplementNursingTask([FromBody] CreateSupplementNursingTaskDto dto)
+        {
+            try
+            {
+                if (dto == null)
+                {
+                    return BadRequest(new { message = "数据不能为空" });
+                }
+
+                if (string.IsNullOrEmpty(dto.PatientId) || string.IsNullOrEmpty(dto.AssignedNurseId))
+                {
+                    return BadRequest(new { message = "患者ID和护士ID不能为空" });
+                }
+
+                // 创建补充护理任务
+                var now = DateTime.UtcNow;
+                var task = new NursingTask
+                {
+                    PatientId = dto.PatientId,
+                    AssignedNurseId = dto.AssignedNurseId,
+                    ExecutorNurseId = dto.AssignedNurseId, // 补充记录中，预计执行护士和实际执行护士相同
+                    ScheduledTime = now,
+                    ExecuteTime = now,
+                    Status = ExecutionTaskStatus.Completed, // 补充记录直接标记为已完成
+                    TaskType = "Supplement", // 标记为补充
+                    Description = dto.Description
+                };
+
+                _context.NursingTasks.Add(task);
+                await _context.SaveChangesAsync();
+
+                return Ok(new 
+                { 
+                    message = "补充护理任务已创建",
+                    taskId = task.Id,
+                    id = task.Id
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"创建补充护理任务异常: {ex.Message}");
+                return StatusCode(500, new { message = "创建补充护理任务失败", error = ex.Message });
             }
         }
 
@@ -528,10 +580,6 @@ namespace CareFlow.WebApi.Controllers
                     .Select(b => b.Id)
                     .ToListAsync();
 
-                Console.WriteLine($"🔍 查询护士 {nurse.Name}(ID:{nurse.Id}, DeptCode:{nurse.DeptCode}) 的任务");
-                Console.WriteLine($"📋 查询范围 UTC: {startOfDay} 到 {endOfDay}");
-                Console.WriteLine($"🛏️  该科室床位数: {bedIds.Count}, 床位ID: {string.Join(",", bedIds)}");
-
                 var currentTime = DateTime.UtcNow;
                 var allTasks = new List<NurseTaskDto>();
 
@@ -577,17 +625,11 @@ namespace CareFlow.WebApi.Controllers
                     string? resultPayload = null;
                     if (task.Status == ExecutionTaskStatus.Completed)
                     {
-                        Console.WriteLine($"🔍 任务 {task.Id} 已完成，查询护理数据...");
-                        
                         var vitalRecord = await _context.VitalSignsRecords
                             .FirstOrDefaultAsync(v => v.NursingTaskId == task.Id);
                         
-                        Console.WriteLine($"  体征记录: {(vitalRecord != null ? "找到" : "未找到")}");
-                        
                         var careNote = await _context.NursingCareNotes
                             .FirstOrDefaultAsync(n => n.NursingTaskId == task.Id);
-                        
-                        Console.WriteLine($"  护理笔记: {(careNote != null ? "找到" : "未找到")}");
                         
                         if (vitalRecord != null)
                         {
@@ -608,13 +650,6 @@ namespace CareFlow.WebApi.Controllers
                             // 添加护理笔记数据（如果有）
                             if (careNote != null)
                             {
-                                Console.WriteLine($"  添加护理笔记数据:");
-                                Console.WriteLine($"    Consciousness: {careNote.Consciousness}");
-                                Console.WriteLine($"    SkinCondition: {careNote.SkinCondition}");
-                                Console.WriteLine($"    Content: {careNote.Content}");
-                                Console.WriteLine($"    IntakeVolume: {careNote.IntakeVolume}");
-                                Console.WriteLine($"    OutputVolume: {careNote.OutputVolume}");
-                                
                                 resultData["consciousness"] = careNote.Consciousness;
                                 resultData["skinCondition"] = careNote.SkinCondition;
                                 resultData["intakeVolume"] = careNote.IntakeVolume > 0 ? careNote.IntakeVolume : null;
@@ -626,11 +661,8 @@ namespace CareFlow.WebApi.Controllers
                             }
                             
                             resultPayload = System.Text.Json.JsonSerializer.Serialize(resultData);
-                            Console.WriteLine($"  序列化后的ResultPayload: {resultPayload}");
                         }
                     }
-                    
-                    Console.WriteLine($"📋 任务 {task.Id}: ExecutorNurseId={task.ExecutorNurseId}, ExecutorNurseName={executorNurseName}");
                     
                     allTasks.Add(new NurseTaskDto
                     {
@@ -680,8 +712,11 @@ namespace CareFlow.WebApi.Controllers
                 }
                 else
                 {
-                    // 默认只显示：AppliedConfirmed(2)、Pending(3)、InProgress(4)、Completed(5)
+                    // 默认显示：Applying(0)、Applied(1)、AppliedConfirmed(2)、Pending(3)、InProgress(4)、Completed(5)
+                    // 排除：OrderStopping(6)、Stopped(7)、Incomplete(8)、Cancelled(9)
                     executionTasksQuery = executionTasksQuery.Where(et => 
+                        et.Status == ExecutionTaskStatus.Applying ||
+                        et.Status == ExecutionTaskStatus.Applied ||
                         et.Status == ExecutionTaskStatus.AppliedConfirmed ||
                         et.Status == ExecutionTaskStatus.Pending ||
                         et.Status == ExecutionTaskStatus.InProgress ||
@@ -690,15 +725,6 @@ namespace CareFlow.WebApi.Controllers
                 }
 
                 var executionTasks = await executionTasksQuery.ToListAsync();
-
-                Console.WriteLine($"✅ 查询到 {nursingTasks.Count} 个护理任务，{executionTasks.Count} 个执行任务");
-                if (executionTasks.Count == 0)
-                {
-                    Console.WriteLine($"⚠️  没有找到执行任务，检查查询条件:");
-                    Console.WriteLine($"   - AssignedNurseId == {nurseStaffId}");
-                    Console.WriteLine($"   - bedIds: {string.Join(",", bedIds)}");
-                    Console.WriteLine($"   - PlannedStartTime 范围: {startOfDay} 到 {endOfDay}");
-                }
 
                 foreach (var task in executionTasks)
                 {
@@ -969,6 +995,90 @@ namespace CareFlow.WebApi.Controllers
             }
         }
 
+        /// <summary>
+        /// [护士端] 获取患者体征历史记录
+        /// </summary>
+        /// <param name="patientId">患者ID</param>
+        /// <param name="startDate">开始日期 (格式: YYYY-MM-DD，可选)</param>
+        /// <param name="endDate">结束日期 (格式: YYYY-MM-DD，可选)</param>
+        /// <returns></returns>
+        [HttpGet("vitalsigns/history")]
+        public async Task<IActionResult> GetVitalSignsHistory(
+            [FromQuery] string patientId,
+            [FromQuery] string? startDate = null,
+            [FromQuery] string? endDate = null)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(patientId))
+                {
+                    return BadRequest(new { message = "患者ID不能为空" });
+                }
+
+                // 解析日期
+                DateTime queryStartDate = DateTime.MinValue;
+                DateTime queryEndDate = DateTime.MaxValue;
+
+                var chinaTimeZone = TimeZoneInfo.FindSystemTimeZoneById("China Standard Time");
+
+                if (!string.IsNullOrEmpty(startDate) && DateTime.TryParse(startDate, out var parsedStart))
+                {
+                    // 转换为UTC时间（中国时间的00:00:00）
+                    var chinaStart = new DateTime(parsedStart.Year, parsedStart.Month, parsedStart.Day, 0, 0, 0);
+                    queryStartDate = TimeZoneInfo.ConvertTimeToUtc(chinaStart, chinaTimeZone);
+                }
+
+                if (!string.IsNullOrEmpty(endDate) && DateTime.TryParse(endDate, out var parsedEnd))
+                {
+                    // 转换为UTC时间（中国时间的23:59:59）
+                    var chinaEnd = new DateTime(parsedEnd.Year, parsedEnd.Month, parsedEnd.Day, 23, 59, 59);
+                    queryEndDate = TimeZoneInfo.ConvertTimeToUtc(chinaEnd, chinaTimeZone);
+                }
+
+                // 查询体征记录，并包含护士信息
+                var vitalSignRecords = await _context.VitalSignsRecords
+                    .Include(vsr => vsr.RecorderNurse)
+                    .Where(vsr => vsr.PatientId == patientId &&
+                                  vsr.RecordTime >= queryStartDate &&
+                                  vsr.RecordTime <= queryEndDate)
+                    .OrderBy(vsr => vsr.RecordTime)  // 按时间从早到晚排序
+                    .ToListAsync();
+
+                if (vitalSignRecords.Count == 0)
+                {
+                    return Ok(new List<object>());
+                }
+
+                // 构建返回数据，包含护士名称
+                var result = vitalSignRecords.Select(vsr => new
+                {
+                    recordTime = vsr.RecordTime,
+                    temperature = vsr.Temperature,
+                    pulse = vsr.Pulse,
+                    respiration = vsr.Respiration,
+                    sysBp = vsr.SysBp,
+                    diaBp = vsr.DiaBp,
+                    spo2 = vsr.Spo2,
+                    nurseId = vsr.RecorderNurseId,
+                    nurseName = vsr.RecorderNurse?.Name ?? "未知",
+                    taskId = vsr.NursingTaskId
+                }).ToList();
+
+                Console.WriteLine($"[DEBUG] 获取了 {result.Count} 条体征记录，护士信息：");
+                foreach (var rec in result.Take(3))
+                {
+                    Console.WriteLine($"  - 护士ID: {rec.nurseId}, 护士名称: {rec.nurseName}");
+                }
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"获取体征历史失败: {ex.Message}");
+                return StatusCode(500, new { message = "获取体征历史失败", error = ex.Message });
+            }
+        }
+
         // ==================== ExecutionTask 操作接口 ====================
 
         /// <summary>
@@ -994,6 +1104,8 @@ namespace CareFlow.WebApi.Controllers
                 var task = await _context.ExecutionTasks
                     .Include(t => t.Patient)
                     .Include(t => t.MedicalOrder)
+                        .ThenInclude(m => m.Items)
+                            .ThenInclude(i => i.Drug)
                     .FirstOrDefaultAsync(t => t.Id == id);
 
                 if (task == null)
@@ -1160,10 +1272,23 @@ namespace CareFlow.WebApi.Controllers
                     targetStatus = ExecutionTaskStatus.Completed;
                     actionDescription = "核对已完成";
                 }
+                // ==================== ApplicationWithPrint 类别（申请打印类） ====================
+                else if (task.Category == TaskCategory.ApplicationWithPrint)
+                {
+                    // 从 AppliedConfirmed(2) 或 Pending(3) 直接到 Completed(5)，打印即完成
+                    if (task.Status != ExecutionTaskStatus.Pending && 
+                        task.Status != ExecutionTaskStatus.AppliedConfirmed)
+                    {
+                        return BadRequest(new { message = $"ApplicationWithPrint 任务只能从待执行或已确认状态完成，当前状态: {task.Status}" });
+                    }
+
+                    targetStatus = ExecutionTaskStatus.Completed;
+                    actionDescription = "已打印完成";
+                }
                 // ==================== 其他类别（暂未实现） ====================
                 else
                 {
-                    // TODO: DataCollection, ApplicationWithPrint 的具体流程待定义
+                    // TODO: DataCollection 的具体流程待定义
                     return BadRequest(new { message = $"任务类别 {task.Category} 的完成流程暂未实现，请联系管理员" });
                 }
 
@@ -1178,13 +1303,14 @@ namespace CareFlow.WebApi.Controllers
                 // 更新任务信息 - 处理备注
                 if (!string.IsNullOrEmpty(dto.ResultPayload))
                 {
-                    // 对于 Duration 和 ResultPending，如果是第二次调用，需要追加备注
-                    if ((task.Category == TaskCategory.Duration || task.Category == TaskCategory.ResultPending || task.Category == TaskCategory.Verification) &&
+                    // 对于 Duration 和 ResultPending，如果是第二次调用，需要合并备注为指定格式
+                    if ((task.Category == TaskCategory.Duration || task.Category == TaskCategory.ResultPending) &&
                         targetStatus == ExecutionTaskStatus.Completed &&
                         !string.IsNullOrEmpty(task.ResultPayload))
                     {
-                        // 已经有备注，追加新的
-                        task.ResultPayload = task.ResultPayload + "\n" + dto.ResultPayload;
+                        // 已经有备注（开始备注），追加结束备注
+                        // 格式：开始备注：内容1.结束备注：内容2.
+                        task.ResultPayload = task.ResultPayload + "结束备注：" + dto.ResultPayload + ".";
                     }
                     else
                     {
@@ -1226,16 +1352,48 @@ namespace CareFlow.WebApi.Controllers
                         var medicalOrder = await _context.Set<CareFlow.Core.Models.Medical.MedicalOrder>()
                             .FirstOrDefaultAsync(o => o.Id == medicalOrderId);
                         
-                        if (medicalOrder != null && 
-                            medicalOrder.Status != OrderStatus.Completed && 
-                            medicalOrder.Status != OrderStatus.Stopped && 
-                            medicalOrder.Status != OrderStatus.Cancelled)
+                        if (medicalOrder != null)
                         {
-                            medicalOrder.Status = OrderStatus.Completed;
-                            medicalOrder.CompletedAt = DateTime.UtcNow;
-                            await _context.SaveChangesAsync();
-                            
-                            Console.WriteLine($"[CompleteExecutionTask] 医嘱 {medicalOrderId} 下所有任务已完成，医嘱状态已更新为 Completed");
+                            // 特殊处理：如果医嘱是 StoppingInProgress 状态
+                            if (medicalOrder.Status == OrderStatus.StoppingInProgress)
+                            {
+                                // 检查停止节点之前的任务是否都已完成
+                                if (medicalOrder.StopAfterTaskId.HasValue)
+                                {
+                                    var stopNodeIndex = allTasksForOrder.FindIndex(t => t.Id == medicalOrder.StopAfterTaskId.Value);
+                                    
+                                    if (stopNodeIndex >= 0)
+                                    {
+                                        var tasksBeforeStop = allTasksForOrder.Take(stopNodeIndex).ToList();
+                                        
+                                        // PendingReturn 视为已完成
+                                        var allBeforeStopCompleted = tasksBeforeStop.All(t => 
+                                            t.Status == ExecutionTaskStatus.Completed ||
+                                            t.Status == ExecutionTaskStatus.PendingReturn ||
+                                            t.Status == ExecutionTaskStatus.Stopped);
+                                        
+                                        if (allBeforeStopCompleted)
+                                        {
+                                            medicalOrder.Status = OrderStatus.Stopped;
+                                            medicalOrder.CompletedAt = DateTime.UtcNow;
+                                            await _context.SaveChangesAsync();
+                                            
+                                            Console.WriteLine($"[CompleteExecutionTask] 医嘱 {medicalOrderId} 停止节点之前的任务都已完成，状态更新为 Stopped");
+                                        }
+                                    }
+                                }
+                            }
+                            // 正常医嘱的完成逻辑
+                            else if (medicalOrder.Status != OrderStatus.Completed && 
+                                     medicalOrder.Status != OrderStatus.Stopped && 
+                                     medicalOrder.Status != OrderStatus.Cancelled)
+                            {
+                                medicalOrder.Status = OrderStatus.Completed;
+                                medicalOrder.CompletedAt = DateTime.UtcNow;
+                                await _context.SaveChangesAsync();
+                                
+                                Console.WriteLine($"[CompleteExecutionTask] 医嘱 {medicalOrderId} 下所有任务已完成，医嘱状态已更新为 Completed");
+                            }
                         }
                     }
                 }
@@ -1311,8 +1469,32 @@ namespace CareFlow.WebApi.Controllers
                     return BadRequest(new { message = "请填写取消理由" });
                 }
 
+                // 根据当前状态和是否需要退药决定目标状态
+                ExecutionTaskStatus targetStatus;
+                
+                if (task.Status == ExecutionTaskStatus.AppliedConfirmed || 
+                    task.Status == ExecutionTaskStatus.Pending)
+                {
+                    // AppliedConfirmed或Pending状态取消时，根据needReturn参数决定
+                    if (dto.NeedReturn)
+                    {
+                        // 勾选了需要直接退药，改为Incomplete
+                        targetStatus = ExecutionTaskStatus.Incomplete;
+                    }
+                    else
+                    {
+                        // 未勾选，改为PendingReturnCancelled（任务异常取消待退药）
+                        targetStatus = ExecutionTaskStatus.PendingReturnCancelled;
+                    }
+                }
+                else
+                {
+                    // 其他状态直接改为Stopped
+                    targetStatus = ExecutionTaskStatus.Stopped;
+                }
+
                 // 更新任务状态
-                task.Status = ExecutionTaskStatus.Stopped;
+                task.Status = targetStatus;
                 task.ExceptionReason = dto.CancelReason;
                 task.LastModifiedAt = DateTime.UtcNow;
 
@@ -1322,7 +1504,7 @@ namespace CareFlow.WebApi.Controllers
                 {
                     message = "任务已取消",
                     taskId = task.Id,
-                    status = task.Status,
+                    status = task.Status.ToString(),
                     cancelReason = task.ExceptionReason
                 });
             }
@@ -1348,6 +1530,19 @@ namespace CareFlow.WebApi.Controllers
                 if (task == null)
                 {
                     return NotFound(new { message = "任务不存在" });
+                }
+
+                // 检查任务计划时间是否为今天
+                // 允许的时间范围：当天 00:00:00 到 23:59:59（包括跨天任务）
+                var today = DateTime.Now.Date;
+                var tomorrow = today.AddDays(1);
+                var plannedDate = task.PlannedStartTime.Date;
+                
+                // 只限制明天或更晚的任务，同天和已过期的任务都允许执行
+                if (plannedDate > today)
+                {
+                    // 只允许执行当天及已过期的任务，不允许执行未来日期的任务
+                    return BadRequest(new { message = $"任务计划时间为 {task.PlannedStartTime:yyyy-MM-dd}，暂不可执行", success = false });
                 }
 
                 // 构建返回的任务信息
@@ -1470,6 +1665,8 @@ namespace CareFlow.WebApi.Controllers
 
                 var task = await _context.ExecutionTasks
                     .Include(t => t.Patient)
+                    .Include(t => t.MedicalOrder)
+                        .ThenInclude(m => m.Items)
                     .FirstOrDefaultAsync(t => t.Id == taskId);
 
                 if (task == null)
@@ -1566,6 +1763,9 @@ namespace CareFlow.WebApi.Controllers
 
                 var task = await _context.ExecutionTasks
                     .Include(t => t.Patient)
+                    .Include(t => t.MedicalOrder)
+                        .ThenInclude(m => m.Items)
+                            .ThenInclude(i => i.Drug)
                     .FirstOrDefaultAsync(t => t.Id == taskId);
 
                 if (task == null)
@@ -1605,17 +1805,173 @@ namespace CareFlow.WebApi.Controllers
                             });
                         }
 
-                        // 对于药品验证，记录药品ID（从条形码中识别出）
-                        // 这里可以根据实际的药品管理逻辑来验证药品是否匹配
-                        // 简单实现：只要条形码能识别就算成功
-                        return Ok(new 
-                        { 
+                        // 解析期望药品清单（从 DataPayload 或 MedicalOrder.Items）
+                        var expectedDrugIds = new List<string>();
+                        var expectedDrugs = new List<object>();
+
+                        // 1) 尝试从 DataPayload 中读取 MedicationInfo.Items 或 Items 中的 drugId
+                        try
+                        {
+                            if (!string.IsNullOrEmpty(task.DataPayload))
+                            {
+                                using var doc = JsonDocument.Parse(task.DataPayload);
+                                var root = doc.RootElement;
+
+                                // MedicationInfo.Items (生成任务时采用此结构)
+                                if (root.TryGetProperty("MedicationInfo", out var medInfo))
+                                {
+                                    if (medInfo.ValueKind == JsonValueKind.Object && medInfo.TryGetProperty("Items", out var medItems) && medItems.ValueKind == JsonValueKind.Array)
+                                    {
+                                        foreach (var it in medItems.EnumerateArray())
+                                        {
+                                            string? drugId = null;
+                                            string? drugName = null;
+                                            if (it.TryGetProperty("DrugId", out var d1)) drugId = d1.GetString();
+                                            if (it.TryGetProperty("drugId", out var d2) && drugId == null) drugId = d2.GetString();
+                                            if (it.TryGetProperty("DrugName", out var dn1)) drugName = dn1.GetString();
+                                            if (it.TryGetProperty("drugName", out var dn2) && drugName == null) drugName = dn2.GetString();
+                                            if (!string.IsNullOrEmpty(drugId))
+                                            {
+                                                expectedDrugIds.Add(drugId!);
+                                                expectedDrugs.Add(new { drugId, drugName });
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // root-level Items (备用)
+                                if (!expectedDrugIds.Any() && root.TryGetProperty("Items", out var itemsEl) && itemsEl.ValueKind == JsonValueKind.Array)
+                                {
+                                    foreach (var it in itemsEl.EnumerateArray())
+                                    {
+                                        string? drugId = null;
+                                        string? drugName = null;
+                                        if (it.TryGetProperty("DrugId", out var d1)) drugId = d1.GetString();
+                                        if (it.TryGetProperty("drugId", out var d2) && drugId == null) drugId = d2.GetString();
+                                        if (it.TryGetProperty("DrugName", out var dn1)) drugName = dn1.GetString();
+                                        if (it.TryGetProperty("drugName", out var dn2) && drugName == null) drugName = dn2.GetString();
+                                        if (!string.IsNullOrEmpty(drugId))
+                                        {
+                                            expectedDrugIds.Add(drugId!);
+                                            expectedDrugs.Add(new { drugId, drugName });
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        catch
+                        {
+                            // 忽略解析错误，后续会尝试从 MedicalOrder.Items 读取
+                        }
+
+                        // 2) 如果仍然没有，尝试从关联的 MedicalOrder.Items 获取 DrugId
+                        if (!expectedDrugIds.Any() && task.MedicalOrder != null && task.MedicalOrder.Items != null)
+                        {
+                            foreach (var it in task.MedicalOrder.Items)
+                            {
+                                if (!string.IsNullOrEmpty(it.DrugId))
+                                {
+                                    expectedDrugIds.Add(it.DrugId);
+                                    expectedDrugs.Add(new { drugId = it.DrugId, drugName = it.Drug?.GenericName ?? it.Drug?.TradeName });
+                                }
+                            }
+                        }
+
+                        var expectedCount = expectedDrugIds.Count;
+
+                        // 3) 读取并更新 ResultPayload 中的已扫描列表（字段名: scannedDrugIds）
+                        var scanned = new List<string>();
+                        try
+                        {
+                            if (!string.IsNullOrEmpty(task.ResultPayload))
+                            {
+                                using var doc = JsonDocument.Parse(task.ResultPayload);
+                                var root = doc.RootElement;
+                                if (root.TryGetProperty("scannedDrugIds", out var scannedEl) && scannedEl.ValueKind == JsonValueKind.Array)
+                                {
+                                    foreach (var s in scannedEl.EnumerateArray())
+                                    {
+                                        var v = s.GetString();
+                                        if (!string.IsNullOrEmpty(v)) scanned.Add(v!);
+                                    }
+                                }
+                            }
+                        }
+                        catch
+                        {
+                            // ignore
+                        }
+
+                        var scannedDrugId = drugRecognition.RecordId;
+
+                        // 已经扫描过
+                        if (scanned.Contains(scannedDrugId))
+                        {
+                            var progressPercent = expectedCount == 0 ? 0 : (int)Math.Round((double)scanned.Count / expectedCount * 100);
+                            return Ok(new
+                            {
+                                success = true,
+                                isMatched = expectedDrugIds.Contains(scannedDrugId),
+                                message = "该药品已扫描",
+                                taskId = task.Id,
+                                scannedDrugId,
+                                scannedCount = scanned.Count,
+                                expectedCount,
+                                progress = progressPercent
+                            });
+                        }
+
+                        // 如果期望清单为空，则无法验证，只记录扫描到的条码并返回
+                        if (expectedCount == 0)
+                        {
+                            scanned.Add(scannedDrugId);
+                        }
+                        else
+                        {
+                            // 验证是否在期望清单中
+                            if (expectedDrugIds.Contains(scannedDrugId))
+                            {
+                                scanned.Add(scannedDrugId);
+                            }
+                            else
+                            {
+                                return BadRequest(new
+                                {
+                                    success = false,
+                                    isMatched = false,
+                                    message = $"扫描的药品条码不在期望清单中: {scannedDrugId}",
+                                    taskId = task.Id
+                                });
+                            }
+                        }
+
+                        // 将更新后的 scanned 列表写回 ResultPayload
+                        try
+                        {
+                            var newResult = new Dictionary<string, object?>();
+                            newResult["scannedDrugIds"] = scanned;
+                            // 保留其他可能的结果字段? 这里只覆盖/设置扫描列表
+                            task.ResultPayload = JsonSerializer.Serialize(newResult);
+                            task.LastModifiedAt = DateTime.UtcNow;
+                            await _context.SaveChangesAsync();
+                        }
+                        catch (Exception ex)
+                        {
+                            _ = ex; // 忽略保存错误，但应记录在日志中（此处简化）
+                        }
+
+                        var progress = expectedCount == 0 ? 100 : (int)Math.Round((double)scanned.Count / expectedCount * 100);
+
+                        return Ok(new
+                        {
                             success = true,
                             isMatched = true,
                             message = "药品验证成功",
                             taskId = task.Id,
-                            scannedDrugId = drugRecognition.RecordId,
-                            drugName = $"药品-{drugRecognition.RecordId}"
+                            scannedDrugId = scannedDrugId,
+                            scannedCount = scanned.Count,
+                            expectedCount,
+                            progress
                         });
                     }
                     catch (Exception ex)
@@ -1711,11 +2067,162 @@ namespace CareFlow.WebApi.Controllers
         {
             var drugs = new List<dynamic>();
 
-            if (task.Category == TaskCategory.Verification && task.MedicalOrderId > 0)
+            // 尝试从 DataPayload 中解析期望药品
+            var expectedDrugIds = new List<string>();
+            var expectedDrugNames = new Dictionary<string, string?>();
+
+            try
             {
-                // 这里需要根据MedicalOrder获取药品列表
-                // 实现方式取决于MedicalOrder和Drug的关联关系
-                // 暂时返回空列表，具体实现需要根据业务逻辑调整
+                if (!string.IsNullOrEmpty(task.DataPayload))
+                {
+                    Console.WriteLine($"[GetTaskDrugs] 尝试从 DataPayload 读取药品 (TaskId: {task.Id})");
+                    using var doc = JsonDocument.Parse(task.DataPayload);
+                    var root = doc.RootElement;
+
+                    // 尝试方式1：MedicationInfo.Items（给药任务格式）
+                    if (root.TryGetProperty("MedicationInfo", out var medInfo) && medInfo.ValueKind == JsonValueKind.Object)
+                    {
+                        Console.WriteLine($"[GetTaskDrugs] 找到 MedicationInfo");
+                        if (medInfo.TryGetProperty("Items", out var medItems) && medItems.ValueKind == JsonValueKind.Array)
+                        {
+                            Console.WriteLine($"[GetTaskDrugs] 找到 MedicationInfo.Items，项数: {medItems.GetArrayLength()}");
+                            foreach (var it in medItems.EnumerateArray())
+                            {
+                                string? did = null;
+                                string? dname = null;
+                                if (it.TryGetProperty("DrugId", out var d1)) did = d1.GetString();
+                                if (it.TryGetProperty("drugId", out var d2) && did == null) did = d2.GetString();
+                                if (it.TryGetProperty("DrugName", out var dn1)) dname = dn1.GetString();
+                                if (it.TryGetProperty("drugName", out var dn2) && dname == null) dname = dn2.GetString();
+                                if (!string.IsNullOrEmpty(did))
+                                {
+                                    expectedDrugIds.Add(did!);
+                                    expectedDrugNames[did!] = dname;
+                                    Console.WriteLine($"[GetTaskDrugs] 提取药品: {did} - {dname}");
+                                }
+                            }
+                        }
+                    }
+
+                    // 尝试方式2：medications 数组（取药任务格式）
+                    if (!expectedDrugIds.Any() && root.TryGetProperty("medications", out var medications) && medications.ValueKind == JsonValueKind.Array)
+                    {
+                        Console.WriteLine($"[GetTaskDrugs] 找到 medications 数组，项数: {medications.GetArrayLength()}");
+                        foreach (var med in medications.EnumerateArray())
+                        {
+                            string? did = null;
+                            string? dname = null;
+                            if (med.TryGetProperty("drugId", out var d1)) did = d1.GetString();
+                            if (med.TryGetProperty("DrugId", out var d2) && did == null) did = d2.GetString();
+                            if (med.TryGetProperty("drugName", out var dn1)) dname = dn1.GetString();
+                            if (med.TryGetProperty("DrugName", out var dn2) && dname == null) dname = dn2.GetString();
+                            if (!string.IsNullOrEmpty(did))
+                            {
+                                expectedDrugIds.Add(did!);
+                                expectedDrugNames[did!] = dname;
+                                Console.WriteLine($"[GetTaskDrugs] 提取药品: {did} - {dname}");
+                            }
+                        }
+                    }
+
+                    // 尝试方式3：root-level Items（核对清单格式，items 中的对象包含 drugId）
+                    if (!expectedDrugIds.Any() && root.TryGetProperty("items", out var items) && items.ValueKind == JsonValueKind.Array)
+                    {
+                        Console.WriteLine($"[GetTaskDrugs] 找到 root-level items，项数: {items.GetArrayLength()}");
+                        foreach (var it in items.EnumerateArray())
+                        {
+                            string? did = null;
+                            string? dname = null;
+                            // 检查 items 中的 drugId 字段（取药清单中有）
+                            if (it.TryGetProperty("drugId", out var d1)) did = d1.GetString();
+                            if (it.TryGetProperty("DrugId", out var d2) && did == null) did = d2.GetString();
+                            // drugName 可能需要从 text 字段中提取
+                            if (it.TryGetProperty("text", out var textEl))
+                            {
+                                var text = textEl.GetString();
+                                // text 格式: "核对药品：药品名称 剂量" - 提取"核对药品："后的部分
+                                if (text != null && text.Contains("核对药品："))
+                                {
+                                    dname = text.Substring(text.IndexOf("核对药品：") + 5).Trim();
+                                }
+                            }
+                            if (string.IsNullOrEmpty(dname))
+                            {
+                                if (it.TryGetProperty("drugName", out var dn1)) dname = dn1.GetString();
+                                if (it.TryGetProperty("DrugName", out var dn2) && dname == null) dname = dn2.GetString();
+                            }
+                            if (!string.IsNullOrEmpty(did))
+                            {
+                                expectedDrugIds.Add(did!);
+                                expectedDrugNames[did!] = dname;
+                                Console.WriteLine($"[GetTaskDrugs] 提取药品: {did} - {dname}");
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[GetTaskDrugs] 解析 DataPayload 失败: {ex.Message}");
+                // ignore
+            }
+
+            // 如果仍无，从关联的 MedicalOrder.Items 中读取（需要传入时包含 MedicalOrder）
+            if (!expectedDrugIds.Any() && task.MedicalOrder != null && task.MedicalOrder.Items != null)
+            {
+                Console.WriteLine($"[GetTaskDrugs] DataPayload 中未找到药品，尝试从 MedicalOrder.Items 读取 (共 {task.MedicalOrder.Items.Count()} 项)");
+                foreach (var it in task.MedicalOrder.Items)
+                {
+                    if (!string.IsNullOrEmpty(it.DrugId))
+                    {
+                        expectedDrugIds.Add(it.DrugId);
+                        expectedDrugNames[it.DrugId] = it.Drug?.GenericName ?? it.Drug?.TradeName;
+                        Console.WriteLine($"[GetTaskDrugs] 提取药品: {it.DrugId} - {it.Drug?.GenericName ?? it.Drug?.TradeName}");
+                    }
+                }
+            }
+
+            if (expectedDrugIds.Any())
+            {
+                Console.WriteLine($"[GetTaskDrugs] 成功获取 {expectedDrugIds.Count} 个期望药品");
+            }
+            else
+            {
+                Console.WriteLine($"[GetTaskDrugs] 未能获取期望药品清单 (TaskId: {task.Id})");
+            }
+
+            // 读取已扫描的列表
+            var scanned = new HashSet<string>();
+            try
+            {
+                if (!string.IsNullOrEmpty(task.ResultPayload))
+                {
+                    using var doc = JsonDocument.Parse(task.ResultPayload);
+                    var root = doc.RootElement;
+                    if (root.TryGetProperty("scannedDrugIds", out var scannedEl) && scannedEl.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var s in scannedEl.EnumerateArray())
+                        {
+                            var v = s.GetString();
+                            if (!string.IsNullOrEmpty(v)) scanned.Add(v!);
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // ignore
+            }
+
+            // 构建返回对象
+            foreach (var did in expectedDrugIds)
+            {
+                drugs.Add(new {
+                    drugId = did,
+                    drugName = expectedDrugNames.ContainsKey(did) ? expectedDrugNames[did] : null,
+                    required = true,
+                    scanned = scanned.Contains(did)
+                });
             }
 
             return drugs;
@@ -1747,6 +2254,208 @@ namespace CareFlow.WebApi.Controllers
             return category == TaskCategory.ResultPending || 
                    category == TaskCategory.DataCollection ||
                    category == TaskCategory.Verification;
+        }
+
+        /// <summary>
+        /// 获取护士待签收医嘱统计
+        /// 包括新开医嘱（PendingReceive）和停止医嘱（PendingStop）
+        /// </summary>
+        /// <param name="nurseId">护士ID</param>
+        /// <returns>待签收医嘱总数</returns>
+        [HttpGet("pending-orders-count")]
+        public async Task<IActionResult> GetPendingOrdersCount([FromQuery] string nurseId)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(nurseId))
+                {
+                    return BadRequest(new { message = "护士ID不能为空" });
+                }
+
+                // 查询该护士负责的待签收医嘱（新开）
+                var pendingReceiveCount = await _context.MedicalOrders
+                    .Where(o => o.NurseId == nurseId && o.Status == OrderStatus.PendingReceive)
+                    .CountAsync();
+
+                // 查询该护士负责的待签收停止医嘱
+                var pendingStopCount = await _context.MedicalOrders
+                    .Where(o => o.NurseId == nurseId && o.Status == OrderStatus.PendingStop)
+                    .CountAsync();
+
+                var totalCount = pendingReceiveCount + pendingStopCount;
+
+                Console.WriteLine($"护士 {nurseId} 的待签收医嘱统计: 新开={pendingReceiveCount}, 停止={pendingStopCount}, 总计={totalCount}");
+
+                return Ok(totalCount);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"获取待签收医嘱统计失败: {ex.Message}");
+                return StatusCode(500, new { message = "获取统计失败", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// 获取护士负责患者的待退药申请统计
+        /// 包括待退药（PendingReturn）和异常取消待退药（PendingReturnCancelled）状态的任务
+        /// 基于当前UTC时间的排班负责的患者
+        /// </summary>
+        /// <param name="nurseId">护士ID</param>
+        /// <param name="departmentId">科室ID（保留参数但不使用，改用排班查询）</param>
+        /// <returns>待退药申请总数</returns>
+        [HttpGet("pending-returns-count")]
+        public async Task<IActionResult> GetPendingReturnsCount([FromQuery] string nurseId, [FromQuery] string departmentId)
+        {
+            try
+            {
+                Console.WriteLine("========== 开始查询待退药申请统计 ==========");
+                Console.WriteLine($"[输入参数] nurseId: {nurseId}, departmentId: {departmentId}");
+                
+                if (string.IsNullOrEmpty(nurseId))
+                {
+                    return BadRequest(new { message = "护士ID不能为空" });
+                }
+
+                // 获取当前UTC时间
+                var nowUtc = DateTime.UtcNow;
+                var currentDate = DateOnly.FromDateTime(nowUtc);
+                var currentTimeSpan = nowUtc.TimeOfDay;
+
+                Console.WriteLine($"[时间信息] 当前UTC时间: {nowUtc:yyyy-MM-dd HH:mm:ss}");
+                Console.WriteLine($"[时间信息] 当前日期: {currentDate}, 当前时间: {currentTimeSpan:hh\\:mm\\:ss}");
+
+                // 查询护士当天的所有排班记录（用于在内存中判断时间范围）
+                var potentialRosters = await _context.NurseRosters
+                    .Include(r => r.ShiftType)
+                    .Include(r => r.Ward)
+                    .Where(r => r.StaffId == nurseId && 
+                               r.WorkDate == currentDate &&
+                               r.Status == "Scheduled")
+                    .ToListAsync();
+
+                if (!potentialRosters.Any())
+                {
+                    Console.WriteLine($"[排班查询] ❌ 护士 {nurseId} 在 {currentDate} 没有找到排班记录");
+                    Console.WriteLine("========== 结束查询：无排班记录，返回0 ==========");
+                    return Ok(0);
+                }
+
+                Console.WriteLine($"[排班查询] 找到 {potentialRosters.Count} 条排班记录");
+
+                // 在内存中过滤出当前时间匹配的排班
+                NurseRoster? currentRoster = null;
+                foreach (var roster in potentialRosters)
+                {
+                    var shiftStart = roster.ShiftType.StartTime;
+                    var shiftEnd = roster.ShiftType.EndTime;
+                    
+                    Console.WriteLine($"  - 排班ID: {roster.Id}, 病区: {roster.WardId}, 班次: {roster.ShiftType.ShiftName}");
+                    Console.WriteLine($"    时间范围: {shiftStart:hh\\:mm\\:ss} - {shiftEnd:hh\\:mm\\:ss}");
+                    
+                    // 判断当前时间是否在班次范围内
+                    bool isInShift;
+                    if (shiftStart <= shiftEnd)
+                    {
+                        // 正常班次（不跨天）
+                        isInShift = currentTimeSpan >= shiftStart && currentTimeSpan <= shiftEnd;
+                        Console.WriteLine($"    判断: {currentTimeSpan:hh\\:mm\\:ss} 在 [{shiftStart:hh\\:mm\\:ss}, {shiftEnd:hh\\:mm\\:ss}] => {isInShift}");
+                    }
+                    else
+                    {
+                        // 跨天班次
+                        isInShift = currentTimeSpan >= shiftStart || currentTimeSpan <= shiftEnd;
+                        Console.WriteLine($"    判断(跨天): {currentTimeSpan:hh\\:mm\\:ss} >= {shiftStart:hh\\:mm\\:ss} 或 <= {shiftEnd:hh\\:mm\\:ss} => {isInShift}");
+                    }
+                    
+                    if (isInShift)
+                    {
+                        currentRoster = roster;
+                        Console.WriteLine($"    ✓ 匹配成功！");
+                        break;
+                    }
+                }
+
+                if (currentRoster == null)
+                {
+                    Console.WriteLine($"[班次验证] ❌ 当前时间不在任何班次范围内");
+                    Console.WriteLine("========== 结束查询：不在班次时间，返回0 ==========");
+                    return Ok(0);
+                }
+
+                Console.WriteLine($"[班次验证] ✓ 找到当前值班记录");
+                Console.WriteLine($"  - 排班ID: {currentRoster.Id}");
+                Console.WriteLine($"  - 病区ID: {currentRoster.WardId}");
+                Console.WriteLine($"  - 班次名称: {currentRoster.ShiftType.ShiftName}");
+
+                // 查询该病区所有在院患者的ID
+                var patients = await _context.Patients
+                    .Include(p => p.Bed)
+                    .Where(p => p.Status == PatientStatus.Hospitalized && 
+                               p.Bed.WardId == currentRoster.WardId)
+                    .Select(p => new { p.Id, p.Name, BedId = p.Bed.Id, p.Status })
+                    .ToListAsync();
+
+                if (!patients.Any())
+                {
+                    Console.WriteLine($"[患者查询] ❌ 病区 {currentRoster.WardId} 没有在院患者");
+                    Console.WriteLine("========== 结束查询：无在院患者，返回0 ==========");
+                    return Ok(0);
+                }
+
+                Console.WriteLine($"[患者查询] ✓ 病区 {currentRoster.WardId} 共有 {patients.Count} 个在院患者:");
+                foreach (var p in patients)
+                {
+                    Console.WriteLine($"  - 患者ID: {p.Id}, 姓名: {p.Name}, 床位: {p.BedId}, 状态: {p.Status}");
+                }
+
+                var patientIds = patients.Select(p => p.Id).ToList();
+
+                // 查询这些患者的待退药任务（PendingReturn 和 PendingReturnCancelled）
+                var pendingReturnTasks = await _context.ExecutionTasks
+                    .Where(t => patientIds.Contains(t.PatientId) && 
+                               (t.Status == ExecutionTaskStatus.PendingReturn || 
+                                t.Status == ExecutionTaskStatus.PendingReturnCancelled))
+                    .Select(t => new { 
+                        t.Id, 
+                        t.PatientId, 
+                        t.Status, 
+                        t.Category,
+                        t.PlannedStartTime,
+                        t.DataPayload
+                    })
+                    .ToListAsync();
+
+                Console.WriteLine($"[任务查询] 待退药任务统计:");
+                Console.WriteLine($"  - 查询条件: Status = PendingReturn(9) 或 PendingReturnCancelled(10)");
+                Console.WriteLine($"  - 找到 {pendingReturnTasks.Count} 个待退药任务");
+                
+                if (pendingReturnTasks.Any())
+                {
+                    var groupByStatus = pendingReturnTasks.GroupBy(t => t.Status);
+                    foreach (var group in groupByStatus)
+                    {
+                        Console.WriteLine($"  - 状态 {group.Key}: {group.Count()} 个任务");
+                        foreach (var task in group)
+                        {
+                            Console.WriteLine($"    * TaskID: {task.Id}, PatientID: {task.PatientId}, 类别: {task.Category}, 计划时间: {task.PlannedStartTime:yyyy-MM-dd HH:mm}");
+                        }
+                    }
+                }
+
+                var pendingReturnsCount = pendingReturnTasks.Count;
+
+                Console.WriteLine($"[最终结果] 待退药申请总数: {pendingReturnsCount}");
+                Console.WriteLine("========== 结束查询 ==========");
+
+                return Ok(pendingReturnsCount);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[错误] 获取待退药申请统计失败: {ex.Message}");
+                Console.WriteLine($"[错误] 堆栈跟踪: {ex.StackTrace}");
+                Console.WriteLine("========== 查询异常结束 ==========");
+                return StatusCode(500, new { message = "获取统计失败", error = ex.Message });
+            }
         }
     }
 }

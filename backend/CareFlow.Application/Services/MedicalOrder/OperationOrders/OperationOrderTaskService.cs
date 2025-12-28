@@ -108,6 +108,7 @@ public class OperationOrderTaskService : IOperationOrderTaskService
         if (existingOrder.Status == OrderStatus.Cancelled || 
             existingOrder.Status == OrderStatus.Completed ||
             existingOrder.Status == OrderStatus.Stopped ||
+            existingOrder.Status == OrderStatus.StoppingInProgress ||
             existingOrder.Status == OrderStatus.Draft ||
             existingOrder.Status == OrderStatus.Rejected)
         {
@@ -248,7 +249,8 @@ public class OperationOrderTaskService : IOperationOrderTaskService
             _logger.LogInformation("已回滚医嘱 {OrderId} 的 {TaskCount} 个未执行任务", orderId, pendingTasks.Count());
 
             // 更新医嘱状态（不删除医嘱）
-            if (existingOrder.Status != OrderStatus.Stopped)
+            if (existingOrder.Status != OrderStatus.Stopped && 
+                existingOrder.Status != OrderStatus.StoppingInProgress)
             {
                 existingOrder.Status = OrderStatus.Stopped;
                 existingOrder.StopReason = reason;
@@ -637,13 +639,18 @@ public class OperationOrderTaskService : IOperationOrderTaskService
         }
 
         // 构建完整的DataPayload
+        // 注意：使用 string.IsNullOrWhiteSpace 而不是 ?? 运算符
+        // 因为 OperationName 可能被初始化为空字符串，而不是 null
+        var operationName = string.IsNullOrWhiteSpace(order.OperationName)
+            ? GetOperationName(order.OpId)
+            : order.OperationName;
         var dataPayload = new
         {
             TaskType = taskType,
-            Title = order.OperationName ?? GetOperationName(order.OpId),
+            Title = $"操作：{operationName}",
             Description = BuildDescription(order, slotName),
             OpId = order.OpId,
-            OperationName = order.OperationName ?? GetOperationName(order.OpId),
+            OperationName = operationName,
             OperationSite = order.OperationSite,
             Normal = order.Normal,
             

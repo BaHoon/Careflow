@@ -113,6 +113,12 @@ namespace CareFlow.Core.Models.Medical
         public string? StopRejectedByNurseId { get; set; }
         [ForeignKey("StopRejectedByNurseId")]
         public Nurse? StopRejectedByNurse { get; set; }
+        
+        /// <summary>
+        /// 停止节点任务ID（医生下达停嘱时指定的停止节点）
+        /// 该任务及之后的任务会被锁定，该任务之前的任务继续执行
+        /// </summary>
+        public long? StopAfterTaskId { get; set; }
 
         // ==================== 审计字段：撤销相关 (Cancelled状态) ====================
         

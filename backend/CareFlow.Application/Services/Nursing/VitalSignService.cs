@@ -305,5 +305,46 @@ namespace CareFlow.Application.Services.Nursing
             
             return result;
         }
+
+        /// <summary>
+        /// 上传护理记录（自动生成实时护理任务）
+        /// 根据完成的护理记录自动生成一个实时的护理任务
+        /// 预计时间和实际时间一致，负责护士和实际护士一致
+        /// </summary>
+        public async Task<long> UploadNursingRecordAsync(long nursingTaskId, string nurseId)
+        {
+            // 1. 获取原护理任务
+            var originalTask = await _context.Set<NursingTask>()
+                .Include(t => t.Patient)
+                .FirstOrDefaultAsync(t => t.Id == nursingTaskId);
+            
+            if (originalTask == null)
+                throw new Exception($"未找到ID为 {nursingTaskId} 的护理任务");
+
+            // 2. 验证护士存在
+            var nurse = await _context.Set<Nurse>().FindAsync(nurseId);
+            if (nurse == null)
+                throw new Exception($"护士ID {nurseId} 不存在");
+
+            // 3. 创建新的实时护理任务
+            var newTask = new NursingTask
+            {
+                PatientId = originalTask.PatientId,
+                AssignedNurseId = nurseId,        // 负责护士为上传人
+                ScheduledTime = DateTime.UtcNow,  // 计划时间为当前时间（实时任务）
+                Status = ExecutionTaskStatus.Pending,
+                TaskType = "RealTime",              // 标记为实时任务
+                Description = "护理记录上传自动生成",
+                CreateTime = DateTime.UtcNow        // 使用 EntityBase 定义的属性
+            };
+
+            // 4. 保存新任务
+            _context.Set<NursingTask>().Add(newTask);
+            await _context.SaveChangesAsync();
+
+            Console.WriteLine($"✅ 成功生成实时护理任务 ID: {newTask.Id}，关联患者: {originalTask.PatientId}，负责护士: {nurseId}");
+
+            return newTask.Id;
+        }
     }
 }

@@ -19,6 +19,8 @@ public class PatientController : ControllerBase
     private readonly IRepository<Bed, string> _bedRepository;
     private readonly IRepository<DischargeOrder, long> _dischargeOrderRepository;
     private readonly IDischargeOrderService _dischargeOrderService;
+    private readonly INurseAssignmentService _nurseAssignmentService;
+    private readonly IRepository<Nurse, string> _nurseRepository;
     private readonly ILogger<PatientController> _logger;
     private readonly ICareFlowDbContext _dbContext;
     private readonly IBarcodeService _barcodeService;
@@ -28,6 +30,8 @@ public class PatientController : ControllerBase
         IRepository<Bed, string> bedRepository,
         IRepository<DischargeOrder, long> dischargeOrderRepository,
         IDischargeOrderService dischargeOrderService,
+        INurseAssignmentService nurseAssignmentService,
+        IRepository<Nurse, string> nurseRepository,
         ILogger<PatientController> logger,
         ICareFlowDbContext dbContext,
         IBarcodeService barcodeService)
@@ -36,6 +40,8 @@ public class PatientController : ControllerBase
         _bedRepository = bedRepository;
         _dischargeOrderRepository = dischargeOrderRepository;
         _dischargeOrderService = dischargeOrderService;
+        _nurseAssignmentService = nurseAssignmentService;
+        _nurseRepository = nurseRepository;
         _logger = logger;
         _dbContext = dbContext;
         _barcodeService = barcodeService;
@@ -242,6 +248,7 @@ public class PatientController : ControllerBase
                 .Include(p => p.Bed)
                 .ThenInclude(b => b.Ward)
                 .ThenInclude(w => w.Department)
+                .Include(p => p.AttendingDoctor)
                 .AsQueryable();
 
             // 状态筛选
@@ -282,18 +289,65 @@ public class PatientController : ControllerBase
 
             var patients = await query.ToListAsync();
 
-            var result = patients.Select(p => new PatientCardDto
+            // 获取责任护士信息（使用UTC时间，与数据库排班表一致）
+            var now = DateTime.UtcNow;
+            var patientNurseMap = new Dictionary<string, Nurse>();
+
+            // 串行计算每位患者的责任护士ID (避免 DbContext 并发问题)
+            var nurseIdResults = new List<(string PatientId, string? NurseId)>();
+            foreach (var p in patients)
             {
-                Id = p.Id,
-                Name = p.Name,
-                Gender = p.Gender,
-                Age = p.Age,
-                BedId = p.Bed?.Id ?? p.BedId,
-                NursingGrade = p.NursingGrade,
-                Status = p.Status,
-                StatusDisplay = GetStatusDisplayName(p.Status),
-                Department = p.Bed?.Ward?.Department?.DeptName ?? "未分配",
-                Ward = p.Bed?.Ward?.Id ?? "未分配"
+                var nurseId = await _nurseAssignmentService.CalculateResponsibleNurseAsync(p.Id, now);
+                nurseIdResults.Add((p.Id, nurseId));
+            }
+            
+            // 获取所有涉及的护士ID并查询详情
+            var nurseIds = nurseIdResults
+                .Where(x => !string.IsNullOrEmpty(x.NurseId))
+                .Select(x => x.NurseId!)
+                .Distinct()
+                .ToList();
+
+            if (nurseIds.Any())
+            {
+                var nurses = await _nurseRepository.GetQueryable()
+                    .Where(n => nurseIds.Contains(n.Id))
+                    .ToListAsync();
+                
+                var nurseDict = nurses.ToDictionary(n => n.Id);
+                
+                // 建立患者ID到护士实体的映射
+                foreach (var item in nurseIdResults)
+                {
+                    if (!string.IsNullOrEmpty(item.NurseId) && nurseDict.TryGetValue(item.NurseId, out var nurse))
+                    {
+                        patientNurseMap[item.PatientId] = nurse;
+                    }
+                }
+            }
+
+            var result = patients.Select(p => {
+                var responsibleNurse = patientNurseMap.ContainsKey(p.Id) ? patientNurseMap[p.Id] : null;
+
+                return new PatientCardDto
+                {
+                    Id = p.Id,
+                    Name = p.Name,
+                    Gender = p.Gender,
+                    Age = p.Age,
+                    BedId = p.Bed?.Id ?? p.BedId,
+                    NursingGrade = p.NursingGrade,
+                    Status = p.Status,
+                    StatusDisplay = GetStatusDisplayName(p.Status),
+                    Department = p.Bed?.Ward?.Department?.DeptName ?? "未分配",
+                    Ward = p.Bed?.Ward?.Id ?? "未分配",
+                    ResponsibleDoctorId = p.AttendingDoctor?.Id,
+                    ResponsibleDoctorName = p.AttendingDoctor?.Name,
+                    ResponsibleDoctorPhone = p.AttendingDoctor?.Phone,
+                    ResponsibleNurseId = responsibleNurse?.Id,
+                    ResponsibleNurseName = responsibleNurse?.Name,
+                    ResponsibleNursePhone = responsibleNurse?.Phone
+                };
             }).ToList();
 
             _logger.LogInformation("成功获取 {Count} 个患者", result.Count);
@@ -522,7 +576,11 @@ public class PatientController : ControllerBase
                     Status = order.Status,
                     StatusDisplay = order.StatusDisplay,
                     UnfinishedTaskCount = ParseUnfinishedTaskCount(order.StatusDisplay),
-                    LatestTaskTime = order.EndTime
+                    LatestTaskTime = order.EndTime,
+                    ItemName = order.ItemName,
+                    OperationName = order.OperationName,
+                    SurgeryName = order.SurgeryName,
+                    MedicationOrderItems = order.MedicationOrderItems
                 }).ToList();
 
                 _logger.LogWarning("出院检查失败，患者ID: {PatientId}, 未完成医嘱数: {Count}", 

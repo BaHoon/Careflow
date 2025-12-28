@@ -1,3 +1,5 @@
+using CareFlow.Application.DTOs.Patient;
+
 namespace CareFlow.Application.DTOs.DischargeOrders;
 
 /// <summary>
@@ -75,6 +77,26 @@ public class BlockedOrderDto
     /// 医嘱结束时间（计划结束时间）
     /// </summary>
     public DateTime? EndTime { get; set; }
+    
+    /// <summary>
+    /// 检查项目名称（检查医嘱）
+    /// </summary>
+    public string? ItemName { get; set; }
+    
+    /// <summary>
+    /// 操作名称（操作医嘱）
+    /// </summary>
+    public string? OperationName { get; set; }
+    
+    /// <summary>
+    /// 手术名称（手术医嘱）
+    /// </summary>
+    public string? SurgeryName { get; set; }
+    
+    /// <summary>
+    /// 药品项列表（药品医嘱和出院医嘱）
+    /// </summary>
+    public List<MedicationItemDto>? MedicationOrderItems { get; set; }
 }
 
 /// <summary>

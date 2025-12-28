@@ -115,3 +115,15 @@ export const confirmReturnMedication = (taskId, nurseId) => {
     nurseId
   });
 };
+
+/**
+ * 确认异常取消退药（PendingReturnCancelled状态，直接将任务改为Incomplete）
+ * @param {number} taskId - 任务ID
+ * @param {string} nurseId - 护士ID
+ * @returns {Promise<Object>} 确认结果
+ */
+export const confirmCancelledReturn = (taskId, nurseId) => {
+  return api.post(`/orders/application/medication/return/${taskId}/confirm-cancelled`, {
+    nurseId
+  });
+};

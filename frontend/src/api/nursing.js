@@ -155,10 +155,42 @@ export const completeExecutionTask = (taskId, nurseId, resultPayload = null) => 
  * @param {number} taskId - 任务ID
  * @param {string} nurseId - 护士ID
  * @param {string} cancelReason - 取消理由
+ * @param {boolean} needReturn - 是否需要直接退药（仅对AppliedConfirmed状态有效）
  */
-export const cancelExecutionTask = (taskId, nurseId, cancelReason) => {
+export const cancelExecutionTask = (taskId, nurseId, cancelReason, needReturn = false) => {
   return api.post(`/Nursing/execution-tasks/${taskId}/cancel`, { 
     nurseId, 
-    cancelReason 
+    cancelReason,
+    needReturn
   });
+};
+
+/**
+ * 获取护士待签收医嘱统计
+ * @param {string} nurseId - 护士ID
+ * @returns {Promise<number>} 待签收医嘱总数（包括新开和停止医嘱）
+ */
+export const getPendingOrdersCount = (nurseId) => {
+  return api.get('/Nursing/pending-orders-count', {
+    params: { nurseId }
+  });
+};
+
+/**
+ * 获取护士负责患者的待退药申请统计
+ * @param {string} nurseId - 护士ID
+ * @param {string} departmentId - 科室ID
+ * @returns {Promise<number>} 待退药申请总数（包括待退药和异常取消待退药）
+ */
+export const getPendingReturnsCount = (nurseId, departmentId) => {
+  return api.get('/Nursing/pending-returns-count', {
+    params: { nurseId, departmentId }
+  });
+};
+/**
+ * 创建补充护理任务
+ * @param {object} data - 补充任务数据 { patientId, assignedNurseId, description }
+ */
+export const createSupplementNursingTask = (data) => {
+  return api.post('/Nursing/tasks/create-supplement', data);
 };

@@ -47,7 +47,7 @@
                   <span class="p-info">{{ patient.gender }} {{ patient.age }}岁</span>
                 </div>
                 <div class="patient-meta">
-                  <span class="p-care">{{ getGradeText(patient.nursingGrade) }}</span>
+                  <span class="p-care">护理{{ patient.nursingGrade }}级</span>
                 </div>
               </div>
             </div>
@@ -4435,12 +4435,14 @@ watch(activeType, (newType) => {
 .bed-badge {
   background: var(--primary-color);
   color: white;
-  padding: 3px 8px;
+  padding: 4px 8px;
   border-radius: 4px;
   font-size: 0.75rem;
   font-weight: bold;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   margin-bottom: 8px;
+  width: 190px;
 }
 
 .patient-card.active .bed-badge {
@@ -4784,7 +4786,7 @@ watch(activeType, (newType) => {
 /* ==================== 响应式调整 ==================== */
 @media (max-width: 1600px) {
   .patient-panel:not(.collapsed) {
-    width: 220px;
+    width: 250px;
   }
   
   .cart-panel:not(.collapsed) {
@@ -4794,7 +4796,7 @@ watch(activeType, (newType) => {
 
 @media (max-width: 1400px) {
   .patient-panel:not(.collapsed) {
-    width: 200px;
+    width: 250px;
   }
   
   .cart-panel:not(.collapsed) {

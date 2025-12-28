@@ -63,20 +63,70 @@
         <span>完成时间：{{ formatTime(task.actualEndTime) }}</span>
       </div>
     </div>
+    </div>
 
     <div class="task-actions">
       <!-- ExecutionTask 的按钮逻辑 -->
       <template v-if="task.taskSource === 'ExecutionTask'">
         <!-- 
           业务流程：
-          - Immediate(即刻执行)：Pending → Completed，显示"完成任务"
-          - Duration(持续任务)：Pending → InProgress → Completed，显示"完成"或"结束"
-          - ResultPending(结果待定)：Pending → InProgress → Completed，显示"完成"或"结束任务（需录入结果）"
+          - 药房申请流程：Applying(0) → Applied(1) → AppliedConfirmed(2)
+          - 执行流程：Pending(3) → InProgress(4) → Completed(5)
         -->
         
+        <!-- Applying(0)：去申请 + 取消任务 -->
+        <el-button 
+          v-if="task.status === 0 || task.status === 'Applying'" 
+          type="primary" 
+          size="small"
+          @click.stop="handleGoToApplication"
+        >
+          去申请
+        </el-button>
+
+        <el-button 
+          v-if="task.status === 0 || task.status === 'Applying'" 
+          type="danger" 
+          plain
+          size="small"
+          :icon="Close"
+          @click.stop="handleCancelExecution"
+        >
+          取消任务
+        </el-button>
+
+        <!-- Applied(1)：等待药房确认 + 去退药 -->
+        <el-tag 
+          v-if="task.status === 1 || task.status === 'Applied'" 
+          type="info"
+          size="default"
+        >
+          等待药房确认
+        </el-tag>
+
+        <el-button 
+          v-if="task.status === 1 || task.status === 'Applied'" 
+          type="warning"
+          size="small"
+          @click.stop="handleGoToReturn"
+        >
+          去退药
+        </el-button>
+
+        <!-- ApplicationWithPrint: 显示打印报告单按钮 -->
+        <el-button 
+          v-if="task.category === 'ApplicationWithPrint' && (task.status === 2 || task.status === 'AppliedConfirmed' || task.status === 3 || task.status === 'Pending')" 
+          type="success" 
+          size="small"
+          :icon="Printer"
+          @click.stop="handlePrintReport"
+        >
+          打印报告单
+        </el-button>
+
         <!-- AppliedConfirmed(2) 或 Pending(3)：显示根据category定制的"完成"按钮 -->
         <el-button 
-          v-if="task.status === 2 || task.status === 'AppliedConfirmed' || task.status === 3 || task.status === 'Pending'" 
+          v-if="task.category !== 'ApplicationWithPrint' && (task.status === 2 || task.status === 'AppliedConfirmed' || task.status === 3 || task.status === 'Pending')" 
           type="primary" 
           size="small"
           :icon="VideoPlay"
@@ -84,8 +134,19 @@
         >
           {{ getCompletionButtonLabel(task.category, false) }}
         </el-button>
+        <!-- AppliedConfirmed(2) 或 Pending(3)：取消任务 -->
+        <el-button 
+          v-if="task.status === 2 || task.status === 'AppliedConfirmed' || task.status === 3 || task.status === 'Pending'" 
+          type="danger" 
+          plain
+          size="small"
+          :icon="Close"
+          @click.stop="handleCancelWithReturn"
+        >
+          取消任务
+        </el-button>
 
-        <!-- InProgress(4)：显示"结束任务"或"结束任务（需录入结果）" -->
+        <!-- InProgress(4)：结束任务 -->
         <el-button 
           v-if="task.status === 4 || task.status === 'InProgress'" 
           type="success" 
@@ -96,27 +157,14 @@
           {{ getCompletionButtonLabel(task.category, true) }}
         </el-button>
 
-        <!-- 未完成状态显示"取消任务" -->
+        <!-- 所有状态都显示打印执行单按钮 -->
         <el-button 
-          v-if="(task.status === 2 || task.status === 'AppliedConfirmed' || 
-                 task.status === 3 || task.status === 'Pending' || 
-                 task.status === 4 || task.status === 'InProgress')" 
-          type="danger" 
-          plain
+          type="primary"
           size="small"
-          :icon="Close"
-          @click.stop="handleCancelExecution"
+          :icon="Printer"
+          @click.stop="handlePrintBarcode"
         >
-          取消任务
-        </el-button>
-
-        <!-- Completed(5)：显示"查看详情" -->
-        <el-button 
-          v-if="task.status === 5 || task.status === 'Completed'" 
-          size="small"
-          @click.stop="handleViewDetail"
-        >
-          查看详情
+          打印执行单
         </el-button>
       </template>
 
@@ -143,22 +191,15 @@
         >
           取消任务
         </el-button>
-        <!-- 已完成的任务显示查看详情按钮 -->
-        <el-button 
-          v-if="task.status === 'Completed' || task.status === 5" 
-          size="small"
-          @click.stop="handleViewDetail"
-        >
-          查看详情
-        </el-button>
+        <!-- 护理任务不显示打印执行单按钮 -->
       </template>
-    </div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { computed } from 'vue';
+import { useRouter } from 'vue-router';
 import {
   User,
   Clock,
@@ -170,7 +211,8 @@ import {
   Bell,
   Edit,
   Close,
-  VideoPlay
+  VideoPlay,
+  Printer
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { 
@@ -178,6 +220,8 @@ import {
   completeExecutionTask, 
   cancelExecutionTask 
 } from '@/api/nursing';
+
+const router = useRouter();
 
 const props = defineProps({
   task: {
@@ -198,15 +242,29 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['click', 'start-input', 'view-detail', 'task-cancelled']);
+const emit = defineEmits(['click', 'start-input', 'view-detail', 'task-cancelled', 'print-inspection-guide']);
 
 // 已完成任务判断
 const isCompleted = computed(() => {
   return props.task.status === 'Completed' || props.task.status === 5;
 });
 
-// 显示标题（优先使用 taskTitle，否则使用类别文本）
+// 显示标题（优先使用 DataPayload.Title，其次 taskTitle，最后使用类别文本）
 const displayTitle = computed(() => {
+  // 尝试从 DataPayload 获取 Title
+  if (props.task.dataPayload) {
+    try {
+      const payload = typeof props.task.dataPayload === 'string' 
+        ? JSON.parse(props.task.dataPayload) 
+        : props.task.dataPayload;
+      if (payload && payload.Title) {
+        return payload.Title;
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
   if (props.task.taskSource === 'ExecutionTask' && props.task.taskTitle) {
     return props.task.taskTitle;
   }
@@ -222,9 +280,11 @@ const categoryIcon = computed(() => {
     'ResultPending': Document,
     'DataCollection': Bell,
     'Verification': Check,
+    'ApplicationWithPrint': Document,
     // NursingTask 类别
     'Routine': Bell,
-    'ReMeasure': VideoCamera
+    'ReMeasure': VideoCamera,
+    'Supplement': Document
   };
   return iconMap[props.task.category] || Document;
 });
@@ -238,9 +298,11 @@ const categoryText = computed(() => {
     'ResultPending': '结果待定',
     'DataCollection': '数据采集',
     'Verification': '核对验证',
+    'ApplicationWithPrint': '申请打印',
     // NursingTask 类别
     'Routine': '常规护理',
-    'ReMeasure': '复测任务'
+    'ReMeasure': '复测任务',
+    'Supplement': '补充检测'
   };
   return textMap[props.task.category] || props.task.category;
 });
@@ -297,7 +359,10 @@ const statusTagType = computed(() => {
     'Skipped': 'info',
     8: 'info',
     'Cancelled': 'danger',
-    9: 'danger'
+    9: 'danger',
+    'PendingReturn': 'danger',
+    'PendingReturnCancelled': 'danger',
+    10: 'danger'
   };
   return typeMap[status] || 'info';
 });
@@ -327,7 +392,10 @@ const statusText = computed(() => {
     'Skipped': '已跳过',
     8: '异常',
     'Cancelled': '已取消',
-    9: '已取消'
+    9: '已取消',
+    'PendingReturn': '待退药',
+    'PendingReturnCancelled': '异常取消待退药',
+    10: '异常取消待退药'
   };
   return textMap[status] || status;
 });
@@ -433,49 +501,67 @@ const handleCancelTask = async () => {
 
 // 解析药品医嘱的DataPayload
 const parseMedicationPayload = (payload) => {
-  let html = `<div style="font-size: 13px; line-height: 1.8;">`;
+  let html = `<div style="font-size: 13px; line-height: 1.8; color: #333;">`;
   
   if (payload.Title) {
-    html += `<p><strong>任务：</strong>${payload.Title}</p>`;
+    html += `<div style="margin-bottom: 12px;">`;
+    html += `<h4 style="margin: 0 0 8px 0; color: #409eff; font-size: 14px; font-weight: 600;">📋 ${payload.Title}</h4>`;
+    html += `</div>`;
   }
   
   if (payload.Description) {
-    html += `<p><strong>医嘱内容：</strong>${payload.Description}</p>`;
+    html += `<div style="margin-bottom: 12px; padding: 10px 14px; background: #f0f9ff; border-radius: 6px; box-shadow: 0 1px 4px rgba(64, 158, 255, 0.1);">`;
+    html += `${payload.Description}`;
+    html += `</div>`;
   }
   
   // 解析药品信息
   if (payload.MedicationInfo) {
     const med = payload.MedicationInfo;
-    html += `<div style="margin-top: 8px; padding: 8px; background: #f0f9ff; border-left: 3px solid #409eff;">`;
-    html += `<p style="margin: 0; font-weight: 600; color: #409eff;">💊 药品信息</p>`;
-    if (med.DrugName) html += `<p style="margin: 4px 0;">药品名称：${med.DrugName}</p>`;
-    if (med.Specification) html += `<p style="margin: 4px 0;">规格：${med.Specification}</p>`;
-    if (med.Dosage) html += `<p style="margin: 4px 0;">剂量：${med.Dosage}</p>`;
-    if (med.Route) html += `<p style="margin: 4px 0;">途径：${med.Route}</p>`;
-    if (med.Frequency) html += `<p style="margin: 4px 0;">频次：${med.Frequency}</p>`;
+    html += `<div style="margin-bottom: 12px; padding: 14px; background: #f5f7fa; border-radius: 6px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);">`;
+    html += `<h4 style="margin: 0 0 10px 0; color: #409eff; font-size: 14px; font-weight: 600;">💊 药品信息</h4>`;
+    
+    const medDetails = [];
+    if (med.DrugName) medDetails.push(`${med.DrugName}`);
+    if (med.Specification) medDetails.push(`规格：${med.Specification}`);
+    if (med.Dosage) medDetails.push(`剂量：${med.Dosage}`);
+    if (med.Route) medDetails.push(`途径：${med.Route}`);
+    if (med.Frequency) medDetails.push(`频次：${med.Frequency}`);
+    
+    html += `<div style="display: grid; gap: 6px;">`;
+    medDetails.forEach(detail => {
+      html += `<div style="padding: 4px 0; color: #606266;">• ${detail}</div>`;
+    });
+    html += `</div>`;
     html += `</div>`;
   }
   
   // 解析核对项
   if (payload.IsChecklist && payload.Items && Array.isArray(payload.Items)) {
-    html += `<div style="margin-top: 8px;">`;
-    html += `<p style="font-weight: 600; margin-bottom: 4px;">✓ 核对项目：</p>`;
-    html += `<ul style="margin: 0; padding-left: 20px;">`;
-    payload.Items.forEach((item, index) => {
+    html += `<div style="margin-bottom: 0; padding: 14px; background: #f5f7fa; border-radius: 6px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);">`;
+    html += `<h4 style="margin: 0 0 10px 0; color: #67c23a; font-size: 14px; font-weight: 600;">✓ 核对项目</h4>`;
+    html += `<div style="display: flex; flex-direction: column; gap: 8px;">`;
+    
+    payload.Items.forEach((item) => {
       if (item.text) {
-        const status = item.isChecked ? '✅' : '⬜';
-        const required = item.required ? '<span style="color: red;">*</span>' : '';
-        html += `<li>${status} ${item.text} ${required}</li>`;
+        const status = item.isChecked 
+          ? '<span style="color: #67c23a; font-weight: 600;">✓</span>' 
+          : '<span style="color: #dcdfe6;">☐</span>';
+        const required = item.required ? '<span style="color: #f56c6c; margin-left: 2px;">*必填</span>' : '';
+        html += `<div style="display: flex; align-items: center; gap: 8px; padding: 4px 0; color: #606266;">
+          ${status} <span>${item.text}</span> ${required}
+        </div>`;
       }
     });
-    html += `</ul></div>`;
+    
+    html += `</div></div>`;
   }
   
   html += `</div>`;
   return html;
 };
 
-// 解析通用DataPayload
+// 解析通用DataPayload - 简化版，隐藏技术细节
 const parseDataPayload = (dataPayload) => {
   if (!dataPayload) return '';
   
@@ -483,25 +569,79 @@ const parseDataPayload = (dataPayload) => {
     const payload = JSON.parse(dataPayload);
     
     // 如果是药品医嘱，使用专门的解析函数
-    if (payload.TaskType === 'MEDICATION_ADMINISTRATION') {
+    if (payload.TaskType === 'MEDICATION_ADMINISTRATION' || payload.taskType === 'RetrieveMedication') {
       return parseMedicationPayload(payload);
     }
     
-    // 其他类型使用通用格式
-    let html = `<div style="font-size: 13px; line-height: 1.8;">`;
+    // 其他类型：仅显示人类可读的信息，不显示技术字段
+    let html = `<div style="font-size: 13px; line-height: 1.8; color: #333;">`;
+    
+    // 只显示用户友好的字段
+    const friendlyFields = {
+      'Title': '标题',
+      'title': '标题',
+      'Description': '说明',
+      'description': '说明',
+      'Content': '内容',
+      'content': '内容',
+      'Remark': '备注',
+      'remark': '备注',
+      'Notes': '说明',
+      'notes': '说明'
+    };
+    
+    let hasContent = false;
+    
     Object.entries(payload).forEach(([key, value]) => {
+      // 检查是否是显示友好的字段
+      const label = friendlyFields[key];
+      if (!label) return; // 跳过技术字段
+      
       if (typeof value === 'object' && value !== null) {
-        html += `<p><strong>${key}:</strong></p>`;
-        html += `<pre style="margin: 4px 0; padding: 8px; background: #f5f5f5; border-radius: 4px; font-size: 12px;">${JSON.stringify(value, null, 2)}</pre>`;
-      } else {
-        html += `<p><strong>${key}:</strong> ${value}</p>`;
+        // 对象类型，尝试提取有用信息
+        const objStr = JSON.stringify(value, null, 2);
+        if (objStr.length < 100) {
+          html += `<div style="margin-bottom: 8px; padding: 8px 12px; background: #f5f7fa; border-radius: 4px;">`;
+          html += `<div style="font-weight: 600; color: #409eff; margin-bottom: 4px;">${label}</div>`;
+          html += `<div style="white-space: pre-wrap; word-break: break-word;">${objStr}</div>`;
+          html += `</div>`;
+          hasContent = true;
+        }
+      } else if (value && value.toString().trim() !== '') {
+        // 字符串类型，只显示非空值
+        html += `<div style="margin-bottom: 8px; padding: 8px 12px; background: #f5f7fa; border-radius: 4px;">`;
+        html += `<div style="font-weight: 600; color: #409eff; margin-bottom: 4px;">${label}</div>`;
+        html += `<div style="color: #606266; word-break: break-word;">${value}</div>`;
+        html += `</div>`;
+        hasContent = true;
       }
     });
+    
+    // 如果没有友好字段，显示简单的提示
+    if (!hasContent) {
+      html += `<div style="padding: 8px 12px; background: #f5f7fa; border-radius: 4px; color: #606266;">`;
+      html += `任务已准备就绪，请确认执行`;
+      html += `</div>`;
+    }
+    
     html += `</div>`;
     return html;
   } catch {
-    return `<pre style="font-size: 12px;">${dataPayload}</pre>`;
+    // 如果JSON解析失败，返回友好的提示
+    return `<div style="padding: 8px 12px; background: #f5f7fa; border-radius: 4px; color: #606266;">
+      任务已准备就绪，请确认执行
+    </div>`;
   }
+};
+
+// 打印报告单处理函数
+const handlePrintReport = () => {
+  // 发射事件给父组件，由父组件打开打印对话框
+  emit('print-inspection-guide', { 
+    taskId: props.task.id, 
+    orderId: props.task.medicalOrderId,
+    task: props.task
+  });
 };
 
 // 获取完成按钮标签
@@ -526,62 +666,133 @@ const handleStartCompletion = async () => {
     // 解析任务详情
     const taskDetails = parseDataPayload(props.task.dataPayload);
 
-    // 构建确认消息
-    let message = `<div style="text-align: left;">
-      <p><strong>任务信息：</strong></p>
-      <p>患者：${props.task.patientName} (${props.task.bedId})</p>
-      <p>类型：${props.task.orderTypeName || '执行任务'}</p>
-      <p>内容：${props.task.taskTitle || categoryText.value}</p>`;
+    // 构建确认消息 - 美化版本
+    let message = `<div style="text-align: left; font-size: 13px; line-height: 1.8;">
+      <div style="margin-bottom: 16px; padding: 16px; background: #f0f9ff; border-radius: 8px; box-shadow: 0 2px 8px rgba(64, 158, 255, 0.1);">
+        <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; align-items: center;">
+          <span style="color: #909399;">👤 患者：</span>
+          <span style="color: #303133; font-weight: 600;">${props.task.patientName} <span style="color: #909399; font-weight: 400;">(🛏️ ${props.task.bedId})</span></span>
+          
+          <span style="color: #909399;">📋 类型：</span>
+          <span style="color: #303133; font-weight: 600;">${props.task.orderTypeName || '执行任务'}</span>
+          
+          <span style="color: #909399;">📝 任务：</span>
+          <span style="color: #303133; font-weight: 600;">${props.task.taskTitle || categoryText.value}</span>
+          
+          <span style="color: #909399;">🕑 计划时间：</span>
+          <span style="color: #606266;">${formatTime(props.task.plannedStartTime)}</span>`;
+    
+    // 添加延迟信息
+    if (props.task.excessDelayMinutes > 0) {
+      message += `
+          <span style="color: #909399;">⚠️ 延迟状态：</span>
+          <span style="color: #f56c6c; font-weight: 600;">已超出容忍期 ${props.task.excessDelayMinutes} 分钟</span>`;
+    } else if (props.task.delayMinutes > 0) {
+      message += `
+          <span style="color: #909399;">⚠️ 延迟状态：</span>
+          <span style="color: #e6a23c;">延迟 ${props.task.delayMinutes} 分钟（容忍期内）</span>`;
+    } else if (props.task.delayMinutes < 0) {
+      message += `
+          <span style="color: #909399;">⏰ 剩余时间：</span>
+          <span style="color: #67c23a;">还有 ${Math.abs(props.task.delayMinutes)} 分钟</span>`;
+    }
+    
+    // 添加任务状态
+    message += `
+          <span style="color: #909399;">📊 当前状态：</span>
+          <span style="color: #606266;">${statusText.value}</span>
+        </div>
+      </div>`;
     
     if (taskDetails) {
-      message += `<p style="margin-top: 10px;"><strong>详细信息：</strong></p>
-      <div style="background: #f5f5f5; padding: 12px; border-radius: 4px; max-height: 300px; overflow-y: auto;\">${taskDetails}</div>`;
+      message += `<div style="margin-top: 12px; padding: 16px; background: #f5f7fa; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);">
+        <div style="color: #409eff; font-weight: 600; margin-bottom: 10px; font-size: 14px;">📌 任务详情</div>
+        <div>${taskDetails}</div>
+      </div>`;
     }
     
     // Immediate 类别：直接完成
     if (category === 'Immediate') {
-      message += `<p style="margin-top: 10px; color: #409eff;"><strong>确认完成此任务</strong></p></div>`;
+      message += `<div style="margin-top: 12px; padding: 8px 12px; background: #fdf6ec; border-radius: 4px; color: #e6a23c; font-size: 12px;">
+        ⚡ 此任务将直接标记为完成
+      </div></div>`;
       
       await ElMessageBox.confirm(
         message,
-        '确认完成',
+        '确认完成任务',
         {
           confirmButtonText: '确认完成',
           cancelButtonText: '取消',
           type: 'warning',
-          dangerouslyUseHTMLString: true
+          dangerouslyUseHTMLString: true,
+          customClass: 'task-completion-dialog'
         }
       );
     } 
     // Verification 类别：直接完成（核对类）
     else if (category === 'Verification') {
-      message += `<p style="margin-top: 10px; color: #409eff;"><strong>确认核对完成</strong></p></div>`;
+      message += `<div style="margin-top: 12px; padding: 8px 12px; background: #f0f9ff; border-radius: 4px; color: #409eff; font-size: 12px;">
+        ✓ 核对完成后将更新任务状态
+      </div></div>`;
       
       await ElMessageBox.confirm(
         message,
         '确认核对完成',
         {
-          confirmButtonText: '确认核对完成',
+          confirmButtonText: '确认完成',
           cancelButtonText: '取消',
           type: 'warning',
-          dangerouslyUseHTMLString: true
+          dangerouslyUseHTMLString: true,
+          customClass: 'task-completion-dialog'
         }
       );
     }
     // Duration 和 ResultPending 类别：开始执行
     else if (category === 'Duration' || category === 'ResultPending') {
-      message += `<p style="margin-top: 10px; color: #409eff;"><strong>确认开始执行</strong></p></div>`;
+      message += `<div style="margin-top: 12px; padding: 8px 12px; background: #f0f9ff; border-radius: 4px; color: #409eff; font-size: 12px;">
+        ▶ 任务开始执行，稍后需要完成或上传结果
+      </div></div>`;
       
-      await ElMessageBox.confirm(
+      // 询问是否需要输入备注（第一阶段）
+      const { value: remarkValue } = await ElMessageBox.prompt(
         message,
         '确认开始执行',
         {
           confirmButtonText: '确认开始',
           cancelButtonText: '取消',
           type: 'info',
-          dangerouslyUseHTMLString: true
+          inputType: 'textarea',
+          inputPlaceholder: '请输入开始备注（可选）...',
+          dangerouslyUseHTMLString: true,
+          customClass: 'task-completion-dialog'
         }
       );
+      
+      const nurseId = getCurrentNurseId();
+      if (!nurseId) {
+        ElMessage.error('未找到护士信息');
+        return;
+      }
+
+      const taskId = props.task.id;
+      if (!taskId) {
+        ElMessage.error('任务ID无效');
+        return;
+      }
+
+      // 第一阶段备注格式：开始备注：内容.
+      let resultPayload = null;
+      if (remarkValue && remarkValue.trim()) {
+        resultPayload = `开始备注：${remarkValue}.`;
+      }
+
+      // 调用API完成第一阶段（Duration/ResultPending到InProgress）
+      const response = await completeExecutionTask(taskId, nurseId, resultPayload);
+      ElMessage.success(response.message || '任务已开始执行，请继续完成第二阶段');
+      
+      // 通知父组件刷新数据
+      emit('task-cancelled', taskId);
+      return;
     } else {
       // TODO: 其他类别的处理
       ElMessage.warning(`任务类别 ${category} 的流程暂未实现`);
@@ -600,7 +811,7 @@ const handleStartCompletion = async () => {
       return;
     }
 
-    // 调用API完成第一阶段（Immediate直接到Completed，Duration/ResultPending到InProgress）
+    // 调用API完成第一阶段（Immediate直接到Completed）
     const response = await completeExecutionTask(taskId, nurseId, null);
     ElMessage.success(response.message || '任务已更新');
     
@@ -623,55 +834,141 @@ const handleFinishTask = async () => {
     // 解析任务详情
     const taskDetails = parseDataPayload(props.task.dataPayload);
 
-    // 构建基础消息
-    let message = `<div style="text-align: left;">
-      <p><strong>任务信息：</strong></p>
-      <p>患者：${props.task.patientName} (${props.task.bedId})</p>
-      <p>类型：${props.task.orderTypeName || '执行任务'}</p>
-      <p>内容：${props.task.taskTitle || categoryText.value}</p>`;
+    // 构建基础消息 - 美化版本
+    let message = `<div style="text-align: left; font-size: 13px; line-height: 1.8;">
+      <div style="margin-bottom: 16px; padding: 16px; background: #f0f9ff; border-radius: 8px; box-shadow: 0 2px 8px rgba(64, 158, 255, 0.1);">
+        <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; align-items: center;">
+          <span style="color: #909399;">👤 患者：</span>
+          <span style="color: #303133; font-weight: 600;">${props.task.patientName} <span style="color: #909399; font-weight: 400;">(🛏️ ${props.task.bedId})</span></span>
+          
+          <span style="color: #909399;">📋 类型：</span>
+          <span style="color: #303133; font-weight: 600;">${props.task.orderTypeName || '执行任务'}</span>
+          
+          <span style="color: #909399;">📝 任务：</span>
+          <span style="color: #303133; font-weight: 600;">${props.task.taskTitle || categoryText.value}</span>
+          
+          <span style="color: #909399;">🕑 计划时间：</span>
+          <span style="color: #606266;">${formatTime(props.task.plannedStartTime)}</span>`;
+    
+    // 添加实际开始时间
+    if (props.task.actualStartTime) {
+      message += `
+          <span style="color: #909399;">▶️ 开始时间：</span>
+          <span style="color: #67c23a; font-weight: 600;">${formatTime(props.task.actualStartTime)}</span>`;
+    }
+    
+    // 添加执行时长
+    if (props.task.actualStartTime) {
+      const startTime = new Date(props.task.actualStartTime.endsWith('Z') ? props.task.actualStartTime : props.task.actualStartTime + 'Z');
+      const now = new Date();
+      const durationMinutes = Math.floor((now - startTime) / (1000 * 60));
+      if (durationMinutes >= 0) {
+        message += `
+          <span style="color: #909399;">⏱️ 执行时长：</span>
+          <span style="color: #606266;">${durationMinutes} 分钟</span>`;
+      }
+    }
+    
+    message += `
+          <span style="color: #909399;">📊 当前状态：</span>
+          <span style="color: #409eff; font-weight: 600;">执行中</span>
+        </div>
+      </div>`;
     
     if (taskDetails) {
-      message += `<p style="margin-top: 10px;"><strong>详细信息：</strong></p>
-      <div style="background: #f5f5f5; padding: 12px; border-radius: 4px; max-height: 300px; overflow-y: auto;\">${taskDetails}</div>`;
+      message += `<div style="margin-bottom: 12px; padding: 16px; background: #f5f7fa; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);">
+        <div style="color: #409eff; font-weight: 600; margin-bottom: 10px; font-size: 14px;">📌 任务详情</div>
+        <div>${taskDetails}</div>
+      </div>`;
     }
 
-    // ResultPending 类别：需要录入结果
+    // ResultPending 类别：需要录入结果和备注
     if (category === 'ResultPending') {
-      message += `<p style="margin-top: 10px; color: #e6a23c;"><strong>请在下方录入执行结果</strong></p></div>`;
+      message += `<div style="margin-top: 12px; padding: 8px 12px; background: #fdf6ec; border-radius: 4px; color: #e6a23c; font-size: 12px;">
+        📥 请在下方分别输入执行结果和结束备注
+      </div></div>`;
+      
+      // 第一步：获取执行结果（必填）
+      let resultValue = '';
+      try {
+        const resultPrompt = message + `<div style="margin-top: 16px; padding: 8px 12px; background: #f0f9ff; border-radius: 4px; color: #409eff; font-size: 12px;">
+          ➡️ 第1步：请先输入执行结果
+        </div>`;
+        
+        const { value } = await ElMessageBox.prompt(
+          resultPrompt,
+          '结束任务 - 录入结果',
+          {
+            confirmButtonText: '下一步',
+            cancelButtonText: '取消',
+            inputType: 'textarea',
+            inputPlaceholder: '请输入执行结果（必填）...',
+            inputValidator: (value) => {
+              if (!value || value.trim().length === 0) {
+                return '执行结果不能为空';
+              }
+              return true;
+            },
+            dangerouslyUseHTMLString: true,
+            customClass: 'task-completion-dialog'
+          }
+        );
+        resultValue = value;
+      } catch (error) {
+        if (error !== 'cancel') {
+          throw error;
+        }
+        return;
+      }
+      
+      // 第二步：获取结束备注（可选）
+      let remarkValue = '';
+      try {
+        const remarkPrompt = message + `<div style="margin-top: 16px; padding: 8px 12px; background: #f0f9ff; border-radius: 4px; color: #409eff; font-size: 12px;">
+          ➡️ 第2步：请输入结束备注（可选）
+        </div>`;
+        
+        const { value } = await ElMessageBox.prompt(
+          remarkPrompt,
+          '结束任务 - 录入备注',
+          {
+            confirmButtonText: '确认完成',
+            cancelButtonText: '取消',
+            inputType: 'textarea',
+            inputPlaceholder: '请输入结束备注信息（可选）...',
+            dangerouslyUseHTMLString: true,
+            customClass: 'task-completion-dialog'
+          }
+        );
+        remarkValue = value || '';
+      } catch (error) {
+        if (error !== 'cancel') {
+          throw error;
+        }
+        return;
+      }
+      
+      resultPayload = resultValue + (remarkValue ? `\n${remarkValue}` : '');
+    } 
+    // Duration 类别：需要录入备注
+    else if (category === 'Duration') {
+      message += `<div style="margin-top: 12px; padding: 8px 12px; background: #f0f9ff; border-radius: 4px; color: #409eff; font-size: 12px;">
+        📝 请在下方输入结束备注信息
+      </div></div>`;
       
       const { value } = await ElMessageBox.prompt(
-        message,
-        '结束任务并录入结果',
-        {
-          confirmButtonText: '确认完成',
-          cancelButtonText: '取消',
-          inputType: 'textarea',
-          inputPlaceholder: '请输入执行结果（JSON或文本格式）...',
-          inputValidator: (value) => {
-            if (!value || value.trim().length === 0) {
-              return '执行结果不能为空';
-            }
-            return true;
-          },
-          dangerouslyUseHTMLString: true
-        }
-      );
-      resultPayload = value;
-    } 
-    // Duration 类别：直接结束
-    else if (category === 'Duration') {
-      message += `<p style="margin-top: 10px; color: #409eff;"><strong>确认结束执行</strong></p></div>`;
-      
-      await ElMessageBox.confirm(
         message,
         '结束任务',
         {
           confirmButtonText: '确认完成',
           cancelButtonText: '取消',
-          type: 'success',
-          dangerouslyUseHTMLString: true
+          inputType: 'textarea',
+          inputPlaceholder: '请输入结束备注信息（可选）...',
+          dangerouslyUseHTMLString: true,
+          customClass: 'task-completion-dialog'
         }
       );
+      resultPayload = value || '';
     } else {
       // TODO: 其他类别的处理
       ElMessage.warning(`任务类别 ${category} 的流程暂未实现`);
@@ -774,11 +1071,33 @@ const handleCancelExecution = async () => {
   try {
     // 弹出输入框要求填写取消理由
     const { value: cancelReason } = await ElMessageBox.prompt(
-      '请填写取消任务的理由',
-      '确认取消',
+      `<div style="text-align: left; font-size: 13px; line-height: 1.8;">
+        <div style="margin-bottom: 12px; padding: 16px; background: #fef0f0; border-radius: 8px; box-shadow: 0 2px 8px rgba(245, 108, 108, 0.1);">
+          <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; align-items: center;">
+            <span style="color: #909399;">👤 患者：</span>
+            <span style="color: #303133; font-weight: 600;">${props.task.patientName} <span style="color: #909399; font-weight: 400;">(🛏️ ${props.task.bedId})</span></span>
+            
+            <span style="color: #909399;">📋 类型：</span>
+            <span style="color: #303133; font-weight: 600;">${props.task.orderTypeName || '执行任务'}</span>
+            
+            <span style="color: #909399;">📝 任务：</span>
+            <span style="color: #303133; font-weight: 600;">${props.task.taskTitle || categoryText.value}</span>
+            
+            <span style="color: #909399;">🕑 计划时间：</span>
+            <span style="color: #606266;">${formatTime(props.task.plannedStartTime)}</span>
+            
+            <span style="color: #909399;">📊 当前状态：</span>
+            <span style="color: #f56c6c; font-weight: 600;">${statusText.value}</span>
+          </div>
+        </div>
+        <div style="padding: 12px; background: #fdf6ec; border-radius: 8px; color: #e6a23c; font-size: 12px; box-shadow: 0 2px 8px rgba(230, 162, 60, 0.1);">
+          ⚠️ 请说明取消此任务的原因，该操作将被记录
+        </div>
+      </div>`,
+      '确认取消任务',
       {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
+        confirmButtonText: '确认取消',
+        cancelButtonText: '不取消',
         inputType: 'textarea',
         inputPlaceholder: '请输入取消理由...',
         inputValidator: (value) => {
@@ -786,7 +1105,9 @@ const handleCancelExecution = async () => {
             return '取消理由不能为空';
           }
           return true;
-        }
+        },
+        dangerouslyUseHTMLString: true,
+        customClass: 'task-completion-dialog'
       }
     );
 
@@ -815,6 +1136,242 @@ const handleCancelExecution = async () => {
     }
   }
 };
+
+// AppliedConfirmed状态的取消任务（带是否退药选项）
+const handleCancelWithReturn = async () => {
+  try {
+    // 自定义弹窗内容
+    const { value: formData } = await ElMessageBox({
+      title: '确认取消任务',
+      message: `
+        <div style="font-size: 14px;">
+          <p style="margin-bottom: 12px; color: #606266;">请填写取消任务的理由：</p>
+          <textarea 
+            id="cancel-reason-input" 
+            placeholder="请输入取消理由..." 
+            style="width: 100%; height: 80px; padding: 8px; border: 1px solid #dcdfe6; border-radius: 4px; resize: vertical; font-family: inherit;"
+          ></textarea>
+          <div style="margin-top: 12px;">
+            <label style="display: flex; align-items: center; cursor: pointer;">
+              <input type="checkbox" id="need-return-checkbox" style="margin-right: 8px; cursor: pointer;" />
+              <span>需要直接退药</span>
+            </label>
+            <p style="margin: 8px 0 0 24px; font-size: 12px; color: #909399;">
+              勾选后将直接标记为异常状态，不勾选则进入待退药状态
+            </p>
+          </div>
+        </div>
+      `,
+      dangerouslyUseHTMLString: true,
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      beforeClose: (action, instance, done) => {
+        if (action === 'confirm') {
+          const reasonInput = document.getElementById('cancel-reason-input');
+          const needReturnCheckbox = document.getElementById('need-return-checkbox');
+          const reason = reasonInput?.value?.trim();
+          
+          if (!reason) {
+            ElMessage.error('取消理由不能为空');
+            return;
+          }
+          
+          instance.confirmButtonLoading = true;
+          instance.confirmButtonText = '处理中...';
+          
+          // 返回表单数据
+          done({
+            reason: reason,
+            needReturn: needReturnCheckbox?.checked || false
+          });
+        } else {
+          done();
+        }
+      }
+    });
+
+    if (!formData) return;
+
+    const nurseId = getCurrentNurseId();
+    if (!nurseId) {
+      ElMessage.error('未找到护士信息');
+      return;
+    }
+
+    const taskId = props.task.id;
+    if (!taskId) {
+      ElMessage.error('任务ID无效');
+      return;
+    }
+
+    // 调用API取消任务，传递needReturn参数
+    const response = await cancelExecutionTask(
+      taskId, 
+      nurseId, 
+      formData.reason, 
+      formData.needReturn
+    );
+    
+    ElMessage.success(response.message || '任务已取消');
+    
+    // 通知父组件刷新数据
+    emit('task-cancelled', taskId);
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('取消执行任务失败:', error);
+      ElMessage.error(error.response?.data?.message || '取消任务失败');
+    }
+  }
+};
+
+// 跳转到医嘱申请界面
+const handleGoToApplication = () => {
+  router.push({
+    path: '/nurse/application',
+    query: {
+      patientId: props.task.patientId
+    }
+  });
+};
+
+// 跳转到医嘱申请界面（退药）
+const handleGoToReturn = () => {
+  router.push({
+    path: '/nurse/application',
+    query: {
+      patientId: props.task.patientId,
+      returnMode: 'true'
+    }
+  });
+};
+
+// 打印条形码
+const handlePrintBarcode = async () => {
+  const taskId = props.task.id;
+  if (!taskId) {
+    ElMessage.error('任务ID无效');
+    return;
+  }
+
+  try {
+    // 先从API获取条形码数据
+    const response = await fetch(`http://localhost:5181/api/BarcodePrint/generate-task-barcode?taskId=${taskId}`);
+    const result = await response.json();
+    
+    if (!result.success || !result.data) {
+      throw new Error(result.message || '获取条形码失败');
+    }
+    
+    const barcodeData = result.data;
+    
+    // 获取任务类别名称的函数（与任务单据打印页面一致）
+    const getTaskCategoryName = (category) => {
+      const categoryMap = {
+        'Immediate': '即刻执行',
+        'Duration': '持续执行',
+        'ResultPending': '结果等待',
+        'DataCollection': '数据采集',
+        'Verification': '核对用药',
+        'ApplicationWithPrint': '检查申请',
+        'DischargeConfirmation': '出院确认'
+      };
+      return categoryMap[category] || '其他任务';
+    };
+    
+    // 打开新窗口显示条形码并打印
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    
+    if (!printWindow) {
+      ElMessage.error('无法打开打印窗口，请检查浏览器弹窗拦截设置');
+      return;
+    }
+
+    // 构建打印内容 - 使用任务单据打印格式
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>打印条形码 - ${taskId}</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+          }
+          .barcode-item {
+            page-break-inside: avoid;
+            margin-bottom: 30px;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 8px;
+          }
+          .barcode-image {
+            text-align: center;
+            margin-bottom: 15px;
+          }
+          .barcode-image img {
+            max-width: 100%;
+            height: auto;
+          }
+          .barcode-info {
+            font-size: 14px;
+            line-height: 1.8;
+          }
+          .info-row {
+            margin-bottom: 5px;
+          }
+          .label {
+            font-weight: bold;
+            color: #666;
+            margin-right: 10px;
+          }
+          .value {
+            color: #333;
+          }
+          @media print {
+            body {
+              padding: 0;
+            }
+            .barcode-item {
+              page-break-inside: avoid;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="barcode-item">
+          <div class="barcode-image">
+            <img src="${barcodeData.barcodeBase64}" alt="任务 ${taskId}" onload="window.print(); setTimeout(() => window.close(), 1000);" />
+          </div>
+          <div class="barcode-info">
+            <div class="info-row">
+              <span class="label">患者:</span>
+              <span class="value">${props.task.patientName || '-'} (${props.task.patientId || '-'})</span>
+            </div>
+            <div class="info-row">
+              <span class="label">任务:</span>
+              <span class="value">${barcodeData.orderSummary}</span>
+            </div>
+            <div class="info-row">
+              <span class="label">类型:</span>
+              <span class="value">${getTaskCategoryName(barcodeData.taskCategory)}</span>
+            </div>
+            <div class="info-row">
+              <span class="label">计划时间:</span>
+              <span class="value">${formatTime(props.task.plannedStartTime)}</span>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `);
+    
+    printWindow.document.close();
+  } catch (error) {
+    console.error('打印条形码失败:', error);
+    ElMessage.error('打印失败: ' + error.message);
+  }
+};
+
 </script>
 
 <style scoped>
@@ -896,7 +1453,6 @@ const handleCancelExecution = async () => {
 
 .task-completed {
   border-color: #67c23a;
-  background: #f0f9ff;
 }
 
 .task-completed::before {
@@ -1001,5 +1557,162 @@ const handleCancelExecution = async () => {
   padding-top: 12px;
   border-top: 1px solid #ebeef5;
   flex-wrap: wrap;
+}
+
+/* 按钮样式 */
+.task-actions :deep(.el-button) {
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.task-actions :deep(.el-button.is-plain) {
+  background-color: #fff;
+  border-color: #dcdfe6;
+  color: #606266;
+}
+
+.task-actions :deep(.el-button.is-plain:hover) {
+  background-color: #f5f7fa;
+  border-color: #c0c4cc;
+  color: #303133;
+}
+
+.task-actions :deep(.el-button--primary) {
+  background-color: #409eff;
+  border-color: #409eff;
+  color: #fff;
+}
+
+.task-actions :deep(.el-button--primary:hover) {
+  background-color: #66b1ff;
+  border-color: #66b1ff;
+}
+
+.task-actions :deep(.el-button--primary:active) {
+  background-color: #3a8ee6;
+  border-color: #3a8ee6;
+}
+
+.task-actions :deep(.el-button--success) {
+  background-color: #67c23a;
+  border-color: #67c23a;
+  color: #fff;
+}
+
+.task-actions :deep(.el-button--success:hover) {
+  background-color: #85ce61;
+  border-color: #85ce61;
+}
+
+.task-actions :deep(.el-button--success:active) {
+  background-color: #5daf34;
+  border-color: #5daf34;
+}
+
+.task-actions :deep(.el-button--danger) {
+  background-color: #f56c6c;
+  border-color: #f56c6c;
+  color: #fff;
+}
+
+.task-actions :deep(.el-button--danger:hover) {
+  background-color: #f78989;
+  border-color: #f78989;
+}
+
+.task-actions :deep(.el-button--danger:active) {
+  background-color: #dd6161;
+  border-color: #dd6161;
+}
+</style>
+
+<style>
+/* 全局样式：自定义 ElMessageBox 宽度和固定大小 */
+.task-completion-dialog {
+  width: 800px !important;
+  max-width: 92vw !important;
+}
+
+/* 隐藏 Element Plus 消息框的图标 */
+.task-completion-dialog .el-message-box__status {
+  display: none !important;
+}
+
+/* 调整内容区域，因为没有图标了 */
+.task-completion-dialog .el-message-box__message {
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+}
+
+.task-completion-dialog .el-message-box__content {
+  min-height: 320px !important;
+  max-height: 650px !important;
+  overflow-y: auto;
+  padding: 24px 28px !important;
+}
+
+.task-completion-dialog .el-message-box__message {
+  width: 100%;
+  line-height: 1.6;
+}
+
+.task-completion-dialog .el-message-box__message > div {
+  min-width: 100%;
+}
+
+/* 输入框样式优化 */
+.task-completion-dialog .el-textarea__inner {
+  min-height: 120px !important;
+  max-height: 300px !important;
+  font-size: 13px;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.task-completion-dialog .el-input__inner {
+  font-size: 13px;
+}
+
+/* 滚动条美化 */
+.task-completion-dialog .el-message-box__content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.task-completion-dialog .el-message-box__content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.task-completion-dialog .el-message-box__content::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.task-completion-dialog .el-message-box__content::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 按钮样式优化 */
+.task-completion-dialog .el-message-box__btns {
+  padding: 18px 28px;
+  border-top: 1px solid #ebeef5;
+}
+
+.task-completion-dialog .el-button {
+  padding: 11px 28px;
+  font-size: 14px;
+  font-weight: 500;
+  min-width: 90px;
+}
+
+/* 标题样式优化 */
+.task-completion-dialog .el-message-box__header {
+  padding: 20px 28px 16px;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.task-completion-dialog .el-message-box__title {
+  font-size: 16px;
+  font-weight: 600;
 }
 </style>

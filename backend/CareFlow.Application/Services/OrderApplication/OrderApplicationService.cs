@@ -1215,5 +1215,55 @@ public class OrderApplicationService : IOrderApplicationService
         }
     }
 
+    /// <summary>
+    /// 确认异常取消退药（PendingReturnCancelled状态，将任务改为Incomplete）
+    /// </summary>
+    public async Task<ApplicationResponseDto> ConfirmCancelledReturnAsync(
+        long taskId, string nurseId)
+    {
+        _logger.LogInformation("========== 护士确认异常取消退药 ==========");
+        _logger.LogInformation("任务ID: {TaskId}, 护士ID: {NurseId}", taskId, nurseId);
+
+        try
+        {
+            var task = await _taskRepository.GetByIdAsync(taskId);
+            
+            if (task == null)
+            {
+                _logger.LogWarning("❌ 任务 {TaskId} 不存在", taskId);
+                throw new Exception($"任务 {taskId} 不存在");
+            }
+
+            if (task.Status != ExecutionTaskStatus.PendingReturnCancelled)
+            {
+                _logger.LogWarning("❌ 任务 {TaskId} 状态为 {Status}，只能确认PendingReturnCancelled状态的任务", 
+                    taskId, task.Status);
+                throw new Exception($"任务状态为 {task.Status}，只能确认异常取消待退药状态的任务");
+            }
+
+            _logger.LogInformation("✅ 任务状态确认，将任务 {TaskId} 改为 Incomplete", taskId);
+
+            // 直接将任务改为Incomplete状态
+            task.Status = ExecutionTaskStatus.Incomplete;
+            task.LastModifiedAt = DateTime.UtcNow;
+            
+            await _taskRepository.UpdateAsync(task);
+
+            _logger.LogInformation("✅ 异常取消退药确认成功，任务 {TaskId} 状态改为 Incomplete", taskId);
+
+            return new ApplicationResponseDto 
+            { 
+                Success = true,
+                Message = "确认成功，任务已标记为异常状态",
+                ProcessedIds = new List<long> { taskId }
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ 确认异常取消退药失败");
+            throw;
+        }
+    }
+
     #endregion
 }

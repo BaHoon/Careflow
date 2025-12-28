@@ -140,7 +140,8 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
                 PlantEndTime = order.PlantEndTime,
                 DoctorId = order.DoctorId,
                 DoctorName = order.Doctor?.Name ?? "未知医生",
-                TaskCount = tasks.Count,
+                // 任务总数和已完成数统计时排除 Stopped 状态的任务
+                TaskCount = tasks.Count(t => t.Status != ExecutionTaskStatus.Stopped),
                 CompletedTaskCount = tasks.Count(t => t.Status == ExecutionTaskStatus.Completed),
                 StopOrderTime = order.StopOrderTime,
                 StopReason = order.StopReason,
@@ -189,6 +190,8 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
         // 获取基础医嘱
         var baseOrder = await _orderRepository.GetQueryable()
             .Include(o => o.Patient)
+                .ThenInclude(p => p.Bed)
+                    .ThenInclude(b => b.Ward)
             .Include(o => o.Doctor)
             .Include(o => o.Nurse)
             .Include(o => o.SignedByNurse)
@@ -214,6 +217,10 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
             Remarks = baseOrder.Remarks,
             PatientId = baseOrder.PatientId,
             PatientName = baseOrder.Patient?.Name ?? "未知患者",
+            PatientGender = baseOrder.Patient?.Gender,
+            PatientAge = baseOrder.Patient?.Age,
+            BedNumber = baseOrder.Patient?.Bed?.Id,
+            Department = baseOrder.Patient?.Bed?.Ward?.Id,
             DoctorId = baseOrder.DoctorId,
             DoctorName = baseOrder.Doctor?.Name ?? "未知医生",
             NurseId = baseOrder.NurseId,
@@ -267,14 +274,14 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
                 return response;
             }
 
-            // 2. 验证医嘱状态（PendingReceive、Accepted、InProgress 或 Stopped 可以停止）
+            // 2. 验证医嘱状态（PendingReceive、Accepted、InProgress 或 StoppingInProgress 可以停止）
             if (order.Status != OrderStatus.PendingReceive && 
                 order.Status != OrderStatus.Accepted && 
                 order.Status != OrderStatus.InProgress &&
-                order.Status != OrderStatus.Stopped)
+                order.Status != OrderStatus.StoppingInProgress)
             {
                 response.Success = false;
-                response.Message = $"医嘱状态为 {order.Status}，不允许停止（仅 PendingReceive、Accepted、InProgress 或 Stopped 状态可停止）";
+                response.Message = $"医嘱状态为 {order.Status}，不允许停止（仅 PendingReceive、Accepted、InProgress 或 StoppingInProgress 状态可停止）";
                 response.Errors.Add($"当前状态: {order.Status}");
                 return response;
             }
@@ -353,8 +360,8 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
                 return response;
             }
 
-            // 5.1 如果医嘱已经是Stopped状态，验证新的停止节点不能晚于之前的停止节点
-            if (order.Status == OrderStatus.Stopped)
+            // 5.1 如果医嘱已经是StoppingInProgress状态，验证新的停止节点不能晚于之前的停止节点
+            if (order.Status == OrderStatus.StoppingInProgress)
             {
                 // 查找之前被停止的任务（状态为Stopped且有StatusBeforeLocking的）
                 var previousStoppedTasks = allTasks
@@ -421,13 +428,14 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
                     task.Id, originalStatus);
             }
 
-            // 8. 更新医嘱状态：InProgress/Accepted/Stopped → PendingStop
+            // 8. 更新医嘱状态：InProgress/Accepted/StoppingInProgress → PendingStop
             var previousStatus = order.Status;
             
             order.Status = OrderStatus.PendingStop;
             order.StopReason = request.StopReason;
             order.StopOrderTime = DateTime.UtcNow;
             order.StopDoctorId = request.DoctorId;
+            order.StopAfterTaskId = request.StopAfterTaskId;  // 保存停止节点
 
             await _orderRepository.UpdateAsync(order);
 
@@ -593,6 +601,11 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
 
         detail.ItemCode = inspOrder.ItemCode;
         detail.ItemName = inspOrder.ItemName;
+        detail.RisLisId = inspOrder.RisLisId;
+        detail.Location = inspOrder.Location;
+        detail.Precautions = inspOrder.Precautions;
+        detail.AppointmentTime = inspOrder.AppointmentTime;
+        detail.AppointmentPlace = inspOrder.AppointmentPlace;
         detail.ReportId = inspOrder.ReportId;
         detail.ReportTime = inspOrder.ReportTime;
         
@@ -650,7 +663,8 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
             ExecutorStaffId = t.ExecutorStaffId,
             ExecutorName = t.Executor?.Name,
             StatusBeforeLocking = t.StatusBeforeLocking,
-            ExceptionReason = t.ExceptionReason
+            ExceptionReason = t.ExceptionReason,
+            DataPayload = t.DataPayload // 添加DataPayload字段，包含Title等任务详细信息
         }).ToList();
     }
 
