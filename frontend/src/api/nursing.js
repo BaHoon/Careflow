@@ -158,11 +158,49 @@ export const completeExecutionTask = (taskId, nurseId, resultPayload = null) => 
  * @param {boolean} needReturn - 是否需要直接退药（仅对AppliedConfirmed状态有效）
  */
 export const cancelExecutionTask = (taskId, nurseId, cancelReason, needReturn = false) => {
-  return api.post(`/Nursing/execution-tasks/${taskId}/cancel`, { 
+  const payload = { 
     nurseId, 
     cancelReason,
     needReturn
+  };
+  const url = `/Nursing/execution-tasks/${taskId}/cancel`;
+  
+  console.log('====================================');
+  console.log('[cancelExecutionTask API] 准备发送请求');
+  console.log('完整URL:', `http://localhost:5181/api${url}`);
+  console.log('请求方法: POST');
+  console.log('请求头:', {
+    'Content-Type': 'application/json',
+    'Authorization': localStorage.getItem('token') ? 'Bearer ***' : '无'
   });
+  console.log('请求体 payload:', JSON.stringify(payload, null, 2));
+  console.log('====================================');
+  
+  return api.post(url, payload)
+    .then(response => {
+      console.log('====================================');
+      console.log('[cancelExecutionTask API] 收到响应');
+      console.log('响应状态:', response.status);
+      console.log('响应数据:', response.data);
+      console.log('====================================');
+      return response.data;
+    })
+    .catch(error => {
+      console.error('====================================');
+      console.error('[cancelExecutionTask API] 请求失败');
+      console.error('错误对象:', error);
+      console.error('错误消息:', error.message);
+      if (error.response) {
+        console.error('响应状态:', error.response.status);
+        console.error('响应数据:', error.response.data);
+        console.error('响应头:', error.response.headers);
+      } else if (error.request) {
+        console.error('请求已发送但没有收到响应');
+        console.error('请求详情:', error.request);
+      }
+      console.error('====================================');
+      throw error;
+    });
 };
 
 /**

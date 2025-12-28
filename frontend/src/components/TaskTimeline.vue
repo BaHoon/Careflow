@@ -318,9 +318,10 @@ const statistics = computed(() => {
       t.delayMinutes < -60 &&
       t.excessDelayMinutes <= 0
     ).length,
-    // 已完成任务
+    // 已完成任务（包括Completed和Incomplete）
     completedCount: props.tasks.filter(t => 
-      t.status === 5 || t.status === 'Completed'
+      t.status === 5 || t.status === 'Completed' ||
+      t.status === 8 || t.status === 'Incomplete'
     ).length
   };
 });
@@ -358,9 +359,10 @@ const groupedTasks = computed(() => {
       t.delayMinutes < -60 &&
       t.excessDelayMinutes <= 0
     ),
-    // 已完成任务
+    // 已完成任务（包括Completed和Incomplete）
     completed: props.tasks.filter(t => 
-      t.status === 5 || t.status === 'Completed'
+      t.status === 5 || t.status === 'Completed' ||
+      t.status === 8 || t.status === 'Incomplete'
     )
   };
 });

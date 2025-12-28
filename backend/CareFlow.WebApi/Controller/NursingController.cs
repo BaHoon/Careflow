@@ -658,15 +658,16 @@ namespace CareFlow.WebApi.Controllers
                 }
                 else
                 {
-                    // 默认显示：Applying(0)、Applied(1)、AppliedConfirmed(2)、Pending(3)、InProgress(4)、Completed(5)
-                    // 排除：OrderStopping(6)、Stopped(7)、Incomplete(8)、Cancelled(9)
+                    // 默认显示：Applying(0)、Applied(1)、AppliedConfirmed(2)、Pending(3)、InProgress(4)、Completed(5)、Incomplete(8)
+                    // 排除：OrderStopping(6)、Stopped(7)、PendingReturn(9)、PendingReturnCancelled(10)
                     executionTasksQuery = executionTasksQuery.Where(et => 
                         et.Status == ExecutionTaskStatus.Applying ||
                         et.Status == ExecutionTaskStatus.Applied ||
                         et.Status == ExecutionTaskStatus.AppliedConfirmed ||
                         et.Status == ExecutionTaskStatus.Pending ||
                         et.Status == ExecutionTaskStatus.InProgress ||
-                        et.Status == ExecutionTaskStatus.Completed
+                        et.Status == ExecutionTaskStatus.Completed ||
+                        et.Status == ExecutionTaskStatus.Incomplete
                     );
                 }
 
@@ -1388,14 +1389,24 @@ namespace CareFlow.WebApi.Controllers
         {
             try
             {
+                // 日志：接收到的请求参数
+                Console.WriteLine($"[CancelExecutionTask] 接收到取消任务请求:");
+                Console.WriteLine($"  - TaskId: {id}");
+                Console.WriteLine($"  - NurseId: {dto.NurseId}");
+                Console.WriteLine($"  - CancelReason: {dto.CancelReason}");
+                Console.WriteLine($"  - NeedReturn: {dto.NeedReturn}");
+                
                 // 获取护士信息
                 var nurse = await _context.Nurses
                     .FirstOrDefaultAsync(n => n.Id == dto.NurseId || n.EmployeeNumber == dto.NurseId);
                 
                 if (nurse == null)
                 {
+                    Console.WriteLine($"[CancelExecutionTask] 错误: 护士不存在 - NurseId: {dto.NurseId}");
                     return NotFound(new { message = "护士不存在" });
                 }
+                
+                Console.WriteLine($"[CancelExecutionTask] 找到护士: {nurse.Name} (ID: {nurse.Id})");
 
                 // 查询任务
                 var task = await _context.ExecutionTasks
@@ -1404,52 +1415,77 @@ namespace CareFlow.WebApi.Controllers
 
                 if (task == null)
                 {
+                    Console.WriteLine($"[CancelExecutionTask] 错误: 任务不存在 - TaskId: {id}");
                     return NotFound(new { message = "任务不存在" });
                 }
+                
+                Console.WriteLine($"[CancelExecutionTask] 找到任务: ID={task.Id}, 当前状态={task.Status}");
+
+                Console.WriteLine($"[CancelExecutionTask] 找到任务: ID={task.Id}, 当前状态={task.Status}");
 
                 // 状态校验：不能取消已完成或已停止的任务
                 if (task.Status == ExecutionTaskStatus.Completed || 
                     task.Status == ExecutionTaskStatus.Stopped)
                 {
+                    Console.WriteLine($"[CancelExecutionTask] 错误: 任务状态不允许取消 - 当前状态: {task.Status}");
                     return BadRequest(new { message = $"任务状态不允许取消，当前状态: {task.Status}" });
                 }
 
                 // 验证取消理由
                 if (string.IsNullOrWhiteSpace(dto.CancelReason))
                 {
+                    Console.WriteLine($"[CancelExecutionTask] 错误: 取消理由为空");
                     return BadRequest(new { message = "请填写取消理由" });
                 }
 
                 // 根据当前状态和是否需要退药决定目标状态
                 ExecutionTaskStatus targetStatus;
                 
-                if (task.Status == ExecutionTaskStatus.AppliedConfirmed || 
-                    task.Status == ExecutionTaskStatus.Pending)
+                Console.WriteLine($"[CancelExecutionTask] 开始判断目标状态...");
+                Console.WriteLine($"  - 当前状态: {task.Status} (数值: {(int)task.Status})");
+                Console.WriteLine($"  - NeedReturn: {dto.NeedReturn}");
+                
+                if (task.Status == ExecutionTaskStatus.AppliedConfirmed)
                 {
-                    // AppliedConfirmed或Pending状态取消时，根据needReturn参数决定
+                    Console.WriteLine($"[CancelExecutionTask] 进入 AppliedConfirmed 分支");
+                    // AppliedConfirmed状态取消时，根据needReturn参数决定
                     if (dto.NeedReturn)
                     {
                         // 勾选了需要直接退药，改为Incomplete
                         targetStatus = ExecutionTaskStatus.Incomplete;
+                        Console.WriteLine($"[CancelExecutionTask] NeedReturn=true, 目标状态: Incomplete(8)");
                     }
                     else
                     {
                         // 未勾选，改为PendingReturnCancelled（任务异常取消待退药）
                         targetStatus = ExecutionTaskStatus.PendingReturnCancelled;
+                        Console.WriteLine($"[CancelExecutionTask] NeedReturn=false, 目标状态: PendingReturnCancelled(10)");
                     }
                 }
                 else
                 {
-                    // 其他状态直接改为Stopped
-                    targetStatus = ExecutionTaskStatus.Stopped;
+                    Console.WriteLine($"[CancelExecutionTask] 进入其他状态分支");
+                    // Applying、Applied、Pending等状态取消，都改为Incomplete（异常取消）
+                    targetStatus = ExecutionTaskStatus.Incomplete;
+                    Console.WriteLine($"[CancelExecutionTask] 目标状态: Incomplete(8)");
                 }
+                
+                Console.WriteLine($"[CancelExecutionTask] 最终目标状态: {targetStatus} (数值: {(int)targetStatus})");
 
                 // 更新任务状态
                 task.Status = targetStatus;
                 task.ExceptionReason = dto.CancelReason;
                 task.LastModifiedAt = DateTime.UtcNow;
+                
+                Console.WriteLine($"[CancelExecutionTask] 准备保存到数据库...");
 
                 await _context.SaveChangesAsync();
+                
+                Console.WriteLine($"[CancelExecutionTask] 保存成功!");
+                Console.WriteLine($"[CancelExecutionTask] 返回结果:");
+                Console.WriteLine($"  - TaskId: {task.Id}");
+                Console.WriteLine($"  - Status: {task.Status}");
+                Console.WriteLine($"  - CancelReason: {task.ExceptionReason}");
 
                 return Ok(new
                 {
@@ -1461,6 +1497,8 @@ namespace CareFlow.WebApi.Controllers
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"[CancelExecutionTask] 异常: {ex.Message}");
+                Console.WriteLine($"[CancelExecutionTask] 堆栈: {ex.StackTrace}");
                 return StatusCode(500, new { message = "取消任务失败", error = ex.Message });
             }
         }

@@ -89,7 +89,18 @@
           plain
           size="small"
           :icon="Close"
-          @click.stop="handleCancelExecution"
+          @click.stop="() => { 
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.log('🔴 [按钮点击] Applying状态 - 取消任务按钮被点击');
+            console.log('任务信息:', { 
+              id: task.id, 
+              status: task.status,
+              statusType: typeof task.status,
+              patientName: task.patientName 
+            });
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            handleCancelExecution(); 
+          }"
         >
           取消任务
         </el-button>
@@ -133,14 +144,48 @@
         >
           {{ getCompletionButtonLabel(task.category, false) }}
         </el-button>
-        <!-- AppliedConfirmed(2) 或 Pending(3)：取消任务 -->
+        <!-- AppliedConfirmed(2)：取消任务（带退药选项） -->
         <el-button 
-          v-if="task.status === 2 || task.status === 'AppliedConfirmed' || task.status === 3 || task.status === 'Pending'" 
+          v-if="task.status === 2 || task.status === 'AppliedConfirmed'" 
           type="danger" 
           plain
           size="small"
           :icon="Close"
-          @click.stop="handleCancelWithReturn"
+          @click.stop="() => { 
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.log('🔴 [按钮点击] AppliedConfirmed状态 - 取消任务按钮被点击');
+            console.log('任务信息:', { 
+              id: task.id, 
+              status: task.status,
+              statusType: typeof task.status,
+              patientName: task.patientName 
+            });
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            handleCancelWithReturn(); 
+          }"
+        >
+          取消任务
+        </el-button>
+        
+        <!-- Pending(3)：取消任务（不带退药选项） -->
+        <el-button 
+          v-if="task.status === 3 || task.status === 'Pending'" 
+          type="danger" 
+          plain
+          size="small"
+          :icon="Close"
+          @click.stop="() => { 
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.log('🔴 [按钮点击] Pending状态 - 取消任务按钮被点击');
+            console.log('任务信息:', { 
+              id: task.id, 
+              status: task.status,
+              statusType: typeof task.status,
+              patientName: task.patientName 
+            });
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            handleCancelExecution(); 
+          }"
         >
           取消任务
         </el-button>
@@ -1019,83 +1064,121 @@ const handleCompleteExecution = async () => {
 
 // 取消执行任务
 const handleCancelExecution = async () => {
+  console.log('=== handleCancelExecution 开始 ===');
+  console.log('当前任务信息:', {
+    id: props.task.id,
+    status: props.task.status,
+    statusType: typeof props.task.status,
+    patientName: props.task.patientName,
+    taskTitle: props.task.taskTitle
+  });
+  
   try {
-    // 弹出输入框要求填写取消理由
+    console.log('📝 准备显示取消任务弹窗（不带退药选项）...');
+    
+    // 使用 ElMessageBox.prompt 获取取消理由
     const { value: cancelReason } = await ElMessageBox.prompt(
-      `<div style="text-align: left; font-size: 13px; line-height: 1.8;">
-        <div style="margin-bottom: 12px; padding: 16px; background: #fef0f0; border-radius: 8px; box-shadow: 0 2px 8px rgba(245, 108, 108, 0.1);">
-          <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; align-items: center;">
-            <span style="color: #909399;">👤 患者：</span>
-            <span style="color: #303133; font-weight: 600;">${props.task.patientName} <span style="color: #909399; font-weight: 400;">(🛏️ ${props.task.bedId})</span></span>
-            
-            <span style="color: #909399;">📋 类型：</span>
-            <span style="color: #303133; font-weight: 600;">${props.task.orderTypeName || '执行任务'}</span>
-            
-            <span style="color: #909399;">📝 任务：</span>
-            <span style="color: #303133; font-weight: 600;">${props.task.taskTitle || categoryText.value}</span>
-            
-            <span style="color: #909399;">🕑 计划时间：</span>
-            <span style="color: #606266;">${formatTime(props.task.plannedStartTime)}</span>
-            
-            <span style="color: #909399;">📊 当前状态：</span>
-            <span style="color: #f56c6c; font-weight: 600;">${statusText.value}</span>
-          </div>
-        </div>
-        <div style="padding: 12px; background: #fdf6ec; border-radius: 8px; color: #e6a23c; font-size: 12px; box-shadow: 0 2px 8px rgba(230, 162, 60, 0.1);">
-          ⚠️ 请说明取消此任务的原因，该操作将被记录
-        </div>
-      </div>`,
+      '请填写取消任务的理由（该操作将被记录）',
       '确认取消任务',
       {
         confirmButtonText: '确认取消',
         cancelButtonText: '不取消',
-        inputType: 'textarea',
         inputPlaceholder: '请输入取消理由...',
+        inputType: 'textarea',
         inputValidator: (value) => {
-          if (!value || value.trim().length === 0) {
+          if (!value || !value.trim()) {
             return '取消理由不能为空';
           }
           return true;
-        },
-        dangerouslyUseHTMLString: true,
-        customClass: 'task-completion-dialog'
+        }
       }
     );
 
+    console.log('✅ 用户确认取消，理由:', cancelReason);
+
     const nurseId = getCurrentNurseId();
+    console.log('获取护士ID:', nurseId);
     if (!nurseId) {
       ElMessage.error('未找到护士信息');
       return;
     }
 
     const taskId = props.task.id;
+    console.log('任务ID:', taskId);
     if (!taskId) {
       ElMessage.error('任务ID无效');
       return;
     }
 
     // 调用API取消任务
+    console.log('=== 准备调用 cancelExecutionTask API ===');
+    console.log('参数:', { 
+      taskId, 
+      nurseId, 
+      cancelReason: cancelReason, 
+      needReturn: false 
+    });
     const response = await cancelExecutionTask(taskId, nurseId, cancelReason);
-    ElMessage.success(response.message || '任务已取消');
+    console.log('=== API 响应 ===', response);
+    ElMessage.success(response?.message || '任务已取消');
     
     // 通知父组件刷新数据
     emit('task-cancelled', taskId);
   } catch (error) {
-    if (error !== 'cancel') {
-      console.error('取消执行任务失败:', error);
-      ElMessage.error(error.response?.data?.message || '取消任务失败');
+    console.error('❌ handleCancelExecution 捕获错误:', error);
+    console.error('错误类型:', typeof error);
+    console.error('错误值:', error);
+    
+    // ElMessageBox 取消操作会抛出 'cancel' 字符串或包含 action: 'cancel' 的对象
+    if (error === 'cancel' || error?.action === 'cancel') {
+      console.log('✋ 用户取消了操作');
+      return;
     }
+    
+    console.error('取消执行任务失败 - 详细错误:', error);
+    console.error('错误堆栈:', error?.stack);
+    ElMessage.error(error?.response?.data?.message || error?.message || '取消任务失败');
   }
 };
 
 // AppliedConfirmed状态的取消任务（带是否退药选项）
 const handleCancelWithReturn = async () => {
+  console.log('=== handleCancelWithReturn 开始 ===');
+  console.log('当前任务信息:', {
+    id: props.task.id,
+    status: props.task.status,
+    statusType: typeof props.task.status,
+    patientName: props.task.patientName,
+    taskTitle: props.task.taskTitle
+  });
+  
   try {
-    // 自定义弹窗内容
+    // 自定义弹窗内容（带退药选项）
     const { value: formData } = await ElMessageBox({
       title: '确认取消任务',
       message: `
         <div style="font-size: 14px;">
+          <div style="margin-bottom: 12px; padding: 16px; background: #fef0f0; border-radius: 8px; box-shadow: 0 2px 8px rgba(245, 108, 108, 0.1);">
+            <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; align-items: center;">
+              <span style="color: #909399;">👤 患者：</span>
+              <span style="color: #303133; font-weight: 600;">${props.task.patientName} <span style="color: #909399; font-weight: 400;">(🛏️ ${props.task.bedId})</span></span>
+              
+              <span style="color: #909399;">📋 类型：</span>
+              <span style="color: #303133; font-weight: 600;">${props.task.orderTypeName || '执行任务'}</span>
+              
+              <span style="color: #909399;">📝 任务：</span>
+              <span style="color: #303133; font-weight: 600;">${props.task.taskTitle || categoryText.value}</span>
+              
+              <span style="color: #909399;">🕑 计划时间：</span>
+              <span style="color: #606266;">${formatTime(props.task.plannedStartTime)}</span>
+              
+              <span style="color: #909399;">📊 当前状态：</span>
+              <span style="color: #f56c6c; font-weight: 600;">${statusText.value}</span>
+            </div>
+          </div>
+          <div style="padding: 12px; background: #fdf6ec; border-radius: 8px; color: #e6a23c; font-size: 12px; box-shadow: 0 2px 8px rgba(230, 162, 60, 0.1); margin-bottom: 12px;">
+            ⚠️ 请说明取消此任务的原因，该操作将被记录
+          </div>
           <p style="margin-bottom: 12px; color: #606266;">请填写取消任务的理由：</p>
           <textarea 
             id="cancel-reason-input" 
@@ -1114,8 +1197,9 @@ const handleCancelWithReturn = async () => {
         </div>
       `,
       dangerouslyUseHTMLString: true,
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
+      confirmButtonText: '确认取消',
+      cancelButtonText: '不取消',
+      customClass: 'task-completion-dialog',
       beforeClose: (action, instance, done) => {
         if (action === 'confirm') {
           const reasonInput = document.getElementById('cancel-reason-input');
@@ -1144,34 +1228,50 @@ const handleCancelWithReturn = async () => {
     if (!formData) return;
 
     const nurseId = getCurrentNurseId();
+    console.log('获取护士ID:', nurseId);
     if (!nurseId) {
       ElMessage.error('未找到护士信息');
       return;
     }
 
     const taskId = props.task.id;
+    console.log('任务ID:', taskId);
     if (!taskId) {
       ElMessage.error('任务ID无效');
       return;
     }
 
     // 调用API取消任务，传递needReturn参数
+    console.log('=== 准备调用 cancelExecutionTask API (带退药选项) ===');
+    console.log('参数:', { 
+      taskId, 
+      nurseId, 
+      cancelReason: formData.reason, 
+      needReturn: formData.needReturn 
+    });
     const response = await cancelExecutionTask(
       taskId, 
       nurseId, 
       formData.reason, 
       formData.needReturn
     );
-    
-    ElMessage.success(response.message || '任务已取消');
+    console.log('=== API 响应 ===', response);
+    ElMessage.success(response?.message || '任务已取消');
     
     // 通知父组件刷新数据
     emit('task-cancelled', taskId);
   } catch (error) {
-    if (error !== 'cancel') {
-      console.error('取消执行任务失败:', error);
-      ElMessage.error(error.response?.data?.message || '取消任务失败');
+    console.error('❌ handleCancelWithReturn 捕获错误:', error);
+    
+    // ElMessageBox 取消操作会抛出 'cancel' 字符串或包含 action: 'cancel' 的对象
+    if (error === 'cancel' || error?.action === 'cancel') {
+      console.log('✋ 用户取消了操作');
+      return;
     }
+    
+    console.error('取消执行任务失败 - 详细错误:', error);
+    console.error('错误堆栈:', error?.stack);
+    ElMessage.error(error?.response?.data?.message || error?.message || '取消任务失败');
   }
 };
 
