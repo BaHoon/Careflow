@@ -54,9 +54,19 @@ public class TaskSummaryDto
     public string? ExecutorStaffId { get; set; }
     
     /// <summary>
-    /// 执行护士姓名
+    /// 执行护士姓名（实际开始执行的人）
     /// </summary>
     public string? ExecutorName { get; set; }
+    
+    /// <summary>
+    /// 结束护士ID（实际结束任务的人）
+    /// </summary>
+    public string? CompleterNurseId { get; set; }
+    
+    /// <summary>
+    /// 结束护士姓名（实际结束任务的人）
+    /// </summary>
+    public string? CompleterNurseName { get; set; }
     
     /// <summary>
     /// 任务被锁定前的原始状态（仅当status为OrderStopping时有值）

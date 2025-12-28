@@ -650,6 +650,7 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
         var tasks = await _taskRepository.GetQueryable()
             .Include(t => t.AssignedNurse)
             .Include(t => t.Executor)
+            .Include(t => t.CompleterNurse)
             .Where(t => t.MedicalOrderId == orderId)
             .OrderBy(t => t.PlannedStartTime)
             .ToListAsync();
@@ -666,6 +667,8 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
             AssignedNurseName = t.AssignedNurse?.Name,
             ExecutorStaffId = t.ExecutorStaffId,
             ExecutorName = t.Executor?.Name,
+            CompleterNurseId = t.CompleterNurseId,
+            CompleterNurseName = t.CompleterNurse?.Name,
             StatusBeforeLocking = t.StatusBeforeLocking,
             ExceptionReason = t.ExceptionReason,
             DataPayload = t.DataPayload // 添加DataPayload字段，包含Title等任务详细信息

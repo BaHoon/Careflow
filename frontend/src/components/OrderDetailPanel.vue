@@ -376,10 +376,14 @@
                   <span class="timeline-value">{{ task.assignedNurseName }}</span>
                 </div>
                 <div v-if="task.executorName" class="timeline-item">
-                  <span class="timeline-label">实际执行护士:</span>
+                  <span class="timeline-label">实际开始护士:</span>
                   <span class="timeline-value">{{ task.executorName }}</span>
                 </div>
-                <div v-if="!task.assignedNurseName && !task.executorName" class="timeline-item">
+                <div v-if="task.completerNurseName" class="timeline-item">
+                  <span class="timeline-label">实际结束护士:</span>
+                  <span class="timeline-value">{{ task.completerNurseName }}</span>
+                </div>
+                <div v-if="!task.assignedNurseName && !task.executorName && !task.completerNurseName" class="timeline-item">
                   <span class="timeline-label">护士信息:</span>
                   <span class="timeline-value" style="color: #909399;">暂无</span>
                 </div>
