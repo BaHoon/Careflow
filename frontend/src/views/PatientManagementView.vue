@@ -78,14 +78,21 @@
 
       <!-- 患者卡片列表 -->
       <div v-else class="patient-grid">
-        <div 
+        <el-popover
           v-for="patient in patientList" 
           :key="patient.id"
-          class="patient-card"
-          @click="handleCardClick(patient)"
+          placement="right"
+          :width="280"
+          trigger="hover"
+          popper-class="patient-staff-popover"
         >
-          <!-- 卡片头部 -->
-          <div class="card-header">
+          <template #reference>
+            <div 
+              class="patient-card"
+              @click="handleCardClick(patient)"
+            >
+              <!-- 卡片头部 -->
+              <div class="card-header">
             <!-- 状态标签 -->
             <el-tag 
               :type="getStatusColor(patient.status)" 
@@ -170,6 +177,52 @@
             </template>
           </div>
         </div>
+          </template>
+
+          <div class="staff-info-content">
+            <div class="staff-group">
+              <div class="group-title">
+                <el-icon><Avatar /></el-icon> 责任医生
+              </div>
+              <div class="info-list">
+                <div class="info-item">
+                  <span class="label">姓名:</span>
+                  <span class="value">{{ patient.responsibleDoctorName || '未分配' }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">ID:</span>
+                  <span class="value">{{ patient.responsibleDoctorId || '-' }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">电话:</span>
+                  <span class="value">{{ patient.responsibleDoctorPhone || '-' }}</span>
+                </div>
+              </div>
+            </div>
+            
+            <el-divider style="margin: 12px 0" />
+            
+            <div class="staff-group">
+              <div class="group-title">
+                <el-icon><FirstAidKit /></el-icon> 责任护士 (当前)
+              </div>
+              <div class="info-list">
+                <div class="info-item">
+                  <span class="label">姓名:</span>
+                  <span class="value">{{ patient.responsibleNurseName || '未分配' }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">ID:</span>
+                  <span class="value">{{ patient.responsibleNurseId || '-' }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">电话:</span>
+                  <span class="value">{{ patient.responsibleNursePhone || '-' }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </el-popover>
       </div>
     </div>
 
@@ -355,7 +408,9 @@ import {
   Plus, 
   Loading,
   LocationInformation,
-  OfficeBuilding
+  OfficeBuilding,
+  Avatar,
+  FirstAidKit
 } from '@element-plus/icons-vue';
 import { 
   getPatientManagementList,
@@ -943,5 +998,53 @@ const getNursingGradeColor = (grade) => {
   color: #303133 !important;
   -webkit-text-fill-color: #303133 !important;
   background-color: #f5f7fa !important;
+}
+
+/* ==================== 医护人员信息弹窗样式 ==================== */
+.staff-info-content {
+  padding: 4px;
+}
+
+.staff-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.group-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #303133;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.group-title .el-icon {
+  color: #409eff;
+}
+
+.info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 22px;
+}
+
+.info-item {
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+}
+
+.info-item .label {
+  color: #909399;
+  width: 40px;
+  margin-right: 8px;
+}
+
+.info-item .value {
+  color: #606266;
+  font-family: 'Consolas', monospace;
 }
 </style>
