@@ -24,6 +24,20 @@
           <el-icon><User /></el-icon>
           <span>人员管理</span>
         </router-link>
+        <router-link 
+          to="/admin/department" 
+          class="nav-item"
+        >
+          <el-icon><OfficeBuilding /></el-icon>
+          <span>科室管理</span>
+        </router-link>
+        <router-link 
+          to="/admin/system-log" 
+          class="nav-item"
+        >
+          <el-icon><List /></el-icon>
+          <span>系统日志</span>
+        </router-link>
       </nav>
       
       <!-- 用户信息 -->
@@ -51,11 +65,7 @@
 
     <!-- 内容区域 -->
     <div class="page-content">
-      <div class="page-header">
-        <h2>👥 人员管理</h2>
-        <p class="subtitle">管理系统中的医护人员账号、权限及科室分配</p>
-      </div>
-
+     
       <!-- 操作栏 -->
       <el-card class="action-card" shadow="never">
         <div class="action-row">
@@ -243,20 +253,37 @@ import {
   ArrowDown, 
   SwitchButton,
   Search,
-  Plus
+  Plus,
+  OfficeBuilding,
+  List
 } from '@element-plus/icons-vue';
 import { useRouter } from 'vue-router';
 import { queryStaffList, addStaff, resetPassword, updateStaff, deleteStaff } from '@/api/admin';
 
 const router = useRouter();
-const userInfo = ref(null);
 
 const userName = computed(() => {
-  if (!userInfo.value?.fullName) return 'A'
-  return userInfo.value.fullName.charAt(0)
+  const stored = localStorage.getItem('userInfo') || localStorage.getItem('user')
+  if (!stored) return '管理'
+  try {
+    const user = JSON.parse(stored)
+    const name = user.fullName || user.name || '管理员'
+    return name.substring(0, 2)
+  } catch {
+    return '管理'
+  }
 });
 
-const fullName = computed(() => userInfo.value?.fullName || '管理员');
+const fullName = computed(() => {
+  const stored = localStorage.getItem('userInfo') || localStorage.getItem('user')
+  if (!stored) return '管理员'
+  try {
+    const user = JSON.parse(stored)
+    return user.fullName || user.name || '管理员'
+  } catch {
+    return '管理员'
+  }
+});
 
 // ==================== 数据状态 ====================
 const loading = ref(false);
@@ -308,14 +335,6 @@ const formRules = {
 
 // ==================== 生命周期 ====================
 onMounted(() => {
-  const stored = localStorage.getItem('userInfo');
-  if (stored) {
-    try {
-      userInfo.value = JSON.parse(stored);
-    } catch (error) {
-      console.error('解析用户信息失败:', error);
-    }
-  }
   loadStaffList();
 });
 

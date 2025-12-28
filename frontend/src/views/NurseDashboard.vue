@@ -209,6 +209,16 @@
                     {{ getPatientNursingGradeText(patient.nursingGrade) }}
                   </el-tag>
 
+                  <!-- 异常状态标签 -->
+                  <el-tag 
+                    v-if="patient.nursingAnomalyStatus === 1"
+                    type="danger"
+                    size="small"
+                    class="anomaly-tag"
+                  >
+                    异常
+                  </el-tag>
+
                   <!-- 患者ID -->
                   <span class="patient-id">{{ patient.id }}</span>
                 </div>
@@ -592,7 +602,8 @@ import {
   LocationInformation,
   OfficeBuilding,
   Avatar,
-  FirstAidKit
+  FirstAidKit,
+  WarningFilled
 } from '@element-plus/icons-vue';
 import { 
   getPatientManagementList,
@@ -1003,8 +1014,11 @@ const handleSavePatientDetail = async () => {
  * 办理入院
  */
 const handlePatientAdmission = async (patient) => {
-  // TODO: 实现入院办理功能
-  ElMessage.info(`入院办理功能将在后续版本实现（患者: ${patient.name}）`);
+  // 跳转到入院页面，传递患者ID
+  router.push({
+    path: '/nurse/patient-admission',
+    query: { patientId: patient.id }
+  });
 };
 
 /**
@@ -1157,7 +1171,8 @@ const handlePatientDischarge = async (patient) => {
  * 新增患者
  */
 const handleAddPatient = () => {
-  ElMessage.info('新增患者功能将在后续版本实现');
+  // 跳转到入院页面（不传递patientId，需要上传条形码）
+  router.push('/nurse/patient-admission');
 };
 
 /**
@@ -1635,6 +1650,11 @@ onMounted(() => {
 
 .detail-value {
   color: #606266;
+}
+
+.anomaly-tag {
+  min-width: 40px;
+  text-align: center;
 }
 
 /* 医护人员信息弹窗样式 */

@@ -20,7 +20,8 @@ public class AuthController : ControllerBase
     {
         try
         {
-            var result = await _authService.LoginAsync(request);
+            var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+            var result = await _authService.LoginAsync(request, ipAddress);
             return Ok(result);
         }
         catch (Exception ex)

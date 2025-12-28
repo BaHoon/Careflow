@@ -28,8 +28,8 @@
         </el-col>
         <el-col :span="12">
           <el-form-item label="任务类型">
-            <el-tag :type="(recordData.category === 'Routine' || recordData.taskType === 'Routine') ? 'primary' : 'warning'">
-              {{ (recordData.category === 'Routine' || recordData.taskType === 'Routine') ? '常规测量' : '复测' }}
+            <el-tag :type="getTaskTypeTagType(recordData)">
+              {{ getTaskTypeDisplay(recordData) }}
             </el-tag>
           </el-form-item>
         </el-col>
@@ -223,6 +223,42 @@
           show-word-limit
         />
       </el-form-item>
+
+      <!-- 异常标记 -->
+      <el-divider content-position="left">
+        <el-icon><WarningFilled /></el-icon>
+        <span>异常标记（可选）</span>
+      </el-divider>
+
+      <el-row :gutter="20">
+        <el-col :span="24">
+          <el-form-item label="手动标记异常">
+            <el-switch 
+              v-model="formData.isManuallyMarkedAbnormal"
+              active-text="异常"
+              inactive-text="正常"
+              :active-value="true"
+              :inactive-value="false"
+            />
+            <span class="switch-hint">{{ formData.isManuallyMarkedAbnormal ? '将患者标记为异常状态' : '患者状态将根据体征数据判断' }}</span>
+          </el-form-item>
+        </el-col>
+      </el-row>
+
+      <el-row v-if="formData.isManuallyMarkedAbnormal" :gutter="20">
+        <el-col :span="24">
+          <el-form-item label="异常原因">
+            <el-input
+              v-model="formData.abnormalReason"
+              type="textarea"
+              :rows="2"
+              placeholder="请说明患者异常的原因..."
+              maxlength="200"
+              show-word-limit
+            />
+          </el-form-item>
+        </el-col>
+      </el-row>
     </el-form>
 
     <!-- 查看模式 -->
@@ -233,8 +269,8 @@
           {{ formatDateTime(recordData.plannedStartTime || recordData.scheduledTime) }}
         </el-descriptions-item>
         <el-descriptions-item label="任务类型">
-          <el-tag :type="recordData.category === 'Routine' || recordData.taskType === 'Routine' ? 'primary' : 'warning'">
-            {{ (recordData.category === 'Routine' || recordData.taskType === 'Routine') ? '常规测量' : '复测' }}
+          <el-tag :type="getTaskTypeTagType(recordData)">
+            {{ getTaskTypeDisplay(recordData) }}
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="录入时间">
@@ -248,19 +284,62 @@
       <!-- 生命体征 -->
       <el-descriptions title="生命体征" :column="2" border class="mt-20">
         <el-descriptions-item label="体温">
-          {{ vitalSignsData.temperature || '-' }}℃ ({{ vitalSignsData.tempType || vitalSignsData.temp_type || '-' }})
+          <span :class="{ 'abnormal-value': isVitalSignAbnormal('temperature', vitalSignsData.temperature) }">
+            {{ vitalSignsData.temperature || '-' }}℃
+            <el-tooltip v-if="isVitalSignAbnormal('temperature', vitalSignsData.temperature)" 
+                        :content="getAbnormalHint('temperature', vitalSignsData.temperature)" 
+                        placement="top">
+              <el-icon class="abnormal-icon"><WarningFilled /></el-icon>
+            </el-tooltip>
+          </span>
+          <span class="sub-info">({{ vitalSignsData.tempType || vitalSignsData.temp_type || '-' }})</span>
         </el-descriptions-item>
         <el-descriptions-item label="脉搏">
-          {{ vitalSignsData.pulse || '-' }} 次/分
+          <span :class="{ 'abnormal-value': isVitalSignAbnormal('pulse', vitalSignsData.pulse) }">
+            {{ vitalSignsData.pulse || '-' }} 次/分
+            <el-tooltip v-if="isVitalSignAbnormal('pulse', vitalSignsData.pulse)" 
+                        :content="getAbnormalHint('pulse', vitalSignsData.pulse)" 
+                        placement="top">
+              <el-icon class="abnormal-icon"><WarningFilled /></el-icon>
+            </el-tooltip>
+          </span>
         </el-descriptions-item>
         <el-descriptions-item label="呼吸">
-          {{ vitalSignsData.respiration || '-' }} 次/分
+          <span :class="{ 'abnormal-value': isVitalSignAbnormal('respiration', vitalSignsData.respiration) }">
+            {{ vitalSignsData.respiration || '-' }} 次/分
+            <el-tooltip v-if="isVitalSignAbnormal('respiration', vitalSignsData.respiration)" 
+                        :content="getAbnormalHint('respiration', vitalSignsData.respiration)" 
+                        placement="top">
+              <el-icon class="abnormal-icon"><WarningFilled /></el-icon>
+            </el-tooltip>
+          </span>
         </el-descriptions-item>
         <el-descriptions-item label="血压">
-          {{ vitalSignsData.sysBp || vitalSignsData.sys_bp || '-' }}/{{ vitalSignsData.diaBp || vitalSignsData.dia_bp || '-' }} mmHg
+          <span :class="{ 'abnormal-value': isVitalSignAbnormal('sysBp', vitalSignsData.sysBp || vitalSignsData.sys_bp) || isVitalSignAbnormal('diaBp', vitalSignsData.diaBp || vitalSignsData.dia_bp) }">
+            {{ vitalSignsData.sysBp || vitalSignsData.sys_bp || '-' }}/{{ vitalSignsData.diaBp || vitalSignsData.dia_bp || '-' }} mmHg
+            <el-tooltip v-if="isVitalSignAbnormal('sysBp', vitalSignsData.sysBp || vitalSignsData.sys_bp) || isVitalSignAbnormal('diaBp', vitalSignsData.diaBp || vitalSignsData.dia_bp)" 
+                        placement="top">
+              <template #content>
+                <div v-if="isVitalSignAbnormal('sysBp', vitalSignsData.sysBp || vitalSignsData.sys_bp)">
+                  收缩压：{{ getAbnormalHint('sysBp', vitalSignsData.sysBp || vitalSignsData.sys_bp) }}
+                </div>
+                <div v-if="isVitalSignAbnormal('diaBp', vitalSignsData.diaBp || vitalSignsData.dia_bp)">
+                  舒张压：{{ getAbnormalHint('diaBp', vitalSignsData.diaBp || vitalSignsData.dia_bp) }}
+                </div>
+              </template>
+              <el-icon class="abnormal-icon"><WarningFilled /></el-icon>
+            </el-tooltip>
+          </span>
         </el-descriptions-item>
         <el-descriptions-item label="血氧">
-          {{ vitalSignsData.spo2 || '-' }}%
+          <span :class="{ 'abnormal-value': isVitalSignAbnormal('spo2', vitalSignsData.spo2) }">
+            {{ vitalSignsData.spo2 || '-' }}%
+            <el-tooltip v-if="isVitalSignAbnormal('spo2', vitalSignsData.spo2)" 
+                        :content="getAbnormalHint('spo2', vitalSignsData.spo2)" 
+                        placement="top">
+              <el-icon class="abnormal-icon"><WarningFilled /></el-icon>
+            </el-tooltip>
+          </span>
         </el-descriptions-item>
         <el-descriptions-item label="疼痛评分">
           {{ vitalSignsData.painScore || vitalSignsData.pain_score || '0' }} 分
@@ -376,9 +455,9 @@
 
 <script setup>
 import { ref, computed, watch, reactive } from 'vue';
-import { InfoFilled, Compass, EditPen } from '@element-plus/icons-vue';
+import { InfoFilled, Compass, EditPen, WarningFilled } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
-import { addSupplement, getSupplements } from '@/api/nursing';
+import { addSupplement, getSupplements, submitVitalSigns, createSupplementNursingTask } from '@/api/nursing';
 
 const props = defineProps({
   modelValue: {
@@ -459,7 +538,10 @@ const formData = ref({
   intakeVolume: null,
   outputVolume: null,
   noteContent: '',
-  healthEducation: ''
+  healthEducation: '',
+  // 异常标记（可选）
+  isManuallyMarkedAbnormal: false,
+  abnormalReason: ''
 });
 
 // 查看模式的体征数据（从 API 获取）
@@ -650,7 +732,10 @@ const resetForm = () => {
     intakeVolume: null,
     outputVolume: null,
     noteContent: '',
-    healthEducation: ''
+    healthEducation: '',
+    // 异常标记（可选）
+    isManuallyMarkedAbnormal: false,
+    abnormalReason: ''
   };
 };
 
@@ -670,9 +755,36 @@ const handleSubmit = async () => {
     await formRef.value.validate();
     submitting.value = true;
     
+    // 检查是否是补充记录
+    const isSupplementRecord = props.recordData?.isSupplementRecord;
+    
+    // 如果是补充记录，先创建NursingTask
+    let taskId = formData.value.taskId;
+    if (isSupplementRecord && !taskId) {
+      try {
+        const supplementTaskData = {
+          patientId: props.recordData.patientId,
+          assignedNurseId: formData.value.currentNurseId,
+          description: '护士自行补充'
+        };
+        const response = await createSupplementNursingTask(supplementTaskData);
+        // API拦截器已返回response.data，所以直接从response中读取
+        taskId = response?.taskId || response?.id;
+        if (!taskId) {
+          throw new Error('创建补充护理任务失败：无法获取任务ID');
+        }
+        console.log('✅ 补充护理任务已创建，TaskId:', taskId);
+        ElMessage.success('补充护理任务已创建');
+      } catch (error) {
+        console.error('创建补充护理任务失败:', error);
+        ElMessage.error('创建补充任务失败: ' + (error.response?.data?.message || error.message));
+        throw error;
+      }
+    }
+    
     // 构造提交数据，确保字段名与后端DTO匹配
     const submitData = {
-      taskId: formData.value.taskId,
+      taskId: taskId,
       currentNurseId: formData.value.currentNurseId,
       executionTime: formData.value.executionTime,
       // 生命体征
@@ -697,7 +809,10 @@ const handleSubmit = async () => {
       outputVolume: formData.value.outputVolume ? parseFloat(formData.value.outputVolume) : null,
       outputType: formData.value.outputVolume ? '尿液+引流' : null,
       noteContent: formData.value.noteContent || null,
-      healthEducation: formData.value.healthEducation || null
+      healthEducation: formData.value.healthEducation || null,
+      // 异常标记
+      isManuallyMarkedAbnormal: formData.value.isManuallyMarkedAbnormal,
+      abnormalReason: formData.value.abnormalReason || null
     };
     
     console.log('📋 提交数据详情:');
@@ -719,6 +834,40 @@ const handleSubmit = async () => {
   }
 };
 
+// 体征正常范围定义
+const vitalSignRanges = {
+  temperature: { min: 36.5, max: 37.5, unit: '℃' },
+  pulse: { min: 60, max: 100, unit: '次/分' },
+  respiration: { min: 16, max: 20, unit: '次/分' },
+  sysBp: { min: 90, max: 140, unit: 'mmHg' },
+  diaBp: { min: 60, max: 90, unit: 'mmHg' },
+  spo2: { min: 95, max: 100, unit: '%' }
+};
+
+// 判断体征值是否异常
+const isVitalSignAbnormal = (key, value) => {
+  if (value === null || value === undefined || value === '' || value === '-') return false;
+  const range = vitalSignRanges[key];
+  if (!range) return false;
+  const numValue = Number(value);
+  if (isNaN(numValue)) return false;
+  return numValue < range.min || numValue > range.max;
+};
+
+// 获取异常提示文本
+const getAbnormalHint = (key, value) => {
+  const range = vitalSignRanges[key];
+  if (!range) return '';
+  const numValue = Number(value);
+  if (numValue < range.min) {
+    return `偏低（正常范围：${range.min}-${range.max}${range.unit}）`;
+  }
+  if (numValue > range.max) {
+    return `偏高（正常范围：${range.min}-${range.max}${range.unit}）`;
+  }
+  return '';
+};
+
 // 格式化日期时间
 const formatDateTime = (datetime) => {
   if (!datetime) return '';
@@ -738,6 +887,35 @@ const formatDateTime = (datetime) => {
   } catch {
     return datetime;
   }
+};
+
+// 获取任务类型显示文本
+const getTaskTypeDisplay = (record) => {
+  // 首先检查taskType（来自新的Supplement补充检测）
+  const taskType = record?.taskType;
+  if (taskType === 'Routine') return '常规测量';
+  if (taskType === 'Supplement') return '补充检测';
+  if (taskType === 'ReMeasure') return '复测';
+  
+  // 然后检查category字段（来自后端API返回的数据）
+  const category = record?.category;
+  if (category === 'Routine') return '常规测量';
+  if (category === 'Supplement') return '补充检测';
+  if (category === 'ReMeasure') return '复测';
+  
+  // 默认显示复测
+  return '复测';
+};
+
+// 获取任务类型标签类型
+const getTaskTypeTagType = (record) => {
+  const taskType = record?.taskType;
+  const category = record?.category;
+  const type = taskType || category;
+  
+  if (type === 'Routine') return 'primary'; // 蓝色
+  if (type === 'Supplement') return 'success'; // 绿色
+  return 'warning'; // 黄色（复测）
 };
 </script>
 
@@ -779,6 +957,12 @@ const formatDateTime = (datetime) => {
   gap: 12px;
 }
 
+.switch-hint {
+  margin-left: 12px;
+  color: #909399;
+  font-size: 12px;
+}
+
 /* 自定义 descriptions 样式 */
 :deep(.el-descriptions__title) {
   font-size: 16px;
@@ -816,5 +1000,28 @@ const formatDateTime = (datetime) => {
   color: #606266;
   line-height: 1.6;
   white-space: pre-wrap;
+}
+
+/* 异常值样式 */
+.abnormal-value {
+  color: #f56c6c;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.abnormal-icon {
+  color: #f56c6c;
+  font-size: 14px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 </style>

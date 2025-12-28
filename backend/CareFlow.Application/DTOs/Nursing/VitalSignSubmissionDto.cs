@@ -37,5 +37,9 @@ namespace CareFlow.Application.DTOs.Nursing
         // 护理内容
         public string? NoteContent { get; set; }      // 病情观察
         public string? HealthEducation { get; set; }  // 健康教育
+        
+        // 异常标记 (可选)
+        public bool IsManuallyMarkedAbnormal { get; set; } = false; // 护士是否手动标记为异常
+        public string? AbnormalReason { get; set; } // 异常原因说明
     }
 }

@@ -64,6 +64,10 @@ namespace CareFlow.Infrastructure
         public DbSet<BarcodeIndex> BarcodeIndexes { get; set; }         // 条形码索引表
         #endregion
 
+        #region 6. SystemLog (系统日志)
+        public DbSet<SystemLog> SystemLogs { get; set; }                 // 系统操作日志
+        #endregion
+
         // 实现 ICareFlowDbContext 的 BeginTransactionAsync 方法
         public Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
         {
@@ -98,6 +102,18 @@ namespace CareFlow.Infrastructure
             modelBuilder.Entity<HospitalTimeSlot>()
                 .Property(h => h.Id)
                 .ValueGeneratedNever();
+
+            // --- 配置 Patient 表：允许 BedId 为 NULL（待入院患者没有床位） ---
+            modelBuilder.Entity<Patient>()
+                .Property(p => p.BedId)
+                .IsRequired(false);  // 允许 NULL
+
+            // 配置外键关系：BedId 可以为 NULL，床位删除时设置为 NULL
+            modelBuilder.Entity<Patient>()
+                .HasOne(p => p.Bed)
+                .WithMany()
+                .HasForeignKey(p => p.BedId)
+                .OnDelete(DeleteBehavior.SetNull);  // 床位删除时设置为 NULL，而不是级联删除
         }
     }
 }

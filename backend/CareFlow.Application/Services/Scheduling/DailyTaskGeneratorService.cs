@@ -19,6 +19,7 @@ public class DailyTaskGeneratorService
 {
     private readonly IRepository<PatientModel, string> _patientRepo;
     private readonly IRepository<NursingTask, long> _nursingTaskRepo;
+    private readonly IRepository<CareFlow.Core.Models.Medical.MedicalOrder, long> _medicalOrderRepo;
     private readonly INurseAssignmentService _nurseAssignmentService;
     private readonly NursingScheduleOptions _options;
     private readonly ILogger<DailyTaskGeneratorService> _logger;
@@ -27,12 +28,14 @@ public class DailyTaskGeneratorService
     public DailyTaskGeneratorService(
         IRepository<PatientModel, string> patientRepo,
         IRepository<NursingTask, long> nursingTaskRepo,
+        IRepository<CareFlow.Core.Models.Medical.MedicalOrder, long> medicalOrderRepo,
         INurseAssignmentService nurseAssignmentService,
         IOptions<NursingScheduleOptions> options,
         ILogger<DailyTaskGeneratorService> logger)
     {
         _patientRepo = patientRepo;
         _nursingTaskRepo = nursingTaskRepo;
+        _medicalOrderRepo = medicalOrderRepo;
         _nurseAssignmentService = nurseAssignmentService;
         _options = options.Value;
         _logger = logger;
@@ -71,6 +74,17 @@ public class DailyTaskGeneratorService
 
             foreach (var patient in patients)
             {
+                // 检查待出院患者是否今天出院
+                if (patient.Status == PatientStatus.PendingDischarge)
+                {
+                    var shouldSkip = await ShouldSkipDischargePatientAsync(patient.Id, today);
+                    if (shouldSkip)
+                    {
+                        _logger.LogInformation("⏭️ 患者 {PatientId} 今天出院，跳过生成护理任务", patient.Id);
+                        continue;
+                    }
+                }
+
                 // 根据护理等级获取时间点
                 var timeSlots = GetTimeSlotsByGrade((NursingGrade)patient.NursingGrade);
                 
@@ -189,5 +203,56 @@ public class DailyTaskGeneratorService
 
             _ => new List<TimeSpan>() // 默认不生成
         };
+    }
+
+    /// <summary>
+    /// 检查待出院患者是否在指定日期出院
+    /// 如果出院时间为当前日期，则应跳过生成护理任务
+    /// </summary>
+    private async Task<bool> ShouldSkipDischargePatientAsync(string patientId, DateTime targetDate)
+    {
+        try
+        {
+            // 查询患者的出院医嘱
+            var dischargeOrders = await _medicalOrderRepo.GetQueryable()
+                .OfType<CareFlow.Core.Models.Medical.MedicalOrder>()
+                .Where(o => o.PatientId == patientId && o.OrderType == "DischargeOrder")
+                .ToListAsync();
+
+            if (dischargeOrders.Count == 0)
+            {
+                _logger.LogWarning("⚠️ 患者 {PatientId} 状态为待出院但无出院医嘱", patientId);
+                return false;
+            }
+
+            // 获取最新的出院医嘱（按创建时间倒序）
+            var latestDischargeOrder = dischargeOrders
+                .OrderByDescending(o => o.CreateTime)
+                .FirstOrDefault() as CareFlow.Core.Models.Medical.DischargeOrder;
+
+            if (latestDischargeOrder == null)
+            {
+                _logger.LogWarning("⚠️ 患者 {PatientId} 出院医嘱类型转换失败", patientId);
+                return false;
+            }
+
+            // 比较出院时间是否为当前日期
+            var dischargeTimeInChina = TimeZoneInfo.ConvertTimeFromUtc(latestDischargeOrder.DischargeTime, _chinaTimeZone);
+            var dischargeDate = dischargeTimeInChina.Date;
+
+            if (dischargeDate == targetDate)
+            {
+                _logger.LogInformation("🚪 患者 {PatientId} 出院时间为 {DischargeTime}，需要跳过任务生成", 
+                    patientId, dischargeDate.ToString("yyyy-MM-dd"));
+                return true;
+            }
+
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ 检查患者 {PatientId} 是否需要跳过出院护理任务时失败", patientId);
+            return false;
+        }
     }
 }

@@ -18,6 +18,7 @@ import NursingRecord from '../views/NursingRecord.vue'
 import TaskScan from '../views/TaskScan.vue'
 import PatientManagementView from '../views/PatientManagementView.vue'
 import NurseScheduleView from '../views/NurseScheduleView.vue'
+import PatientAdmission from '../views/PatientAdmission.vue'
 
 // 医生子页面
 import OrderEntry from '../views/OrderEntry.vue'
@@ -26,6 +27,8 @@ import DoctorOrderView from '../views/DoctorOrderView.vue'
 // 管理员子页面
 import OrderStatusHistoryView from '../views/Admin/OrderStatusHistoryView.vue'
 import StaffManagementView from '../views/Admin/StaffManagementView.vue'
+import DepartmentManagement from '../views/Admin/DepartmentManagement.vue'
+import SystemLogAudit from '../views/Admin/SystemLogAudit.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -106,6 +109,12 @@ const router = createRouter({
           name: 'nurse-patient-log',
           component: () => import('../views/PatientLogView.vue'),
           meta: { title: '患者日志' }
+        },
+        {
+          path: 'patient-admission', // 相对路径，实际路径为 /nurse/patient-admission
+          name: 'patient-admission',
+          component: PatientAdmission,
+          meta: { title: '患者入院办理' }
         }
       ]
     },
@@ -162,6 +171,18 @@ const router = createRouter({
       name: 'staff-management',
       component: StaffManagementView,
       meta: { requiresAuth: true, role: 'Admin', title: '人员管理' }
+    },
+    {
+      path: '/admin/department',
+      name: 'department-management',
+      component: DepartmentManagement,
+      meta: { requiresAuth: true, role: 'Admin', title: '科室管理' }
+    },
+    {
+      path: '/admin/system-log',
+      name: 'system-log-audit',
+      component: SystemLogAudit,
+      meta: { requiresAuth: true, role: 'Admin', title: '系统日志审计' }
     }
   ]
 })

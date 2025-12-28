@@ -491,7 +491,7 @@ const finish = async () => {
     let resultPayload = null;
     
     if (category === 1 || category === 4) {
-      // Immediate：一次完成（Pending → Completed）
+      // Immediate、DataCollection：一次完成（Pending → Completed）
       if (remarks.value) {
         resultPayload = remarks.value;
       }
@@ -530,7 +530,7 @@ const finish = async () => {
         // 第一次调用：Pending → InProgress
         // 备注格式：开始备注：[内容]
         if (remarks.value) {
-          resultPayload = `开始备注：${remarks.value}`;
+          resultPayload = `开始备注：${remarks.value}.`;
         }
         await api.completeExecutionTask(currentTask.value.id, nurseId, resultPayload);
         
@@ -546,10 +546,9 @@ const finish = async () => {
         return;
       } else if (currentStatus === 4 || currentStatus === 'InProgress') {
         // 第二次调用：InProgress → Completed
-        // 需要先获取现有的备注，然后追加
-        // 这里我们假设备注已经在服务器保存了，我们就追加新的
+        // 后端会自动合并为：开始备注：内容1.结束备注：内容2.的格式
         if (remarks.value) {
-          resultPayload = `结束备注：${remarks.value}`;
+          resultPayload = remarks.value;
         }
         await api.completeExecutionTask(currentTask.value.id, nurseId, resultPayload);
         

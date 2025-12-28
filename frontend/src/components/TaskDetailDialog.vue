@@ -39,7 +39,11 @@
           </el-descriptions-item>
           
           <!-- 时间信息 -->
-          <el-descriptions-item label="计划开始时间" :span="2">
+          <el-descriptions-item 
+            v-if="currentTask.category !== 'ApplicationWithPrint'"
+            label="计划开始时间" 
+            :span="2"
+          >
             {{ formatDateTime(currentTask.plannedStartTime) }}
           </el-descriptions-item>
           <el-descriptions-item
@@ -107,8 +111,8 @@
           </el-descriptions-item>
           
           <!-- 操作信息 -->
-          <el-descriptions-item label="操作名称">
-            <el-tag type="primary">{{ getOperationName(currentTask) }}</el-tag>
+          <el-descriptions-item label="操作名称" :span="2">
+            {{ getOperationNameWithDetails(currentTask) }}
           </el-descriptions-item>
           <el-descriptions-item label="操作代码">
             {{ getOperationCode(currentTask) }}
@@ -138,7 +142,11 @@
           </el-descriptions-item>
           
           <!-- 时间信息 -->
-          <el-descriptions-item label="计划开始时间" :span="2">
+          <el-descriptions-item 
+            v-if="currentTask.category !== 'ApplicationWithPrint'"
+            label="计划开始时间" 
+            :span="2"
+          >
             {{ formatDateTime(currentTask.plannedStartTime) }}
           </el-descriptions-item>
           <el-descriptions-item
@@ -382,6 +390,26 @@ const getOperationName = (task) => {
   return payload.OperationName || payload.Title || task.opId || '操作任务';
 };
 
+// 获取操作名称（带详细信息）- 优先显示详细的描述而不仅仅是操作代码
+const getOperationNameWithDetails = (task) => {
+  if (!task || !task.dataPayload) return '操作任务';
+  
+  const payload = safeParseJson(task.dataPayload);
+  if (!payload) return task.opId || '操作任务';
+  
+  // 优先返回 Title（这通常包含详细信息），然后是 OperationName
+  // 避免仅返回"操作任务"这样的通用文本
+  if (payload.Title && payload.Title !== '操作任务' && !payload.Title.startsWith('操作：操作')) {
+    return payload.Title;
+  }
+  
+  if (payload.OperationName && payload.OperationName !== '操作任务') {
+    return payload.OperationName;
+  }
+  
+  return payload.OpId || payload.opId || '操作任务';
+};
+
 // 获取操作代码
 const getOperationCode = (task) => {
   if (!task || !task.dataPayload) return '-';
@@ -433,6 +461,7 @@ const getCategoryText = (category) => {
     'Verification': '核对验证',
     'Routine': '常规护理',
     'ReMeasure': '复测任务',
+    'Supplement': '补充检测',
     'ApplicationWithPrint': '申请打印',
     'DischargeConfirmation': '出院确认',
     // 数字映射（如果后端返回数字枚举值）
@@ -569,10 +598,17 @@ const formatAllowedDelayMinutes = (delay) => {
 :deep(.el-descriptions__label) {
   font-weight: 600;
   color: #303133;
+  width: 100px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 :deep(.el-descriptions__content) {
+  width: 100px;
   color: #606266;
+  word-break: break-word;
+  word-wrap: break-word;
+  white-space: normal;
 }
 
 :deep(.el-tag) {

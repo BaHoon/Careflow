@@ -1,4 +1,5 @@
 using CareFlow.Core.Enums;
+using System.Text.Json.Serialization;
 
 namespace CareFlow.Application.DTOs.Patient;
 
@@ -46,6 +47,12 @@ public class PatientCardDto
     /// 状态显示文本
     /// </summary>
     public string StatusDisplay { get; set; } = null!;
+
+    /// <summary>
+    /// 近期护理任务异常状态：0=正常，1=异常
+    /// </summary>
+    [JsonPropertyName("nursingAnomalyStatus")]
+    public int NursingAnomalyStatus { get; set; }
 
     /// <summary>
     /// 责任医生ID
@@ -161,6 +168,12 @@ public class PatientFullInfoDto
     /// 护理级别
     /// </summary>
     public NursingGrade NursingGrade { get; set; }
+    
+    /// <summary>
+    /// 近期护理任务异常状态：0=正常，1=异常
+    /// </summary>
+    [JsonPropertyName("nursingAnomalyStatus")]
+    public int NursingAnomalyStatus { get; set; }
     
     // ==================== 关联信息（只读） ====================
     
@@ -383,6 +396,159 @@ public class ProcessDischargeRequest
     
     /// <summary>
     /// 出院备注
+    /// </summary>
+    public string? Remarks { get; set; }
+}
+
+/// <summary>
+/// 待入院患者信息DTO - 用于入院办理
+/// </summary>
+public class PatientAdmissionDto
+{
+    /// <summary>
+    /// 患者ID
+    /// </summary>
+    public string PatientId { get; set; } = null!;
+    
+    /// <summary>
+    /// 姓名
+    /// </summary>
+    public string Name { get; set; } = null!;
+    
+    /// <summary>
+    /// 性别
+    /// </summary>
+    public string Gender { get; set; } = null!;
+    
+    /// <summary>
+    /// 身份证号
+    /// </summary>
+    public string IdCard { get; set; } = null!;
+    
+    /// <summary>
+    /// 出生日期
+    /// </summary>
+    public DateTime DateOfBirth { get; set; }
+    
+    /// <summary>
+    /// 年龄
+    /// </summary>
+    public int Age { get; set; }
+    
+    /// <summary>
+    /// 身高（cm）
+    /// </summary>
+    public float Height { get; set; }
+    
+    /// <summary>
+    /// 体重（kg）
+    /// </summary>
+    public float Weight { get; set; }
+    
+    /// <summary>
+    /// 电话号码
+    /// </summary>
+    public string PhoneNumber { get; set; } = null!;
+    
+    /// <summary>
+    /// 门诊诊断
+    /// </summary>
+    public string? OutpatientDiagnosis { get; set; }
+    
+    /// <summary>
+    /// 预约入院时间
+    /// </summary>
+    public DateTime? ScheduledAdmissionTime { get; set; }
+    
+    /// <summary>
+    /// 护理级别
+    /// </summary>
+    public NursingGrade NursingGrade { get; set; }
+    
+    /// <summary>
+    /// 主治医生ID
+    /// </summary>
+    public string AttendingDoctorId { get; set; } = null!;
+    
+    /// <summary>
+    /// 主治医生姓名
+    /// </summary>
+    public string AttendingDoctorName { get; set; } = null!;
+}
+
+/// <summary>
+/// 可用床位DTO
+/// </summary>
+public class AvailableBedDto
+{
+    /// <summary>
+    /// 床位ID
+    /// </summary>
+    public string BedId { get; set; } = null!;
+    
+    /// <summary>
+    /// 病区ID
+    /// </summary>
+    public string WardId { get; set; } = null!;
+    
+    /// <summary>
+    /// 病区名称
+    /// </summary>
+    public string WardName { get; set; } = null!;
+    
+    /// <summary>
+    /// 科室ID
+    /// </summary>
+    public string DepartmentId { get; set; } = null!;
+    
+    /// <summary>
+    /// 科室名称
+    /// </summary>
+    public string DepartmentName { get; set; } = null!;
+}
+
+/// <summary>
+/// 办理入院请求DTO
+/// </summary>
+public class ProcessAdmissionRequest
+{
+    /// <summary>
+    /// 患者ID（必填）
+    /// </summary>
+    public string PatientId { get; set; } = null!;
+    
+    /// <summary>
+    /// 床位ID（必填）
+    /// </summary>
+    public string BedId { get; set; } = null!;
+    
+    /// <summary>
+    /// 实际入院时间（可选，默认当前时间）
+    /// </summary>
+    public DateTime? ActualAdmissionTime { get; set; }
+    
+    /// <summary>
+    /// 护理级别（可选）
+    /// </summary>
+    public NursingGrade? NursingGrade { get; set; }
+    
+    /// <summary>
+    /// 门诊诊断（可选）
+    /// </summary>
+    public string? OutpatientDiagnosis { get; set; }
+    
+    /// <summary>
+    /// 操作人ID（必填）
+    /// </summary>
+    public string OperatorId { get; set; } = null!;
+    
+    /// <summary>
+    /// 操作人类型（Nurse/Doctor/Admin）（必填）
+    /// </summary>
+    public string OperatorType { get; set; } = null!;
+    
+    /// <summary>
+    /// 备注（可选）
     /// </summary>
     public string? Remarks { get; set; }
 }

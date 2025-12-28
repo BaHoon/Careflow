@@ -10,4 +10,3 @@ public interface IOperationOrderManager
 {
     Task<OperationOrder> CreateOperationOrderAsync(OperationOrder order);
 }
-

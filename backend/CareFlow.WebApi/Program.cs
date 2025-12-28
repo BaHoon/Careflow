@@ -26,8 +26,8 @@ builder.Services.AddControllers()
     {
         // 禁用 Unicode 转义，让中文字符正常显示
         options.JsonSerializerOptions.Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
-        // 可选：设置属性命名策略为驼峰式
-        //options.JsonSerializerOptions.PropertyNamingPolicy = null; // 保持原有命名
+        // 设置属性命名策略为驼峰式（前端期望的格式）
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
     });
 
 // 添加 Swagger/OpenAPI (接口文档生成器)

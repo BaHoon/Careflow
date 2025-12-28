@@ -88,11 +88,15 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
 
         try
         {
-            // 1. 查询该科室所有在院患者
+            // 1. 查询该科室所有在院患者（只查询有床位的患者）
             var patients = await _patientRepository.GetQueryable()
                 .Include(p => p.Bed)
                     .ThenInclude(b => b.Ward)
-                .Where(p => p.Bed.Ward.DepartmentId == deptCode && (p.Status == PatientStatus.Hospitalized || p.Status == PatientStatus.PendingDischarge))
+                .Where(p => p.BedId != null && 
+                           p.Bed != null && 
+                           p.Bed.Ward != null &&
+                           p.Bed.Ward.DepartmentId == deptCode && 
+                           (p.Status == PatientStatus.Hospitalized || p.Status == PatientStatus.PendingDischarge))
                 .ToListAsync();
 
             _logger.LogInformation("科室患者总数: {Count}", patients.Count);
@@ -113,13 +117,13 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
                 {
                     PatientId = patient.Id,
                     PatientName = patient.Name,
-                    BedId = patient.BedId,
+                    BedId = patient.BedId ?? string.Empty,
                     Gender = patient.Gender,
                     Age = patient.Age,
                     Weight = patient.Weight,
                     NursingGrade = (int)patient.NursingGrade,
-                    WardId = patient.Bed.WardId,
-                    WardName = patient.Bed.Ward.Id,
+                    WardId = patient.Bed?.WardId ?? string.Empty,
+                    WardName = patient.Bed?.Ward?.Id ?? string.Empty,
                     UnacknowledgedCount = unacknowledgedCount
                 });
             }

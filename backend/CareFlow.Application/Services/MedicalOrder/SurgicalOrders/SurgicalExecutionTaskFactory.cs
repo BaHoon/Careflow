@@ -49,6 +49,13 @@ namespace CareFlow.Application.Services
 
                 foreach (var talkContent in talkItems)
                 {
+                    var plannedTime = order.ScheduleTime.Add(TalkOffset);
+                    // 如果计算出的时间为过去，改为当前时间
+                    if (plannedTime < DateTime.UtcNow)
+                    {
+                        plannedTime = DateTime.UtcNow;
+                    }
+
                     tasks.Add(new ExecutionTask
                     {
                         MedicalOrderId = order.Id,
@@ -56,7 +63,7 @@ namespace CareFlow.Application.Services
                         Category = TaskCategory.Immediate, // 术前宣教为即刻执行类
                         // 导航属性通常在Save时由EF自动处理，这里主要保证ID正确
                         
-                        PlannedStartTime = order.ScheduleTime.Add(TalkOffset),
+                        PlannedStartTime = plannedTime,
                         Status = ExecutionTaskStatus.Pending,
                         CreatedAt = DateTime.UtcNow,
                         
@@ -87,12 +94,19 @@ namespace CareFlow.Application.Services
 
                 foreach (var opContent in opItems)
                 {
+                    var plannedTime = order.ScheduleTime.Add(OpOffset);
+                    // 如果计算出的时间为过去，改为当前时间
+                    if (plannedTime < DateTime.UtcNow)
+                    {
+                        plannedTime = DateTime.UtcNow;
+                    }
+
                     tasks.Add(new ExecutionTask
                     {
                         MedicalOrderId = order.Id,
                         PatientId = order.PatientId,
                         Category = TaskCategory.Duration, // 术前操作通常需要持续时间
-                        PlannedStartTime = order.ScheduleTime.Add(OpOffset),
+                        PlannedStartTime = plannedTime,
                         Status = ExecutionTaskStatus.Pending,
                         CreatedAt = DateTime.UtcNow,
                         
@@ -134,12 +148,19 @@ namespace CareFlow.Application.Services
             }
 
             // 生成唯一的聚合任务
+            var supplyPlannedTime = order.ScheduleTime.Add(SupplyOffset);
+            // 如果计算出的时间为过去，改为当前时间
+            if (supplyPlannedTime < DateTime.UtcNow)
+            {
+                supplyPlannedTime = DateTime.UtcNow;
+            }
+
             tasks.Add(new ExecutionTask
             {
                 MedicalOrderId = order.Id,
                 PatientId = order.PatientId,
                 Category = TaskCategory.Verification, // 物品核对为核对类
-                PlannedStartTime = order.ScheduleTime.Add(SupplyOffset),
+                PlannedStartTime = supplyPlannedTime,
                 Status = ExecutionTaskStatus.Applying,
                 CreatedAt = DateTime.UtcNow,
                 

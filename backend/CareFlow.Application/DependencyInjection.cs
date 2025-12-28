@@ -68,6 +68,9 @@ public static class DependencyInjection
         // 注册管理员服务
         services.AddScoped<OrderStatusHistoryService>();
         services.AddScoped<StaffManagementService>();
+        services.AddScoped<IDepartmentManagementService, DepartmentManagementService>();
+        services.AddScoped<ISystemLogService, SystemLogService>();
+        services.AddScoped<IBedService, BedService>();
 
         return services;
     }
