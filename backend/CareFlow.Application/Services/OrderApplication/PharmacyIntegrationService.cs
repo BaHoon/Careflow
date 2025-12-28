@@ -67,7 +67,7 @@ public class PharmacyIntegrationService : IPharmacyIntegrationService
 
             // 启动后台任务：延迟N分钟后自动确认配药完成
             // 使用新的服务作用域，避免DbContext被释放
-            var delayMinutes = isUrgent ? 1 : 3;
+            var delayMinutes = isUrgent ? 0 : 3;
             _backgroundJobService.ScheduleDelayedWithScope(
                 async (serviceProvider) =>
                 {

@@ -2099,5 +2099,207 @@ namespace CareFlow.WebApi.Controllers
                    category == TaskCategory.DataCollection ||
                    category == TaskCategory.Verification;
         }
+
+        /// <summary>
+        /// 获取护士待签收医嘱统计
+        /// 包括新开医嘱（PendingReceive）和停止医嘱（PendingStop）
+        /// </summary>
+        /// <param name="nurseId">护士ID</param>
+        /// <returns>待签收医嘱总数</returns>
+        [HttpGet("pending-orders-count")]
+        public async Task<IActionResult> GetPendingOrdersCount([FromQuery] string nurseId)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(nurseId))
+                {
+                    return BadRequest(new { message = "护士ID不能为空" });
+                }
+
+                // 查询该护士负责的待签收医嘱（新开）
+                var pendingReceiveCount = await _context.MedicalOrders
+                    .Where(o => o.NurseId == nurseId && o.Status == OrderStatus.PendingReceive)
+                    .CountAsync();
+
+                // 查询该护士负责的待签收停止医嘱
+                var pendingStopCount = await _context.MedicalOrders
+                    .Where(o => o.NurseId == nurseId && o.Status == OrderStatus.PendingStop)
+                    .CountAsync();
+
+                var totalCount = pendingReceiveCount + pendingStopCount;
+
+                Console.WriteLine($"护士 {nurseId} 的待签收医嘱统计: 新开={pendingReceiveCount}, 停止={pendingStopCount}, 总计={totalCount}");
+
+                return Ok(totalCount);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"获取待签收医嘱统计失败: {ex.Message}");
+                return StatusCode(500, new { message = "获取统计失败", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// 获取护士负责患者的待退药申请统计
+        /// 包括待退药（PendingReturn）和异常取消待退药（PendingReturnCancelled）状态的任务
+        /// 基于当前UTC时间的排班负责的患者
+        /// </summary>
+        /// <param name="nurseId">护士ID</param>
+        /// <param name="departmentId">科室ID（保留参数但不使用，改用排班查询）</param>
+        /// <returns>待退药申请总数</returns>
+        [HttpGet("pending-returns-count")]
+        public async Task<IActionResult> GetPendingReturnsCount([FromQuery] string nurseId, [FromQuery] string departmentId)
+        {
+            try
+            {
+                Console.WriteLine("========== 开始查询待退药申请统计 ==========");
+                Console.WriteLine($"[输入参数] nurseId: {nurseId}, departmentId: {departmentId}");
+                
+                if (string.IsNullOrEmpty(nurseId))
+                {
+                    return BadRequest(new { message = "护士ID不能为空" });
+                }
+
+                // 获取当前UTC时间
+                var nowUtc = DateTime.UtcNow;
+                var currentDate = DateOnly.FromDateTime(nowUtc);
+                var currentTimeSpan = nowUtc.TimeOfDay;
+
+                Console.WriteLine($"[时间信息] 当前UTC时间: {nowUtc:yyyy-MM-dd HH:mm:ss}");
+                Console.WriteLine($"[时间信息] 当前日期: {currentDate}, 当前时间: {currentTimeSpan:hh\\:mm\\:ss}");
+
+                // 查询护士当天的所有排班记录（用于在内存中判断时间范围）
+                var potentialRosters = await _context.NurseRosters
+                    .Include(r => r.ShiftType)
+                    .Include(r => r.Ward)
+                    .Where(r => r.StaffId == nurseId && 
+                               r.WorkDate == currentDate &&
+                               r.Status == "Scheduled")
+                    .ToListAsync();
+
+                if (!potentialRosters.Any())
+                {
+                    Console.WriteLine($"[排班查询] ❌ 护士 {nurseId} 在 {currentDate} 没有找到排班记录");
+                    Console.WriteLine("========== 结束查询：无排班记录，返回0 ==========");
+                    return Ok(0);
+                }
+
+                Console.WriteLine($"[排班查询] 找到 {potentialRosters.Count} 条排班记录");
+
+                // 在内存中过滤出当前时间匹配的排班
+                NurseRoster? currentRoster = null;
+                foreach (var roster in potentialRosters)
+                {
+                    var shiftStart = roster.ShiftType.StartTime;
+                    var shiftEnd = roster.ShiftType.EndTime;
+                    
+                    Console.WriteLine($"  - 排班ID: {roster.Id}, 病区: {roster.WardId}, 班次: {roster.ShiftType.ShiftName}");
+                    Console.WriteLine($"    时间范围: {shiftStart:hh\\:mm\\:ss} - {shiftEnd:hh\\:mm\\:ss}");
+                    
+                    // 判断当前时间是否在班次范围内
+                    bool isInShift;
+                    if (shiftStart <= shiftEnd)
+                    {
+                        // 正常班次（不跨天）
+                        isInShift = currentTimeSpan >= shiftStart && currentTimeSpan <= shiftEnd;
+                        Console.WriteLine($"    判断: {currentTimeSpan:hh\\:mm\\:ss} 在 [{shiftStart:hh\\:mm\\:ss}, {shiftEnd:hh\\:mm\\:ss}] => {isInShift}");
+                    }
+                    else
+                    {
+                        // 跨天班次
+                        isInShift = currentTimeSpan >= shiftStart || currentTimeSpan <= shiftEnd;
+                        Console.WriteLine($"    判断(跨天): {currentTimeSpan:hh\\:mm\\:ss} >= {shiftStart:hh\\:mm\\:ss} 或 <= {shiftEnd:hh\\:mm\\:ss} => {isInShift}");
+                    }
+                    
+                    if (isInShift)
+                    {
+                        currentRoster = roster;
+                        Console.WriteLine($"    ✓ 匹配成功！");
+                        break;
+                    }
+                }
+
+                if (currentRoster == null)
+                {
+                    Console.WriteLine($"[班次验证] ❌ 当前时间不在任何班次范围内");
+                    Console.WriteLine("========== 结束查询：不在班次时间，返回0 ==========");
+                    return Ok(0);
+                }
+
+                Console.WriteLine($"[班次验证] ✓ 找到当前值班记录");
+                Console.WriteLine($"  - 排班ID: {currentRoster.Id}");
+                Console.WriteLine($"  - 病区ID: {currentRoster.WardId}");
+                Console.WriteLine($"  - 班次名称: {currentRoster.ShiftType.ShiftName}");
+
+                // 查询该病区所有在院患者的ID
+                var patients = await _context.Patients
+                    .Include(p => p.Bed)
+                    .Where(p => p.Status == PatientStatus.Hospitalized && 
+                               p.Bed.WardId == currentRoster.WardId)
+                    .Select(p => new { p.Id, p.Name, BedId = p.Bed.Id, p.Status })
+                    .ToListAsync();
+
+                if (!patients.Any())
+                {
+                    Console.WriteLine($"[患者查询] ❌ 病区 {currentRoster.WardId} 没有在院患者");
+                    Console.WriteLine("========== 结束查询：无在院患者，返回0 ==========");
+                    return Ok(0);
+                }
+
+                Console.WriteLine($"[患者查询] ✓ 病区 {currentRoster.WardId} 共有 {patients.Count} 个在院患者:");
+                foreach (var p in patients)
+                {
+                    Console.WriteLine($"  - 患者ID: {p.Id}, 姓名: {p.Name}, 床位: {p.BedId}, 状态: {p.Status}");
+                }
+
+                var patientIds = patients.Select(p => p.Id).ToList();
+
+                // 查询这些患者的待退药任务（PendingReturn 和 PendingReturnCancelled）
+                var pendingReturnTasks = await _context.ExecutionTasks
+                    .Where(t => patientIds.Contains(t.PatientId) && 
+                               (t.Status == ExecutionTaskStatus.PendingReturn || 
+                                t.Status == ExecutionTaskStatus.PendingReturnCancelled))
+                    .Select(t => new { 
+                        t.Id, 
+                        t.PatientId, 
+                        t.Status, 
+                        t.Category,
+                        t.PlannedStartTime,
+                        t.DataPayload
+                    })
+                    .ToListAsync();
+
+                Console.WriteLine($"[任务查询] 待退药任务统计:");
+                Console.WriteLine($"  - 查询条件: Status = PendingReturn(9) 或 PendingReturnCancelled(10)");
+                Console.WriteLine($"  - 找到 {pendingReturnTasks.Count} 个待退药任务");
+                
+                if (pendingReturnTasks.Any())
+                {
+                    var groupByStatus = pendingReturnTasks.GroupBy(t => t.Status);
+                    foreach (var group in groupByStatus)
+                    {
+                        Console.WriteLine($"  - 状态 {group.Key}: {group.Count()} 个任务");
+                        foreach (var task in group)
+                        {
+                            Console.WriteLine($"    * TaskID: {task.Id}, PatientID: {task.PatientId}, 类别: {task.Category}, 计划时间: {task.PlannedStartTime:yyyy-MM-dd HH:mm}");
+                        }
+                    }
+                }
+
+                var pendingReturnsCount = pendingReturnTasks.Count;
+
+                Console.WriteLine($"[最终结果] 待退药申请总数: {pendingReturnsCount}");
+                Console.WriteLine("========== 结束查询 ==========");
+
+                return Ok(pendingReturnsCount);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[错误] 获取待退药申请统计失败: {ex.Message}");
+                Console.WriteLine($"[错误] 堆栈跟踪: {ex.StackTrace}");
+                Console.WriteLine("========== 查询异常结束 ==========");
+                return StatusCode(500, new { message = "获取统计失败", error = ex.Message });
+            }
+        }
     }
 }

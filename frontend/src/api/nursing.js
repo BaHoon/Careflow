@@ -164,3 +164,26 @@ export const cancelExecutionTask = (taskId, nurseId, cancelReason, needReturn = 
     needReturn
   });
 };
+
+/**
+ * 获取护士待签收医嘱统计
+ * @param {string} nurseId - 护士ID
+ * @returns {Promise<number>} 待签收医嘱总数（包括新开和停止医嘱）
+ */
+export const getPendingOrdersCount = (nurseId) => {
+  return api.get('/Nursing/pending-orders-count', {
+    params: { nurseId }
+  });
+};
+
+/**
+ * 获取护士负责患者的待退药申请统计
+ * @param {string} nurseId - 护士ID
+ * @param {string} departmentId - 科室ID
+ * @returns {Promise<number>} 待退药申请总数（包括待退药和异常取消待退药）
+ */
+export const getPendingReturnsCount = (nurseId, departmentId) => {
+  return api.get('/Nursing/pending-returns-count', {
+    params: { nurseId, departmentId }
+  });
+};
