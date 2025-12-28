@@ -29,9 +29,9 @@ namespace CareFlow.Core.Models.Organization
         public DateTime? ActualAdmissionTime { get; set; }
 
         // 外键关系
-        public string BedId { get; set; } = string.Empty;
+        public string? BedId { get; set; }  // 允许为NULL（待入院患者没有床位）
         [ForeignKey("BedId")]
-        public Bed Bed { get; set; } = null!;
+        public Bed? Bed { get; set; }  // 允许为NULL
 
         public string AttendingDoctorId { get; set; } = string.Empty;
         [ForeignKey("AttendingDoctorId")]

@@ -357,3 +357,58 @@ export const getPatientStatusColor = (status) => {
   };
   return colorMap[status] || 'info';
 };
+
+// ==================== 患者入院相关接口 ====================
+
+/**
+ * 【患者入院】识别患者条形码
+ * @param {File} patientBarcodeImage - 患者条形码图片
+ * @returns {Promise<Object>} 识别结果 { success, patientId, patientName, message }
+ */
+export const recognizePatientBarcode = (patientBarcodeImage) => {
+  const formData = new FormData();
+  formData.append('patientBarcodeImage', patientBarcodeImage);
+  
+  return api.post('/Patient/barcode/recognize-patient', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  });
+};
+
+/**
+ * 【患者入院】获取待入院患者信息
+ * @param {string} patientId - 患者ID
+ * @returns {Promise<Object>} 待入院患者信息
+ */
+export const getPendingAdmissionPatient = (patientId) => {
+  return api.get(`/Patient/pending-admission/${patientId}`);
+};
+
+/**
+ * 【患者入院】获取可用床位列表
+ * @param {Object} params - 查询参数
+ * @param {string} params.wardId - 病区ID（可选）
+ * @param {string} params.departmentId - 科室ID（可选）
+ * @returns {Promise<Array>} 可用床位列表
+ */
+export const getAvailableBeds = (params = {}) => {
+  return api.get('/Patient/available-beds', { params });
+};
+
+/**
+ * 【患者入院】办理入院
+ * @param {Object} data - 入院数据
+ * @param {string} data.patientId - 患者ID（必填）
+ * @param {string} data.bedId - 床位ID（必填）
+ * @param {string} data.actualAdmissionTime - 实际入院时间（可选）
+ * @param {number} data.nursingGrade - 护理级别（可选）
+ * @param {string} data.outpatientDiagnosis - 门诊诊断（可选）
+ * @param {string} data.operatorId - 操作人ID（必填）
+ * @param {string} data.operatorType - 操作人类型：'Nurse' 或 'Doctor'（必填）
+ * @param {string} data.remarks - 备注（可选）
+ * @returns {Promise<Object>} 入院处理结果
+ */
+export const processPatientAdmission = (data) => {
+  return api.post('/Patient/admission', data);
+};
