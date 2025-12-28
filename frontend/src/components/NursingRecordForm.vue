@@ -28,8 +28,8 @@
         </el-col>
         <el-col :span="12">
           <el-form-item label="任务类型">
-            <el-tag :type="(recordData.category === 'Routine' || recordData.taskType === 'Routine') ? 'primary' : 'warning'">
-              {{ (recordData.category === 'Routine' || recordData.taskType === 'Routine') ? '常规测量' : '复测' }}
+            <el-tag :type="getTaskTypeTagType(recordData)">
+              {{ getTaskTypeDisplay(recordData) }}
             </el-tag>
           </el-form-item>
         </el-col>
@@ -233,8 +233,8 @@
           {{ formatDateTime(recordData.plannedStartTime || recordData.scheduledTime) }}
         </el-descriptions-item>
         <el-descriptions-item label="任务类型">
-          <el-tag :type="recordData.category === 'Routine' || recordData.taskType === 'Routine' ? 'primary' : 'warning'">
-            {{ (recordData.category === 'Routine' || recordData.taskType === 'Routine') ? '常规测量' : '复测' }}
+          <el-tag :type="getTaskTypeTagType(recordData)">
+            {{ getTaskTypeDisplay(recordData) }}
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="录入时间">
@@ -378,7 +378,7 @@
 import { ref, computed, watch, reactive } from 'vue';
 import { InfoFilled, Compass, EditPen } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
-import { addSupplement, getSupplements } from '@/api/nursing';
+import { addSupplement, getSupplements, submitVitalSigns, createSupplementNursingTask } from '@/api/nursing';
 
 const props = defineProps({
   modelValue: {
@@ -670,9 +670,36 @@ const handleSubmit = async () => {
     await formRef.value.validate();
     submitting.value = true;
     
+    // 检查是否是补充记录
+    const isSupplementRecord = props.recordData?.isSupplementRecord;
+    
+    // 如果是补充记录，先创建NursingTask
+    let taskId = formData.value.taskId;
+    if (isSupplementRecord && !taskId) {
+      try {
+        const supplementTaskData = {
+          patientId: props.recordData.patientId,
+          assignedNurseId: formData.value.currentNurseId,
+          description: '护士自行补充'
+        };
+        const response = await createSupplementNursingTask(supplementTaskData);
+        // API拦截器已返回response.data，所以直接从response中读取
+        taskId = response?.taskId || response?.id;
+        if (!taskId) {
+          throw new Error('创建补充护理任务失败：无法获取任务ID');
+        }
+        console.log('✅ 补充护理任务已创建，TaskId:', taskId);
+        ElMessage.success('补充护理任务已创建');
+      } catch (error) {
+        console.error('创建补充护理任务失败:', error);
+        ElMessage.error('创建补充任务失败: ' + (error.response?.data?.message || error.message));
+        throw error;
+      }
+    }
+    
     // 构造提交数据，确保字段名与后端DTO匹配
     const submitData = {
-      taskId: formData.value.taskId,
+      taskId: taskId,
       currentNurseId: formData.value.currentNurseId,
       executionTime: formData.value.executionTime,
       // 生命体征
@@ -738,6 +765,35 @@ const formatDateTime = (datetime) => {
   } catch {
     return datetime;
   }
+};
+
+// 获取任务类型显示文本
+const getTaskTypeDisplay = (record) => {
+  // 首先检查taskType（来自新的Supplement补充检测）
+  const taskType = record?.taskType;
+  if (taskType === 'Routine') return '常规测量';
+  if (taskType === 'Supplement') return '补充检测';
+  if (taskType === 'ReMeasure') return '复测';
+  
+  // 然后检查category字段（来自后端API返回的数据）
+  const category = record?.category;
+  if (category === 'Routine') return '常规测量';
+  if (category === 'Supplement') return '补充检测';
+  if (category === 'ReMeasure') return '复测';
+  
+  // 默认显示复测
+  return '复测';
+};
+
+// 获取任务类型标签类型
+const getTaskTypeTagType = (record) => {
+  const taskType = record?.taskType;
+  const category = record?.category;
+  const type = taskType || category;
+  
+  if (type === 'Routine') return 'primary'; // 蓝色
+  if (type === 'Supplement') return 'success'; // 绿色
+  return 'warning'; // 黄色（复测）
 };
 </script>
 

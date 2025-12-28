@@ -176,6 +176,57 @@ namespace CareFlow.WebApi.Controllers
         }
 
         /// <summary>
+        /// [护士端] 创建补充护理任务
+        /// </summary>
+        /// <param name="dto">创建补充任务的数据</param>
+        /// <returns></returns>
+        [HttpPost("tasks/create-supplement")]
+        public async Task<IActionResult> CreateSupplementNursingTask([FromBody] CreateSupplementNursingTaskDto dto)
+        {
+            try
+            {
+                if (dto == null)
+                {
+                    return BadRequest(new { message = "数据不能为空" });
+                }
+
+                if (string.IsNullOrEmpty(dto.PatientId) || string.IsNullOrEmpty(dto.AssignedNurseId))
+                {
+                    return BadRequest(new { message = "患者ID和护士ID不能为空" });
+                }
+
+                // 创建补充护理任务
+                var now = DateTime.UtcNow;
+                var task = new NursingTask
+                {
+                    PatientId = dto.PatientId,
+                    AssignedNurseId = dto.AssignedNurseId,
+                    ExecutorNurseId = dto.AssignedNurseId, // 补充记录中，预计执行护士和实际执行护士相同
+                    ScheduledTime = now,
+                    ExecuteTime = now,
+                    Status = ExecutionTaskStatus.Completed, // 补充记录直接标记为已完成
+                    TaskType = "Supplement", // 标记为补充
+                    Description = dto.Description
+                };
+
+                _context.NursingTasks.Add(task);
+                await _context.SaveChangesAsync();
+
+                return Ok(new 
+                { 
+                    message = "补充护理任务已创建",
+                    taskId = task.Id,
+                    id = task.Id
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"创建补充护理任务异常: {ex.Message}");
+                return StatusCode(500, new { message = "创建补充护理任务失败", error = ex.Message });
+            }
+        }
+
+        /// <summary>
         /// [护士端] 获取病区床位概览
         /// </summary>
         /// <param name="wardId">病区ID（可选）</param>
@@ -931,6 +982,90 @@ namespace CareFlow.WebApi.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "获取患者护理任务失败", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// [护士端] 获取患者体征历史记录
+        /// </summary>
+        /// <param name="patientId">患者ID</param>
+        /// <param name="startDate">开始日期 (格式: YYYY-MM-DD，可选)</param>
+        /// <param name="endDate">结束日期 (格式: YYYY-MM-DD，可选)</param>
+        /// <returns></returns>
+        [HttpGet("vitalsigns/history")]
+        public async Task<IActionResult> GetVitalSignsHistory(
+            [FromQuery] string patientId,
+            [FromQuery] string? startDate = null,
+            [FromQuery] string? endDate = null)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(patientId))
+                {
+                    return BadRequest(new { message = "患者ID不能为空" });
+                }
+
+                // 解析日期
+                DateTime queryStartDate = DateTime.MinValue;
+                DateTime queryEndDate = DateTime.MaxValue;
+
+                var chinaTimeZone = TimeZoneInfo.FindSystemTimeZoneById("China Standard Time");
+
+                if (!string.IsNullOrEmpty(startDate) && DateTime.TryParse(startDate, out var parsedStart))
+                {
+                    // 转换为UTC时间（中国时间的00:00:00）
+                    var chinaStart = new DateTime(parsedStart.Year, parsedStart.Month, parsedStart.Day, 0, 0, 0);
+                    queryStartDate = TimeZoneInfo.ConvertTimeToUtc(chinaStart, chinaTimeZone);
+                }
+
+                if (!string.IsNullOrEmpty(endDate) && DateTime.TryParse(endDate, out var parsedEnd))
+                {
+                    // 转换为UTC时间（中国时间的23:59:59）
+                    var chinaEnd = new DateTime(parsedEnd.Year, parsedEnd.Month, parsedEnd.Day, 23, 59, 59);
+                    queryEndDate = TimeZoneInfo.ConvertTimeToUtc(chinaEnd, chinaTimeZone);
+                }
+
+                // 查询体征记录，并包含护士信息
+                var vitalSignRecords = await _context.VitalSignsRecords
+                    .Include(vsr => vsr.RecorderNurse)
+                    .Where(vsr => vsr.PatientId == patientId &&
+                                  vsr.RecordTime >= queryStartDate &&
+                                  vsr.RecordTime <= queryEndDate)
+                    .OrderBy(vsr => vsr.RecordTime)  // 按时间从早到晚排序
+                    .ToListAsync();
+
+                if (vitalSignRecords.Count == 0)
+                {
+                    return Ok(new List<object>());
+                }
+
+                // 构建返回数据，包含护士名称
+                var result = vitalSignRecords.Select(vsr => new
+                {
+                    recordTime = vsr.RecordTime,
+                    temperature = vsr.Temperature,
+                    pulse = vsr.Pulse,
+                    respiration = vsr.Respiration,
+                    sysBp = vsr.SysBp,
+                    diaBp = vsr.DiaBp,
+                    spo2 = vsr.Spo2,
+                    nurseId = vsr.RecorderNurseId,
+                    nurseName = vsr.RecorderNurse?.Name ?? "未知",
+                    taskId = vsr.NursingTaskId
+                }).ToList();
+
+                Console.WriteLine($"[DEBUG] 获取了 {result.Count} 条体征记录，护士信息：");
+                foreach (var rec in result.Take(3))
+                {
+                    Console.WriteLine($"  - 护士ID: {rec.nurseId}, 护士名称: {rec.nurseName}");
+                }
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"获取体征历史失败: {ex.Message}");
+                return StatusCode(500, new { message = "获取体征历史失败", error = ex.Message });
             }
         }
 

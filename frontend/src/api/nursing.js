@@ -162,3 +162,10 @@ export const cancelExecutionTask = (taskId, nurseId, cancelReason) => {
     cancelReason 
   });
 };
+/**
+ * 创建补充护理任务
+ * @param {object} data - 补充任务数据 { patientId, assignedNurseId, description }
+ */
+export const createSupplementNursingTask = (data) => {
+  return api.post('/Nursing/tasks/create-supplement', data);
+};
