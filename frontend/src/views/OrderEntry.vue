@@ -3139,7 +3139,9 @@ const submitAll = async () => {
       }
       
       // 2. 提交出院医嘱前再次验证
-      const dischargeResult = await submitDischargeOrdersWithValidation(dischargeOrders);
+      // 如果购物车中只有出院医嘱，则跳过阻塞医嘱的警告弹窗
+      const skipBlockedWarning = otherOrders.length === 0;
+      const dischargeResult = await submitDischargeOrdersWithValidation(dischargeOrders, skipBlockedWarning);
       
       if (dischargeResult.success) {
         ElMessage.success(`✅ 所有医嘱提交成功`);
@@ -3548,7 +3550,7 @@ const submitNonDischargeOrders = async (medicationOrders, inspectionOrders, surg
 };
 
 // 🔧 辅助函数：验证并提交出院医嘱
-const submitDischargeOrdersWithValidation = async (dischargeOrders) => {
+const submitDischargeOrdersWithValidation = async (dischargeOrders, skipBlockedWarning = false) => {
   const loading = ElLoading.service({
     lock: true,
     text: '正在验证出院条件并提交...',
@@ -3614,7 +3616,8 @@ const submitDischargeOrdersWithValidation = async (dischargeOrders) => {
       }
       
       // 检查是否有阻塞医嘱（警告但允许继续）
-      if (validationResult.blockedOrders && validationResult.blockedOrders.length > 0) {
+      // 如果 skipBlockedWarning 为 true，则跳过警告直接提交
+      if (!skipBlockedWarning && validationResult.blockedOrders && validationResult.blockedOrders.length > 0) {
         loading.close();
         
         let warningHtml = '<div style="text-align: left;">';
