@@ -456,7 +456,7 @@ const getCategoryTagType = (category) => {
     'Duration': 'primary',
     'ResultPending': 'warning',
     'DataCollection': 'info',
-    'Verification': '',
+    'Verification': 'info',
     'Routine': 'info',
     'ReMeasure': 'warning',
     'ApplicationWithPrint': 'info',
@@ -466,11 +466,11 @@ const getCategoryTagType = (category) => {
     2: 'primary',
     3: 'warning',
     4: 'info',
-    5: '',
+    5: 'info',
     6: 'info',
     11: 'danger'
   };
-  return typeMap[category] || '';
+  return typeMap[category] || 'info';
 };
 
 // 格式化延迟分钟数 - 处理负数和无效值

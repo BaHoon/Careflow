@@ -1389,6 +1389,19 @@ namespace CareFlow.WebApi.Controllers
                     return NotFound(new { message = "任务不存在" });
                 }
 
+                // 检查任务计划时间是否为今天
+                // 允许的时间范围：当天 00:00:00 到 23:59:59（包括跨天任务）
+                var today = DateTime.Now.Date;
+                var tomorrow = today.AddDays(1);
+                var plannedDate = task.PlannedStartTime.Date;
+                
+                // 只限制明天或更晚的任务，同天和已过期的任务都允许执行
+                if (plannedDate > today)
+                {
+                    // 只允许执行当天及已过期的任务，不允许执行未来日期的任务
+                    return BadRequest(new { message = $"任务计划时间为 {task.PlannedStartTime:yyyy-MM-dd}，暂不可执行", success = false });
+                }
+
                 // 构建返回的任务信息
                 var taskInfo = new
                 {
