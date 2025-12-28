@@ -9,6 +9,7 @@ using CareFlow.Application.Services.MedicalOrder.OperationOrders;
 using CareFlow.Application.Services.MedicalOrder.SurgicalOrders;
 using CareFlow.Application.Services.OrderAcknowledgement;
 using CareFlow.Application.Services.OrderApplication;
+using CareFlow.Application.Services.Patient;
 using CareFlow.Application.Services.Report;
 using CareFlow.Core.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
@@ -60,6 +61,9 @@ public static class DependencyInjection
         
         // 注册医生端医嘱查询服务
         services.AddScoped<IMedicalOrderQueryService, MedicalOrderQueryService>();
+        
+        // 注册患者日志服务
+        services.AddScoped<IPatientLogService, PatientLogService>();
         
         // 注册管理员服务
         services.AddScoped<OrderStatusHistoryService>();

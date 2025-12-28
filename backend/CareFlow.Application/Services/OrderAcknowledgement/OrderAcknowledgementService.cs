@@ -11,6 +11,7 @@ using CareFlow.Core.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using MedicalOrderEntity = CareFlow.Core.Models.Medical.MedicalOrder;
+using PatientModel = CareFlow.Core.Models.Organization.Patient;
 
 namespace CareFlow.Application.Services.OrderAcknowledgement;
 
@@ -20,13 +21,14 @@ namespace CareFlow.Application.Services.OrderAcknowledgement;
 public class OrderAcknowledgementService : IOrderAcknowledgementService
 {
     private readonly IRepository<MedicalOrderEntity, long> _orderRepository;
-    private readonly IRepository<Patient, string> _patientRepository;
+    private readonly IRepository<PatientModel, string> _patientRepository;
     private readonly IRepository<ExecutionTask, long> _taskRepository;
     private readonly IRepository<Doctor, string> _doctorRepository;
     private readonly IRepository<Drug, string> _drugRepository;
     private readonly IRepository<MedicalOrderStatusHistory, long> _statusHistoryRepository;
     private readonly IRepository<BarcodeIndex, string> _barcodeRepository;
     private readonly IRepository<MedicationReturnRequest, long> _returnRequestRepository;
+    private readonly IRepository<NursingTask, long> _nursingTaskRepository;
     private readonly IMedicationOrderTaskService _medicationTaskService;
     private readonly IInspectionService _inspectionTaskService;
     private readonly ISurgicalOrderTaskService _surgicalTaskService;
@@ -39,13 +41,14 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
 
     public OrderAcknowledgementService(
         IRepository<MedicalOrderEntity, long> orderRepository,
-        IRepository<Patient, string> patientRepository,
+        IRepository<PatientModel, string> patientRepository,
         IRepository<ExecutionTask, long> taskRepository,
         IRepository<Doctor, string> doctorRepository,
         IRepository<Drug, string> drugRepository,
         IRepository<MedicalOrderStatusHistory, long> statusHistoryRepository,
         IRepository<BarcodeIndex, string> barcodeRepository,
         IRepository<MedicationReturnRequest, long> returnRequestRepository,
+        IRepository<NursingTask, long> nursingTaskRepository,
         IMedicationOrderTaskService medicationTaskService,
         IInspectionService inspectionTaskService,
         ISurgicalOrderTaskService surgicalTaskService,
@@ -64,6 +67,7 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
         _statusHistoryRepository = statusHistoryRepository;
         _barcodeRepository = barcodeRepository;
         _returnRequestRepository = returnRequestRepository;
+        _nursingTaskRepository = nursingTaskRepository;
         _medicationTaskService = medicationTaskService;
         _inspectionTaskService = inspectionTaskService;
         _surgicalTaskService = surgicalTaskService;
@@ -554,7 +558,7 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
         await _orderRepository.UpdateAsync(order);
         
         // 1.1 如果是出院医嘱，更新患者状态为待出院
-        if (order is DischargeOrder)
+        if (order is DischargeOrder dischargeOrder)
         {
             _logger.LogInformation("更新患者状态为待出院");
             var patient = await _patientRepository.GetByIdAsync(order.PatientId);
@@ -568,6 +572,9 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
             {
                 _logger.LogWarning("⚠️ 未找到患者 {PatientId}，无法更新状态", order.PatientId);
             }
+
+            // 1.2 停止该患者出院时间之后的待完成护理任务
+            await StopNursingTasksAfterDischargeAsync(order.PatientId, dischargeOrder.DischargeTime);
         }
         
         // 插入状态历史记录
@@ -1002,8 +1009,28 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
         // 停止医嘱特有字段（PendingStop表示待护士签收停止）
         if (order.Status == OrderStatus.PendingStop)
         {
-            dto.StopTime = order.EndTime;
+            // 优先使用停止节点任务的计划执行时间作为停止时间
+            if (order.StopAfterTaskId.HasValue)
+            {
+                var stopTask = await _taskRepository.GetByIdAsync(order.StopAfterTaskId.Value);
+                if (stopTask != null)
+                {
+                    dto.StopTime = stopTask.PlannedStartTime;
+                }
+                else
+                {
+                    // 如果任务不存在，回退到EndTime
+                    dto.StopTime = order.EndTime;
+                }
+            }
+            else
+            {
+                // 如果没有停止节点，使用EndTime
+                dto.StopTime = order.EndTime;
+            }
+            
             dto.StopReason = order.StopReason ?? "医生停止";
+            dto.StopUntilTaskId = order.StopAfterTaskId;
         }
 
         // 退回医嘱特有字段（Rejected表示护士已退回）
@@ -1095,6 +1122,58 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
         {
             _logger.LogError(ex, "为ExecutionTask {TaskId} 生成条形码时发生错误", task.Id);
             throw; // 重新抛出异常，让调用方处理
+        }
+    }
+
+    /// <summary>
+    /// 签收出院医嘱时，停止患者出院时间之后的待完成护理任务
+    /// </summary>
+    private async Task StopNursingTasksAfterDischargeAsync(string patientId, DateTime dischargeTime)
+    {
+        _logger.LogInformation("========== 检查并停止患者 {PatientId} 出院时间 {DischargeTime} 之后的护理任务 ==========", 
+            patientId, dischargeTime);
+
+        try
+        {
+            // 查询该患者出院时间之后的所有待完成护理任务
+            // 待完成状态包括：Pending (待执行), InProgress (执行中)
+            var tasksToStop = await _nursingTaskRepository.GetQueryable()
+                .Where(t => t.PatientId == patientId 
+                         && t.ScheduledTime > dischargeTime 
+                         && (t.Status == ExecutionTaskStatus.Pending || t.Status == ExecutionTaskStatus.InProgress))
+                .ToListAsync();
+
+            if (!tasksToStop.Any())
+            {
+                _logger.LogInformation("✅ 患者 {PatientId} 出院时间之后没有待完成的护理任务", patientId);
+                return;
+            }
+
+            _logger.LogInformation("找到 {Count} 个需要停止的护理任务", tasksToStop.Count);
+
+            // 更新任务状态为 Stopped
+            int stoppedCount = 0;
+            foreach (var task in tasksToStop)
+            {
+                var originalStatus = task.Status;
+                task.Status = ExecutionTaskStatus.Stopped;
+                // 可以选择记录取消原因
+                // task.CancelReason = $"患者出院（出院时间：{dischargeTime:yyyy-MM-dd HH:mm}）";
+                
+                await _nursingTaskRepository.UpdateAsync(task);
+                stoppedCount++;
+                
+                _logger.LogInformation("护理任务 {TaskId} 状态从 {OldStatus} 更新为 Stopped（计划时间：{ScheduledTime}）", 
+                    task.Id, originalStatus, task.ScheduledTime);
+            }
+
+            _logger.LogInformation("✅ 成功停止 {Count} 个护理任务", stoppedCount);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "停止护理任务时发生错误");
+            // 这里不抛出异常，避免影响出院医嘱签收流程
+            // 可以根据业务需求决定是否需要抛出
         }
     }
 }

@@ -73,12 +73,12 @@
         </router-link>
         
         <router-link 
-          to="/nurse/schedule" 
+          to="/nurse/patient-log" 
           class="nav-item"
           active-class="active"
         >
-          <el-icon><Calendar /></el-icon>
-          <span>排班查看</span>
+          <el-icon><Document /></el-icon>
+          <span>患者日志</span>
         </router-link>
       </nav>
       
@@ -97,7 +97,11 @@
               <el-dropdown-item disabled>
                 <span style="color: #909399;">{{ roleName }}</span>
               </el-dropdown-item>
-              <el-dropdown-item divided @click="handleLogout">
+              <el-dropdown-item divided @click="handleShowSchedule">
+                <el-icon><Calendar /></el-icon>
+                <span>查看排班表</span>
+              </el-dropdown-item>
+              <el-dropdown-item @click="handleLogout">
                 <el-icon><SwitchButton /></el-icon>
                 <span>退出登录</span>
               </el-dropdown-item>
@@ -111,6 +115,12 @@
     <main class="layout-content">
       <RouterView />
     </main>
+
+    <!-- 排班查看弹窗 -->
+    <NurseScheduleDialog 
+      v-model="showScheduleDialog"
+      :user-info="userInfo"
+    />
   </div>
 </template>
 
@@ -131,9 +141,11 @@ import {
   PriceTag,
   Calendar
 } from '@element-plus/icons-vue'
+import NurseScheduleDialog from '../components/NurseScheduleDialog.vue'
 
 const router = useRouter()
 const userInfo = ref(null)
+const showScheduleDialog = ref(false)
 
 const userName = computed(() => {
   if (!userInfo.value?.fullName) return 'N'
@@ -153,6 +165,10 @@ onMounted(() => {
     }
   }
 })
+
+const handleShowSchedule = () => {
+  showScheduleDialog.value = true
+}
 
 const handleLogout = async () => {
   try {

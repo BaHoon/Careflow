@@ -8,6 +8,7 @@ using CareFlow.Core.Enums;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using PatientModel = CareFlow.Core.Models.Organization.Patient;
 
 namespace CareFlow.Application.Services;
 
@@ -18,14 +19,14 @@ public class BarcodeMatchingService : IBarcodeMatchingService
 {
     private readonly IBarcodeService _barcodeService;
     private readonly IRepository<ExecutionTask, long> _executionTaskRepository;
-    private readonly IRepository<Patient, string> _patientRepository;
+    private readonly IRepository<PatientModel, string> _patientRepository;
     private readonly IRepository<MedicationOrder, long> _medicationOrderRepository;
     private readonly ILogger<BarcodeMatchingService> _logger;
 
     public BarcodeMatchingService(
         IBarcodeService barcodeService,
         IRepository<ExecutionTask, long> executionTaskRepository,
-        IRepository<Patient, string> patientRepository,
+        IRepository<PatientModel, string> patientRepository,
         IRepository<MedicationOrder, long> medicationOrderRepository,
         ILogger<BarcodeMatchingService> logger)
     {
@@ -312,7 +313,7 @@ public class BarcodeMatchingService : IBarcodeMatchingService
     /// </summary>
     private async Task PerformValidationAsync(
         ExecutionTask executionTask, 
-        Patient patient, 
+        PatientModel patient, 
         BarcodeMatchingResult result, 
         int toleranceMinutes,
         bool checkTime)
@@ -501,7 +502,7 @@ public class BarcodeMatchingService : IBarcodeMatchingService
     /// <summary>
     /// 获取患者详情
     /// </summary>
-    private async Task<Patient?> GetPatientAsync(string patientId, BarcodeMatchingResult result)
+    private async Task<PatientModel?> GetPatientAsync(string patientId, BarcodeMatchingResult result)
     {
         try
         {

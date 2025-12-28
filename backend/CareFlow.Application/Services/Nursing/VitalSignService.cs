@@ -129,6 +129,11 @@ namespace CareFlow.Application.Services.Nursing
             task.ExecuteTime = executionTimeUtc;  // 使用转换后的UTC时间
             task.ExecutorNurseId = input.CurrentNurseId; // 记录实际执行人（可能和分配的人不一样）
 
+            // ==================== 检查并更新医嘱状态 ====================
+            // 当任务完成时，如果是医嘱任务且医嘱状态是Accepted，则更新为InProgress
+            // 注意：护理任务通常没有MedicalOrderId，所以这里不会执行
+            // 但保留这个逻辑以防未来护理任务与医嘱关联
+
             // 5. 【核心逻辑】检查体征异常和手动异常标记，更新患者异常状态
             bool hasManualAnomaly = await UpdatePatientAnomalyStatusAsync(task.PatientId, vitalRecord, input);
 
@@ -149,7 +154,7 @@ namespace CareFlow.Application.Services.Nursing
         /// <returns>是否手动标记为异常</returns>
         private async Task<bool> UpdatePatientAnomalyStatusAsync(string patientId, VitalSignsRecord vital, NursingTaskSubmissionDto input)
         {
-            var patient = await _context.Set<Patient>().FindAsync(patientId);
+            var patient = await _context.Set<CareFlow.Core.Models.Organization.Patient>().FindAsync(patientId);
             if (patient == null)
                 throw new Exception($"未找到患者ID {patientId}");
 

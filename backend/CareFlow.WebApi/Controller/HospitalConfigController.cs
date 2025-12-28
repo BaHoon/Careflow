@@ -68,11 +68,12 @@ public class HospitalConfigController : ControllerBase
             var routes = new List<UsageRouteDto>
             {
                 new() { Id = 1, Code = "PO", Name = "口服", Description = "口服给药" },
-                new() { Id = 10, Code = "IM", Name = "肌肉注射", Description = "肌肉注射给药" },
+                new() { Id = 2, Code = "Topical", Name = "外用/涂抹", Description = "外用/涂抹给药" },
+                new() { Id = 10, Code = "IM", Name = "肌内注射", Description = "肌内注射给药" },
                 new() { Id = 11, Code = "SC", Name = "皮下注射", Description = "皮下注射给药" },
-                new() { Id = 12, Code = "ID", Name = "皮内注射", Description = "皮内注射给药" },
-                new() { Id = 20, Code = "IV_DRIP", Name = "静脉滴注", Description = "静脉滴注给药" },
-                new() { Id = 21, Code = "IV_PUSH", Name = "静脉推注", Description = "静脉推注给药" }
+                new() { Id = 12, Code = "IVP", Name = "静脉推注", Description = "静脉推注给药" },
+                new() { Id = 20, Code = "IVGTT", Name = "静脉滴注", Description = "静脉滴注给药" },
+                new() { Id = 30, Code = "ST", Name = "皮试", Description = "皮试" }
             };
 
             _logger.LogInformation("成功获取 {Count} 个给药途径", routes.Count);

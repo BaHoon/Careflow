@@ -8,6 +8,7 @@ using System.Text.Json;
 using CareFlow.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using CareFlow.Core.Models.Nursing;
+using CareFlow.Core.Models.Medical;
 using CareFlow.Core.Enums;
 using CareFlow.Core.Models.Medical;
 
@@ -24,6 +25,7 @@ namespace CareFlow.WebApi.Controllers
         private readonly TaskDelayCalculator _delayCalculator;
         private readonly IBarcodeMatchingService _barcodeMatchingService;
         private readonly IBarcodeService _barcodeService;
+        private readonly IRepository<MedicalOrderStatusHistory, long> _statusHistoryRepository;
 
         // 构造函数注入服务
         public NursingController(
@@ -32,7 +34,8 @@ namespace CareFlow.WebApi.Controllers
             ApplicationDbContext context,
             TaskDelayCalculator delayCalculator,
             IBarcodeMatchingService barcodeMatchingService,
-            IBarcodeService barcodeService)
+            IBarcodeService barcodeService,
+            IRepository<MedicalOrderStatusHistory, long> statusHistoryRepository)
         {
             _vitalSignService = vitalSignService;
             _taskGenerator = taskGenerator;
@@ -40,6 +43,7 @@ namespace CareFlow.WebApi.Controllers
             _delayCalculator = delayCalculator;
             _barcodeMatchingService = barcodeMatchingService;
             _barcodeService = barcodeService;
+            _statusHistoryRepository = statusHistoryRepository;
         }
 
         /// <summary>
@@ -713,15 +717,16 @@ namespace CareFlow.WebApi.Controllers
                 }
                 else
                 {
-                    // 默认显示：Applying(0)、Applied(1)、AppliedConfirmed(2)、Pending(3)、InProgress(4)、Completed(5)
-                    // 排除：OrderStopping(6)、Stopped(7)、Incomplete(8)、Cancelled(9)
+                    // 默认显示：Applying(0)、Applied(1)、AppliedConfirmed(2)、Pending(3)、InProgress(4)、Completed(5)、Incomplete(8)
+                    // 排除：OrderStopping(6)、Stopped(7)、PendingReturn(9)、PendingReturnCancelled(10)
                     executionTasksQuery = executionTasksQuery.Where(et => 
                         et.Status == ExecutionTaskStatus.Applying ||
                         et.Status == ExecutionTaskStatus.Applied ||
                         et.Status == ExecutionTaskStatus.AppliedConfirmed ||
                         et.Status == ExecutionTaskStatus.Pending ||
                         et.Status == ExecutionTaskStatus.InProgress ||
-                        et.Status == ExecutionTaskStatus.Completed
+                        et.Status == ExecutionTaskStatus.Completed ||
+                        et.Status == ExecutionTaskStatus.Incomplete
                     );
                 }
 
@@ -832,7 +837,7 @@ namespace CareFlow.WebApi.Controllers
                     overdueCount = sortedTasks.Count(t => t.IsOverdue),
                     dueSoonCount = sortedTasks.Count(t => t.IsDueSoon),
                     pendingCount = sortedTasks.Count(t => t.Status == ExecutionTaskStatus.Pending),
-                    completedCount = sortedTasks.Count(t => t.Status == ExecutionTaskStatus.Completed)
+                    completedCount = sortedTasks.Count(t => t.Status == ExecutionTaskStatus.Completed || t.Status == ExecutionTaskStatus.Incomplete)
                 });
             }
             catch (Exception ex)
@@ -987,7 +992,7 @@ namespace CareFlow.WebApi.Controllers
                     tasks = taskDtos,
                     totalCount = taskDtos.Count,
                     pendingCount = taskDtos.Count(t => t.Status == ExecutionTaskStatus.Pending),
-                    completedCount = taskDtos.Count(t => t.Status == ExecutionTaskStatus.Completed)
+                    completedCount = taskDtos.Count(t => t.Status == ExecutionTaskStatus.Completed || t.Status == ExecutionTaskStatus.Incomplete)
                 });
             }
             catch (Exception ex)
@@ -1126,6 +1131,35 @@ namespace CareFlow.WebApi.Controllers
                 task.ActualStartTime = DateTime.UtcNow;
                 task.Status = ExecutionTaskStatus.InProgress;
                 task.LastModifiedAt = DateTime.UtcNow;
+
+                // ==================== 检查并更新医嘱状态 ====================
+                // 当任务开始执行时，如果医嘱状态是Accepted，则更新为InProgress
+                if (task.MedicalOrderId > 0)
+                {
+                    var medicalOrder = await _context.Set<CareFlow.Core.Models.Medical.MedicalOrder>()
+                        .FirstOrDefaultAsync(o => o.Id == task.MedicalOrderId);
+                    
+                    if (medicalOrder != null && medicalOrder.Status == OrderStatus.Accepted)
+                    {
+                        var originalStatus = medicalOrder.Status;
+                        medicalOrder.Status = OrderStatus.InProgress;
+                        
+                        // 添加医嘱状态变更历史记录
+                        var history = new MedicalOrderStatusHistory
+                        {
+                            MedicalOrderId = medicalOrder.Id,
+                            FromStatus = originalStatus,
+                            ToStatus = OrderStatus.InProgress,
+                            ChangedAt = DateTime.UtcNow,
+                            ChangedById = nurseStaffId,
+                            ChangedByType = "Nurse",
+                            Reason = "护士开始执行任务，医嘱状态自动更新为执行中"
+                        };
+                        await _statusHistoryRepository.AddAsync(history);
+                        
+                        Console.WriteLine($"[StartExecutionTask] 医嘱 {task.MedicalOrderId} 状态从 Accepted 更新为 InProgress");
+                    }
+                }
 
                 await _context.SaveChangesAsync();
 
@@ -1299,6 +1333,35 @@ namespace CareFlow.WebApi.Controllers
                 {
                     task.ExecutorStaffId = nurseStaffId;
                     task.ActualStartTime = DateTime.UtcNow;
+                    
+                    // ==================== 检查并更新医嘱状态 ====================
+                    // 当任务首次开始执行（变为InProgress）时，如果医嘱状态是Accepted，则更新为InProgress
+                    if ((targetStatus == ExecutionTaskStatus.InProgress || targetStatus == ExecutionTaskStatus.Completed) && task.MedicalOrderId > 0)
+                    {
+                        var medicalOrder = await _context.Set<CareFlow.Core.Models.Medical.MedicalOrder>()
+                            .FirstOrDefaultAsync(o => o.Id == task.MedicalOrderId);
+                        
+                        if (medicalOrder != null && medicalOrder.Status == OrderStatus.Accepted)
+                        {
+                            var originalStatus = medicalOrder.Status;
+                            medicalOrder.Status = OrderStatus.InProgress;
+                            
+                            // 添加医嘱状态变更历史记录
+                            var history = new MedicalOrderStatusHistory
+                            {
+                                MedicalOrderId = medicalOrder.Id,
+                                FromStatus = originalStatus,
+                                ToStatus = OrderStatus.InProgress,
+                                ChangedAt = DateTime.UtcNow,
+                                ChangedById = nurseStaffId,
+                                ChangedByType = "Nurse",
+                                Reason = "护士开始执行任务，医嘱状态自动更新为执行中"
+                            };
+                            await _statusHistoryRepository.AddAsync(history);
+                            
+                            Console.WriteLine($"[CompleteExecutionTask] 医嘱 {task.MedicalOrderId} 状态从 Accepted 更新为 InProgress");
+                        }
+                    }
                 }
 
                 // 更新任务信息 - 处理备注
@@ -1434,9 +1497,25 @@ namespace CareFlow.WebApi.Controllers
                                         
                                         if (allBeforeStopCompleted)
                                         {
+                                            // 保存原状态用于历史记录
+                                            var originalStatus = medicalOrder.Status;
+                                            
                                             medicalOrder.Status = OrderStatus.Stopped;
                                             medicalOrder.CompletedAt = DateTime.UtcNow;
                                             await _context.SaveChangesAsync();
+                                            
+                                            // 添加医嘱状态变更历史记录
+                                            var history = new MedicalOrderStatusHistory
+                                            {
+                                                MedicalOrderId = medicalOrder.Id,
+                                                FromStatus = originalStatus,
+                                                ToStatus = OrderStatus.Stopped,
+                                                ChangedAt = DateTime.UtcNow,
+                                                ChangedById = nurseStaffId,
+                                                ChangedByType = "Nurse",
+                                                Reason = "停止节点前任务全部完成，系统自动停止医嘱"
+                                            };
+                                            await _statusHistoryRepository.AddAsync(history);
                                             
                                             Console.WriteLine($"[CompleteExecutionTask] 医嘱 {medicalOrderId} 停止节点之前的任务都已完成，状态更新为 Stopped");
                                         }
@@ -1448,9 +1527,25 @@ namespace CareFlow.WebApi.Controllers
                                      medicalOrder.Status != OrderStatus.Stopped && 
                                      medicalOrder.Status != OrderStatus.Cancelled)
                             {
+                                // 保存原状态用于历史记录
+                                var originalStatus = medicalOrder.Status;
+                                
                                 medicalOrder.Status = OrderStatus.Completed;
                                 medicalOrder.CompletedAt = DateTime.UtcNow;
                                 await _context.SaveChangesAsync();
+                                
+                                // 添加医嘱状态变更历史记录
+                                var history = new MedicalOrderStatusHistory
+                                {
+                                    MedicalOrderId = medicalOrder.Id,
+                                    FromStatus = originalStatus,
+                                    ToStatus = OrderStatus.Completed,
+                                    ChangedAt = DateTime.UtcNow,
+                                    ChangedById = nurseStaffId,
+                                    ChangedByType = "Nurse",
+                                    Reason = "医嘱下所有任务执行完成，系统自动完成医嘱"
+                                };
+                                await _statusHistoryRepository.AddAsync(history);
                                 
                                 Console.WriteLine($"[CompleteExecutionTask] 医嘱 {medicalOrderId} 下所有任务已完成，医嘱状态已更新为 Completed");
                             }
@@ -1497,14 +1592,24 @@ namespace CareFlow.WebApi.Controllers
         {
             try
             {
+                // 日志：接收到的请求参数
+                Console.WriteLine($"[CancelExecutionTask] 接收到取消任务请求:");
+                Console.WriteLine($"  - TaskId: {id}");
+                Console.WriteLine($"  - NurseId: {dto.NurseId}");
+                Console.WriteLine($"  - CancelReason: {dto.CancelReason}");
+                Console.WriteLine($"  - NeedReturn: {dto.NeedReturn}");
+                
                 // 获取护士信息
                 var nurse = await _context.Nurses
                     .FirstOrDefaultAsync(n => n.Id == dto.NurseId || n.EmployeeNumber == dto.NurseId);
                 
                 if (nurse == null)
                 {
+                    Console.WriteLine($"[CancelExecutionTask] 错误: 护士不存在 - NurseId: {dto.NurseId}");
                     return NotFound(new { message = "护士不存在" });
                 }
+                
+                Console.WriteLine($"[CancelExecutionTask] 找到护士: {nurse.Name} (ID: {nurse.Id})");
 
                 // 查询任务
                 var task = await _context.ExecutionTasks
@@ -1513,52 +1618,162 @@ namespace CareFlow.WebApi.Controllers
 
                 if (task == null)
                 {
+                    Console.WriteLine($"[CancelExecutionTask] 错误: 任务不存在 - TaskId: {id}");
                     return NotFound(new { message = "任务不存在" });
                 }
+                
+                Console.WriteLine($"[CancelExecutionTask] 找到任务: ID={task.Id}, 当前状态={task.Status}");
+
+                Console.WriteLine($"[CancelExecutionTask] 找到任务: ID={task.Id}, 当前状态={task.Status}");
 
                 // 状态校验：不能取消已完成或已停止的任务
                 if (task.Status == ExecutionTaskStatus.Completed || 
                     task.Status == ExecutionTaskStatus.Stopped)
                 {
+                    Console.WriteLine($"[CancelExecutionTask] 错误: 任务状态不允许取消 - 当前状态: {task.Status}");
                     return BadRequest(new { message = $"任务状态不允许取消，当前状态: {task.Status}" });
                 }
 
                 // 验证取消理由
                 if (string.IsNullOrWhiteSpace(dto.CancelReason))
                 {
+                    Console.WriteLine($"[CancelExecutionTask] 错误: 取消理由为空");
                     return BadRequest(new { message = "请填写取消理由" });
                 }
 
                 // 根据当前状态和是否需要退药决定目标状态
                 ExecutionTaskStatus targetStatus;
                 
-                if (task.Status == ExecutionTaskStatus.AppliedConfirmed || 
-                    task.Status == ExecutionTaskStatus.Pending)
+                Console.WriteLine($"[CancelExecutionTask] 开始判断目标状态...");
+                Console.WriteLine($"  - 当前状态: {task.Status} (数值: {(int)task.Status})");
+                Console.WriteLine($"  - NeedReturn: {dto.NeedReturn}");
+                
+                if (task.Status == ExecutionTaskStatus.AppliedConfirmed)
                 {
-                    // AppliedConfirmed或Pending状态取消时，根据needReturn参数决定
+                    Console.WriteLine($"[CancelExecutionTask] 进入 AppliedConfirmed 分支");
+                    // AppliedConfirmed状态取消时，根据needReturn参数决定
                     if (dto.NeedReturn)
                     {
                         // 勾选了需要直接退药，改为Incomplete
                         targetStatus = ExecutionTaskStatus.Incomplete;
+                        Console.WriteLine($"[CancelExecutionTask] NeedReturn=true, 目标状态: Incomplete(8)");
                     }
                     else
                     {
                         // 未勾选，改为PendingReturnCancelled（任务异常取消待退药）
                         targetStatus = ExecutionTaskStatus.PendingReturnCancelled;
+                        Console.WriteLine($"[CancelExecutionTask] NeedReturn=false, 目标状态: PendingReturnCancelled(10)");
                     }
                 }
                 else
                 {
-                    // 其他状态直接改为Stopped
-                    targetStatus = ExecutionTaskStatus.Stopped;
+                    Console.WriteLine($"[CancelExecutionTask] 进入其他状态分支");
+                    // Applying、Applied、Pending等状态取消，都改为Incomplete（异常取消）
+                    targetStatus = ExecutionTaskStatus.Incomplete;
+                    Console.WriteLine($"[CancelExecutionTask] 目标状态: Incomplete(8)");
                 }
+                
+                Console.WriteLine($"[CancelExecutionTask] 最终目标状态: {targetStatus} (数值: {(int)targetStatus})");
 
                 // 更新任务状态
                 task.Status = targetStatus;
                 task.ExceptionReason = dto.CancelReason;
                 task.LastModifiedAt = DateTime.UtcNow;
+                
+                Console.WriteLine($"[CancelExecutionTask] 准备保存到数据库...");
+
+                // ==================== 检查并更新医嘱状态 ====================
+                // 当任务变为Incomplete时，检查该医嘱下的所有任务状态，决定是否需要停止医嘱
+                if (targetStatus == ExecutionTaskStatus.Incomplete && task.MedicalOrderId > 0)
+                {
+                    Console.WriteLine($"[CancelExecutionTask] 检查医嘱 {task.MedicalOrderId} 的任务状态");
+                    
+                    var medicalOrder = await _context.Set<CareFlow.Core.Models.Medical.MedicalOrder>()
+                        .FirstOrDefaultAsync(o => o.Id == task.MedicalOrderId);
+                    
+                    if (medicalOrder != null && 
+                        medicalOrder.Status != OrderStatus.Stopped && 
+                        medicalOrder.Status != OrderStatus.Completed &&
+                        medicalOrder.Status != OrderStatus.Cancelled)
+                    {
+                        // 查询该医嘱下的所有任务（不包括NursingTask）
+                        var allTasks = await _context.ExecutionTasks
+                            .Where(t => t.MedicalOrderId == task.MedicalOrderId)
+                            .ToListAsync();
+                        
+                        // 检查是否所有任务都处于终止状态
+                        var allTasksTerminated = allTasks.All(t => 
+                            t.Status == ExecutionTaskStatus.Completed ||
+                            t.Status == ExecutionTaskStatus.Stopped ||
+                            t.Status == ExecutionTaskStatus.Incomplete ||
+                            t.Status == ExecutionTaskStatus.PendingReturn);
+                        
+                        if (allTasksTerminated)
+                        {
+                            var originalStatus = medicalOrder.Status;
+                            
+                            // 根据医嘱原状态决定更新目标
+                            OrderStatus medicalOrderTargetStatus;
+                            string updateReason;
+                            
+                            if (originalStatus == OrderStatus.StoppingInProgress)
+                            {
+                                // 停止中的医嘱 → Stopped
+                                medicalOrderTargetStatus = OrderStatus.Stopped;
+                                updateReason = "任务取消(Incomplete)，停止中医嘱的所有任务已终止，系统自动停止医嘱";
+                            }
+                            else if (originalStatus == OrderStatus.Accepted || originalStatus == OrderStatus.InProgress)
+                            {
+                                // Accepted/InProgress → Completed
+                                medicalOrderTargetStatus = OrderStatus.Completed;
+                                updateReason = "任务取消(Incomplete)，但所有任务已终止，医嘱标记为完成";
+                            }
+                            else
+                            {
+                                // 其他状态不处理
+                                Console.WriteLine($"[CancelExecutionTask] 医嘱 {task.MedicalOrderId} 当前状态为 {originalStatus}，不需要更新");
+                                await _context.SaveChangesAsync();
+                                return Ok(new
+                                {
+                                    message = "任务已取消",
+                                    taskId = task.Id,
+                                    status = task.Status.ToString(),
+                                    cancelReason = task.ExceptionReason
+                                });
+                            }
+                            
+                            medicalOrder.Status = medicalOrderTargetStatus;
+                            medicalOrder.CompletedAt = DateTime.UtcNow;
+                            
+                            // 添加医嘱状态变更历史记录
+                            var history = new MedicalOrderStatusHistory
+                            {
+                                MedicalOrderId = medicalOrder.Id,
+                                FromStatus = originalStatus,
+                                ToStatus = medicalOrderTargetStatus,
+                                ChangedAt = DateTime.UtcNow,
+                                ChangedById = nurse.Id.ToString(),
+                                ChangedByType = "Nurse",
+                                Reason = updateReason
+                            };
+                            await _statusHistoryRepository.AddAsync(history);
+                            
+                            Console.WriteLine($"[CancelExecutionTask] 医嘱 {task.MedicalOrderId} 所有任务已终止，状态从 {originalStatus} 更新为 {medicalOrderTargetStatus}");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[CancelExecutionTask] 医嘱 {task.MedicalOrderId} 还有未完成的任务，不更新医嘱状态");
+                        }
+                    }
+                }
 
                 await _context.SaveChangesAsync();
+                
+                Console.WriteLine($"[CancelExecutionTask] 保存成功!");
+                Console.WriteLine($"[CancelExecutionTask] 返回结果:");
+                Console.WriteLine($"  - TaskId: {task.Id}");
+                Console.WriteLine($"  - Status: {task.Status}");
+                Console.WriteLine($"  - CancelReason: {task.ExceptionReason}");
 
                 return Ok(new
                 {
@@ -1570,6 +1785,8 @@ namespace CareFlow.WebApi.Controllers
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"[CancelExecutionTask] 异常: {ex.Message}");
+                Console.WriteLine($"[CancelExecutionTask] 堆栈: {ex.StackTrace}");
                 return StatusCode(500, new { message = "取消任务失败", error = ex.Message });
             }
         }
@@ -2102,6 +2319,36 @@ namespace CareFlow.WebApi.Controllers
                 if (!string.IsNullOrEmpty(dto.ResultPayload))
                 {
                     task.ResultPayload = dto.ResultPayload;
+                }
+
+                // ==================== 检查并更新医嘱状态 ====================
+                // 当任务状态变为InProgress或Completed时，如果医嘱状态是Accepted，则更新为InProgress
+                if ((targetStatus == ExecutionTaskStatus.InProgress || targetStatus == ExecutionTaskStatus.Completed) 
+                    && task.MedicalOrderId > 0)
+                {
+                    var medicalOrder = await _context.Set<CareFlow.Core.Models.Medical.MedicalOrder>()
+                        .FirstOrDefaultAsync(o => o.Id == task.MedicalOrderId);
+                    
+                    if (medicalOrder != null && medicalOrder.Status == OrderStatus.Accepted)
+                    {
+                        var originalStatus = medicalOrder.Status;
+                        medicalOrder.Status = OrderStatus.InProgress;
+                        
+                        // 添加医嘱状态变更历史记录
+                        var history = new MedicalOrderStatusHistory
+                        {
+                            MedicalOrderId = medicalOrder.Id,
+                            FromStatus = originalStatus,
+                            ToStatus = OrderStatus.InProgress,
+                            ChangedAt = DateTime.UtcNow,
+                            ChangedById = nurse.Id,
+                            ChangedByType = "Nurse",
+                            Reason = "护士执行任务，医嘱状态自动更新为执行中"
+                        };
+                        await _statusHistoryRepository.AddAsync(history);
+                        
+                        Console.WriteLine($"[UpdateExecutionTaskStatus] 医嘱 {task.MedicalOrderId} 状态从 Accepted 更新为 InProgress");
+                    }
                 }
 
                 await _context.SaveChangesAsync();
