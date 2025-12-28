@@ -108,7 +108,7 @@
           
           <!-- 操作信息 -->
           <el-descriptions-item label="操作名称" :span="2">
-            {{ getDisplayTitle(currentTask) }}
+            {{ getOperationNameWithDetails(currentTask) }}
           </el-descriptions-item>
           <el-descriptions-item label="操作代码">
             {{ getOperationCode(currentTask) }}
@@ -382,32 +382,6 @@ const getOperationName = (task) => {
   return payload.OperationName || payload.Title || task.opId || '操作任务';
 };
 
-// 获取显示标题（与 TaskItem.vue 中的 displayTitle 逻辑保持一致）
-// 优先使用 DataPayload.Title，其次使用 taskTitle，最后使用操作名称
-const getDisplayTitle = (task) => {
-  if (!task) return '操作任务';
-  
-  // 首先尝试从 DataPayload 获取 Title
-  if (task.dataPayload) {
-    try {
-      const payload = safeParseJson(task.dataPayload);
-      if (payload && payload.Title) {
-        return payload.Title;
-      }
-    } catch (e) {
-      // ignore
-    }
-  }
-  
-  // 其次尝试使用 taskTitle
-  if (task.taskSource === 'ExecutionTask' && task.taskTitle) {
-    return task.taskTitle;
-  }
-  
-  // 最后使用操作名称
-  return getOperationName(task);
-};
-
 // 获取操作名称（带详细信息）- 优先显示详细的描述而不仅仅是操作代码
 const getOperationNameWithDetails = (task) => {
   if (!task || !task.dataPayload) return '操作任务';
@@ -479,7 +453,6 @@ const getCategoryText = (category) => {
     'Verification': '核对验证',
     'Routine': '常规护理',
     'ReMeasure': '复测任务',
-    'Supplement': '补充录入',
     'ApplicationWithPrint': '申请打印',
     'DischargeConfirmation': '出院确认',
     // 数字映射（如果后端返回数字枚举值）
@@ -506,7 +479,6 @@ const getCategoryTagType = (category) => {
     'Verification': 'info',
     'Routine': 'info',
     'ReMeasure': 'warning',
-    'Supplement': 'primary',
     'ApplicationWithPrint': 'info',
     'DischargeConfirmation': 'danger',
     // 数字映射
@@ -522,7 +494,7 @@ const getCategoryTagType = (category) => {
 };
 
 // 格式化延迟分钟数 - 处理负数和无效值
-const formatDelayMinutes = (delay) => {
+const formatDelayMinutes = (dela) => {
   // 检查是否为有效的数字
   if (delay === null || delay === undefined || isNaN(delay)) {
     return '-';

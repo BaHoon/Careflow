@@ -589,5 +589,16 @@ h4 {
 
 :deep(.el-table__body tr) {
   height: auto;
-}</style>
+}
+/* 异常值样式 */
+.abnormal-value {
+  background-color: #fef0f0;
+  color: #f56c6c;
+  font-weight: 600;
+  padding: 2px 4px;
+  border-radius: 2px;
+  border-left: 3px solid #f56c6c;
+  padding-left: 6px;
+}
+</style>
 
