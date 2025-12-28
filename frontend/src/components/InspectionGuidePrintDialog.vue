@@ -293,12 +293,31 @@ const handlePrint = async () => {
     return;
   }
 
-  if (!props.nurseId) {
-    ElMessage.error('未获取到护士ID');
-    return;
-  }
-
   try {
+    // 从localStorage获取当前登录用户信息
+    const userInfoStr = localStorage.getItem('userInfo');
+    let nurseId = null;
+    
+    if (userInfoStr) {
+      try {
+        const userInfo = JSON.parse(userInfoStr);
+        nurseId = userInfo.staffId; // 使用staffId字段
+      } catch (e) {
+        console.warn('解析用户信息失败:', e);
+      }
+    }
+    
+    // 如果没有获取到nurseId，尝试使用props中的nurseId
+    if (!nurseId && props.nurseId) {
+      nurseId = props.nurseId;
+    }
+    
+    // 如果还是没有nurseId，给出明确的错误提示
+    if (!nurseId) {
+      ElMessage.error('无法获取护士信息，请重新登录');
+      return;
+    }
+    
     // 调用API完成任务
     const response = await fetch(
       `http://localhost:5181/api/Nursing/execution-tasks/${props.taskId}/complete`,
@@ -308,7 +327,7 @@ const handlePrint = async () => {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          nurseId: props.nurseId
+          nurseId: nurseId
         })
       }
     );
