@@ -998,8 +998,28 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
         // 停止医嘱特有字段（PendingStop表示待护士签收停止）
         if (order.Status == OrderStatus.PendingStop)
         {
-            dto.StopTime = order.EndTime;
+            // 优先使用停止节点任务的计划执行时间作为停止时间
+            if (order.StopAfterTaskId.HasValue)
+            {
+                var stopTask = await _taskRepository.GetByIdAsync(order.StopAfterTaskId.Value);
+                if (stopTask != null)
+                {
+                    dto.StopTime = stopTask.PlannedStartTime;
+                }
+                else
+                {
+                    // 如果任务不存在，回退到EndTime
+                    dto.StopTime = order.EndTime;
+                }
+            }
+            else
+            {
+                // 如果没有停止节点，使用EndTime
+                dto.StopTime = order.EndTime;
+            }
+            
             dto.StopReason = order.StopReason ?? "医生停止";
+            dto.StopUntilTaskId = order.StopAfterTaskId;
         }
 
         // 退回医嘱特有字段（Rejected表示护士已退回）
