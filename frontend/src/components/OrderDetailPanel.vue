@@ -1200,12 +1200,12 @@ const getUsageRouteName = (route) => {
   
   const routeMap = {
     1: '口服 (PO)',
-    2: '外用/涂抹',
+    2: '外用/涂抹 (Topical)',
     10: '肌内注射 (IM)',
     11: '皮下注射 (SC)',
     12: '静脉推注 (IVP)',
     20: '静脉滴注 (IVGTT)',
-    21: '吸氧'
+    30: '皮试 (ST)'
   };
   return routeMap[route] || `未知途径(${route})`;
 };

@@ -908,7 +908,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
             UsageRoute.IM or UsageRoute.SC or UsageRoute.IVP => TaskCategory.Immediate,
             
             // 持续输注类 - 持续执行
-            UsageRoute.IVGTT or UsageRoute.Inhalation => TaskCategory.Duration,
+            UsageRoute.IVGTT => TaskCategory.Duration,
             
             // 皮试类 - 结果等待
             UsageRoute.ST => TaskCategory.ResultPending,

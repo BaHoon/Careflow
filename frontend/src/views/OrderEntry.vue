@@ -326,12 +326,13 @@
                   <div class="grid-item">
                     <label class="required">给药途径：</label>
                     <el-select v-model="currentOrder.usageRoute" placeholder="请选择" style="width: 100%">
-                      <el-option label="静脉滴注 (IV Drip)" :value="20" />
-                      <el-option label="静脉推注 (IV Push)" :value="21" />
                       <el-option label="口服 (PO)" :value="1" />
-                      <el-option label="肌肉注射 (IM)" :value="10" />
+                      <el-option label="外用/涂抹 (Topical)" :value="2" />
+                      <el-option label="肌内注射 (IM)" :value="10" />
                       <el-option label="皮下注射 (SC)" :value="11" />
-                      <el-option label="皮内注射 (ID)" :value="12" />
+                      <el-option label="静脉推注 (IV Push)" :value="12" />
+                      <el-option label="静脉滴注 (IV Drip)" :value="20" />
+                      <el-option label="皮试 (Skin Test)" :value="30" />
                     </el-select>
                   </div>
                 </div>
@@ -3958,8 +3959,13 @@ const getStrategyLabel = (strategy) => {
 
 const getRouteName = (routeId) => {
   const routes = {
-    1: '口服', 10: '肌肉注射', 11: '皮下注射', 12: '皮内注射',
-    20: '静脉滴注', 21: '静脉推注'
+    1: '口服',
+    2: '外用/涂抹',
+    10: '肌内注射',
+    11: '皮下注射',
+    12: '静脉推注',
+    20: '静脉滴注',
+    30: '皮试'
   };
   return routes[routeId] || routeId;
 };
