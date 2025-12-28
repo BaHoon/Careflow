@@ -31,6 +31,7 @@ public class OperationOrderTaskService : IOperationOrderTaskService
     private readonly IRepository<ExecutionTask, long> _taskRepository;
     private readonly IRepository<OperationOrder, long> _operationOrderRepository;
     private readonly IRepository<HospitalTimeSlot, int> _timeSlotRepository;
+    private readonly IRepository<MedicalOrderStatusHistory, long> _statusHistoryRepository;
     private readonly ILogger<OperationOrderTaskService> _logger;
 
     // 操作代码到操作名称的映射
@@ -72,11 +73,13 @@ public class OperationOrderTaskService : IOperationOrderTaskService
         IRepository<ExecutionTask, long> taskRepository,
         IRepository<OperationOrder, long> operationOrderRepository,
         IRepository<HospitalTimeSlot, int> timeSlotRepository,
+        IRepository<MedicalOrderStatusHistory, long> statusHistoryRepository,
         ILogger<OperationOrderTaskService> logger)
     {
         _taskRepository = taskRepository;
         _operationOrderRepository = operationOrderRepository;
         _timeSlotRepository = timeSlotRepository;
+        _statusHistoryRepository = statusHistoryRepository;
         _logger = logger;
     }
 
@@ -252,10 +255,28 @@ public class OperationOrderTaskService : IOperationOrderTaskService
             if (existingOrder.Status != OrderStatus.Stopped && 
                 existingOrder.Status != OrderStatus.StoppingInProgress)
             {
+                // 保存原状态用于历史记录
+                var originalStatus = existingOrder.Status;
+                
                 existingOrder.Status = OrderStatus.Stopped;
                 existingOrder.StopReason = reason;
                 existingOrder.StopOrderTime = DateTime.UtcNow;
                 await _operationOrderRepository.UpdateAsync(existingOrder);
+                
+                // 添加医嘱状态变更历史记录
+                var history = new MedicalOrderStatusHistory
+                {
+                    MedicalOrderId = existingOrder.Id,
+                    FromStatus = originalStatus,
+                    ToStatus = OrderStatus.Stopped,
+                    ChangedAt = DateTime.UtcNow,
+                    ChangedById = "System",
+                    ChangedByType = "System",
+                    Reason = $"回滚未执行任务并停止医嘱: {reason}"
+                };
+                await _statusHistoryRepository.AddAsync(history);
+                
+                _logger.LogInformation("医嘱 {OrderId} 状态已更新为 Stopped，并添加历史记录", orderId);
             }
         }
         catch (Exception ex)
@@ -842,11 +863,28 @@ public class OperationOrderTaskService : IOperationOrderTaskService
 
             if (!incompleteTasks.Any() && !order.EndTime.HasValue)
             {
+                // 保存原状态用于历史记录
+                var originalStatus = order.Status;
+                
                 // 所有任务都已完成，更新EndTime
                 order.EndTime = DateTime.UtcNow;
                 order.Status = OrderStatus.Completed;
                 await _operationOrderRepository.UpdateAsync(order);
-                _logger.LogInformation("医嘱 {OrderId} 的所有任务已完成，已更新EndTime", orderId);
+                
+                // 添加医嘱状态变更历史记录
+                var history = new MedicalOrderStatusHistory
+                {
+                    MedicalOrderId = order.Id,
+                    FromStatus = originalStatus,
+                    ToStatus = OrderStatus.Completed,
+                    ChangedAt = DateTime.UtcNow,
+                    ChangedById = "System",
+                    ChangedByType = "System",
+                    Reason = "操作医嘱下所有任务已完成，系统自动完成医嘱"
+                };
+                await _statusHistoryRepository.AddAsync(history);
+                
+                _logger.LogInformation("医嘱 {OrderId} 的所有任务已完成，已更新EndTime并添加历史记录", orderId);
             }
         }
         catch (Exception ex)

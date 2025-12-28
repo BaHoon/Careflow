@@ -8,6 +8,7 @@ using System.Text.Json;
 using CareFlow.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using CareFlow.Core.Models.Nursing;
+using CareFlow.Core.Models.Medical;
 using CareFlow.Core.Enums;
 
 
@@ -23,6 +24,7 @@ namespace CareFlow.WebApi.Controllers
         private readonly TaskDelayCalculator _delayCalculator;
         private readonly IBarcodeMatchingService _barcodeMatchingService;
         private readonly IBarcodeService _barcodeService;
+        private readonly IRepository<MedicalOrderStatusHistory, long> _statusHistoryRepository;
 
         // 构造函数注入服务
         public NursingController(
@@ -31,7 +33,8 @@ namespace CareFlow.WebApi.Controllers
             ApplicationDbContext context,
             TaskDelayCalculator delayCalculator,
             IBarcodeMatchingService barcodeMatchingService,
-            IBarcodeService barcodeService)
+            IBarcodeService barcodeService,
+            IRepository<MedicalOrderStatusHistory, long> statusHistoryRepository)
         {
             _vitalSignService = vitalSignService;
             _taskGenerator = taskGenerator;
@@ -39,6 +42,7 @@ namespace CareFlow.WebApi.Controllers
             _delayCalculator = delayCalculator;
             _barcodeMatchingService = barcodeMatchingService;
             _barcodeService = barcodeService;
+            _statusHistoryRepository = statusHistoryRepository;
         }
 
         /// <summary>
@@ -1231,9 +1235,25 @@ namespace CareFlow.WebApi.Controllers
                                         
                                         if (allBeforeStopCompleted)
                                         {
+                                            // 保存原状态用于历史记录
+                                            var originalStatus = medicalOrder.Status;
+                                            
                                             medicalOrder.Status = OrderStatus.Stopped;
                                             medicalOrder.CompletedAt = DateTime.UtcNow;
                                             await _context.SaveChangesAsync();
+                                            
+                                            // 添加医嘱状态变更历史记录
+                                            var history = new MedicalOrderStatusHistory
+                                            {
+                                                MedicalOrderId = medicalOrder.Id,
+                                                FromStatus = originalStatus,
+                                                ToStatus = OrderStatus.Stopped,
+                                                ChangedAt = DateTime.UtcNow,
+                                                ChangedById = nurseStaffId,
+                                                ChangedByType = "Nurse",
+                                                Reason = "停止节点前任务全部完成，系统自动停止医嘱"
+                                            };
+                                            await _statusHistoryRepository.AddAsync(history);
                                             
                                             Console.WriteLine($"[CompleteExecutionTask] 医嘱 {medicalOrderId} 停止节点之前的任务都已完成，状态更新为 Stopped");
                                         }
@@ -1245,9 +1265,25 @@ namespace CareFlow.WebApi.Controllers
                                      medicalOrder.Status != OrderStatus.Stopped && 
                                      medicalOrder.Status != OrderStatus.Cancelled)
                             {
+                                // 保存原状态用于历史记录
+                                var originalStatus = medicalOrder.Status;
+                                
                                 medicalOrder.Status = OrderStatus.Completed;
                                 medicalOrder.CompletedAt = DateTime.UtcNow;
                                 await _context.SaveChangesAsync();
+                                
+                                // 添加医嘱状态变更历史记录
+                                var history = new MedicalOrderStatusHistory
+                                {
+                                    MedicalOrderId = medicalOrder.Id,
+                                    FromStatus = originalStatus,
+                                    ToStatus = OrderStatus.Completed,
+                                    ChangedAt = DateTime.UtcNow,
+                                    ChangedById = nurseStaffId,
+                                    ChangedByType = "Nurse",
+                                    Reason = "医嘱下所有任务执行完成，系统自动完成医嘱"
+                                };
+                                await _statusHistoryRepository.AddAsync(history);
                                 
                                 Console.WriteLine($"[CompleteExecutionTask] 医嘱 {medicalOrderId} 下所有任务已完成，医嘱状态已更新为 Completed");
                             }
