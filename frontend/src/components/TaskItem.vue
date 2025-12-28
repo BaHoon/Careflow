@@ -63,6 +63,7 @@
         <span>完成时间：{{ formatTime(task.actualEndTime) }}</span>
       </div>
     </div>
+    </div>
 
     <div class="task-actions">
       <!-- ExecutionTask 的按钮逻辑 -->
@@ -190,17 +191,8 @@
         >
           取消任务
         </el-button>
-        <!-- 所有状态都显示打印执行单按钮 -->
-        <el-button 
-          type="primary"
-          size="small"
-          :icon="Printer"
-          @click.stop="handlePrintBarcode"
-        >
-          打印执行单
-        </el-button>
+        <!-- 护理任务不显示打印执行单按钮 -->
       </template>
-    </div>
     </div>
   </div>
 </template>
@@ -291,7 +283,8 @@ const categoryIcon = computed(() => {
     'ApplicationWithPrint': Document,
     // NursingTask 类别
     'Routine': Bell,
-    'ReMeasure': VideoCamera
+    'ReMeasure': VideoCamera,
+    'Supplement': Document
   };
   return iconMap[props.task.category] || Document;
 });
@@ -308,7 +301,8 @@ const categoryText = computed(() => {
     'ApplicationWithPrint': '申请打印',
     // NursingTask 类别
     'Routine': '常规护理',
-    'ReMeasure': '复测任务'
+    'ReMeasure': '复测任务',
+    'Supplement': '补充检测'
   };
   return textMap[props.task.category] || props.task.category;
 });
@@ -759,17 +753,46 @@ const handleStartCompletion = async () => {
         ▶ 任务开始执行，稍后需要完成或上传结果
       </div></div>`;
       
-      await ElMessageBox.confirm(
+      // 询问是否需要输入备注（第一阶段）
+      const { value: remarkValue } = await ElMessageBox.prompt(
         message,
         '确认开始执行',
         {
           confirmButtonText: '确认开始',
           cancelButtonText: '取消',
           type: 'info',
+          inputType: 'textarea',
+          inputPlaceholder: '请输入开始备注（可选）...',
           dangerouslyUseHTMLString: true,
           customClass: 'task-completion-dialog'
         }
       );
+      
+      const nurseId = getCurrentNurseId();
+      if (!nurseId) {
+        ElMessage.error('未找到护士信息');
+        return;
+      }
+
+      const taskId = props.task.id;
+      if (!taskId) {
+        ElMessage.error('任务ID无效');
+        return;
+      }
+
+      // 第一阶段备注格式：开始备注：内容.
+      let resultPayload = null;
+      if (remarkValue && remarkValue.trim()) {
+        resultPayload = `开始备注：${remarkValue}.`;
+      }
+
+      // 调用API完成第一阶段（Duration/ResultPending到InProgress）
+      const response = await completeExecutionTask(taskId, nurseId, resultPayload);
+      ElMessage.success(response.message || '任务已开始执行，请继续完成第二阶段');
+      
+      // 通知父组件刷新数据
+      emit('task-cancelled', taskId);
+      return;
     } else {
       // TODO: 其他类别的处理
       ElMessage.warning(`任务类别 ${category} 的流程暂未实现`);
@@ -788,7 +811,7 @@ const handleStartCompletion = async () => {
       return;
     }
 
-    // 调用API完成第一阶段（Immediate直接到Completed，Duration/ResultPending到InProgress）
+    // 调用API完成第一阶段（Immediate直接到Completed）
     const response = await completeExecutionTask(taskId, nurseId, null);
     ElMessage.success(response.message || '任务已更新');
     
@@ -859,49 +882,93 @@ const handleFinishTask = async () => {
       </div>`;
     }
 
-    // ResultPending 类别：需要录入结果
+    // ResultPending 类别：需要录入结果和备注
     if (category === 'ResultPending') {
       message += `<div style="margin-top: 12px; padding: 8px 12px; background: #fdf6ec; border-radius: 4px; color: #e6a23c; font-size: 12px;">
-        📥 请在下方输入执行结果
+        📥 请在下方分别输入执行结果和结束备注
+      </div></div>`;
+      
+      // 第一步：获取执行结果（必填）
+      let resultValue = '';
+      try {
+        const resultPrompt = message + `<div style="margin-top: 16px; padding: 8px 12px; background: #f0f9ff; border-radius: 4px; color: #409eff; font-size: 12px;">
+          ➡️ 第1步：请先输入执行结果
+        </div>`;
+        
+        const { value } = await ElMessageBox.prompt(
+          resultPrompt,
+          '结束任务 - 录入结果',
+          {
+            confirmButtonText: '下一步',
+            cancelButtonText: '取消',
+            inputType: 'textarea',
+            inputPlaceholder: '请输入执行结果（必填）...',
+            inputValidator: (value) => {
+              if (!value || value.trim().length === 0) {
+                return '执行结果不能为空';
+              }
+              return true;
+            },
+            dangerouslyUseHTMLString: true,
+            customClass: 'task-completion-dialog'
+          }
+        );
+        resultValue = value;
+      } catch (error) {
+        if (error !== 'cancel') {
+          throw error;
+        }
+        return;
+      }
+      
+      // 第二步：获取结束备注（可选）
+      let remarkValue = '';
+      try {
+        const remarkPrompt = message + `<div style="margin-top: 16px; padding: 8px 12px; background: #f0f9ff; border-radius: 4px; color: #409eff; font-size: 12px;">
+          ➡️ 第2步：请输入结束备注（可选）
+        </div>`;
+        
+        const { value } = await ElMessageBox.prompt(
+          remarkPrompt,
+          '结束任务 - 录入备注',
+          {
+            confirmButtonText: '确认完成',
+            cancelButtonText: '取消',
+            inputType: 'textarea',
+            inputPlaceholder: '请输入结束备注信息（可选）...',
+            dangerouslyUseHTMLString: true,
+            customClass: 'task-completion-dialog'
+          }
+        );
+        remarkValue = value || '';
+      } catch (error) {
+        if (error !== 'cancel') {
+          throw error;
+        }
+        return;
+      }
+      
+      resultPayload = resultValue + (remarkValue ? `\n${remarkValue}` : '');
+    } 
+    // Duration 类别：需要录入备注
+    else if (category === 'Duration') {
+      message += `<div style="margin-top: 12px; padding: 8px 12px; background: #f0f9ff; border-radius: 4px; color: #409eff; font-size: 12px;">
+        📝 请在下方输入结束备注信息
       </div></div>`;
       
       const { value } = await ElMessageBox.prompt(
-        message,
-        '结束任务并录入结果',
-        {
-          confirmButtonText: '确认完成',
-          cancelButtonText: '取消',
-          inputType: 'textarea',
-          inputPlaceholder: '请输入执行结果（必填）...',
-          inputValidator: (value) => {
-            if (!value || value.trim().length === 0) {
-              return '执行结果不能为空';
-            }
-            return true;
-          },
-          dangerouslyUseHTMLString: true,
-          customClass: 'task-completion-dialog'
-        }
-      );
-      resultPayload = value;
-    } 
-    // Duration 类别：直接结束
-    else if (category === 'Duration') {
-      message += `<div style="margin-top: 12px; padding: 8px 12px; background: #f0f9ff; border-radius: 4px; color: #409eff; font-size: 12px;">
-        ✓ 任务完成后将更新为已完成状态
-      </div></div>`;
-      
-      await ElMessageBox.confirm(
         message,
         '结束任务',
         {
           confirmButtonText: '确认完成',
           cancelButtonText: '取消',
-          type: 'success',
+          inputType: 'textarea',
+          inputPlaceholder: '请输入结束备注信息（可选）...',
           dangerouslyUseHTMLString: true,
           customClass: 'task-completion-dialog'
         }
       );
+      resultPayload = value || '';
     } else {
       // TODO: 其他类别的处理
       ElMessage.warning(`任务类别 ${category} 的流程暂未实现`);

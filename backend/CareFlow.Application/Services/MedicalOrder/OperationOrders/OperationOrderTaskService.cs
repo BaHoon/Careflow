@@ -639,7 +639,11 @@ public class OperationOrderTaskService : IOperationOrderTaskService
         }
 
         // 构建完整的DataPayload
-        var operationName = order.OperationName ?? GetOperationName(order.OpId);
+        // 注意：使用 string.IsNullOrWhiteSpace 而不是 ?? 运算符
+        // 因为 OperationName 可能被初始化为空字符串，而不是 null
+        var operationName = string.IsNullOrWhiteSpace(order.OperationName)
+            ? GetOperationName(order.OpId)
+            : order.OperationName;
         var dataPayload = new
         {
             TaskType = taskType,

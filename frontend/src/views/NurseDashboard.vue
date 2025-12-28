@@ -1003,8 +1003,11 @@ const handleSavePatientDetail = async () => {
  * 办理入院
  */
 const handlePatientAdmission = async (patient) => {
-  // TODO: 实现入院办理功能
-  ElMessage.info(`入院办理功能将在后续版本实现（患者: ${patient.name}）`);
+  // 跳转到入院页面，传递患者ID
+  router.push({
+    path: '/nurse/patient-admission',
+    query: { patientId: patient.id }
+  });
 };
 
 /**
@@ -1157,7 +1160,8 @@ const handlePatientDischarge = async (patient) => {
  * 新增患者
  */
 const handleAddPatient = () => {
-  ElMessage.info('新增患者功能将在后续版本实现');
+  // 跳转到入院页面（不传递patientId，需要上传条形码）
+  router.push('/nurse/patient-admission');
 };
 
 /**

@@ -1,5 +1,22 @@
 <template>
   <div class="nursing-record-list">
+    <!-- 添加护理记录按钮（在Tab上方） -->
+    <div class="add-record-bar">
+      <el-button 
+        type="default" 
+        @click="handleViewRecentStats"
+      >
+        📊 查看近期情况
+      </el-button>
+      <el-button 
+        type="primary" 
+        @click="handleAddSupplementRecord"
+        :icon="Plus"
+      >
+        添加护理记录
+      </el-button>
+    </div>
+
     <!-- Tab切换 -->
     <el-tabs v-model="activeTab" class="record-tabs">
       <!-- 待录入Tab -->
@@ -39,7 +56,7 @@
             
             <div class="record-body">
               <div class="record-info">
-                <span class="record-type">{{ (record.category || record.taskType) === 'Routine' ? '常规测量' : '复测' }}</span>
+                <span class="record-type">{{ getRecordTypeDisplay(record) }}</span>
                 <span v-if="record.description" class="record-desc">{{ record.description }}</span>
               </div>
               
@@ -131,7 +148,7 @@
             
             <div class="record-body">
               <div class="record-info">
-                <span class="record-type">{{ (record.category || record.taskType) === 'Routine' ? '常规测量' : '复测' }}</span>
+                <span class="record-type">{{ getRecordTypeDisplay(record) }}</span>
                 <span v-if="record.description" class="record-desc">{{ record.description }}</span>
               </div>
               
@@ -201,7 +218,7 @@
             
             <div class="record-body">
               <div class="record-info">
-                <span class="record-type">{{ (record.category || record.taskType) === 'Routine' ? '常规测量' : '复测' }}</span>
+                <span class="record-type">{{ getRecordTypeDisplay(record) }}</span>
                 <span v-if="record.description" class="record-desc">{{ record.description }}</span>
               </div>
               
@@ -236,7 +253,7 @@
 
 <script setup>
 import { ref, computed } from 'vue';
-import { Clock, Check, Edit, View, Close } from '@element-plus/icons-vue';
+import { Clock, Check, Edit, View, Close, Plus } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { cancelNursingTask } from '@/api/nursing';
 const props = defineProps({
@@ -250,7 +267,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['start-input', 'view-detail', 'date-change', 'task-cancelled']);
+const emit = defineEmits(['start-input', 'view-detail', 'date-change', 'task-cancelled', 'add-supplement-record', 'view-recent-stats']);
 
 // 获取当前登录护士ID
 const getCurrentNurseId = () => {
@@ -314,7 +331,7 @@ const cancelledRecords = computed(() => {
   );
   
   return uniqueRecords
-    .filter(r => r.status === 9 || r.status === 'Cancelled') // Cancelled
+    .filter(r => r.status === 8 || r.status === 9 || r.status === 'Cancelled') // Incomplete(8) 或 PendingReturn(9) 或 Cancelled
     .sort((a, b) => {
       const timeA = new Date(b.executeTime || b.plannedStartTime || b.scheduledTime);
       const timeB = new Date(a.executeTime || a.plannedStartTime || a.scheduledTime);
@@ -333,6 +350,14 @@ const handleStartInput = (record) => {
 
 const handleViewDetail = (record) => {
   emit('view-detail', record);
+};
+
+const handleAddSupplementRecord = () => {
+  emit('add-supplement-record');
+};
+
+const handleViewRecentStats = () => {
+  emit('view-recent-stats');
 };
 
 // 取消任务
@@ -435,6 +460,24 @@ const getRecordStatusText = (record) => {
   if (record.delayMinutes > -60 && record.delayMinutes < 0) return '临期';
   return '待录入';
 };
+
+// 获取任务类型显示文本
+const getRecordTypeDisplay = (record) => {
+  // 首先检查taskType（来自新的Supplement补充检测）
+  const taskType = record?.taskType;
+  if (taskType === 'Routine') return '常规测量';
+  if (taskType === 'Supplement') return '补充检测';
+  if (taskType === 'ReMeasure') return '复测';
+  
+  // 然后检查category字段（来自后端API返回的数据）
+  const category = record?.category;
+  if (category === 'Routine') return '常规测量';
+  if (category === 'Supplement') return '补充检测';
+  if (category === 'ReMeasure') return '复测';
+  
+  // 默认显示复测
+  return '复测';
+};
 </script>
 
 <style scoped>
@@ -443,6 +486,16 @@ const getRecordStatusText = (record) => {
   display: flex;
   flex-direction: column;
   background: white;
+}
+
+/* 添加护理记录按钮栏 */
+.add-record-bar {
+  padding: 12px 20px;
+  border-bottom: 1px solid #e4e7ed;
+  background: #fafafa;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
 }
 
 /* Tab容器 */

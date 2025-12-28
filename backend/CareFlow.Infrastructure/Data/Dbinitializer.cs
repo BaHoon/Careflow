@@ -655,6 +655,37 @@ namespace CareFlow.Infrastructure.Data
                     OutpatientDiagnosis = "慢性阻塞性肺病",
                     ScheduledAdmissionTime = UtcDate(2024, 12, 18, 8, 30),
                     ActualAdmissionTime = UtcDate(2024, 12, 18, 9, 0)
+                },
+                // ==================== 待入院患者（用于测试入院功能） ====================
+                new Patient
+                {
+                    Id = "P007", Name = "周九", Gender = "男", IdCard = "110100199203150007",
+                    DateOfBirth = new DateTime(1992, 3, 15, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 32, Height = 178.0f, Weight = 75.0f, Status = PatientStatus.PendingAdmission, PhoneNumber = "13800138007",
+                    NursingGrade = NursingGrade.Grade2, BedId = null, AttendingDoctorId = "D001",  // BedId 改为 null
+                    OutpatientDiagnosis = "慢性胃炎，胃溃疡",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 20, 9, 0),
+                    ActualAdmissionTime = null
+                },
+                new Patient
+                {
+                    Id = "P008", Name = "吴十", Gender = "女", IdCard = "110100198811200008",
+                    DateOfBirth = new DateTime(1988, 11, 20, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 36, Height = 165.0f, Weight = 60.0f, Status = PatientStatus.PendingAdmission, PhoneNumber = "13800138008",
+                    NursingGrade = NursingGrade.Grade1, BedId = null, AttendingDoctorId = "D001",  // BedId 改为 null
+                    OutpatientDiagnosis = "心律失常，房颤",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 21, 10, 0),
+                    ActualAdmissionTime = null
+                },
+                new Patient
+                {
+                    Id = "P009", Name = "郑十一", Gender = "男", IdCard = "110100197504250009",
+                    DateOfBirth = new DateTime(1975, 4, 25, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 49, Height = 170.0f, Weight = 68.5f, Status = PatientStatus.PendingAdmission, PhoneNumber = "13800138009",
+                    NursingGrade = NursingGrade.Grade2, BedId = null, AttendingDoctorId = "D002",  // BedId 改为 null
+                    OutpatientDiagnosis = "腰椎间盘突出症",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 22, 14, 0),
+                    ActualAdmissionTime = null
                 }
             };
             context.Patients.AddRange(patients);

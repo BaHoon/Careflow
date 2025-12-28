@@ -7,6 +7,7 @@ using CareFlow.Core.Models.Space;
 using CareFlow.Core.Models.Medical;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using CareFlow.Core.Models;
 
 namespace CareFlow.WebApi.Controllers;
 
@@ -22,6 +23,7 @@ public class PatientController : ControllerBase
     private readonly IRepository<Nurse, string> _nurseRepository;
     private readonly ILogger<PatientController> _logger;
     private readonly ICareFlowDbContext _dbContext;
+    private readonly IBarcodeService _barcodeService;
 
     public PatientController(
         IRepository<Patient, string> patientRepository,
@@ -31,7 +33,8 @@ public class PatientController : ControllerBase
         INurseAssignmentService nurseAssignmentService,
         IRepository<Nurse, string> nurseRepository,
         ILogger<PatientController> logger,
-        ICareFlowDbContext dbContext)
+        ICareFlowDbContext dbContext,
+        IBarcodeService barcodeService)
     {
         _patientRepository = patientRepository;
         _bedRepository = bedRepository;
@@ -41,6 +44,7 @@ public class PatientController : ControllerBase
         _nurseRepository = nurseRepository;
         _logger = logger;
         _dbContext = dbContext;
+        _barcodeService = barcodeService;
     }
 
     /// <summary>
@@ -785,6 +789,341 @@ public class PatientController : ControllerBase
         }
 
         return 0;
+    }
+
+    // ==================== 患者入院相关接口 ====================
+
+    /// <summary>
+    /// 【患者入院】识别患者条形码
+    /// </summary>
+    /// <param name="patientBarcodeImage">患者条形码图片</param>
+    [HttpPost("barcode/recognize-patient")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> RecognizePatientBarcode(IFormFile patientBarcodeImage)
+    {
+        try
+        {
+            if (patientBarcodeImage == null || patientBarcodeImage.Length == 0)
+            {
+                return BadRequest(new { message = "请上传条形码图片", success = false });
+            }
+
+            using (var stream = patientBarcodeImage.OpenReadStream())
+            {
+                // 调用IBarcodeService识别条形码
+                var recognitionResult = _barcodeService.RecognizeBarcode(stream);
+                
+                if (recognitionResult == null)
+                {
+                    return BadRequest(new 
+                    { 
+                        message = "条形码识别失败，无法解析条形码内容",
+                        success = false,
+                        patientId = string.Empty
+                    });
+                }
+
+                // 验证条形码是否为患者条形码
+                if (recognitionResult.TableName != "Patients")
+                {
+                    return BadRequest(new 
+                    { 
+                        message = $"条形码识别成功，但不是患者条形码。识别到的类型: {recognitionResult.TableName}",
+                        success = false,
+                        patientId = string.Empty,
+                        decodedValue = recognitionResult.RecordId
+                    });
+                }
+
+                var patientId = recognitionResult.RecordId;
+
+                // 验证患者是否存在且状态为待入院
+                var patient = await _patientRepository.GetQueryable()
+                    .Include(p => p.Bed)
+                    .ThenInclude(b => b.Ward)
+                    .ThenInclude(w => w.Department)
+                    .FirstOrDefaultAsync(p => p.Id == patientId);
+
+                if (patient == null)
+                {
+                    return NotFound(new 
+                    { 
+                        message = $"患者ID {patientId} 不存在",
+                        success = false,
+                        patientId = string.Empty
+                    });
+                }
+
+                if (patient.Status != PatientStatus.PendingAdmission)
+                {
+                    return BadRequest(new 
+                    { 
+                        message = $"患者当前状态为 {GetStatusDisplayName(patient.Status)}，只有待入院患者才能办理入院",
+                        success = false,
+                        patientId = patientId,
+                        currentStatus = patient.Status
+                    });
+                }
+
+                return Ok(new 
+                { 
+                    message = "条形码识别成功",
+                    success = true,
+                    patientId = patientId,
+                    patientName = patient.Name
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "识别患者条形码失败");
+            return StatusCode(500, new 
+            { 
+                message = $"条形码识别异常: {ex.Message}",
+                success = false,
+                patientId = string.Empty
+            });
+        }
+    }
+
+    /// <summary>
+    /// 【患者入院】获取待入院患者信息
+    /// </summary>
+    /// <param name="patientId">患者ID</param>
+    [HttpGet("pending-admission/{patientId}")]
+    public async Task<ActionResult<PatientAdmissionDto>> GetPendingAdmissionPatient(string patientId)
+    {
+        try
+        {
+            _logger.LogInformation("获取待入院患者信息，ID: {PatientId}", patientId);
+
+            var patient = await _patientRepository.GetQueryable()
+                .Include(p => p.AttendingDoctor)
+                .FirstOrDefaultAsync(p => p.Id == patientId);
+
+            if (patient == null)
+            {
+                return NotFound(new { message = $"未找到ID为 {patientId} 的患者" });
+            }
+
+            if (patient.Status != PatientStatus.PendingAdmission)
+            {
+                return BadRequest(new 
+                { 
+                    message = $"患者当前状态为 {GetStatusDisplayName(patient.Status)}，只有待入院患者才能办理入院" 
+                });
+            }
+
+            var result = new PatientAdmissionDto
+            {
+                PatientId = patient.Id,
+                Name = patient.Name,
+                Gender = patient.Gender,
+                IdCard = patient.IdCard,
+                DateOfBirth = patient.DateOfBirth,
+                Age = patient.Age,
+                Height = patient.Height,
+                Weight = patient.Weight,
+                PhoneNumber = patient.PhoneNumber,
+                OutpatientDiagnosis = patient.OutpatientDiagnosis,
+                ScheduledAdmissionTime = patient.ScheduledAdmissionTime,
+                NursingGrade = patient.NursingGrade,
+                AttendingDoctorId = patient.AttendingDoctorId,
+                AttendingDoctorName = patient.AttendingDoctor?.Name ?? string.Empty
+            };
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "获取待入院患者信息失败，ID: {PatientId}", patientId);
+            return StatusCode(500, new { message = "获取待入院患者信息失败: " + ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// 【患者入院】获取可用床位列表
+    /// </summary>
+    /// <param name="wardId">病区ID（可选）</param>
+    /// <param name="departmentId">科室ID（可选）</param>
+    [HttpGet("available-beds")]
+    public async Task<ActionResult<List<AvailableBedDto>>> GetAvailableBeds(
+        [FromQuery] string? wardId = null,
+        [FromQuery] string? departmentId = null)
+    {
+        try
+        {
+            _logger.LogInformation("获取可用床位列表，病区: {WardId}, 科室: {DepartmentId}", wardId, departmentId);
+
+            var query = _bedRepository.GetQueryable()
+                .Include(b => b.Ward)
+                .ThenInclude(w => w.Department)
+                .Where(b => b.Status == "空闲");
+
+            if (!string.IsNullOrEmpty(wardId))
+            {
+                query = query.Where(b => b.WardId == wardId);
+            }
+
+            if (!string.IsNullOrEmpty(departmentId))
+            {
+                query = query.Where(b => b.Ward.DepartmentId == departmentId);
+            }
+
+            var beds = await query
+                .OrderBy(b => b.WardId)
+                .ThenBy(b => b.Id)
+                .ToListAsync();
+
+            var result = beds.Select(b => new AvailableBedDto
+            {
+                BedId = b.Id,
+                WardId = b.WardId,
+                WardName = b.Ward?.Id ?? string.Empty,
+                DepartmentId = b.Ward?.Department?.Id ?? string.Empty,
+                DepartmentName = b.Ward?.Department?.DeptName ?? string.Empty
+            }).ToList();
+
+            _logger.LogInformation("成功获取 {Count} 个可用床位", result.Count);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "获取可用床位列表失败");
+            return StatusCode(500, new { message = "获取可用床位列表失败: " + ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// 【患者入院】办理入院
+    /// </summary>
+    /// <param name="request">入院请求</param>
+    [HttpPost("admission")]
+    public async Task<IActionResult> ProcessPatientAdmission([FromBody] ProcessAdmissionRequest request)
+    {
+        try
+        {
+            _logger.LogInformation("办理患者入院，患者ID: {PatientId}, 操作人: {OperatorId}", 
+                request.PatientId, request.OperatorId);
+
+            // 验证患者是否存在
+            var patient = await _patientRepository.GetQueryable()
+                .Include(p => p.Bed)
+                .FirstOrDefaultAsync(p => p.Id == request.PatientId);
+
+            if (patient == null)
+            {
+                _logger.LogWarning("未找到患者，ID: {PatientId}", request.PatientId);
+                return NotFound(new { message = $"未找到ID为 {request.PatientId} 的患者" });
+            }
+
+            // 验证患者状态
+            if (patient.Status != PatientStatus.PendingAdmission)
+            {
+                _logger.LogWarning("患者状态不符合入院条件，患者ID: {PatientId}, 当前状态: {Status}", 
+                    request.PatientId, patient.Status);
+                return BadRequest(new 
+                { 
+                    message = $"患者当前状态为 {GetStatusDisplayName(patient.Status)}，无法办理入院" 
+                });
+            }
+
+            // 验证床位是否存在且为空闲
+            if (string.IsNullOrEmpty(request.BedId))
+            {
+                return BadRequest(new { message = "请选择床位" });
+            }
+
+            var bed = await _bedRepository.GetByIdAsync(request.BedId);
+            if (bed == null)
+            {
+                return NotFound(new { message = $"未找到ID为 {request.BedId} 的床位" });
+            }
+
+            if (bed.Status != "空闲")
+            {
+                return BadRequest(new { message = $"床位 {request.BedId} 当前状态为 {bed.Status}，无法分配" });
+            }
+
+            // 使用数据库事务确保数据一致性
+            using var transaction = await _dbContext.BeginTransactionAsync();
+            
+            try
+            {
+                _logger.LogInformation("开始办理患者入院事务，患者ID: {PatientId}", request.PatientId);
+                
+                // 1. 更新患者信息
+                patient.BedId = request.BedId;
+                patient.Status = PatientStatus.Hospitalized;
+                patient.ActualAdmissionTime = request.ActualAdmissionTime ?? DateTime.UtcNow;
+                
+                if (request.NursingGrade.HasValue)
+                {
+                    patient.NursingGrade = request.NursingGrade.Value;
+                }
+                
+                if (!string.IsNullOrWhiteSpace(request.OutpatientDiagnosis))
+                {
+                    patient.OutpatientDiagnosis = request.OutpatientDiagnosis;
+                }
+                
+                _logger.LogInformation("更新患者信息，患者ID: {PatientId}, 床位: {BedId}", 
+                    request.PatientId, request.BedId);
+                await _patientRepository.UpdateAsync(patient);
+                
+                // 2. 更新床位状态为占用
+                bed.Status = "占用";
+                
+                _logger.LogInformation("更新床位状态为占用，床位ID: {BedId}", request.BedId);
+                await _bedRepository.UpdateAsync(bed);
+                
+                // 3. 提交事务
+                await transaction.CommitAsync();
+                
+                // 4. 记录操作日志（事务成功后）
+                _logger.LogInformation(
+                    "患者入院办理成功 - 患者ID: {PatientId}, 患者姓名: {PatientName}, " +
+                    "床位ID: {BedId}, 操作人ID: {OperatorId}, 入院时间: {AdmissionTime}",
+                    patient.Id,
+                    patient.Name,
+                    request.BedId,
+                    request.OperatorId,
+                    patient.ActualAdmissionTime);
+                
+                // 5. 返回成功响应
+                return Ok(new 
+                { 
+                    message = "入院办理成功",
+                    data = new
+                    {
+                        patientId = patient.Id,
+                        patientName = patient.Name,
+                        bedId = request.BedId,
+                        admissionTime = patient.ActualAdmissionTime,
+                        operatorId = request.OperatorId
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                // 回滚事务
+                await transaction.RollbackAsync();
+                
+                _logger.LogError(ex, 
+                    "入院办理事务失败，已回滚 - 患者ID: {PatientId}, 操作人: {OperatorId}", 
+                    request.PatientId, request.OperatorId);
+                
+                return StatusCode(500, new 
+                { 
+                    message = "入院办理失败，事务已回滚: " + ex.Message 
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "办理入院失败，患者ID: {PatientId}", request.PatientId);
+            return StatusCode(500, new { message = "办理入院失败: " + ex.Message });
+        }
     }
 }
 
