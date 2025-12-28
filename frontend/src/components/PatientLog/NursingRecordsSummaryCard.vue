@@ -13,7 +13,6 @@
             effect="dark"
             class="abnormal-tag"
           >
-            <el-icon><Warning /></el-icon>
             异常
           </el-tag>
         </div>

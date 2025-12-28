@@ -143,7 +143,8 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
                 DoctorName = order.Doctor?.Name ?? "未知医生",
                 // 任务总数和已完成数统计时排除 Stopped 状态的任务
                 TaskCount = tasks.Count(t => t.Status != ExecutionTaskStatus.Stopped),
-                CompletedTaskCount = tasks.Count(t => t.Status == ExecutionTaskStatus.Completed),
+                // 完成数包含 Completed 和 Incomplete（异常完成）状态
+                CompletedTaskCount = tasks.Count(t => t.Status == ExecutionTaskStatus.Completed || t.Status == ExecutionTaskStatus.Incomplete),
                 StopOrderTime = order.StopOrderTime,
                 StopReason = order.StopReason,
                 Summary = await GenerateOrderSummaryAsync(order)

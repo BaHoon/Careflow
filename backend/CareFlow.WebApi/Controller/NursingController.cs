@@ -837,7 +837,7 @@ namespace CareFlow.WebApi.Controllers
                     overdueCount = sortedTasks.Count(t => t.IsOverdue),
                     dueSoonCount = sortedTasks.Count(t => t.IsDueSoon),
                     pendingCount = sortedTasks.Count(t => t.Status == ExecutionTaskStatus.Pending),
-                    completedCount = sortedTasks.Count(t => t.Status == ExecutionTaskStatus.Completed)
+                    completedCount = sortedTasks.Count(t => t.Status == ExecutionTaskStatus.Completed || t.Status == ExecutionTaskStatus.Incomplete)
                 });
             }
             catch (Exception ex)
@@ -992,7 +992,7 @@ namespace CareFlow.WebApi.Controllers
                     tasks = taskDtos,
                     totalCount = taskDtos.Count,
                     pendingCount = taskDtos.Count(t => t.Status == ExecutionTaskStatus.Pending),
-                    completedCount = taskDtos.Count(t => t.Status == ExecutionTaskStatus.Completed)
+                    completedCount = taskDtos.Count(t => t.Status == ExecutionTaskStatus.Completed || t.Status == ExecutionTaskStatus.Incomplete)
                 });
             }
             catch (Exception ex)

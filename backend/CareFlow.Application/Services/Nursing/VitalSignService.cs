@@ -154,7 +154,7 @@ namespace CareFlow.Application.Services.Nursing
         /// <returns>是否手动标记为异常</returns>
         private async Task<bool> UpdatePatientAnomalyStatusAsync(string patientId, VitalSignsRecord vital, NursingTaskSubmissionDto input)
         {
-            var patient = await _context.Set<Patient>().FindAsync(patientId);
+            var patient = await _context.Set<CareFlow.Core.Models.Organization.Patient>().FindAsync(patientId);
             if (patient == null)
                 throw new Exception($"未找到患者ID {patientId}");
 

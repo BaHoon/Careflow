@@ -289,9 +289,10 @@ const props = defineProps({
 
 const emit = defineEmits(['click', 'start-input', 'view-detail', 'task-cancelled', 'print-inspection-guide']);
 
-// 已完成任务判断
+// 已完成任务判断（包括Completed和Incomplete状态）
 const isCompleted = computed(() => {
-  return props.task.status === 'Completed' || props.task.status === 5;
+  return props.task.status === 'Completed' || props.task.status === 5 ||
+         props.task.status === 'Incomplete' || props.task.status === 8;
 });
 
 // 显示标题（优先使用 DataPayload.Title，其次 taskTitle，最后使用类别文本）
@@ -1220,79 +1221,52 @@ const handleCancelWithReturn = async () => {
   });
   
   try {
-    // 自定义弹窗内容（带退药选项）
-    const { value: formData } = await ElMessageBox({
-      title: '确认取消任务',
-      message: `
-        <div style="font-size: 14px;">
-          <div style="margin-bottom: 12px; padding: 16px; background: #fef0f0; border-radius: 8px; box-shadow: 0 2px 8px rgba(245, 108, 108, 0.1);">
-            <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; align-items: center;">
-              <span style="color: #909399;">👤 患者：</span>
-              <span style="color: #303133; font-weight: 600;">${props.task.patientName} <span style="color: #909399; font-weight: 400;">(🛏️ ${props.task.bedId})</span></span>
-              
-              <span style="color: #909399;">📋 类型：</span>
-              <span style="color: #303133; font-weight: 600;">${props.task.orderTypeName || '执行任务'}</span>
-              
-              <span style="color: #909399;">📝 任务：</span>
-              <span style="color: #303133; font-weight: 600;">${props.task.taskTitle || categoryText.value}</span>
-              
-              <span style="color: #909399;">🕑 计划时间：</span>
-              <span style="color: #606266;">${formatTime(props.task.plannedStartTime)}</span>
-              
-              <span style="color: #909399;">📊 当前状态：</span>
-              <span style="color: #f56c6c; font-weight: 600;">${statusText.value}</span>
-            </div>
-          </div>
-          <div style="padding: 12px; background: #fdf6ec; border-radius: 8px; color: #e6a23c; font-size: 12px; box-shadow: 0 2px 8px rgba(230, 162, 60, 0.1); margin-bottom: 12px;">
-            ⚠️ 请说明取消此任务的原因，该操作将被记录
-          </div>
-          <p style="margin-bottom: 12px; color: #606266;">请填写取消任务的理由：</p>
-          <textarea 
-            id="cancel-reason-input" 
-            placeholder="请输入取消理由..." 
-            style="width: 100%; height: 80px; padding: 8px; border: 1px solid #dcdfe6; border-radius: 4px; resize: vertical; font-family: inherit;"
-          ></textarea>
-          <div style="margin-top: 12px;">
-            <label style="display: flex; align-items: center; cursor: pointer;">
-              <input type="checkbox" id="need-return-checkbox" style="margin-right: 8px; cursor: pointer;" />
-              <span>需要直接退药</span>
-            </label>
-            <p style="margin: 8px 0 0 24px; font-size: 12px; color: #909399;">
-              勾选后将直接标记为异常状态，不勾选则进入待退药状态
-            </p>
-          </div>
-        </div>
-      `,
-      dangerouslyUseHTMLString: true,
-      confirmButtonText: '确认取消',
-      cancelButtonText: '不取消',
-      customClass: 'task-completion-dialog',
-      beforeClose: (action, instance, done) => {
-        if (action === 'confirm') {
-          const reasonInput = document.getElementById('cancel-reason-input');
-          const needReturnCheckbox = document.getElementById('need-return-checkbox');
-          const reason = reasonInput?.value?.trim();
-          
-          if (!reason) {
-            ElMessage.error('取消理由不能为空');
-            return;
+    console.log('📝 准备显示取消任务弹窗（带退药选项）...');
+    
+    // 第一步：使用 prompt 获取取消理由
+    const { value: cancelReason } = await ElMessageBox.prompt(
+      '请填写取消任务的理由（该操作将被记录）',
+      '确认取消任务',
+      {
+        confirmButtonText: '下一步',
+        cancelButtonText: '取消',
+        inputPlaceholder: '请输入取消理由...',
+        inputType: 'textarea',
+        inputValidator: (value) => {
+          if (!value || !value.trim()) {
+            return '取消理由不能为空';
           }
-          
-          instance.confirmButtonLoading = true;
-          instance.confirmButtonText = '处理中...';
-          
-          // 返回表单数据
-          done({
-            reason: reason,
-            needReturn: needReturnCheckbox?.checked || false
-          });
-        } else {
-          done();
+          return true;
         }
       }
-    });
+    );
 
-    if (!formData) return;
+    console.log('✅ 用户输入取消理由:', cancelReason);
+
+    // 第二步：询问是否需要退药
+    let needReturn = false;
+    try {
+      await ElMessageBox.confirm(
+        '该任务已确认药品，是否需要立即退药？',
+        '退药确认',
+        {
+          confirmButtonText: '需要退药',
+          cancelButtonText: '暂不退药',
+          type: 'warning',
+          distinguishCancelAndClose: true
+        }
+      );
+      needReturn = true; // 用户点击"需要退药"
+    } catch (action) {
+      if (action === 'cancel') {
+        needReturn = false; // 用户点击"暂不退药"
+      } else {
+        // 用户点击关闭按钮或按 ESC，视为取消整个操作
+        throw action;
+      }
+    }
+
+    console.log('✅ 用户选择是否退药:', needReturn);
 
     const nurseId = getCurrentNurseId();
     console.log('获取护士ID:', nurseId);
@@ -1313,14 +1287,14 @@ const handleCancelWithReturn = async () => {
     console.log('参数:', { 
       taskId, 
       nurseId, 
-      cancelReason: formData.reason, 
-      needReturn: formData.needReturn 
+      cancelReason: cancelReason, 
+      needReturn: needReturn 
     });
     const response = await cancelExecutionTask(
       taskId, 
       nurseId, 
-      formData.reason, 
-      formData.needReturn
+      cancelReason, 
+      needReturn
     );
     console.log('=== API 响应 ===', response);
     ElMessage.success(response?.message || '任务已取消');
@@ -1331,7 +1305,7 @@ const handleCancelWithReturn = async () => {
     console.error('❌ handleCancelWithReturn 捕获错误:', error);
     
     // ElMessageBox 取消操作会抛出 'cancel' 字符串或包含 action: 'cancel' 的对象
-    if (error === 'cancel' || error?.action === 'cancel') {
+    if (error === 'cancel' || error?.action === 'cancel' || error === 'close') {
       console.log('✋ 用户取消了操作');
       return;
     }
