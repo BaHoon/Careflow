@@ -34,7 +34,11 @@
         <el-descriptions-item label="责任护士">
           {{ task.assignedNurseName || '-' }}
         </el-descriptions-item>
-        <el-descriptions-item label="计划开始时间" :span="2">
+        <el-descriptions-item 
+          v-if="task.category !== 'ApplicationWithPrint'"
+          label="计划开始时间" 
+          :span="2"
+        >
           {{ formatDateTime(task.plannedStartTime) }}
         </el-descriptions-item>
         <el-descriptions-item

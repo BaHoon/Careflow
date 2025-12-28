@@ -64,6 +64,10 @@ namespace CareFlow.Infrastructure
         public DbSet<BarcodeIndex> BarcodeIndexes { get; set; }         // 条形码索引表
         #endregion
 
+        #region 6. SystemLog (系统日志)
+        public DbSet<SystemLog> SystemLogs { get; set; }                 // 系统操作日志
+        #endregion
+
         // 实现 ICareFlowDbContext 的 BeginTransactionAsync 方法
         public Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
         {

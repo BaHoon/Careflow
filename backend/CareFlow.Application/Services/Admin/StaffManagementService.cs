@@ -1,4 +1,5 @@
 using CareFlow.Application.DTOs.Admin;
+using CareFlow.Application.Interfaces;
 using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models.Organization;
 using Microsoft.EntityFrameworkCore;
@@ -17,6 +18,7 @@ public class StaffManagementService
     private readonly IRepository<Doctor, string> _doctorRepository;
     private readonly IRepository<Nurse, string> _nurseRepository;
     private readonly IRepository<Department, string> _departmentRepository;
+    private readonly ISystemLogService _systemLogService;
     private readonly ILogger<StaffManagementService> _logger;
 
     public StaffManagementService(
@@ -24,12 +26,14 @@ public class StaffManagementService
         IRepository<Doctor, string> doctorRepository,
         IRepository<Nurse, string> nurseRepository,
         IRepository<Department, string> departmentRepository,
+        ISystemLogService systemLogService,
         ILogger<StaffManagementService> logger)
     {
         _staffRepository = staffRepository;
         _doctorRepository = doctorRepository;
         _nurseRepository = nurseRepository;
         _departmentRepository = departmentRepository;
+        _systemLogService = systemLogService;
         _logger = logger;
     }
 
@@ -101,7 +105,7 @@ public class StaffManagementService
     /// <summary>
     /// 创建新人员
     /// </summary>
-    public async Task<StaffDto> CreateStaffAsync(CreateStaffRequestDto request)
+    public async Task<StaffDto> CreateStaffAsync(CreateStaffRequestDto request, string? operatorId = null, string? operatorName = null, string? ipAddress = null)
     {
         // 检查员工ID是否已存在
         var existingStaff = await _staffRepository.GetByIdAsync(request.StaffId);
@@ -228,6 +232,16 @@ public class StaffManagementService
 
         _logger.LogInformation("成功创建人员: {StaffId}, 角色: {Role}", request.StaffId, request.Role);
 
+        // 记录系统日志
+        await _systemLogService.LogAccountOperationAsync(
+            operationType: "AccountCreated",
+            operatorId: null,
+            operatorName: operatorName,
+            targetAccountId: 0,
+            details: $"创建人员: {request.FullName} ({request.StaffId}), 角色: {request.Role}, 科室: {request.DeptCode}",
+            ipAddress: ipAddress
+        );
+
         // 返回创建的人员信息
         return new StaffDto
         {
@@ -245,7 +259,7 @@ public class StaffManagementService
     /// <summary>
     /// 重置人员密码
     /// </summary>
-    public async Task ResetPasswordAsync(ResetPasswordRequestDto request)
+    public async Task ResetPasswordAsync(ResetPasswordRequestDto request, string? operatorId = null, string? operatorName = null, string? ipAddress = null)
     {
         // 查找人员
         var staff = await _staffRepository.GetByIdAsync(request.StaffId);
@@ -262,12 +276,22 @@ public class StaffManagementService
         await _staffRepository.UpdateAsync(staff);
         
         _logger.LogInformation("成功重置人员密码: {StaffId}", request.StaffId);
+
+        // 记录系统日志
+        await _systemLogService.LogAccountOperationAsync(
+            operationType: "PasswordChanged",
+            operatorId: null,
+            operatorName: operatorName,
+            targetAccountId: 0,
+            details: $"重置密码: {staff.Name} ({request.StaffId})",
+            ipAddress: ipAddress
+        );
     }
 
     /// <summary>
     /// 更新员工信息
     /// </summary>
-    public async Task<StaffDto> UpdateStaffAsync(UpdateStaffRequestDto request)
+    public async Task<StaffDto> UpdateStaffAsync(UpdateStaffRequestDto request, string? operatorId = null, string? operatorName = null, string? ipAddress = null)
     {
         // 查找员工
         var staff = await _staffRepository.GetQueryable()
@@ -286,11 +310,22 @@ public class StaffManagementService
             throw new InvalidOperationException($"科室代码 {request.DeptCode} 不存在");
         }
 
+        var oldDeptCode = staff.DeptCode;
         // 更新科室
         staff.DeptCode = request.DeptCode;
         await _staffRepository.UpdateAsync(staff);
         
         _logger.LogInformation("成功更新员工信息: {StaffId}", request.StaffId);
+
+        // 记录系统日志
+        await _systemLogService.LogAccountOperationAsync(
+            operationType: "AccountModified",
+            operatorId: null,
+            operatorName: operatorName,
+            targetAccountId: 0,
+            details: $"修改人员: {staff.Name} ({request.StaffId}), 科室从 {oldDeptCode} 更改为 {request.DeptCode}",
+            ipAddress: ipAddress
+        );
 
         // 返回更新后的人员信息
         return new StaffDto
@@ -309,7 +344,7 @@ public class StaffManagementService
     /// <summary>
     /// 删除员工
     /// </summary>
-    public async Task DeleteStaffAsync(string staffId)
+    public async Task DeleteStaffAsync(string staffId, string? operatorId = null, string? operatorName = null, string? ipAddress = null)
     {
         // 查找员工
         var staff = await _staffRepository.GetByIdAsync(staffId);
@@ -317,6 +352,9 @@ public class StaffManagementService
         {
             throw new InvalidOperationException($"员工ID {staffId} 不存在");
         }
+
+        var staffName = staff.Name;
+        var staffRole = staff.RoleType;
 
         // 删除员工（根据角色类型使用对应的repository）
         switch (staff.RoleType)
@@ -344,6 +382,16 @@ public class StaffManagementService
         }
         
         _logger.LogInformation("成功删除员工: {StaffId}", staffId);
+
+        // 记录系统日志
+        await _systemLogService.LogAccountOperationAsync(
+            operationType: "AccountDeleted",
+            operatorId: null,
+            operatorName: operatorName,
+            targetAccountId: 0,
+            details: $"删除人员: {staffName} ({staffId}), 角色: {staffRole}",
+            ipAddress: ipAddress
+        );
     }
 
     /// <summary>

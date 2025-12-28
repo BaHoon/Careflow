@@ -223,7 +223,10 @@ public class InspectionOrderTaskService : IInspectionService
             ItemCode = order.ItemCode,
             ItemName = order.ItemName,
             RisLisId = dto.RisLisId,
-            ExaminationDate = order.AppointmentTime ?? order.CreateTime,
+            // 将UTC时间转换为中国时区（UTC+8）
+            ExaminationDate = TimeZoneInfo.ConvertTimeFromUtc(
+                order.AppointmentTime ?? order.CreateTime, 
+                TimeZoneInfo.FindSystemTimeZoneById("China Standard Time")),
             ReportDate = DateTime.Now,
             Findings = dto.Findings,
             Impression = dto.Impression,

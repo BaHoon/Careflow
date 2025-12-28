@@ -826,6 +826,7 @@
                 <div class="section-header">
                   <i class="el-icon-medicine-box"></i>
                   <span>手术药品</span>
+                  <span style="color: red; margin-left: 4px;">*</span>
                 </div>
                 <div class="drug-group-box">
                   <div class="drug-group-header">
