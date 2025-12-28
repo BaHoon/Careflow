@@ -63,6 +63,7 @@
         <span>完成时间：{{ formatTime(task.actualEndTime) }}</span>
       </div>
     </div>
+    </div>
 
     <div class="task-actions">
       <!-- ExecutionTask 的按钮逻辑 -->
@@ -193,7 +194,6 @@
         <!-- 护理任务不显示打印执行单按钮 -->
       </template>
     </div>
-    </div>
   </div>
 </template>
 
@@ -284,7 +284,7 @@ const categoryIcon = computed(() => {
     // NursingTask 类别
     'Routine': Bell,
     'ReMeasure': VideoCamera,
-    'Supplement': Edit
+    'Supplement': Document
   };
   return iconMap[props.task.category] || Document;
 });
@@ -302,7 +302,7 @@ const categoryText = computed(() => {
     // NursingTask 类别
     'Routine': '常规护理',
     'ReMeasure': '复测任务',
-    'Supplement': '补充录入'
+    'Supplement': '补充检测'
   };
   return textMap[props.task.category] || props.task.category;
 });

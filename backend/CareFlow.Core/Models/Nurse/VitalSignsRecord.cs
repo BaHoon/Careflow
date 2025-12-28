@@ -59,6 +59,6 @@ public class NursingTask : EntityBase<long>
     public string? CancelReason { get; set; }
 
     // --- 3. 任务元数据 ---
-    public string TaskType { get; set; } = "Routine"; // Routine(常规), ReMeasure(复测)
+    public string TaskType { get; set; } = "Routine"; // Routine(常规), ReMeasure(复测)，
     public string? Description { get; set; }          // "高热复测"
 }

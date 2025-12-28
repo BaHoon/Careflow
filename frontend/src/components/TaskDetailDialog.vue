@@ -453,6 +453,7 @@ const getCategoryText = (category) => {
     'Verification': '核对验证',
     'Routine': '常规护理',
     'ReMeasure': '复测任务',
+    'Supplement': '补充检测',
     'ApplicationWithPrint': '申请打印',
     'DischargeConfirmation': '出院确认',
     // 数字映射（如果后端返回数字枚举值）
@@ -494,7 +495,7 @@ const getCategoryTagType = (category) => {
 };
 
 // 格式化延迟分钟数 - 处理负数和无效值
-const formatDelayMinutes = (dela) => {
+const formatDelayMinutes = (delay) => {
   // 检查是否为有效的数字
   if (delay === null || delay === undefined || isNaN(delay)) {
     return '-';
