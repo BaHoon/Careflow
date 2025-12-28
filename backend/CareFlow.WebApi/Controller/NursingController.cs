@@ -266,15 +266,17 @@ namespace CareFlow.WebApi.Controllers
                 var currentTime = DateTime.UtcNow;
                 var today = DateOnly.FromDateTime(currentTime);
 
-                // 查询床位对应的患者
+                // 查询床位对应的患者（只查询有床位的患者）
                 var bedIds = beds.Select(b => b.Id).ToList();
                 var patients = await _context.Patients
                     .Include(p => p.AttendingDoctor)
-                    .Where(p => bedIds.Contains(p.BedId))
+                    .Where(p => p.BedId != null && bedIds.Contains(p.BedId))
                     .ToListAsync();
 
-                // 创建床位-患者映射
-                var bedPatientMap = patients.ToDictionary(p => p.BedId, p => p);
+                // 创建床位-患者映射（过滤掉BedId为NULL的患者）
+                var bedPatientMap = patients
+                    .Where(p => p.BedId != null)
+                    .ToDictionary(p => p.BedId!, p => p);
 
                 // 获取所有患者ID
                 var patientIds = patients.Select(p => p.Id).ToList();
@@ -420,14 +422,17 @@ namespace CareFlow.WebApi.Controllers
 
                 var currentTime = DateTime.UtcNow;
 
-                // 查询床位对应的患者
+                // 查询床位对应的患者（只查询有床位的患者）
                 var bedIds = beds.Select(b => b.Id).ToList();
                 var patients = await _context.Patients
                     .Include(p => p.AttendingDoctor)
-                    .Where(p => bedIds.Contains(p.BedId))
+                    .Where(p => p.BedId != null && bedIds.Contains(p.BedId))
                     .ToListAsync();
 
-                var bedPatientMap = patients.ToDictionary(p => p.BedId, p => p);
+                // 创建床位-患者映射（过滤掉BedId为NULL的患者）
+                var bedPatientMap = patients
+                    .Where(p => p.BedId != null)
+                    .ToDictionary(p => p.BedId!, p => p);
                 var patientIds = patients.Select(p => p.Id).ToList();
 
                 // 批量查询今日手术医嘱
@@ -584,6 +589,7 @@ namespace CareFlow.WebApi.Controllers
                     .Where(nt => nt.ScheduledTime >= startOfDay &&
                                  nt.ScheduledTime < endOfDay &&
                                  nt.AssignedNurseId == nurseStaffId && // 使用简码进行查询
+                                 nt.Patient.BedId != null &&
                                  bedIds.Contains(nt.Patient.BedId));
 
                 if (status.HasValue)
@@ -696,6 +702,7 @@ namespace CareFlow.WebApi.Controllers
                     .Where(et => et.PlannedStartTime >= startOfDay &&
                                  et.PlannedStartTime < endOfDay &&
                                  et.AssignedNurseId == nurseStaffId && // 使用简码进行查询
+                                 et.Patient.BedId != null &&
                                  bedIds.Contains(et.Patient.BedId));
 
                 // 如果没有指定状态筛选，默认只返回需要显示的状态
