@@ -9,6 +9,7 @@ using CareFlow.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using CareFlow.Core.Models.Nursing;
 using CareFlow.Core.Enums;
+using CareFlow.Core.Models.Medical;
 
 
 namespace CareFlow.WebApi.Controllers
@@ -1324,6 +1325,65 @@ namespace CareFlow.WebApi.Controllers
                 {
                     task.ActualEndTime = DateTime.UtcNow;
                     task.CompleterNurseId = nurseStaffId;
+                    
+                    // 如果是检查申请任务（ApplicationWithPrint）完成，调度3分钟后生成报告
+                    if (task.Category == TaskCategory.ApplicationWithPrint)
+                    {
+                        var orderId = task.MedicalOrderId;
+                        Console.WriteLine($"[检查任务完成] 任务 {id} 已完成，调度4分钟后生成报告，医嘱ID: {orderId}");
+                        
+                        // 注入 IBackgroundJobService
+                        var backgroundJobService = HttpContext.RequestServices.GetRequiredService<IBackgroundJobService>();
+                        
+                        backgroundJobService.ScheduleDelayedWithScope(async (serviceProvider) =>
+                        {
+                            var logger = serviceProvider.GetRequiredService<ILogger<NursingController>>();
+                            var inspectionService = serviceProvider.GetRequiredService<IInspectionService>();
+                            var inspectionOrderRepo = serviceProvider.GetRequiredService<IRepository<InspectionOrder, long>>();
+                            
+                            try
+                            {
+                                logger.LogInformation("🔄 任务完成后4分钟，开始生成检查报告，医嘱ID: {OrderId}", orderId);
+                                
+                                var order = await inspectionOrderRepo.GetByIdAsync(orderId);
+                                if (order == null)
+                                {
+                                    logger.LogWarning("⚠️ 检查医嘱 {OrderId} 不存在，无法创建报告", orderId);
+                                    return;
+                                }
+                                
+                                // 检查是否已经有报告了
+                                var reportRepo = serviceProvider.GetRequiredService<IRepository<InspectionReport, long>>();
+                                var existingReport = await reportRepo.GetQueryable()
+                                    .FirstOrDefaultAsync(r => r.OrderId == orderId);
+                                    
+                                if (existingReport != null)
+                                {
+                                    logger.LogInformation("✅ 医嘱 {OrderId} 已经有报告，跳过生成", orderId);
+                                    return;
+                                }
+                                
+                                // 模拟从检查站获取报告数据
+                                var reportDto = new CareFlow.Application.DTOs.Inspection.CreateInspectionReportDto
+                                {
+                                    OrderId = orderId,
+                                    RisLisId = order.RisLisId,
+                                    Findings = "[模拟数据] 检查所见：未见明显异常。",
+                                    Impression = "[模拟数据] 诊断意见：未见异常。",
+                                    AttachmentUrl = "reports/REPORT.pdf",
+                                    ReviewerId = null,
+                                    ReportSource = order.Source
+                                };
+                                
+                                var reportId = await inspectionService.CreateInspectionReportAsync(reportDto);
+                                logger.LogInformation("✅ 检查报告自动生成成功，医嘱ID: {OrderId}, 报告ID: {ReportId}", orderId, reportId);
+                            }
+                            catch (Exception ex)
+                            {
+                                logger.LogError(ex, "❗ 自动生成检查报告失败，医嘱ID: {OrderId}", orderId);
+                            }
+                        }, TimeSpan.FromMinutes(4));
+                    }
                 }
 
                 task.Status = targetStatus;

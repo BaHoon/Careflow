@@ -76,7 +76,12 @@ public class AdminController : ControllerBase
     {
         try
         {
-            var result = await _staffService.CreateStaffAsync(request);
+            // 获取当前用户信息（从JWT token的claims中）
+            var operatorId = User.FindFirst("id")?.Value;
+            var operatorName = User.FindFirst("name")?.Value;
+            var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+            
+            var result = await _staffService.CreateStaffAsync(request, operatorId, operatorName, ipAddress);
             return Ok(new { success = true, data = result, message = "人员创建成功，默认密码为 123456" });
         }
         catch (InvalidOperationException ex)
@@ -101,7 +106,11 @@ public class AdminController : ControllerBase
     {
         try
         {
-            await _staffService.ResetPasswordAsync(request);
+            var operatorId = User.FindFirst("id")?.Value;
+            var operatorName = User.FindFirst("name")?.Value;
+            var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+            
+            await _staffService.ResetPasswordAsync(request, operatorId, operatorName, ipAddress);
             return Ok(new { success = true, message = "密码重置成功" });
         }
         catch (InvalidOperationException ex)
@@ -126,7 +135,11 @@ public class AdminController : ControllerBase
     {
         try
         {
-            var result = await _staffService.UpdateStaffAsync(request);
+            var operatorId = User.FindFirst("id")?.Value;
+            var operatorName = User.FindFirst("name")?.Value;
+            var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+            
+            var result = await _staffService.UpdateStaffAsync(request, operatorId, operatorName, ipAddress);
             return Ok(new { success = true, data = result, message = "员工信息更新成功" });
         }
         catch (InvalidOperationException ex)
@@ -151,7 +164,11 @@ public class AdminController : ControllerBase
     {
         try
         {
-            await _staffService.DeleteStaffAsync(staffId);
+            var operatorId = User.FindFirst("id")?.Value;
+            var operatorName = User.FindFirst("name")?.Value;
+            var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+            
+            await _staffService.DeleteStaffAsync(staffId, operatorId, operatorName, ipAddress);
             return Ok(new { success = true, message = "员工删除成功" });
         }
         catch (InvalidOperationException ex)

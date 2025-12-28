@@ -121,7 +121,7 @@
           :icon="Printer"
           @click.stop="handlePrintReport"
         >
-          打印报告单
+          打印导引单
         </el-button>
 
         <!-- AppliedConfirmed(2) 或 Pending(3)：显示根据category定制的"完成"按钮 -->

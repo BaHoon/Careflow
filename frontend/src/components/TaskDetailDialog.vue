@@ -39,7 +39,11 @@
           </el-descriptions-item>
           
           <!-- 时间信息 -->
-          <el-descriptions-item label="计划开始时间" :span="2">
+          <el-descriptions-item 
+            v-if="currentTask.category !== 'ApplicationWithPrint'"
+            label="计划开始时间" 
+            :span="2"
+          >
             {{ formatDateTime(currentTask.plannedStartTime) }}
           </el-descriptions-item>
           <el-descriptions-item
@@ -138,7 +142,11 @@
           </el-descriptions-item>
           
           <!-- 时间信息 -->
-          <el-descriptions-item label="计划开始时间" :span="2">
+          <el-descriptions-item 
+            v-if="currentTask.category !== 'ApplicationWithPrint'"
+            label="计划开始时间" 
+            :span="2"
+          >
             {{ formatDateTime(currentTask.plannedStartTime) }}
           </el-descriptions-item>
           <el-descriptions-item

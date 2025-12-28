@@ -348,7 +348,7 @@
               <div class="task-section">
                 <div class="section-title">⏰ 时间线</div>
                 <div class="timeline-item">
-                  <span class="timeline-label">{{ isInspectionTask(task) ? '检查预约时间' : '计划时间' }}:</span>
+                  <span class="timeline-label">{{'计划时间' }}:</span>
                   <span class="timeline-value">{{ formatDateTime(task.plannedStartTime) }}</span>
                 </div>
                 <!-- 检查类任务不显示开始时间，只显示计划时间（预约时间） -->
@@ -1635,7 +1635,7 @@ const handlePrintTaskBarcode = async (task) => {
   padding: 10px 14px;
   background: #f0f9ff;
   border-radius: 6px;
-  border-left: 3px solid #409eff;
+ 
 }
 
 .drug-name {

@@ -55,7 +55,7 @@ public class InspectionStationService : IInspectionStationService
             appointmentDetails[orderId] = new AppointmentDetail
             {
                 AppointmentNumber = appointmentNumber,
-                AppointmentTime = DateTime.UtcNow.AddMinutes(1), // 模拟1分钟后的预约时间
+                AppointmentTime = DateTime.UtcNow.AddMinutes(5), // 模拟5分钟后的预约时间
                 AppointmentPlace = "放射科3楼CT室", // 模拟预约地点
                 Precautions = "检查前需空腹4小时，请勿饮水" // 模拟注意事项
             };
