@@ -8,6 +8,7 @@
       :multi-select="false"
       title="患者列表"
       :show-pending-filter="false"
+      :show-badge="false"
       :collapsed="false"
       @patient-select="handlePatientSelect"
     />
@@ -156,7 +157,7 @@
 
           <!-- 任务统计 -->
           <div class="order-tasks-summary">
-            <span class="task-count">任务: {{ order.completedTaskCount }}/{{ order.taskCount }}</span>
+            <span class="task-count">任务: {{ getCompletedTaskCount(order) }}/{{ order.taskCount }}</span>
             <el-progress 
               :percentage="calculateTaskProgress(order)" 
               :color="getProgressColor(order)"
@@ -606,10 +607,26 @@ const handleWithdrawStop = async (order) => {
   }
 };
 
+// ==================== 获取完成任务数 ====================
+// 获取完成任务数（Completed + Incomplete）
+// 注：后端 completedTaskCount 已包含 Completed 和 Incomplete 状态
+const getCompletedTaskCount = (order) => {
+  if (order.tasks && Array.isArray(order.tasks)) {
+    // 如果有任务列表（如医嘱详情），从任务中重新计算
+    return order.tasks.filter(task => 
+      task.status === 5 || task.status === 'Completed' ||
+      task.status === 8 || task.status === 'Incomplete'
+    ).length;
+  }
+  // 否则直接使用后端返回的 completedTaskCount（已包含 Incomplete）
+  return order.completedTaskCount || 0;
+};
+
 // ==================== 计算任务进度 ====================
 const calculateTaskProgress = (order) => {
   if (order.taskCount === 0) return 0;
-  return Math.round((order.completedTaskCount / order.taskCount) * 100);
+  const completedCount = getCompletedTaskCount(order);
+  return Math.round((completedCount / order.taskCount) * 100);
 };
 
 // ==================== 进度条颜色 ====================

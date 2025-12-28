@@ -39,14 +39,34 @@ public class TaskSummaryDto
     public TaskCategory Category { get; set; }
     
     /// <summary>
-    /// 执行护士ID
+    /// 理论执行护士ID（任务分配时指定的负责人）
+    /// </summary>
+    public string? AssignedNurseId { get; set; }
+    
+    /// <summary>
+    /// 理论执行护士姓名
+    /// </summary>
+    public string? AssignedNurseName { get; set; }
+    
+    /// <summary>
+    /// 执行护士ID（实际扫码/执行的人）
     /// </summary>
     public string? ExecutorStaffId { get; set; }
     
     /// <summary>
-    /// 执行护士姓名
+    /// 执行护士姓名（实际开始执行的人）
     /// </summary>
     public string? ExecutorName { get; set; }
+    
+    /// <summary>
+    /// 结束护士ID（实际结束任务的人）
+    /// </summary>
+    public string? CompleterNurseId { get; set; }
+    
+    /// <summary>
+    /// 结束护士姓名（实际结束任务的人）
+    /// </summary>
+    public string? CompleterNurseName { get; set; }
     
     /// <summary>
     /// 任务被锁定前的原始状态（仅当status为OrderStopping时有值）

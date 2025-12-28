@@ -808,22 +808,40 @@ const acknowledgeBatch = async () => {
     return;
   }
 
-  // 检查是否包含出院医嘱
-  const hasDischargeOrder = selectedOrders.some(o => o.orderType === 'DischargeOrder');
+  // 将选中的医嘱分为出院医嘱和非出院医嘱两组
+  const dischargeOrders = selectedOrders.filter(o => o.orderType === 'DischargeOrder');
+  const nonDischargeOrders = selectedOrders.filter(o => o.orderType !== 'DischargeOrder');
   
-  if (hasDischargeOrder) {
-    // 如果包含出院医嘱，需要先验证
-    const dischargeOrder = selectedOrders.find(o => o.orderType === 'DischargeOrder');
-    const canProceed = await validateDischargeOrderBeforeAcknowledgement(dischargeOrder);
-    if (!canProceed) {
-      return; // 验证失败，不继续签收
+  try {
+    // 1. 先处理非出院医嘱
+    if (nonDischargeOrders.length > 0) {
+      const nonDischargeIds = nonDischargeOrders.map(o => o.orderId);
+      await acknowledgeBatchInternal(nonDischargeIds);
     }
+    
+    // 2. 最后处理出院医嘱
+    if (dischargeOrders.length > 0) {
+      // 对每个出院医嘱都进行验证
+      for (const dischargeOrder of dischargeOrders) {
+        // 验证出院医嘱签收条件
+        const canProceed = await validateDischargeOrderBeforeAcknowledgement(dischargeOrder);
+        if (!canProceed) {
+          // 验证失败，跳过该出院医嘱，不继续签收
+          ElMessage.warning(`出院医嘱验证失败，已跳过`);
+          continue;
+        }
+        
+        // 验证通过，签收该出院医嘱
+        await acknowledgeBatchInternal([dischargeOrder.orderId]);
+      }
+    }
+    
+    // 签收后刷新列表和数字徽章
+    await refreshAfterAction();
+  } catch (error) {
+    console.error('批量签收失败:', error);
+    ElMessage.error(error.message || '批量签收失败');
   }
-
-  const selectedIds = selectedOrders.map(o => o.orderId);
-  await acknowledgeBatchInternal(selectedIds);
-  // 签收后刷新列表和数字徽章
-  await refreshAfterAction();
 };
 
 // 验证出院医嘱签收前置条件

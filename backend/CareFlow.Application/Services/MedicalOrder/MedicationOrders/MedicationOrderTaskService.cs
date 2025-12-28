@@ -659,7 +659,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
             items.Add(new
             {
                 id = itemId++,
-                text = $"核对给药途径：{order.UsageRoute}",
+                text = $"核对给药途径：{GetUsageRouteName(order.UsageRoute)}",
                 isChecked = false,
                 required = true
             });
@@ -673,7 +673,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
             });
 
             // 构建完整的描述
-            var fullDescription = $"{drugDescription} - {order.UsageRoute} - {timingDescription}";
+            var fullDescription = $"{drugDescription} - {GetUsageRouteName(order.UsageRoute)} - {timingDescription}";
 
             var dataPayload = new
             {
@@ -718,11 +718,29 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
             {
                 TaskType = "MEDICATION_ADMINISTRATION",
                 Title = $"给药：{drugName}",
-                Description = $"药品给药 - {drugName} - {order.UsageRoute}",
+                Description = $"药品给药 - {drugName} - {GetUsageRouteName(order.UsageRoute)}",
                 IsChecklist = true,
                 Items = new[] { new { id = 1, text = "执行给药任务", isChecked = false, required = true } }
             });
         }
+    }
+
+    /// <summary>
+    /// 将 UsageRoute 枚举转换为中文描述
+    /// </summary>
+    private string GetUsageRouteName(UsageRoute route)
+    {
+        return route switch
+        {
+            UsageRoute.PO => "口服",
+            UsageRoute.Topical => "外用/涂抹",
+            UsageRoute.IM => "肌内注射",
+            UsageRoute.SC => "皮下注射",
+            UsageRoute.IVP => "静脉推注",
+            UsageRoute.IVGTT => "静脉滴注",
+            UsageRoute.ST => "皮试",
+            _ => $"未知途径({(int)route})"
+        };
     }
 
     /// <summary>
@@ -908,7 +926,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
             UsageRoute.IM or UsageRoute.SC or UsageRoute.IVP => TaskCategory.Immediate,
             
             // 持续输注类 - 持续执行
-            UsageRoute.IVGTT or UsageRoute.Inhalation => TaskCategory.Duration,
+            UsageRoute.IVGTT => TaskCategory.Duration,
             
             // 皮试类 - 结果等待
             UsageRoute.ST => TaskCategory.ResultPending,

@@ -3,18 +3,19 @@ using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models.Organization; 
 using CareFlow.Core.Models.Space; 
 using Microsoft.Extensions.Logging;
+using PatientModel = CareFlow.Core.Models.Organization.Patient;
 
 namespace CareFlow.Application.Services
 {
     public class NurseAssignmentService : INurseAssignmentService
     {
-        private readonly IRepository<Patient, string> _patientRepo;
+        private readonly IRepository<PatientModel, string> _patientRepo;
         private readonly IRepository<Bed, string> _bedRepo;
         private readonly INurseScheduleRepository _scheduleRepo;
         
         //构造函数，赋初值
         public NurseAssignmentService(
-            IRepository<Patient, string> patientRepo,
+            IRepository<PatientModel, string> patientRepo,
             IRepository<Bed, string> bedRepo,
             INurseScheduleRepository scheduleRepo)
         {

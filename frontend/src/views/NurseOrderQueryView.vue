@@ -15,6 +15,7 @@
       :enable-multi-select-mode="true"
       title="患者列表"
       :show-pending-filter="false"
+      :show-badge="false"
       :collapsed="false"
       @patient-select="handlePatientSelect"
       @multi-select-toggle="handleMultiSelectToggle"
@@ -211,7 +212,7 @@
 
               <!-- 任务统计 -->
               <div class="order-tasks-summary">
-                <span class="task-count">任务: {{ order.completedTaskCount }}/{{ order.taskCount }}</span>
+                <span class="task-count">任务: {{ getCompletedTaskCount(order) }}/{{ order.taskCount }}</span>
                 <el-progress 
                   :percentage="calculateTaskProgress(order)" 
                   :color="getProgressColor(order)"
@@ -292,7 +293,7 @@
                   </div>
 
                   <div class="order-tasks-summary">
-                    <span class="task-count">任务: {{ order.completedTaskCount }}/{{ order.taskCount }}</span>
+                    <span class="task-count">任务: {{ getCompletedTaskCount(order) }}/{{ order.taskCount }}</span>
                     <el-progress 
                       :percentage="calculateTaskProgress(order)" 
                       :color="getProgressColor(order)"
@@ -346,6 +347,7 @@
           @print-task-sheet="handlePrintTaskSheet"
           @print-inspection-guide="handlePrintInspectionGuide"
           @view-inspection-report="handleViewInspectionReport"
+          @task-updated="handleTaskUpdated"
         />
       </div>
     </el-dialog>
@@ -744,6 +746,30 @@ const handleUpdateTaskExecution = (taskId) => {
 };
 
 /**
+ * 任务更新后的处理：刷新医嘱详情和医嘱列表
+ */
+const handleTaskUpdated = async (taskId) => {
+  console.log('🔄 任务已更新，刷新数据:', taskId);
+  
+  try {
+    // 1. 刷新当前医嘱详情
+    if (currentOrderDetail.value && currentOrderDetail.value.id) {
+      const orderId = currentOrderDetail.value.id;
+      const detail = await getOrderDetail(orderId);
+      currentOrderDetail.value = detail; // API 拦截器已自动解包 response.data
+      console.log('✅ 医嘱详情已刷新');
+    }
+    
+    // 2. 刷新医嘱列表
+    await loadOrders();
+    console.log('✅ 医嘱列表已刷新');
+  } catch (error) {
+    console.error('❌ 刷新数据失败:', error);
+    // 不显示错误提示，因为任务已经成功执行
+  }
+};
+
+/**
  * 打印任务执行单（TODO：等待后端接口）
  */
 const handlePrintTaskSheet = (taskId) => {
@@ -1045,10 +1071,26 @@ const isNewlyStopped = (order) => {
   }
 };
 
+// ==================== 获取完成任务数 ====================
+// 获取完成任务数（Completed + Incomplete）
+// 注：后端 completedTaskCount 已包含 Completed 和 Incomplete 状态
+const getCompletedTaskCount = (order) => {
+  if (order.tasks && Array.isArray(order.tasks)) {
+    // 如果有任务列表（如医嘱详情），从任务中重新计算
+    return order.tasks.filter(task => 
+      task.status === 5 || task.status === 'Completed' ||
+      task.status === 8 || task.status === 'Incomplete'
+    ).length;
+  }
+  // 否则直接使用后端返回的 completedTaskCount（已包含 Incomplete）
+  return order.completedTaskCount || 0;
+};
+
 // ==================== 计算任务进度 ====================
 const calculateTaskProgress = (order) => {
   if (order.taskCount === 0) return 0;
-  return Math.round((order.completedTaskCount / order.taskCount) * 100);
+  const completedCount = getCompletedTaskCount(order);
+  return Math.round((completedCount / order.taskCount) * 100);
 };
 
 const getProgressColor = (order) => {

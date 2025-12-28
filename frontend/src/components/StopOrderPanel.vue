@@ -74,9 +74,9 @@
               >
                 {{ getTaskCategoryStyle(task.category).name }}
               </el-tag>
-              <span v-if="getTaskTimingStatus(task).text" class="timing-status" :class="getTaskTimingStatus(task).class">
+              <!-- <span v-if="getTaskTimingStatus(task).text" class="timing-status" :class="getTaskTimingStatus(task).class">
                 {{ getTaskTimingStatus(task).text }}
-              </span>
+              </span> -->
               <span class="task-time-separator">|</span>
               <span class="task-time">计划: {{ formatDateTime(task.plannedStartTime) }}</span>
             </div>
@@ -372,10 +372,6 @@ const getTaskTimingStatus = (task) => {
       if (delay < -5) return { text: `\u26a1\u63d0\u524d${-delay}\u5206`, class: 'status-early' };
       return { text: '\u2713\u6309\u65f6', class: 'status-ontime' };
     }
-    
-    if (task.status === 4) { // 执行中
-      return { text: '\u8fdb\u884c\u4e2d...', class: 'status-progress' };
-    }
   }
   
   // 停嘱锁定
@@ -618,11 +614,6 @@ const getOrderTypeName = (orderType) => {
   background: #fef0f0;
   color: #f56c6c;
   font-weight: 600;
-}
-
-.timing-status.status-progress {
-  background: #f0f9ff;
-  color: #409eff;
 }
 
 .timing-status.status-locked {

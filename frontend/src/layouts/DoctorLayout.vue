@@ -33,6 +33,14 @@
           <el-icon><User /></el-icon>
           <span>患者管理</span>
         </router-link>
+        <router-link 
+          to="/doctor/patient-log" 
+          class="nav-item"
+          active-class="active"
+        >
+          <el-icon><Document /></el-icon>
+          <span>患者日志</span>
+        </router-link>
       </nav>
       
       <!-- 用户信息 -->

@@ -59,7 +59,7 @@ public class OrderSummaryDto
     public int TaskCount { get; set; }
     
     /// <summary>
-    /// 已完成任务数量
+    /// 已完成任务数量（包含 Completed 和 Incomplete 状态）
     /// </summary>
     public int CompletedTaskCount { get; set; }
     

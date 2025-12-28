@@ -8,6 +8,7 @@ using CareFlow.Core.Models.Organization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
+using PatientModel = CareFlow.Core.Models.Organization.Patient;
 
 namespace CareFlow.Application.Services.MedicalOrder;
 
@@ -24,7 +25,7 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
     private readonly IRepository<InspectionReport, long> _inspectionReportRepository;
     private readonly IRepository<OperationOrder, long> _operationRepository;
     private readonly IRepository<ExecutionTask, long> _taskRepository;
-    private readonly IRepository<Patient, string> _patientRepository;
+    private readonly IRepository<PatientModel, string> _patientRepository;
     private readonly IRepository<Doctor, string> _doctorRepository;
     private readonly IRepository<Nurse, string> _nurseRepository;
     private readonly IRepository<Drug, string> _drugRepository;
@@ -39,7 +40,7 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
         IRepository<InspectionReport, long> inspectionReportRepository,
         IRepository<OperationOrder, long> operationRepository,
         IRepository<ExecutionTask, long> taskRepository,
-        IRepository<Patient, string> patientRepository,
+        IRepository<PatientModel, string> patientRepository,
         IRepository<Doctor, string> doctorRepository,
         IRepository<Nurse, string> nurseRepository,
         IRepository<Drug, string> drugRepository,
@@ -142,7 +143,8 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
                 DoctorName = order.Doctor?.Name ?? "未知医生",
                 // 任务总数和已完成数统计时排除 Stopped 状态的任务
                 TaskCount = tasks.Count(t => t.Status != ExecutionTaskStatus.Stopped),
-                CompletedTaskCount = tasks.Count(t => t.Status == ExecutionTaskStatus.Completed),
+                // 完成数包含 Completed 和 Incomplete（异常完成）状态
+                CompletedTaskCount = tasks.Count(t => t.Status == ExecutionTaskStatus.Completed || t.Status == ExecutionTaskStatus.Incomplete),
                 StopOrderTime = order.StopOrderTime,
                 StopReason = order.StopReason,
                 Summary = await GenerateOrderSummaryAsync(order)
@@ -647,7 +649,9 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
     private async Task<List<TaskSummaryDto>> GetOrderTasksAsync(long orderId)
     {
         var tasks = await _taskRepository.GetQueryable()
+            .Include(t => t.AssignedNurse)
             .Include(t => t.Executor)
+            .Include(t => t.CompleterNurse)
             .Where(t => t.MedicalOrderId == orderId)
             .OrderBy(t => t.PlannedStartTime)
             .ToListAsync();
@@ -660,8 +664,12 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
             ActualStartTime = t.ActualStartTime,
             ActualEndTime = t.ActualEndTime,
             Category = t.Category,
+            AssignedNurseId = t.AssignedNurseId,
+            AssignedNurseName = t.AssignedNurse?.Name,
             ExecutorStaffId = t.ExecutorStaffId,
             ExecutorName = t.Executor?.Name,
+            CompleterNurseId = t.CompleterNurseId,
+            CompleterNurseName = t.CompleterNurse?.Name,
             StatusBeforeLocking = t.StatusBeforeLocking,
             ExceptionReason = t.ExceptionReason,
             DataPayload = t.DataPayload // 添加DataPayload字段，包含Title等任务详细信息

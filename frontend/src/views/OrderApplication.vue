@@ -1197,7 +1197,6 @@ const formatUsageRoute = (usageRoute) => {
     'SC': '皮下注射',
     'IVP': '静脉推注',
     'IVGTT': '静脉滴注',
-    'Inhalation': '吸氧',
     'ST': '皮试'
   };
   

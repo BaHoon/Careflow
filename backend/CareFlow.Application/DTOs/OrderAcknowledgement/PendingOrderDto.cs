@@ -86,6 +86,7 @@ public class PendingOrderDto
     
     /// <summary>
     /// 停止时间（仅停止医嘱）
+    /// 优先使用停止节点任务的计划执行时间（PlannedStartTime），如果停止节点不存在则使用医嘱的EndTime
     /// </summary>
     public DateTime? StopTime { get; set; }
     
@@ -96,7 +97,7 @@ public class PendingOrderDto
     
     /// <summary>
     /// 停止到哪个任务（仅停止医嘱）
-    /// TODO: 需要医生停止医嘱时设置此字段
+    /// 该字段存储医生下达停嘱时指定的停止节点任务ID（对应MedicalOrder.StopAfterTaskId）
     /// </summary>
     public long? StopUntilTaskId { get; set; }
     

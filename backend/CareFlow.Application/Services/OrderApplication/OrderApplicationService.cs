@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
+using PatientModel = CareFlow.Core.Models.Organization.Patient;
 
 namespace CareFlow.Application.Services.OrderApplication;
 
@@ -22,30 +23,34 @@ public class OrderApplicationService : IOrderApplicationService
     private readonly IRepository<ExecutionTask, long> _taskRepository;
     private readonly IRepository<InspectionOrder, long> _inspectionOrderRepository;
     private readonly IRepository<MedicationOrder, long> _medicationOrderRepository;
-    private readonly IRepository<Patient, string> _patientRepository;
+    private readonly IRepository<PatientModel, string> _patientRepository;
     private readonly IRepository<BarcodeIndex, string> _barcodeRepository;
     private readonly IRepository<MedicationReturnRequest, long> _returnRequestRepository;
+    private readonly IRepository<MedicalOrderStatusHistory, long> _statusHistoryRepository;
     private readonly IPharmacyIntegrationService _pharmacyService;
     private readonly IInspectionStationService _inspectionStationService;
     private readonly IInspectionService _inspectionService;
     private readonly INurseAssignmentService _nurseAssignmentService;
     private readonly IBarcodeService _barcodeService;
     private readonly IBackgroundJobService _backgroundJobService;
+    private readonly ICareFlowDbContext _context;
     private readonly ILogger<OrderApplicationService> _logger;
 
     public OrderApplicationService(
         IRepository<ExecutionTask, long> taskRepository,
         IRepository<InspectionOrder, long> inspectionOrderRepository,
         IRepository<MedicationOrder, long> medicationOrderRepository,
-        IRepository<Patient, string> patientRepository,
+        IRepository<PatientModel, string> patientRepository,
         IRepository<BarcodeIndex, string> barcodeRepository,
         IRepository<MedicationReturnRequest, long> returnRequestRepository,
+        IRepository<MedicalOrderStatusHistory, long> statusHistoryRepository,
         IPharmacyIntegrationService pharmacyService,
         IInspectionStationService inspectionStationService,
         IInspectionService inspectionService,
         INurseAssignmentService nurseAssignmentService,
         IBarcodeService barcodeService,
         IBackgroundJobService backgroundJobService,
+        ICareFlowDbContext context,
         ILogger<OrderApplicationService> logger)
     {
         _taskRepository = taskRepository;
@@ -54,12 +59,14 @@ public class OrderApplicationService : IOrderApplicationService
         _patientRepository = patientRepository;
         _barcodeRepository = barcodeRepository;
         _returnRequestRepository = returnRequestRepository;
+        _statusHistoryRepository = statusHistoryRepository;
         _pharmacyService = pharmacyService;
         _inspectionStationService = inspectionStationService;
         _inspectionService = inspectionService;
         _nurseAssignmentService = nurseAssignmentService;
         _barcodeService = barcodeService;
         _backgroundJobService = backgroundJobService;
+        _context = context;
         _logger = logger;
     }
 
@@ -1194,6 +1201,89 @@ public class OrderApplicationService : IOrderApplicationService
             task.LastModifiedAt = DateTime.UtcNow;
             
             await _taskRepository.UpdateAsync(task);
+
+            // ==================== 检查并更新医嘱状态 ====================
+            // 当任务变为Incomplete时，检查该医嘱下的所有任务状态，决定是否需要停止医嘱
+            if (task.MedicalOrderId > 0)
+            {
+                _logger.LogInformation("检查医嘱 {OrderId} 的任务状态以决定是否需要停止医嘱", task.MedicalOrderId);
+                
+                var medicalOrder = await _context.Set<CareFlow.Core.Models.Medical.MedicalOrder>()
+                    .FirstOrDefaultAsync(o => o.Id == task.MedicalOrderId);
+                
+                if (medicalOrder != null && 
+                    medicalOrder.Status != OrderStatus.Stopped && 
+                    medicalOrder.Status != OrderStatus.Completed &&
+                    medicalOrder.Status != OrderStatus.Cancelled)
+                {
+                    // 查询该医嘱下的所有任务
+                    var allTasks = await _taskRepository.ListAsync(t => t.MedicalOrderId == task.MedicalOrderId);
+                    
+                    // 检查是否所有任务都处于终止状态（Completed/Stopped/Incomplete）
+                    var allTasksTerminated = allTasks.All(t => 
+                        t.Status == ExecutionTaskStatus.Completed ||
+                        t.Status == ExecutionTaskStatus.Stopped ||
+                        t.Status == ExecutionTaskStatus.Incomplete ||
+                        t.Status == ExecutionTaskStatus.PendingReturn);
+                    
+                    if (allTasksTerminated)
+                    {
+                        var originalStatus = medicalOrder.Status;
+                        
+                        // 根据医嘱原状态决定更新目标
+                        OrderStatus targetStatus;
+                        string reason;
+                        
+                        if (originalStatus == OrderStatus.StoppingInProgress)
+                        {
+                            // 停止中的医嘱 → Stopped
+                            targetStatus = OrderStatus.Stopped;
+                            reason = "任务异常取消(Incomplete)，停止中医嘱的所有任务已终止，系统自动停止医嘱";
+                        }
+                        else if (originalStatus == OrderStatus.Accepted || originalStatus == OrderStatus.InProgress)
+                        {
+                            // Accepted/InProgress → Completed
+                            targetStatus = OrderStatus.Completed;
+                            reason = "任务异常取消(Incomplete)，但所有任务已终止，医嘱标记为完成";
+                        }
+                        else
+                        {
+                            // 其他状态不处理
+                            _logger.LogInformation("医嘱 {OrderId} 当前状态为 {Status}，不需要更新", task.MedicalOrderId, originalStatus);
+                            return new ApplicationResponseDto 
+                            { 
+                                Success = true,
+                                Message = "确认成功，任务已标记为异常状态",
+                                ProcessedIds = new List<long> { taskId }
+                            };
+                        }
+                        
+                        medicalOrder.Status = targetStatus;
+                        medicalOrder.CompletedAt = DateTime.UtcNow;
+                        await _context.SaveChangesAsync();
+                        
+                        // 添加医嘱状态变更历史记录
+                        var history = new MedicalOrderStatusHistory
+                        {
+                            MedicalOrderId = medicalOrder.Id,
+                            FromStatus = originalStatus,
+                            ToStatus = targetStatus,
+                            ChangedAt = DateTime.UtcNow,
+                            ChangedById = nurseId,
+                            ChangedByType = "Nurse",
+                            Reason = reason
+                        };
+                        await _statusHistoryRepository.AddAsync(history);
+                        
+                        _logger.LogInformation("✅ 医嘱 {OrderId} 所有任务已终止，状态从 {From} 更新为 {To}", 
+                            task.MedicalOrderId, originalStatus, targetStatus);
+                    }
+                    else
+                    {
+                        _logger.LogInformation("医嘱 {OrderId} 还有未完成的任务，不更新医嘱状态", task.MedicalOrderId);
+                    }
+                }
+            }
 
             _logger.LogInformation("✅ 异常取消退药确认成功，任务 {TaskId} 状态改为 Incomplete", taskId);
 

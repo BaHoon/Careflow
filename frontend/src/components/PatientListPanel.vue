@@ -119,7 +119,7 @@
           
           <!-- 数字徽章标记 -->
           <span 
-            v-if="shouldShowBadge(patient)" 
+            v-if="showBadge && shouldShowBadge(patient)" 
             class="pending-badge"
             :title="getBadgeTitle(patient)"
           >
@@ -197,6 +197,11 @@ const props = defineProps({
   pendingFilterLabel: {
     type: String,
     default: '仅显示待签收'
+  },
+  // 是否显示数字徽章
+  showBadge: {
+    type: Boolean,
+    default: true
   },
   // 徽章字段名（患者对象中的字段名，如 'unacknowledgedCount'、'pendingTaskCount' 等）
   badgeField: {
