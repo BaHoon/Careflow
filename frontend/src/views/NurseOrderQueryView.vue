@@ -801,8 +801,8 @@ const handleViewInspectionReport = (reportInfo) => {
     return;
   }
   
-  // 构建报告URL，使用后端静态文件服务
-  const baseUrl = 'http://localhost:5181';
+  // 构建报告URL，使用相对路径
+  const baseUrl = '';
   const reportUrl = `${baseUrl}/${reportInfo.reportUrl}`;
   
   console.log('🔗 报告URL:', reportUrl);
@@ -825,7 +825,7 @@ const handleViewReport = (order) => {
   }
   
   // 构建报告URL
-  const baseUrl = 'http://localhost:5181';
+  const baseUrl = '';
   const reportUrl = `${baseUrl}/${order.attachmentUrl}`;
   
   console.log('🔗 报告URL:', reportUrl);
