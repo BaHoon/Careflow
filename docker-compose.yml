@@ -1,6 +1,6 @@
 services:
   db:
-    image: registry.aliyuncs.com/library/postgres:15
+    image: postgres:15
     restart: always
     environment:
       POSTGRES_USER: hos_user
@@ -18,7 +18,7 @@ services:
       - hospital-net
 
   pgadmin:
-    image: dpage/pgadmin4   # Docker Hub 镜像，不要改成 registry.aliyuncs.com
+    image: dpage/pgadmin4
     restart: always
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@hospital.com
@@ -37,6 +37,7 @@ services:
       dockerfile: Dockerfile
     restart: always
     environment:
+      # 使用服务名 'db' 连接数据库
       - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=hospital;Username=hos_user;Password=hos_password123;Timezone=UTC;
       - ASPNETCORE_URLS=http://+:8080
     depends_on:
