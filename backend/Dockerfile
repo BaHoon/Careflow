@@ -6,7 +6,6 @@ COPY ["CareFlow.WebApi/CareFlow.WebApi.csproj", "CareFlow.WebApi/"]
 COPY ["CareFlow.Application/CareFlow.Application.csproj", "CareFlow.Application/"]
 COPY ["CareFlow.Core/CareFlow.Core.csproj", "CareFlow.Core/"]
 COPY ["CareFlow.Infrastructure/CareFlow.Infrastructure.csproj", "CareFlow.Infrastructure/"]
-COPY ["CareFlow.Tests/CareFlow.Tests.csproj", "CareFlow.Tests/"]
 RUN dotnet restore "CareFlow.WebApi/CareFlow.WebApi.csproj"
 COPY . .
 WORKDIR "/src/CareFlow.WebApi"
