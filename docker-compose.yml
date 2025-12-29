@@ -18,7 +18,7 @@ services:
       - hospital-net
 
   pgadmin:
-    image: registry.aliyuncs.com/library/dpage/pgadmin4
+    image: dpage/pgadmin4   # Docker Hub 镜像，不要改成 registry.aliyuncs.com
     restart: always
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@hospital.com
@@ -29,6 +29,7 @@ services:
       - db
     networks:
       - hospital-net
+
 
   backend:
     build:
