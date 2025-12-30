@@ -852,7 +852,7 @@ const loadTaskBarcodes = async () => {
   loadingBarcodes.value = true;
   try {
     // 不传递 wardId，显示所有条形码
-    const response = await fetch(`http://localhost:5181/api/BarcodePrint/task-barcodes`);
+    const response = await fetch(`/api/BarcodePrint/task-barcodes`);
     const result = await response.json();
     
     if (result.success) {
