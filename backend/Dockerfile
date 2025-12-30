@@ -18,5 +18,13 @@ RUN dotnet publish "CareFlow.WebApi.csproj" -c Release -o /app/publish
 # Final stage
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
+
+# 安装中文字体支持
+RUN apt-get update && apt-get install -y \
+    fontconfig \
+    fonts-wqy-zenhei \
+    fonts-wqy-microhei \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "CareFlow.WebApi.dll"]
