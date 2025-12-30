@@ -18,7 +18,7 @@ services:
       - hospital-net
 
   pgadmin:
-    image: dpage/pgadmin4
+    image: dpage/pgadmin4:8
     restart: always
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@hospital.com
