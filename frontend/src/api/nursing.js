@@ -167,7 +167,7 @@ export const cancelExecutionTask = (taskId, nurseId, cancelReason, needReturn = 
   
   console.log('====================================');
   console.log('[cancelExecutionTask API] 准备发送请求');
-  console.log('完整URL:', `http://localhost:5181/api${url}`);
+  console.log('完整URL:', `/api${url}`);
   console.log('请求方法: POST');
   console.log('请求头:', {
     'Content-Type': 'application/json',

@@ -26,7 +26,7 @@ public class InspectionReportPdfService
                 page.Size(PageSizes.A4);
                 page.Margin(50);
                 page.PageColor(Colors.White);
-                page.DefaultTextStyle(x => x.FontSize(10).FontFamily("SimSun"));
+                page.DefaultTextStyle(x => x.FontSize(10).FontFamily("WenQuanYi Zen Hei"));
 
                 // 页眉 - 简洁标准样式
                 page.Header()

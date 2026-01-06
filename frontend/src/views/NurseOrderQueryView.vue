@@ -801,8 +801,8 @@ const handleViewInspectionReport = (reportInfo) => {
     return;
   }
   
-  // 构建报告URL，使用后端静态文件服务
-  const baseUrl = 'http://localhost:5181';
+  // 构建报告URL，使用相对路径
+  const baseUrl = '';
   const reportUrl = `${baseUrl}/${reportInfo.reportUrl}`;
   
   console.log('🔗 报告URL:', reportUrl);
@@ -825,7 +825,7 @@ const handleViewReport = (order) => {
   }
   
   // 构建报告URL
-  const baseUrl = 'http://localhost:5181';
+  const baseUrl = '';
   const reportUrl = `${baseUrl}/${order.attachmentUrl}`;
   
   console.log('🔗 报告URL:', reportUrl);
@@ -852,7 +852,7 @@ const loadTaskBarcodes = async () => {
   loadingBarcodes.value = true;
   try {
     // 不传递 wardId，显示所有条形码
-    const response = await fetch(`http://localhost:5181/api/BarcodePrint/task-barcodes`);
+    const response = await fetch(`/api/BarcodePrint/task-barcodes`);
     const result = await response.json();
     
     if (result.success) {
