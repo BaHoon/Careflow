@@ -1111,6 +1111,10 @@ const handleCancelWithReturn = async (task) => {
   try {
     console.log('📝 准备显示取消任务弹窗（带退药选项）...');
     
+    // 判断是否为检查类任务
+    const isInspection = props.detail.orderType === 'InspectionOrder';
+    console.log('任务类型:', isInspection ? '检查' : '药品');
+    
     // 第一步：使用 prompt 获取取消理由
     const { value: cancelReason } = await ElMessageBox.prompt(
       '请填写取消任务的理由（该操作将被记录）',
@@ -1131,13 +1135,21 @@ const handleCancelWithReturn = async (task) => {
 
     console.log('✅ 用户输入取消理由:', cancelReason);
 
-    // 第二步：询问是否需要退药
+    // 第二步：根据任务类型询问是否需要退药或取消检查预约
+    const confirmMessage = isInspection 
+      ? '该任务已确认检查预约，是否要通知检查站取消安排检查？'
+      : '该任务已确认药品，是否需要立即退药？';
+    
+    const confirmTitle = isInspection ? '检查取消确认' : '退药确认';
+    const confirmButtonText = isInspection ? '通知检查站取消' : '需要退药';
+    const cancelButtonText = isInspection ? '暂不通知' : '暂不退药';
+
     const { value: needReturnAction } = await ElMessageBox.confirm(
-      '该任务已确认药品，是否需要立即退药？',
-      '退药确认',
+      confirmMessage,
+      confirmTitle,
       {
-        confirmButtonText: '需要退药',
-        cancelButtonText: '暂不退药',
+        confirmButtonText: confirmButtonText,
+        cancelButtonText: cancelButtonText,
         type: 'warning',
         distinguishCancelAndClose: true
       }
@@ -1149,7 +1161,7 @@ const handleCancelWithReturn = async (task) => {
         throw action; // 用户点击了关闭按钮，抛出异常
       });
 
-    console.log('✅ 用户选择是否退药:', needReturnAction);
+    console.log('✅ 用户选择:', needReturnAction ? (isInspection ? '通知检查站取消' : '需要退药') : (isInspection ? '暂不通知' : '暂不退药'));
 
     const nurseId = getCurrentNurseId();
     console.log('获取护士ID:', nurseId);
@@ -1158,7 +1170,7 @@ const handleCancelWithReturn = async (task) => {
       return;
     }
 
-    console.log('=== 准备调用 cancelExecutionTask API (带退药选项) ===');
+    console.log('=== 准备调用 cancelExecutionTask API (带退药/取消预约选项) ===');
     console.log('参数:', { taskId: task.id, nurseId, cancelReason, needReturn: needReturnAction });
     const response = await cancelExecutionTask(task.id, nurseId, cancelReason, needReturnAction);
     console.log('=== OrderDetailPanel API 响应 ===', response);

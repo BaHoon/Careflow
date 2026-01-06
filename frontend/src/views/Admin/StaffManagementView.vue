@@ -94,7 +94,6 @@
           >
             <el-option label="医生" value="Doctor" />
             <el-option label="护士" value="Nurse" />
-            <el-option label="管理员" value="Admin" />
           </el-select>
 
           <!-- 科室筛选 -->
@@ -214,7 +213,6 @@
           <el-select v-model="formData.role" placeholder="请选择角色" style="width: 100%;" :disabled="dialogMode === 'edit'">
             <el-option label="医生" value="Doctor" />
             <el-option label="护士" value="Nurse" />
-            <el-option label="管理员" value="Admin" />
           </el-select>
         </el-form-item>
         <el-form-item label="科室" prop="deptCode">
@@ -259,6 +257,7 @@ import {
 } from '@element-plus/icons-vue';
 import { useRouter } from 'vue-router';
 import { queryStaffList, addStaff, resetPassword, updateStaff, deleteStaff } from '@/api/admin';
+import { logLogout } from '@/api/systemLog';
 
 const router = useRouter();
 
@@ -350,6 +349,17 @@ const handleLogout = async () => {
       }
     );
     
+    // 记录登出日志
+    try {
+      const user = JSON.parse(localStorage.getItem('userInfo') || '{}')
+      await logLogout({
+        operatorId: user.id || null,
+        operatorName: user.fullName || user.name || '未知用户'
+      })
+    } catch (logError) {
+      console.error('记录登出日志失败:', logError)
+    }
+    
     localStorage.removeItem('token');
     localStorage.removeItem('userInfo');
     ElMessage.success('已退出登录');
@@ -371,16 +381,18 @@ const loadStaffList = async () => {
       pageSize: pageSize.value
     });
     
-    // 后端返回的字段映射
-    staffList.value = response.staffList.map(s => ({
-      staffId: s.staffId,
-      fullName: s.fullName,
-      role: s.role,
-      deptCode: s.deptCode,
-      wardId: s.wardId || '',
-      createdAt: s.createdAt,
-      isActive: s.isActive
-    }));
+    // 后端返回的字段映射，并过滤掉管理员角色
+    staffList.value = response.staffList
+      .filter(s => s.role !== 'Admin') // 不显示管理员
+      .map(s => ({
+        staffId: s.staffId,
+        fullName: s.fullName,
+        role: s.role,
+        deptCode: s.deptCode,
+        wardId: s.wardId || '',
+        createdAt: s.createdAt,
+        isActive: s.isActive
+      }));
     totalCount.value = response.totalCount;
     
   } catch (error) {

@@ -83,6 +83,28 @@ namespace CareFlow.WebApi.Controller
                 return StatusCode(500, new { message = "记录登录日志失败" });
             }
         }
+
+        /// <summary>
+        /// 记录登出日志
+        /// </summary>
+        [HttpPost("logout")]
+        public async Task<IActionResult> LogLogout([FromBody] LogoutLogDto dto)
+        {
+            try
+            {
+                await _systemLogService.LogLogoutAsync(
+                    dto.OperatorId,
+                    dto.OperatorName,
+                    HttpContext.Connection.RemoteIpAddress?.ToString()
+                );
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "记录登出日志失败");
+                return StatusCode(500, new { message = "记录登出日志失败" });
+            }
+        }
     }
 
     /// <summary>
@@ -94,5 +116,14 @@ namespace CareFlow.WebApi.Controller
         public string? OperatorName { get; set; }
         public bool Success { get; set; }
         public string? ErrorMessage { get; set; }
+    }
+
+    /// <summary>
+    /// 登出日志DTO
+    /// </summary>
+    public class LogoutLogDto
+    {
+        public int? OperatorId { get; set; }
+        public string? OperatorName { get; set; }
     }
 }

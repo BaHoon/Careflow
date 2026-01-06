@@ -195,10 +195,8 @@
             {{ currentLog.result === 'Success' ? '成功' : '失败' }}
           </el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="关联实体">
-          {{ currentLog.entityType || '-' }} #{{ currentLog.entityId || '-' }}
-        </el-descriptions-item>        <el-descriptions-item label="操作人ID">{{ currentLog.operatorId || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="操作人姓名">{{ currentLog.operatorName || '-' }}</el-descriptions-item>        <el-descriptions-item label="操作详情" :span="2">
+        <el-descriptions-item label="操作人姓名">{{ currentLog.operatorName || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="操作详情" :span="2">
           {{ currentLog.operationDetails || '-' }}
         </el-descriptions-item>
         <el-descriptions-item label="错误信息" :span="2" v-if="currentLog.errorMessage">
@@ -215,7 +213,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { DocumentCopy, User, OfficeBuilding, List, Setting, ArrowDown, SwitchButton } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
-import { getSystemLogs, getOperationTypes } from '@/api/systemLog'
+import { getSystemLogs, getOperationTypes, logLogout } from '@/api/systemLog'
 
 const router = useRouter()
 
@@ -239,8 +237,21 @@ const handleLogout = async () => {
       cancelButtonText: '取消',
       type: 'warning'
     })
+    
+    // 记录登出日志
+    try {
+      const user = JSON.parse(localStorage.getItem('userInfo') || '{}')
+      await logLogout({
+        operatorId: user.id || null,
+        operatorName: user.fullName || user.name || '未知用户'
+      })
+    } catch (logError) {
+      console.error('记录登出日志失败:', logError)
+    }
+    
     localStorage.removeItem('token')
     localStorage.removeItem('user')
+    localStorage.removeItem('userInfo')
     router.push('/login')
   } catch (error) {
     // 取消退出

@@ -20,3 +20,10 @@ export async function getOperationTypes() {
 export async function logLogin(data) {
   return await api.post('/SystemLog/login', data)
 }
+
+/**
+ * 记录登出日志
+ */
+export async function logLogout(data) {
+  return await api.post('/SystemLog/logout', data)
+}

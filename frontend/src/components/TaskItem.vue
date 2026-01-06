@@ -1217,11 +1217,16 @@ const handleCancelWithReturn = async () => {
     status: props.task.status,
     statusType: typeof props.task.status,
     patientName: props.task.patientName,
-    taskTitle: props.task.taskTitle
+    taskTitle: props.task.taskTitle,
+    orderTypeName: props.task.orderTypeName
   });
   
   try {
-    console.log('📝 准备显示取消任务弹窗（带退药选项）...');
+    console.log('📝 准备显示取消任务弹窗（带退药/取消检查预约选项）...');
+    
+    // 判断是否为检查类任务
+    const isInspection = props.task.orderTypeName && props.task.orderTypeName.includes('检查');
+    console.log('任务类型:', isInspection ? '检查' : '药品');
     
     // 第一步：使用 prompt 获取取消理由
     const { value: cancelReason } = await ElMessageBox.prompt(
@@ -1243,30 +1248,38 @@ const handleCancelWithReturn = async () => {
 
     console.log('✅ 用户输入取消理由:', cancelReason);
 
-    // 第二步：询问是否需要退药
+    // 第二步：询问是否需要退药或取消检查预约
     let needReturn = false;
+    const confirmMessage = isInspection 
+      ? '该任务已确认检查预约，是否要通知检查站取消安排检查？'
+      : '该任务已确认药品，是否需要立即退药？';
+    
+    const confirmTitle = isInspection ? '检查取消确认' : '退药确认';
+    const confirmButtonText = isInspection ? '通知检查站取消' : '需要退药';
+    const cancelButtonText = isInspection ? '暂不通知' : '暂不退药';
+
     try {
       await ElMessageBox.confirm(
-        '该任务已确认药品，是否需要立即退药？',
-        '退药确认',
+        confirmMessage,
+        confirmTitle,
         {
-          confirmButtonText: '需要退药',
-          cancelButtonText: '暂不退药',
+          confirmButtonText: confirmButtonText,
+          cancelButtonText: cancelButtonText,
           type: 'warning',
           distinguishCancelAndClose: true
         }
       );
-      needReturn = true; // 用户点击"需要退药"
+      needReturn = true; // 用户点击"需要退药"或"通知检查站取消"
     } catch (action) {
       if (action === 'cancel') {
-        needReturn = false; // 用户点击"暂不退药"
+        needReturn = false; // 用户点击"暂不退药"或"暂不通知"
       } else {
         // 用户点击关闭按钮或按 ESC，视为取消整个操作
         throw action;
       }
     }
 
-    console.log('✅ 用户选择是否退药:', needReturn);
+    console.log('✅ 用户选择:', needReturn ? (isInspection ? '通知检查站取消' : '需要退药') : (isInspection ? '暂不通知' : '暂不退药'));
 
     const nurseId = getCurrentNurseId();
     console.log('获取护士ID:', nurseId);
@@ -1283,7 +1296,7 @@ const handleCancelWithReturn = async () => {
     }
 
     // 调用API取消任务，传递needReturn参数
-    console.log('=== 准备调用 cancelExecutionTask API (带退药选项) ===');
+    console.log('=== 准备调用 cancelExecutionTask API (带退药/取消检查预约选项) ===');
     console.log('参数:', { 
       taskId, 
       nurseId, 
