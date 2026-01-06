@@ -50,6 +50,18 @@ public class EfRepository<T, TKey> : IRepository<T, TKey> where T : EntityBase<T
         await _context.SaveChangesAsync();
     }
 
+    public async Task AddRangeAsync(IEnumerable<T> entities)
+    {
+        await _dbSet.AddRangeAsync(entities);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task UpdateRangeAsync(IEnumerable<T> entities)
+    {
+        _dbSet.UpdateRange(entities);
+        await _context.SaveChangesAsync();
+    }
+
     public async Task DeleteAsync(T entity)
     {
         // 如果是软删除实体，只标记，不真删
