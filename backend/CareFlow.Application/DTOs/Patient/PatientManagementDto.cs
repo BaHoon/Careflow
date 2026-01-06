@@ -474,6 +474,16 @@ public class PatientAdmissionDto
     /// 主治医生姓名
     /// </summary>
     public string AttendingDoctorName { get; set; } = null!;
+    
+    /// <summary>
+    /// 病人所属科室ID（从主治医生的科室获取）
+    /// </summary>
+    public string? DepartmentId { get; set; }
+    
+    /// <summary>
+    /// 病人所属科室名称（从主治医生的科室获取）
+    /// </summary>
+    public string? DepartmentName { get; set; }
 }
 
 /// <summary>
