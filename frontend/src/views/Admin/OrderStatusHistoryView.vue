@@ -269,6 +269,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { Right, Setting, DocumentCopy, User, ArrowDown, SwitchButton, OfficeBuilding, List } from '@element-plus/icons-vue';
 import { useRouter } from 'vue-router';
 import { queryOrderStatusHistory } from '@/api/admin';
+import { logLogout } from '@/api/systemLog';
 import { getOrderDetail } from '@/api/nurseOrder';
 import OrderDetailPanel from '@/components/OrderDetailPanel.vue';
 
@@ -337,6 +338,17 @@ const handleLogout = async () => {
         type: 'warning'
       }
     );
+    
+    // 记录登出日志
+    try {
+      const user = JSON.parse(localStorage.getItem('userInfo') || '{}')
+      await logLogout({
+        operatorId: user.id || null,
+        operatorName: user.fullName || user.name || '未知用户'
+      })
+    } catch (logError) {
+      console.error('记录登出日志失败:', logError)
+    }
     
     localStorage.removeItem('token');
     localStorage.removeItem('userInfo');

@@ -88,6 +88,7 @@ import {
   ArrowDown,
   SwitchButton 
 } from '@element-plus/icons-vue'
+import { logLogout } from '@/api/systemLog'
 
 const router = useRouter()
 const userInfo = ref(null)
@@ -123,6 +124,17 @@ const handleLogout = async () => {
         type: 'warning'
       }
     )
+    
+    // 记录登出日志
+    try {
+      const user = JSON.parse(localStorage.getItem('userInfo') || '{}')
+      await logLogout({
+        operatorId: user.id || null,
+        operatorName: user.fullName || user.name || '未知用户'
+      })
+    } catch (logError) {
+      console.error('记录登出日志失败:', logError)
+    }
     
     localStorage.removeItem('token')
     localStorage.removeItem('userInfo')
