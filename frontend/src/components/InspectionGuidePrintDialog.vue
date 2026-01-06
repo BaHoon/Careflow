@@ -243,7 +243,7 @@ const loadGuideData = async () => {
 const generateBarcode = async () => {
   try {
     const response = await fetch(
-      `http://localhost:5181/api/BarcodePrint/generate-task-barcode?taskId=${props.taskId}`
+      `/api/BarcodePrint/generate-task-barcode?taskId=${props.taskId}`
     );
     const result = await response.json();
     
@@ -320,7 +320,7 @@ const handlePrint = async () => {
     
     // 调用API完成任务
     const response = await fetch(
-      `http://localhost:5181/api/Nursing/execution-tasks/${props.taskId}/complete`,
+      `/api/Nursing/execution-tasks/${props.taskId}/complete`,
       {
         method: 'POST',
         headers: {

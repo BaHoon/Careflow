@@ -1360,7 +1360,7 @@ const handlePrintBarcode = async () => {
 
   try {
     // 先从API获取条形码数据
-    const response = await fetch(`http://localhost:5181/api/BarcodePrint/generate-task-barcode?taskId=${taskId}`);
+    const response = await fetch(`/api/BarcodePrint/generate-task-barcode?taskId=${taskId}`);
     const result = await response.json();
     
     if (!result.success || !result.data) {

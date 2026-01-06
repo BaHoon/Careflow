@@ -60,8 +60,8 @@ const handleLogin = async () => {
     localStorage.removeItem('token');
     localStorage.removeItem('userInfo');
     
-    // 使用统一的API配置
-    const res = await axios.post('http://localhost:5181/api/auth/login', form.value);
+    // 使用相对路径
+    const res = await axios.post('/api/auth/login', form.value);
     
     // 后端返回的完整数据：token, staffId, fullName, role, deptCode
     const { token, staffId, fullName, role, deptCode } = res.data;

@@ -6,24 +6,54 @@ services:
       POSTGRES_USER: hos_user
       POSTGRES_PASSWORD: hos_password123
       POSTGRES_DB: hospital
-      TZ: UTC  # 设置容器时区为 UTC（数据库存储使用UTC，应用层处理时区转换）
+      TZ: UTC
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      # 挂载初始化脚本，仅在数据库首次创建时运行
+      - ./backend/migrations.sql:/docker-entrypoint-initdb.d/1_migrations.sql
+      - ./backend/patient_log_indexes.sql:/docker-entrypoint-initdb.d/2_indexes.sql
     networks:
       - hospital-net
 
   pgadmin:
-    image: dpage/pgadmin4
+    image: dpage/pgadmin4:8
     restart: always
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@hospital.com
       PGADMIN_DEFAULT_PASSWORD: admin123
     ports:
-      - "8080:80"
+      - "8088:80"
     depends_on:
       - db
+    networks:
+      - hospital-net
+
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      # 使用服务名 'db' 连接数据库
+      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=hospital;Username=hos_user;Password=hos_password123;Timezone=UTC;
+      - ASPNETCORE_URLS=http://+:8080
+    depends_on:
+      - db
+    networks:
+      - hospital-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
     networks:
       - hospital-net
 
