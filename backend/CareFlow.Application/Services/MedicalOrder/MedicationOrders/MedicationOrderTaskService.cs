@@ -250,7 +250,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
         if (order == null)
             throw new ArgumentNullException(nameof(order));
 
-        var executionTime = DateTime.UtcNow;
+        var executionTime = DateTime.UtcNow.AddMinutes(1); // 用药类改为当前时间+1分钟
         var tasks = new List<ExecutionTask>();
         
         // 1. 生成取药任务（必须）
