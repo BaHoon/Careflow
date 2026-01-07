@@ -3003,7 +3003,32 @@ namespace CareFlow.Infrastructure.Data
                 new NurseRoster { StaffId = "N095", WardId = "PED-W02", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
                 new NurseRoster { StaffId = "N096", WardId = "PED-W02", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" }
             };
-            context.NurseRosters.AddRange(nurseRosters);
+
+            // 生成连续三天的排班（今天 + 后两天），每天排班相同
+            var baseWorkDate = DateOnly.FromDateTime(todayUtc);
+            var allNurseRosters = new List<NurseRoster>();
+
+            // 第一天：使用原始数据（baseWorkDate）
+            allNurseRosters.AddRange(nurseRosters);
+
+            // 后两天：基于第一天复制一份，只修改 WorkDate
+            for (int dayOffset = 1; dayOffset <= 2; dayOffset++)
+            {
+                var workDate = baseWorkDate.AddDays(dayOffset);
+                foreach (var roster in nurseRosters)
+                {
+                    allNurseRosters.Add(new NurseRoster
+                    {
+                        StaffId = roster.StaffId,
+                        WardId = roster.WardId,
+                        ShiftId = roster.ShiftId,
+                        WorkDate = workDate,
+                        Status = roster.Status
+                    });
+                }
+            }
+
+            context.NurseRosters.AddRange(allNurseRosters);
             context.SaveChanges(); // 保存排班数据
             
         }
