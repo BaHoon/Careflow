@@ -141,12 +141,14 @@ export const startExecutionTask = (taskId, nurseId) => {
  * 完成执行任务
  * @param {number} taskId - 任务ID
  * @param {string} nurseId - 护士ID
- * @param {string} resultPayload - 执行结果（JSON字符串，可选）
+ * @param {string} resultPayload - 执行结果（仅ResultPending任务使用，可选）
+ * @param {string} executionRemarks - 执行备注（可选）
  */
-export const completeExecutionTask = (taskId, nurseId, resultPayload = null) => {
+export const completeExecutionTask = (taskId, nurseId, resultPayload = null, executionRemarks = null) => {
   return api.post(`/Nursing/execution-tasks/${taskId}/complete`, { 
     nurseId, 
-    resultPayload 
+    resultPayload,
+    executionRemarks
   });
 };
 
