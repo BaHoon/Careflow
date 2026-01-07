@@ -3904,12 +3904,30 @@ const getDrugName = (id) => {
 const formatDateTime = (datetime) => {
   if (!datetime) return '';
   try {
-    // 确保UTC时间字符串带有Z标识
-    let utcString = datetime;
-    if (typeof datetime === 'string' && !datetime.endsWith('Z') && !datetime.includes('+')) {
-      utcString = datetime + 'Z';
+    let date;
+
+    // 已经是 Date 对象，直接使用本地时间
+    if (datetime instanceof Date) {
+      date = datetime;
+    } else if (typeof datetime === 'string') {
+      // 字符串里已经带有时区信息（如 Z 或 +08:00），交给 Date 自己解析
+      if (datetime.includes('Z') || datetime.includes('+')) {
+        date = new Date(datetime);
+      } else {
+        // 表单里选出来的本地时间（如 2025-12-19T08:00:00），按本地时间解析，不再额外加 8 小时
+        // 同时兼容空格分隔的形式（如 2025-12-19 08:00:00）
+        const normalized = datetime.replace(' ', 'T');
+        date = new Date(normalized);
+      }
+    } else {
+      // 兜底：其它类型直接交给 Date 处理
+      date = new Date(datetime);
     }
-    const date = new Date(utcString);
+
+    if (isNaN(date.getTime())) {
+      return datetime;
+    }
+
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
