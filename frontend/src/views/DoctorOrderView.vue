@@ -523,8 +523,8 @@ const handleStopConfirm = async (stopData) => {
 
 // ==================== 判断是否可以停止医嘱 ====================
 const canStopOrder = (order) => {
-  // 待签收(1)、已签收(2)、进行中(3)或停止中(9)状态可以停止
-  if (order.status === 1 || order.status === 2 || order.status === 3 || order.status === 9) {
+  // 待签收(1)、已签收(2)、进行中(3)、停止中(9)或异常态(10)状态可以停止
+  if (order.status === 1 || order.status === 2 || order.status === 3 || order.status === 9 || order.status === 10) {
     return true;
   }
   
@@ -626,19 +626,23 @@ const handleWithdrawStop = async (order) => {
 // ==================== 处理异常态医嘱 ====================
 const handleAbnormalOrder = async (order) => {
   try {
-    const { value: handleNote } = await ElMessageBox.prompt(
-      `医嘱当前为异常状态，请输入处理说明：`,
+    // 先获取医嘱详情，找到异常任务的取消原因
+    const detail = await getOrderDetail(order.id);
+    const abnormalTasks = detail.tasks.filter(t => t.status === 8); // Incomplete状态
+    
+    let cancelReason = '未找到取消原因';
+    if (abnormalTasks.length > 0 && abnormalTasks[0].exceptionReason) {
+      cancelReason = abnormalTasks[0].exceptionReason;
+    }
+    
+    // 显示护士取消的原因，让医生确认处理
+    await ElMessageBox.confirm(
+      `医嘱当前为异常状态\n\n护士取消原因：\n${cancelReason}\n\n确认处理该异常医嘱吗？`,
       '处理异常医嘱',
       {
         confirmButtonText: '确认处理',
         cancelButtonText: '取消',
-        inputPlaceholder: '请输入处理说明',
-        inputValidator: (value) => {
-          if (!value || value.trim() === '') {
-            return '请输入处理说明';
-          }
-          return true;
-        }
+        type: 'warning'
       }
     );
 
@@ -646,7 +650,7 @@ const handleAbnormalOrder = async (order) => {
     const result = await handleAbnormalTask({
       orderId: order.id,
       doctorId: currentDoctor.staffId,
-      handleNote: handleNote.trim()
+      handleNote: `医生已确认处理异常任务。原因：${cancelReason}`
     });
 
     if (result.success) {
