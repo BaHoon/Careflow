@@ -1364,23 +1364,35 @@ namespace CareFlow.WebApi.Controllers
                     }
                 }
 
-                // 更新任务信息 - 处理备注
-                if (!string.IsNullOrEmpty(dto.ResultPayload))
+                // 更新任务信息 - 处理备注和结果
+                if (!string.IsNullOrEmpty(dto.ExecutionRemarks))
                 {
                     // 对于 Duration 和 ResultPending，如果是第二次调用，需要合并备注为指定格式
                     if ((task.Category == TaskCategory.Duration || task.Category == TaskCategory.ResultPending) &&
                         targetStatus == ExecutionTaskStatus.Completed &&
-                        !string.IsNullOrEmpty(task.ResultPayload))
+                        !string.IsNullOrEmpty(task.ExecutionRemarks))
                     {
                         // 已经有备注（开始备注），追加结束备注
                         // 格式：开始备注：内容1.结束备注：内容2.
-                        task.ResultPayload = task.ResultPayload + "结束备注：" + dto.ResultPayload + ".";
+                        task.ExecutionRemarks = task.ExecutionRemarks + "结束备注：" + dto.ExecutionRemarks + ".";
+                    }
+                    else if ((task.Category == TaskCategory.Duration || task.Category == TaskCategory.ResultPending) &&
+                             targetStatus == ExecutionTaskStatus.InProgress)
+                    {
+                        // 第一次调用（Pending → InProgress），添加开始备注前缀
+                        task.ExecutionRemarks = "开始备注：" + dto.ExecutionRemarks + ".";
                     }
                     else
                     {
-                        // 第一次调用或覆盖
-                        task.ResultPayload = dto.ResultPayload;
+                        // 其他情况（Immediate、DataCollection、Verification等）直接存储
+                        task.ExecutionRemarks = dto.ExecutionRemarks;
                     }
+                }
+                
+                // 处理执行结果（仅用于ResultPending类任务）
+                if (!string.IsNullOrEmpty(dto.ResultPayload))
+                {
+                    task.ResultPayload = dto.ResultPayload;
                 }
 
                 // 如果转换到 Completed 状态，设置完成信息
@@ -1809,6 +1821,7 @@ namespace CareFlow.WebApi.Controllers
                     medicalOrderId = task.MedicalOrderId,
                     executorStaffId = task.ExecutorStaffId,
                     resultPayload = task.ResultPayload,
+                    executionRemarks = task.ExecutionRemarks,
                     drugs = GetTaskDrugs(task) // 用于核对类任务
                 };
 

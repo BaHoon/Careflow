@@ -1093,7 +1093,7 @@ const handleStartCompletion = async () => {
       // 第一阶段备注格式：开始备注：内容.
       let resultPayload = null;
       if (remarkValue && remarkValue.trim()) {
-        resultPayload = `开始备注：${remarkValue}.`;
+        resultPayload = `${remarkValue}.`;
       }
 
       // 调用API完成第一阶段（Duration/ResultPending到InProgress）

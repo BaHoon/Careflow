@@ -140,6 +140,19 @@
               <p><strong>计划时间:</strong> {{ formatTime(currentTask.plannedStartTime) }}</p>
             </div>
 
+            <!-- 结果输入框（仅ResultPending任务第二次完成时显示） -->
+            <div v-if="currentTask.category === 3 && (currentTask.status === 4 || currentTask.status === 'InProgress')" class="result-box">
+              <label for="result">执行结果（必填）<span style="color: red;">*</span>：</label>
+              <el-input
+                id="result"
+                v-model="resultValue"
+                type="textarea"
+                placeholder="请输入执行结果，例如：血糖值 5.6 mmol/L、体温 36.8℃、皮试阴性等"
+                :rows="3"
+              />
+            </div>
+
+            <!-- 备注输入框（所有任务都可填写） -->
             <div class="remark-box">
               <label for="remark">备注（可选）：</label>
               <el-input
@@ -147,7 +160,7 @@
                 v-model="remarks"
                 type="textarea"
                 placeholder="请输入执行过程中的备注信息"
-                :rows="4"
+                :rows="3"
               />
             </div>
 
@@ -178,9 +191,13 @@
                   <span class="label">完成时间:</span>
                   <span class="value">{{ formatHistoryTime(t.completedTime) }}</span>
                 </div>
-                <div v-if="t.remarks && t.remarks !== '无备注'" class="h-remarks">
-                  <span class="label">备注:</span>
-                  <span class="value">{{ t.remarks }}</span>
+                <div v-if="t.result && t.result !== ''" class="h-result">
+                  <span class="label">执行结果:</span>
+                  <span class="value result-text">{{ t.result }}</span>
+                </div>
+                <div v-if="t.executionRemarks && t.executionRemarks !== ''" class="h-remarks">
+                  <span class="label">执行备注:</span>
+                  <span class="value">{{ t.executionRemarks }}</span>
                 </div>
               </div>
             </div>
@@ -227,7 +244,8 @@ const currentUser = ref(getUserInfo());
 const currentStep = ref(0);
 const currentTask = ref(null);
 const showHistory = ref(false);
-const remarks = ref('');
+const remarks = ref(''); // 执行备注
+const resultValue = ref(''); // 执行结果（仅ResultPending任务使用）
 const drugInputValue = ref(''); // 药品输入框
 
 // 从 localStorage 加载执行历史
@@ -489,19 +507,20 @@ const finish = async () => {
     const category = currentTask.value.category;
     const currentStatus = currentTask.value.status;
     let resultPayload = null;
+    let executionRemarks = null;
     
     if (category === 1 || category === 4) {
       // Immediate、DataCollection：一次完成（Pending → Completed）
       if (remarks.value) {
-        resultPayload = remarks.value;
+        executionRemarks = remarks.value;
       }
-      await api.completeExecutionTask(currentTask.value.id, nurseId, resultPayload);
+      await api.completeExecutionTask(currentTask.value.id, nurseId, resultPayload, executionRemarks);
       
       msg?.close();
       ElMessage.success(`任务已由 ${currentUser.value.fullName} 完成！`);
       
       // 添加到历史
-      addToHistory(currentTask.value);
+      await addToHistory(currentTask.value.id);
 
       // 重置
       reset();
@@ -510,15 +529,15 @@ const finish = async () => {
       // Verification(核对药品)：一次完成（Pending → Completed）
       // 所有药品已核对完毕，直接完成任务
       if (remarks.value) {
-        resultPayload = `核对备注：${remarks.value}`;
+        executionRemarks = remarks.value;
       }
-      await api.completeExecutionTask(currentTask.value.id, nurseId, resultPayload);
+      await api.completeExecutionTask(currentTask.value.id, nurseId, resultPayload, executionRemarks);
       
       msg?.close();
       ElMessage.success(`任务已由 ${currentUser.value.fullName} 完成！`);
       
       // 添加到历史
-      addToHistory(currentTask.value);
+      await addToHistory(currentTask.value.id);
 
       // 重置
       reset();
@@ -528,11 +547,11 @@ const finish = async () => {
       
       if (currentStatus === 3 || currentStatus === 'Pending') {
         // 第一次调用：Pending → InProgress
-        // 备注格式：开始备注：[内容]
+        // 开始备注
         if (remarks.value) {
-          resultPayload = `开始备注：${remarks.value}.`;
+          executionRemarks = `${remarks.value}.`;
         }
-        await api.completeExecutionTask(currentTask.value.id, nurseId, resultPayload);
+        await api.completeExecutionTask(currentTask.value.id, nurseId, resultPayload, executionRemarks);
         
         msg?.close();
         ElMessage.success(`任务已开始执行，请再扫一次以完成任务`);
@@ -540,23 +559,35 @@ const finish = async () => {
         // 重置为第0步让护士再扫一次
         currentStep.value = 0;
         remarks.value = '';
+        resultValue.value = '';
         taskPreview.value = '';
         secondPreview.value = '';
         message.value = null;
         return;
       } else if (currentStatus === 4 || currentStatus === 'InProgress') {
         // 第二次调用：InProgress → Completed
-        // 后端会自动合并为：开始备注：内容1.结束备注：内容2.的格式
-        if (remarks.value) {
-          resultPayload = remarks.value;
+        // 对于ResultPending任务，需要验证结果必填
+        if (category === 3) {
+          if (!resultValue.value || resultValue.value.trim() === '') {
+            msg?.close();
+            ElMessage.error('结果返回类任务必须填写执行结果！');
+            return;
+          }
+          resultPayload = resultValue.value;
         }
-        await api.completeExecutionTask(currentTask.value.id, nurseId, resultPayload);
+        
+        // 备注（可选）
+        if (remarks.value) {
+          executionRemarks = remarks.value;
+        }
+        
+        await api.completeExecutionTask(currentTask.value.id, nurseId, resultPayload, executionRemarks);
         
         msg?.close();
         ElMessage.success(`任务已由 ${currentUser.value.fullName} 完成！`);
         
         // 添加到历史
-        addToHistory(currentTask.value);
+        await addToHistory(currentTask.value.id);
 
         // 重置
         reset();
@@ -568,7 +599,7 @@ const finish = async () => {
     ElMessage.success(`任务已由 ${currentUser.value.fullName} 完成！`);
     
     // 添加到历史
-    addToHistory(currentTask.value);
+    await addToHistory(currentTask.value.id);
 
     // 重置
     reset();
@@ -589,6 +620,7 @@ const reset = () => {
   endPreview.value = '';
   message.value = null;
   remarks.value = '';
+  resultValue.value = '';
   confirmedCount.value = 0;
   totalCount.value = 0;
 };
@@ -603,18 +635,39 @@ const saveHistoryToStorage = () => {
 };
 
 // 添加历史记录
-const addToHistory = (task) => {
-  history.value.unshift({
-    id: task.id,
-    patientName: task.patientName,
-    bedId: task.bedId,
-    category: task.category,
-    categoryName: getCategoryName(task.category),
-    completedTime: new Date().toISOString(),
-    completedBy: currentUser.value?.fullName || '未知',
-    remarks: remarks.value || '无备注'
-  });
-  saveHistoryToStorage();
+const addToHistory = async (taskId) => {
+  try {
+    // 重新获取任务最新数据，确保获取完整的 ExecutionRemarks 和 ResultPayload
+    const taskDetail = await api.getExecutionTaskDetail(taskId);
+    
+    history.value.unshift({
+      id: taskDetail.id,
+      patientName: taskDetail.patientName,
+      bedId: taskDetail.bedId,
+      category: taskDetail.category,
+      categoryName: getCategoryName(taskDetail.category),
+      completedTime: new Date().toISOString(),
+      completedBy: currentUser.value?.fullName || '未知',
+      result: taskDetail.resultPayload || '', // 执行结果（从数据库获取）
+      executionRemarks: taskDetail.executionRemarks || '' // 执行备注（从数据库获取完整内容）
+    });
+    saveHistoryToStorage();
+  } catch (error) {
+    console.error('添加执行历史失败:', error);
+    // 即使获取失败，也使用基本信息添加到历史
+    history.value.unshift({
+      id: taskId,
+      patientName: currentTask.value?.patientName || '未知',
+      bedId: currentTask.value?.bedId || '',
+      category: currentTask.value?.category || 0,
+      categoryName: getCategoryName(currentTask.value?.category || 0),
+      completedTime: new Date().toISOString(),
+      completedBy: currentUser.value?.fullName || '未知',
+      result: resultValue.value || '',
+      executionRemarks: remarks.value || ''
+    });
+    saveHistoryToStorage();
+  }
 };
 
 // 清空历史
@@ -638,7 +691,7 @@ const clearHistory = () => {
 
 // 辅助函数
 const getCategoryName = (cat) => {
-  const names = { 1: '立即执行', 2: '持续执行', 3: '结果待收集', 5: '核对药品' };
+  const names = { 1: '立即执行', 2: '持续执行', 3: '结果返回类', 4: '数据收集', 5: '核对药品' };
   return names[cat] || '其他';
 };
 
@@ -1007,6 +1060,21 @@ onBeforeUnmount(() => {
   font-weight: 500;
 }
 
+.result-box {
+  margin-bottom: 20px;
+  padding: 15px;
+  background: #fff7e6;
+  border-radius: 6px;
+  border-left: 4px solid #e6a23c;
+}
+
+.result-box label {
+  display: block;
+  margin-bottom: 8px;
+  color: #303133;
+  font-weight: 500;
+}
+
 .progress {
   background: #f5f7fa;
   padding: 15px;
@@ -1247,9 +1315,10 @@ onBeforeUnmount(() => {
 .h-patient,
 .h-executor,
 .h-time,
+.h-result,
 .h-remarks {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   margin-top: 6px;
   font-size: 13px;
@@ -1258,18 +1327,38 @@ onBeforeUnmount(() => {
 .h-patient .label,
 .h-executor .label,
 .h-time .label,
+.h-result .label,
 .h-remarks .label {
   color: #909399;
   font-weight: 500;
   min-width: 60px;
+  flex-shrink: 0;
 }
 
 .h-patient .value,
 .h-executor .value,
 .h-time .value,
+.h-result .value,
 .h-remarks .value {
   color: #303133;
   flex: 1;
+  word-break: break-word;
+}
+
+.h-result {
+  background: #fff7e6;
+  padding: 8px;
+  border-radius: 4px;
+  border-left: 3px solid #e6a23c;
+}
+
+.h-result .label {
+  color: #e6a23c;
+}
+
+.h-result .result-text {
+  color: #303133;
+  font-weight: 500;
 }
 
 .bed-id {

@@ -978,7 +978,7 @@ const handleStartCompletion = async (task) => {
       // 第一阶段备注格式：开始备注：内容.
       let resultPayload = null;
       if (remarkValue && remarkValue.trim()) {
-        resultPayload = `开始备注：${remarkValue}.`;
+        resultPayload = `${remarkValue}.`;
       }
 
       const response = await completeExecutionTask(task.id, nurseId, resultPayload);

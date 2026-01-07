@@ -73,9 +73,16 @@ public class ExecutionTask : EntityBase<long>
     /// <summary>
     /// [输出] 任务执行结果 (由护士操作后写入)
     /// 用途：记录“测量的数值”、“实际扫描的条码”、“皮试结果”
-    /// 初始为空，Task完成时必填（取决于业务逻辑）
+    /// 初始为空，ResultPending类任务完成时必填
     /// </summary>
     public string? ResultPayload { get; set; }
+    
+    /// <summary>
+    /// [输出] 执行备注 (由护士操作时填写)
+    /// 用途：记录执行过程中的备注、观察、特殊情况说明
+    /// 格式：开始备注：xxx.结束备注：yyy.
+    /// </summary>
+    public string? ExecutionRemarks { get; set; }
 
     public string ExceptionReason { get; set; } = string.Empty;
     

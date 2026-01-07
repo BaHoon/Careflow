@@ -16,6 +16,7 @@ public class ExecutionTaskDto
     public bool IsRolledBack { get; set; }
     public string DataPayload { get; set; } = string.Empty;
     public string? ResultPayload { get; set; }
+    public string? ExecutionRemarks { get; set; }
     public string ExceptionReason { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
 
