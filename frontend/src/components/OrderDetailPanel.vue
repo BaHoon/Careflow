@@ -248,14 +248,6 @@
             <span class="label">操作名称:</span>
             <span class="value highlight">{{ detail.operationName || detail.operationCode || '未知操作' }}</span>
           </div>
-          <div class="info-item">
-            <span class="label">操作代码:</span>
-            <span class="value">{{ detail.operationCode }}</span>
-          </div>
-          <div v-if="detail.targetSite" class="info-item">
-            <span class="label">操作部位:</span>
-            <span class="value">{{ detail.targetSite }}</span>
-          </div>
           <div v-if="detail.timingStrategy" class="info-item">
             <span class="label">时间策略:</span>
             <span class="value">{{ getTimingStrategyName(detail.timingStrategy) }}</span>
@@ -890,51 +882,113 @@ const handleStartCompletion = async (task) => {
         ⚡ 此任务将直接标记为完成
       </div></div>`;
       
-      await ElMessageBox.confirm(message, '确认完成任务', {
-        confirmButtonText: '确认完成',
-        cancelButtonText: '取消',
-        type: 'warning',
-        dangerouslyUseHTMLString: true,
-        customClass: 'task-completion-dialog'
-      });
+      // 询问是否需要输入备注
+      const { value: remarkValue } = await ElMessageBox.prompt(
+        message,
+        '确认完成任务',
+        {
+          confirmButtonText: '确认完成',
+          cancelButtonText: '取消',
+          type: 'warning',
+          inputType: 'textarea',
+          inputPlaceholder: '请输入完成备注（可选）...',
+          dangerouslyUseHTMLString: true,
+          customClass: 'task-completion-dialog'
+        }
+      );
+
+      const nurseId = getCurrentNurseId();
+      if (!nurseId) {
+        ElMessage.error('未找到护士信息');
+        return;
+      }
+
+      // 备注格式
+      let resultPayload = null;
+      if (remarkValue && remarkValue.trim()) {
+        resultPayload = `完成备注：${remarkValue}.`;
+      }
+
+      const response = await completeExecutionTask(task.id, nurseId, resultPayload);
+      ElMessage.success(response.message || '任务已完成');
+      emit('task-updated', task.id);
+      return;
     } else if (category === 5 || category === 'Verification') {
       message += `<div style="margin-top: 12px; padding: 8px 12px; background: #f0f9ff; border-radius: 4px; color: #409eff; font-size: 12px;">
         ✓ 核对完成后将更新任务状态
       </div></div>`;
       
-      await ElMessageBox.confirm(message, '确认核对完成', {
-        confirmButtonText: '确认完成',
-        cancelButtonText: '取消',
-        type: 'warning',
-        dangerouslyUseHTMLString: true,
-        customClass: 'task-completion-dialog'
-      });
+      // 询问是否需要输入备注
+      const { value: remarkValue } = await ElMessageBox.prompt(
+        message,
+        '确认核对完成',
+        {
+          confirmButtonText: '确认完成',
+          cancelButtonText: '取消',
+          type: 'warning',
+          inputType: 'textarea',
+          inputPlaceholder: '请输入核对备注（可选）...',
+          dangerouslyUseHTMLString: true,
+          customClass: 'task-completion-dialog'
+        }
+      );
+
+      const nurseId = getCurrentNurseId();
+      if (!nurseId) {
+        ElMessage.error('未找到护士信息');
+        return;
+      }
+
+      // 备注格式
+      let resultPayload = null;
+      if (remarkValue && remarkValue.trim()) {
+        resultPayload = `核对备注：${remarkValue}.`;
+      }
+
+      const response = await completeExecutionTask(task.id, nurseId, resultPayload);
+      ElMessage.success(response.message || '任务已完成');
+      emit('task-updated', task.id);
+      return;
     } else if (category === 2 || category === 'Duration' || category === 3 || category === 'ResultPending') {
       message += `<div style="margin-top: 12px; padding: 8px 12px; background: #f0f9ff; border-radius: 4px; color: #409eff; font-size: 12px;">
         ▶ 任务开始执行，稍后需要完成或上传结果
       </div></div>`;
       
-      await ElMessageBox.confirm(message, '确认开始执行', {
-        confirmButtonText: '确认开始',
-        cancelButtonText: '取消',
-        type: 'info',
-        dangerouslyUseHTMLString: true,
-        customClass: 'task-completion-dialog'
-      });
+      // 询问是否需要输入备注（第一阶段）
+      const { value: remarkValue } = await ElMessageBox.prompt(
+        message,
+        '确认开始执行',
+        {
+          confirmButtonText: '确认开始',
+          cancelButtonText: '取消',
+          type: 'info',
+          inputType: 'textarea',
+          inputPlaceholder: '请输入开始备注（可选）...',
+          dangerouslyUseHTMLString: true,
+          customClass: 'task-completion-dialog'
+        }
+      );
+      
+      const nurseId = getCurrentNurseId();
+      if (!nurseId) {
+        ElMessage.error('未找到护士信息');
+        return;
+      }
+
+      // 第一阶段备注格式：开始备注：内容.
+      let resultPayload = null;
+      if (remarkValue && remarkValue.trim()) {
+        resultPayload = `开始备注：${remarkValue}.`;
+      }
+
+      const response = await completeExecutionTask(task.id, nurseId, resultPayload);
+      ElMessage.success(response.message || '任务已开始执行，请继续完成第二阶段');
+      emit('task-updated', task.id);
+      return;
     } else {
       ElMessage.warning(`任务类别 ${category} 的流程暂未实现`);
       return;
     }
-
-    const nurseId = getCurrentNurseId();
-    if (!nurseId) {
-      ElMessage.error('未找到护士信息');
-      return;
-    }
-
-    const response = await completeExecutionTask(task.id, nurseId, null);
-    ElMessage.success(response.message || '任务已更新');
-    emit('task-updated', task.id);
   } catch (error) {
     if (error !== 'cancel') {
       console.error('开始完成任务失败:', error);
@@ -995,36 +1049,88 @@ const handleFinishTask = async (task) => {
 
     if (category === 3 || category === 'ResultPending') {
       message += `<div style="margin-top: 12px; padding: 8px 12px; background: #fdf6ec; border-radius: 4px; color: #e6a23c; font-size: 12px;">
-        📥 请在下方输入执行结果
+        📥 请在下方分别输入执行结果和结束备注
       </div></div>`;
       
-      const { value } = await ElMessageBox.prompt(message, '结束任务并录入结果', {
-        confirmButtonText: '确认完成',
-        cancelButtonText: '取消',
-        inputType: 'textarea',
-        inputPlaceholder: '请输入执行结果（必填）...',
-        inputValidator: (value) => {
-          if (!value || value.trim().length === 0) {
-            return '执行结果不能为空';
+      // 第一步：获取执行结果（必填）
+      let resultValue = '';
+      try {
+        const resultPrompt = message + `<div style="margin-top: 16px; padding: 8px 12px; background: #f0f9ff; border-radius: 4px; color: #409eff; font-size: 12px;">
+          ➡️ 第1步：请先输入执行结果
+        </div>`;
+        
+        const { value } = await ElMessageBox.prompt(
+          resultPrompt,
+          '结束任务 - 录入结果',
+          {
+            confirmButtonText: '下一步',
+            cancelButtonText: '取消',
+            inputType: 'textarea',
+            inputPlaceholder: '请输入执行结果（必填）...',
+            inputValidator: (value) => {
+              if (!value || value.trim().length === 0) {
+                return '执行结果不能为空';
+              }
+              return true;
+            },
+            dangerouslyUseHTMLString: true,
+            customClass: 'task-completion-dialog'
           }
-          return true;
-        },
-        dangerouslyUseHTMLString: true,
-        customClass: 'task-completion-dialog'
-      });
-      resultPayload = value;
+        );
+        resultValue = value;
+      } catch (error) {
+        if (error !== 'cancel') {
+          throw error;
+        }
+        return;
+      }
+      
+      // 第二步：获取结束备注（可选）
+      let remarkValue = '';
+      try {
+        const remarkPrompt = message + `<div style="margin-top: 16px; padding: 8px 12px; background: #f0f9ff; border-radius: 4px; color: #409eff; font-size: 12px;">
+          ➡️ 第2步：请输入结束备注（可选）
+        </div>`;
+        
+        const { value } = await ElMessageBox.prompt(
+          remarkPrompt,
+          '结束任务 - 录入备注',
+          {
+            confirmButtonText: '确认完成',
+            cancelButtonText: '取消',
+            inputType: 'textarea',
+            inputPlaceholder: '请输入结束备注信息（可选）...',
+            dangerouslyUseHTMLString: true,
+            customClass: 'task-completion-dialog'
+          }
+        );
+        remarkValue = value || '';
+      } catch (error) {
+        if (error !== 'cancel') {
+          throw error;
+        }
+        return;
+      }
+      
+      resultPayload = resultValue + (remarkValue ? `\n${remarkValue}` : '');
     } else if (category === 2 || category === 'Duration') {
       message += `<div style="margin-top: 12px; padding: 8px 12px; background: #f0f9ff; border-radius: 4px; color: #409eff; font-size: 12px;">
-        ✓ 任务完成后将更新为已完成状态
+        📝 请在下方输入结束备注信息
       </div></div>`;
       
-      await ElMessageBox.confirm(message, '结束任务', {
-        confirmButtonText: '确认完成',
-        cancelButtonText: '取消',
-        type: 'success',
-        dangerouslyUseHTMLString: true,
-        customClass: 'task-completion-dialog'
-      });
+      const { value } = await ElMessageBox.prompt(
+        message,
+        '结束任务',
+        {
+          confirmButtonText: '确认完成',
+          cancelButtonText: '取消',
+          inputType: 'textarea',
+          inputPlaceholder: '请输入结束备注信息（可选）...',
+          dangerouslyUseHTMLString: true,
+          customClass: 'task-completion-dialog'
+        }
+      );
+      resultPayload = value || '';
     } else {
       ElMessage.warning(`任务类别 ${category} 的流程暂未实现`);
       return;
@@ -1111,6 +1217,10 @@ const handleCancelWithReturn = async (task) => {
   try {
     console.log('📝 准备显示取消任务弹窗（带退药选项）...');
     
+    // 判断是否为检查类任务
+    const isInspection = props.detail.orderType === 'InspectionOrder';
+    console.log('任务类型:', isInspection ? '检查' : '药品');
+    
     // 第一步：使用 prompt 获取取消理由
     const { value: cancelReason } = await ElMessageBox.prompt(
       '请填写取消任务的理由（该操作将被记录）',
@@ -1131,13 +1241,21 @@ const handleCancelWithReturn = async (task) => {
 
     console.log('✅ 用户输入取消理由:', cancelReason);
 
-    // 第二步：询问是否需要退药
+    // 第二步：根据任务类型询问是否需要退药或取消检查预约
+    const confirmMessage = isInspection 
+      ? '该任务已确认检查预约，是否要通知检查站取消安排检查？'
+      : '该任务已确认药品，是否需要立即退药？';
+    
+    const confirmTitle = isInspection ? '检查取消确认' : '退药确认';
+    const confirmButtonText = isInspection ? '通知检查站取消' : '需要退药';
+    const cancelButtonText = isInspection ? '暂不通知' : '暂不退药';
+
     const { value: needReturnAction } = await ElMessageBox.confirm(
-      '该任务已确认药品，是否需要立即退药？',
-      '退药确认',
+      confirmMessage,
+      confirmTitle,
       {
-        confirmButtonText: '需要退药',
-        cancelButtonText: '暂不退药',
+        confirmButtonText: confirmButtonText,
+        cancelButtonText: cancelButtonText,
         type: 'warning',
         distinguishCancelAndClose: true
       }
@@ -1149,7 +1267,7 @@ const handleCancelWithReturn = async (task) => {
         throw action; // 用户点击了关闭按钮，抛出异常
       });
 
-    console.log('✅ 用户选择是否退药:', needReturnAction);
+    console.log('✅ 用户选择:', needReturnAction ? (isInspection ? '通知检查站取消' : '需要退药') : (isInspection ? '暂不通知' : '暂不退药'));
 
     const nurseId = getCurrentNurseId();
     console.log('获取护士ID:', nurseId);
@@ -1158,7 +1276,7 @@ const handleCancelWithReturn = async (task) => {
       return;
     }
 
-    console.log('=== 准备调用 cancelExecutionTask API (带退药选项) ===');
+    console.log('=== 准备调用 cancelExecutionTask API (带退药/取消预约选项) ===');
     console.log('参数:', { taskId: task.id, nurseId, cancelReason, needReturn: needReturnAction });
     const response = await cancelExecutionTask(task.id, nurseId, cancelReason, needReturnAction);
     console.log('=== OrderDetailPanel API 响应 ===', response);
@@ -1236,7 +1354,8 @@ const formatDateTime = (dateString) => {
 const getStatusText = (status) => {
   const statusMap = {
     0: '草稿', 1: '未签收', 2: '已签收', 3: '进行中',
-    4: '已完成', 5: '已拒绝', 6: '已取消', 7: '等待停嘱', 8: '已停止'
+    4: '已完成', 5: '已停止', 6: '已取消', 7: '已退回', 
+    8: '等待停嘱', 9: '停止中', 10: '异常态'
   };
   return statusMap[status] || `状态${status}`;
 };
@@ -1244,7 +1363,8 @@ const getStatusText = (status) => {
 const getStatusColor = (status) => {
   const colorMap = {
     0: 'info', 1: 'warning', 2: 'primary', 3: 'success',
-    4: 'success', 5: 'danger', 6: 'info', 7: 'warning', 8: 'info'
+    4: 'success', 5: 'info', 6: 'info', 7: 'danger', 
+    8: 'warning', 9: 'warning', 10: 'danger'
   };
   return colorMap[status] || 'info';
 };
@@ -1469,7 +1589,7 @@ const handlePrintTaskBarcode = async (task) => {
 
   try {
     // 先从API获取条形码数据
-    const response = await fetch(`http://localhost:5181/api/BarcodePrint/generate-task-barcode?taskId=${taskId}`);
+    const response = await fetch(`/api/BarcodePrint/generate-task-barcode?taskId=${taskId}`);
     const result = await response.json();
     
     if (!result.success || !result.data) {

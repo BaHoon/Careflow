@@ -25,6 +25,12 @@ public interface IRepository<T, TKey> where T : EntityBase<TKey>
     // 更新实体
     Task UpdateAsync(T entity);
 
+    // 批量添加实体
+    Task AddRangeAsync(IEnumerable<T> entities);
+
+    // 批量更新实体
+    Task UpdateRangeAsync(IEnumerable<T> entities);
+
     // 删除实体
     Task DeleteAsync(T entity);
 

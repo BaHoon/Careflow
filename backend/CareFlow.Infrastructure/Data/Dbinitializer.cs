@@ -46,17 +46,37 @@ namespace CareFlow.Infrastructure.Data
             // 第一部分：基础数据（科室、时段、员工、床位）
             // ==========================================
 
-            // --- 预置科室数据 (Department) ---
+// --- 预置科室数据 (Department) ---
+            // 修改说明：移除大内科/大外科，细分为二级专科
             var departments = new Department[]
             {
-                new Department { Id = "IM", DeptName = "内科", Location = "住院部A栋3楼" },
-                new Department { Id = "SUR", DeptName = "外科", Location = "住院部A栋4楼" },
+                // === 内科系统 ===
+                new Department { Id = "CARD", DeptName = "心血管内科", Location = "住院部A栋3楼" },
+                new Department { Id = "RESP", DeptName = "呼吸内科", Location = "住院部A栋4楼" },
+                new Department { Id = "GAST", DeptName = "消化内科", Location = "住院部A栋5楼" },
+                new Department { Id = "NEUR", DeptName = "神经内科", Location = "住院部A栋6楼" },
+                new Department { Id = "NEPH", DeptName = "肾内科", Location = "住院部A栋7楼" },
+                new Department { Id = "ENDO", DeptName = "内分泌科", Location = "住院部A栋8楼" },
+                new Department { Id = "HEMA", DeptName = "血液内科", Location = "住院部A栋9楼" },
+
+                // === 外科系统 ===
+                new Department { Id = "GEN_SUR", DeptName = "普通外科", Location = "住院部B栋3楼" }, 
+                new Department { Id = "ORTH", DeptName = "骨科", Location = "住院部B栋4楼" },
+                new Department { Id = "NSUR", DeptName = "神经外科", Location = "住院部B栋5楼" },
+                new Department { Id = "CT_SUR", DeptName = "心胸外科", Location = "住院部B栋6楼" },
+                new Department { Id = "UROL", DeptName = "泌尿外科", Location = "住院部B栋7楼" },
+                new Department { Id = "BURN", DeptName = "烧伤科", Location = "住院部B栋8楼" },
+
+                // === 妇产科系统 ===
+                new Department { Id = "GYN", DeptName = "妇科", Location = "住院部C栋3楼" },
+                new Department { Id = "OBS", DeptName = "产科", Location = "住院部C栋4楼" },
+
+                // === 其他保留科室 ===
                 new Department { Id = "PED", DeptName = "儿科", Location = "住院部B栋2楼" },
                 new Department { Id = "ADM", DeptName = "行政", Location = "行政楼101室" },
-                new Department { Id = "CHK", DeptName = "检查站", Location = "检查站1楼" }
             };
             context.Departments.AddRange(departments);
-            context.SaveChanges(); // 保存科室
+            context.SaveChanges();
 
             // --- 预置时间槽位数据 (HospitalTimeSlot) ---
             // ⚠️ 重要：时间使用 UTC 存储（北京时间 -8小时）
@@ -77,9 +97,10 @@ namespace CareFlow.Infrastructure.Data
             // --- 预置员工数据 (Staff/Doctor/Nurse) ---
             string defaultHashedPassword = HashPassword("123456");
 
-            // 医生数据
+            // 医生数据 - 按照科室顺序，每个科室一个医生
             var doctors = new Doctor[]
             {
+                // === 内科系统 ===
                 new Doctor
                 {
                     Id = "D001",
@@ -90,7 +111,7 @@ namespace CareFlow.Infrastructure.Data
                     Phone = "13912340001",
                     RoleType = "Doctor",
                     IsActive = true,
-                    DeptCode = "IM",
+                    DeptCode = "CARD",
                     Title = DoctorTitle.Chief.ToString(),
                     PrescriptionAuthLevel = "High"
                 },
@@ -104,7 +125,7 @@ namespace CareFlow.Infrastructure.Data
                     Phone = "13912340002",
                     RoleType = "Doctor",
                     IsActive = true,
-                    DeptCode = "SUR",
+                    DeptCode = "RESP",
                     Title = DoctorTitle.Chief.ToString(),
                     PrescriptionAuthLevel = "High"
                 },
@@ -114,44 +135,216 @@ namespace CareFlow.Infrastructure.Data
                     EmployeeNumber = "doc003",
                     PasswordHash = defaultHashedPassword,
                     Name = "王医生",
-                    IdCard = "110100200001010014",
-                    Phone = "13912340014",
+                    IdCard = "110100200001010003",
+                    Phone = "13912340003",
                     RoleType = "Doctor",
                     IsActive = true,
-                    DeptCode = "PED",
-                    Title = DoctorTitle.Attending.ToString(),
-                    PrescriptionAuthLevel = "Medium"
+                    DeptCode = "GAST",
+                    Title = DoctorTitle.Chief.ToString(),
+                    PrescriptionAuthLevel = "High"
                 },
                 new Doctor
                 {
                     Id = "D004",
                     EmployeeNumber = "doc004",
                     PasswordHash = defaultHashedPassword,
+                    Name = "赵医生",
+                    IdCard = "110100200001010004",
+                    Phone = "13912340004",
+                    RoleType = "Doctor",
+                    IsActive = true,
+                    DeptCode = "NEUR",
+                    Title = DoctorTitle.Chief.ToString(),
+                    PrescriptionAuthLevel = "High"
+                },
+                new Doctor
+                {
+                    Id = "D005",
+                    EmployeeNumber = "doc005",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "刘医生",
+                    IdCard = "110100200001010005",
+                    Phone = "13912340005",
+                    RoleType = "Doctor",
+                    IsActive = true,
+                    DeptCode = "NEPH",
+                    Title = DoctorTitle.Chief.ToString(),
+                    PrescriptionAuthLevel = "High"
+                },
+                new Doctor
+                {
+                    Id = "D006",
+                    EmployeeNumber = "doc006",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "杨医生",
+                    IdCard = "110100200001010006",
+                    Phone = "13912340006",
+                    RoleType = "Doctor",
+                    IsActive = true,
+                    DeptCode = "ENDO",
+                    Title = DoctorTitle.Chief.ToString(),
+                    PrescriptionAuthLevel = "High"
+                },
+                new Doctor
+                {
+                    Id = "D007",
+                    EmployeeNumber = "doc007",
+                    PasswordHash = defaultHashedPassword,
                     Name = "陈医生",
+                    IdCard = "110100200001010007",
+                    Phone = "13912340007",
+                    RoleType = "Doctor",
+                    IsActive = true,
+                    DeptCode = "HEMA",
+                    Title = DoctorTitle.Chief.ToString(),
+                    PrescriptionAuthLevel = "High"
+                },
+                // === 外科系统 ===
+                new Doctor
+                {
+                    Id = "D008",
+                    EmployeeNumber = "doc008",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "周医生",
+                    IdCard = "110100200001010008",
+                    Phone = "13912340008",
+                    RoleType = "Doctor",
+                    IsActive = true,
+                    DeptCode = "GEN_SUR",
+                    Title = DoctorTitle.Chief.ToString(),
+                    PrescriptionAuthLevel = "High"
+                },
+                new Doctor
+                {
+                    Id = "D009",
+                    EmployeeNumber = "doc009",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "吴医生",
+                    IdCard = "110100200001010009",
+                    Phone = "13912340009",
+                    RoleType = "Doctor",
+                    IsActive = true,
+                    DeptCode = "ORTH",
+                    Title = DoctorTitle.Chief.ToString(),
+                    PrescriptionAuthLevel = "High"
+                },
+                new Doctor
+                {
+                    Id = "D010",
+                    EmployeeNumber = "doc010",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "徐医生",
+                    IdCard = "110100200001010010",
+                    Phone = "13912340010",
+                    RoleType = "Doctor",
+                    IsActive = true,
+                    DeptCode = "NSUR",
+                    Title = DoctorTitle.Chief.ToString(),
+                    PrescriptionAuthLevel = "High"
+                },
+                new Doctor
+                {
+                    Id = "D011",
+                    EmployeeNumber = "doc011",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "孙医生",
+                    IdCard = "110100200001010011",
+                    Phone = "13912340011",
+                    RoleType = "Doctor",
+                    IsActive = true,
+                    DeptCode = "CT_SUR",
+                    Title = DoctorTitle.Chief.ToString(),
+                    PrescriptionAuthLevel = "High"
+                },
+                new Doctor
+                {
+                    Id = "D012",
+                    EmployeeNumber = "doc012",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "马医生",
+                    IdCard = "110100200001010012",
+                    Phone = "13912340012",
+                    RoleType = "Doctor",
+                    IsActive = true,
+                    DeptCode = "UROL",
+                    Title = DoctorTitle.Chief.ToString(),
+                    PrescriptionAuthLevel = "High"
+                },
+                new Doctor
+                {
+                    Id = "D013",
+                    EmployeeNumber = "doc013",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "朱医生",
+                    IdCard = "110100200001010013",
+                    Phone = "13912340013",
+                    RoleType = "Doctor",
+                    IsActive = true,
+                    DeptCode = "BURN",
+                    Title = DoctorTitle.Chief.ToString(),
+                    PrescriptionAuthLevel = "High"
+                },
+                // === 妇产科系统 ===
+                new Doctor
+                {
+                    Id = "D014",
+                    EmployeeNumber = "doc014",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "胡医生",
+                    IdCard = "110100200001010014",
+                    Phone = "13912340014",
+                    RoleType = "Doctor",
+                    IsActive = true,
+                    DeptCode = "GYN",
+                    Title = DoctorTitle.Chief.ToString(),
+                    PrescriptionAuthLevel = "High"
+                },
+                new Doctor
+                {
+                    Id = "D015",
+                    EmployeeNumber = "doc015",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "林医生",
                     IdCard = "110100200001010015",
                     Phone = "13912340015",
                     RoleType = "Doctor",
                     IsActive = true,
-                    DeptCode = "CHK",
-                    Title = DoctorTitle.Attending.ToString(),
-                    PrescriptionAuthLevel = "Medium"
+                    DeptCode = "OBS",
+                    Title = DoctorTitle.Chief.ToString(),
+                    PrescriptionAuthLevel = "High"
+                },
+                // === 其他保留科室 ===
+                new Doctor
+                {
+                    Id = "D016",
+                    EmployeeNumber = "doc016",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "郭医生",
+                    IdCard = "110100200001010016",
+                    Phone = "13912340016",
+                    RoleType = "Doctor",
+                    IsActive = true,
+                    DeptCode = "PED",
+                    Title = DoctorTitle.Chief.ToString(),
+                    PrescriptionAuthLevel = "High"
                 }
             };
             
-            // 护士数据 - 扩展更多护士以支持排班表
+            // 护士数据 - 按照科室顺序，每个病区3个护士
             var nurses = new Nurse[]
             {
+                // === 心血管内科 CARD 病区护士 ===
                 new Nurse
                 {
                     Id = "N001",
                     EmployeeNumber = "nurse001",
                     PasswordHash = defaultHashedPassword,
-                    Name = "王护士",
+                    Name = "梁护士",
                     IdCard = "110100200001010003",
                     Phone = "13912340003",
                     RoleType = "Nurse",
                     IsActive = true,
-                    DeptCode = "SUR",
+                    DeptCode = "CARD",
                     NurseRank = NurseRank.HeadNurse.ToString()
                 },
                 new Nurse
@@ -159,25 +352,25 @@ namespace CareFlow.Infrastructure.Data
                     Id = "N002",
                     EmployeeNumber = "nurse002",
                     PasswordHash = defaultHashedPassword,
-                    Name = "赵护士",
+                    Name = "谢护士",
                     IdCard = "110100200001010004",
                     Phone = "13912340004",
                     RoleType = "Nurse",
                     IsActive = true,
-                    DeptCode = "SUR",
-                    NurseRank = NurseRank.RegularNurse.ToString()
+                    DeptCode = "CARD",
+                    NurseRank = NurseRank.TeamLeader.ToString()
                 },
                 new Nurse
                 {
                     Id = "N003",
                     EmployeeNumber = "nurse003",
                     PasswordHash = defaultHashedPassword,
-                    Name = "李护士",
-                    IdCard = "110100200001010006",
-                    Phone = "13912340006",
+                    Name = "宋护士",
+                    IdCard = "110100200001010005",
+                    Phone = "13912340005",
                     RoleType = "Nurse",
                     IsActive = true,
-                    DeptCode = "IM",
+                    DeptCode = "CARD",
                     NurseRank = NurseRank.RegularNurse.ToString()
                 },
                 new Nurse
@@ -185,77 +378,78 @@ namespace CareFlow.Infrastructure.Data
                     Id = "N004",
                     EmployeeNumber = "nurse004",
                     PasswordHash = defaultHashedPassword,
-                    Name = "张护士",
-                    IdCard = "110100200001010007",
-                    Phone = "13912340007",
+                    Name = "唐护士",
+                    IdCard = "110100200001010006",
+                    Phone = "13912340006",
                     RoleType = "Nurse",
                     IsActive = true,
-                    DeptCode = "IM",
-                    NurseRank = NurseRank.TeamLeader.ToString()
+                    DeptCode = "CARD",
+                    NurseRank = NurseRank.HeadNurse.ToString()
                 },
                 new Nurse
                 {
                     Id = "N005",
                     EmployeeNumber = "nurse005",
                     PasswordHash = defaultHashedPassword,
-                    Name = "陈护士",
-                    IdCard = "110100200001010008",
-                    Phone = "13912340008",
+                    Name = "许护士",
+                    IdCard = "110100200001010007",
+                    Phone = "13912340007",
                     RoleType = "Nurse",
                     IsActive = true,
-                    DeptCode = "PED",
-                    NurseRank = NurseRank.RegularNurse.ToString()
+                    DeptCode = "CARD",
+                    NurseRank = NurseRank.TeamLeader.ToString()
                 },
                 new Nurse
                 {
                     Id = "N006",
                     EmployeeNumber = "nurse006",
                     PasswordHash = defaultHashedPassword,
-                    Name = "刘护士",
-                    IdCard = "110100200001010009",
-                    Phone = "13912340009",
+                    Name = "韩护士",
+                    IdCard = "110100200001010008",
+                    Phone = "13912340008",
                     RoleType = "Nurse",
                     IsActive = true,
-                    DeptCode = "PED",
-                    NurseRank = NurseRank.TeamLeader.ToString()
+                    DeptCode = "CARD",
+                    NurseRank = NurseRank.RegularNurse.ToString()
                 },
+                // === 呼吸内科 RESP 病区护士 ===
                 new Nurse
                 {
                     Id = "N007",
                     EmployeeNumber = "nurse007",
                     PasswordHash = defaultHashedPassword,
-                    Name = "吴护士",
-                    IdCard = "110100200001010010",
-                    Phone = "13912340010",
+                    Name = "冯护士",
+                    IdCard = "110100200001010009",
+                    Phone = "13912340009",
                     RoleType = "Nurse",
                     IsActive = true,
-                    DeptCode = "IM",
-                    NurseRank = NurseRank.RegularNurse.ToString()
+                    DeptCode = "RESP",
+                    NurseRank = NurseRank.HeadNurse.ToString()
                 },
                 new Nurse
                 {
                     Id = "N008",
                     EmployeeNumber = "nurse008",
                     PasswordHash = defaultHashedPassword,
-                    Name = "周护士",
-                    IdCard = "110100200001010011",
-                    Phone = "13912340011",
+                    Name = "邓护士",
+                    IdCard = "110100200001010010",
+                    Phone = "13912340010",
                     RoleType = "Nurse",
                     IsActive = true,
-                    DeptCode = "SUR",
-                    NurseRank = NurseRank.RegularNurse.ToString()
+                    DeptCode = "RESP",
+                    NurseRank = NurseRank.TeamLeader.ToString()
                 },
                 new Nurse
                 {
                     Id = "N009",
                     EmployeeNumber = "nurse009",
                     PasswordHash = defaultHashedPassword,
-                    Name = "孙护士",
-                    IdCard = "110100200001010012",
-                    Phone = "13912340012",
+                    Name = "曹护士",
+                    IdCard = "110100200001010011",
+                    Phone = "13912340011",
                     RoleType = "Nurse",
                     IsActive = true,
-                    DeptCode = "CHK",
+                    DeptCode = "RESP",
                     NurseRank = NurseRank.RegularNurse.ToString()
                 },
                 new Nurse
@@ -263,13 +457,1145 @@ namespace CareFlow.Infrastructure.Data
                     Id = "N010",
                     EmployeeNumber = "nurse010",
                     PasswordHash = defaultHashedPassword,
-                    Name = "郑护士",
+                    Name = "彭护士",
+                    IdCard = "110100200001010012",
+                    Phone = "13912340012",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "RESP",
+                    NurseRank = NurseRank.HeadNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N011",
+                    EmployeeNumber = "nurse011",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "曾护士",
                     IdCard = "110100200001010013",
                     Phone = "13912340013",
                     RoleType = "Nurse",
                     IsActive = true,
-                    DeptCode = "CHK",
+                    DeptCode = "RESP",
                     NurseRank = NurseRank.TeamLeader.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N012",
+                    EmployeeNumber = "nurse012",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "肖护士",
+                    IdCard = "110100200001010014",
+                    Phone = "13912340014",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "RESP",
+                    NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                // === 消化内科 GAST 病区护士 ===
+                new Nurse
+                {
+                    Id = "N013",
+                    EmployeeNumber = "nurse013",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "田护士",
+                    IdCard = "110100200001010015",
+                    Phone = "13912340015",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "GAST",
+                    NurseRank = NurseRank.HeadNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N014",
+                    EmployeeNumber = "nurse014",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "董护士",
+                    IdCard = "110100200001010016",
+                    Phone = "13912340016",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "GAST",
+                    NurseRank = NurseRank.TeamLeader.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N015",
+                    EmployeeNumber = "nurse015",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "袁护士",
+                    IdCard = "110100200001010017",
+                    Phone = "13912340017",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "GAST",
+                    NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N016",
+                    EmployeeNumber = "nurse016",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "潘护士",
+                    IdCard = "110100200001010018",
+                    Phone = "13912340018",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "GAST",
+                    NurseRank = NurseRank.HeadNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N017",
+                    EmployeeNumber = "nurse017",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "于护士",
+                    IdCard = "110100200001010019",
+                    Phone = "13912340019",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "GAST",
+                    NurseRank = NurseRank.TeamLeader.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N018",
+                    EmployeeNumber = "nurse018",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "蒋护士",
+                    IdCard = "110100200001010020",
+                    Phone = "13912340020",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "GAST",
+                    NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                // === 神经内科 NEUR 病区护士 ===
+                new Nurse
+                {
+                    Id = "N019",
+                    EmployeeNumber = "nurse019",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "蔡护士",
+                    IdCard = "110100200001010021",
+                    Phone = "13912340021",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "NEUR",
+                    NurseRank = NurseRank.HeadNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N020",
+                    EmployeeNumber = "nurse020",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "余护士",
+                    IdCard = "110100200001010022",
+                    Phone = "13912340022",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "NEUR",
+                    NurseRank = NurseRank.TeamLeader.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N021",
+                    EmployeeNumber = "nurse021",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "杜护士",
+                    IdCard = "110100200001010023",
+                    Phone = "13912340023",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "NEUR",
+                    NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N022",
+                    EmployeeNumber = "nurse022",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "叶护士",
+                    IdCard = "110100200001010024",
+                    Phone = "13912340024",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "NEUR",
+                    NurseRank = NurseRank.HeadNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N023",
+                    EmployeeNumber = "nurse023",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "程护士",
+                    IdCard = "110100200001010025",
+                    Phone = "13912340025",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "NEUR",
+                    NurseRank = NurseRank.TeamLeader.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N024",
+                    EmployeeNumber = "nurse024",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "苏护士",
+                    IdCard = "110100200001010026",
+                    Phone = "13912340026",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "NEUR",
+                    NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                // === 肾内科 NEPH 病区护士 ===
+                new Nurse
+                {
+                    Id = "N025",
+                    EmployeeNumber = "nurse025",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "魏护士",
+                    IdCard = "110100200001010027",
+                    Phone = "13912340027",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "NEPH",
+                    NurseRank = NurseRank.HeadNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N026",
+                    EmployeeNumber = "nurse026",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "吕护士",
+                    IdCard = "110100200001010028",
+                    Phone = "13912340028",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "NEPH",
+                    NurseRank = NurseRank.TeamLeader.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N027",
+                    EmployeeNumber = "nurse027",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "丁护士",
+                    IdCard = "110100200001010029",
+                    Phone = "13912340029",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "NEPH",
+                    NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N028",
+                    EmployeeNumber = "nurse028",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "任护士",
+                    IdCard = "110100200001010030",
+                    Phone = "13912340030",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "NEPH",
+                    NurseRank = NurseRank.HeadNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N029",
+                    EmployeeNumber = "nurse029",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "沈护士",
+                    IdCard = "110100200001010031",
+                    Phone = "13912340031",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "NEPH",
+                    NurseRank = NurseRank.TeamLeader.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N030",
+                    EmployeeNumber = "nurse030",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "姜护士",
+                    IdCard = "110100200001010032",
+                    Phone = "13912340032",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "NEPH",
+                    NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                // === 内分泌科 ENDO 病区护士 ===
+                new Nurse
+                {
+                    Id = "N031",
+                    EmployeeNumber = "nurse031",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "范护士",
+                    IdCard = "110100200001010033",
+                    Phone = "13912340033",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "ENDO",
+                    NurseRank = NurseRank.HeadNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N032",
+                    EmployeeNumber = "nurse032",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "方护士",
+                    IdCard = "110100200001010034",
+                    Phone = "13912340034",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "ENDO",
+                    NurseRank = NurseRank.TeamLeader.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N033",
+                    EmployeeNumber = "nurse033",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "石护士",
+                    IdCard = "110100200001010035",
+                    Phone = "13912340035",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "ENDO",
+                    NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N034",
+                    EmployeeNumber = "nurse034",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "姚护士",
+                    IdCard = "110100200001010036",
+                    Phone = "13912340036",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "ENDO",
+                    NurseRank = NurseRank.HeadNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N035",
+                    EmployeeNumber = "nurse035",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "谭护士",
+                    IdCard = "110100200001010037",
+                    Phone = "13912340037",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "ENDO",
+                    NurseRank = NurseRank.TeamLeader.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N036",
+                    EmployeeNumber = "nurse036",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "廖护士",
+                    IdCard = "110100200001010038",
+                    Phone = "13912340038",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "ENDO",
+                    NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                // === 血液内科 HEMA 病区护士 ===
+                new Nurse
+                {
+                    Id = "N037",
+                    EmployeeNumber = "nurse037",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "邹护士",
+                    IdCard = "110100200001010039",
+                    Phone = "13912340039",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "HEMA",
+                    NurseRank = NurseRank.HeadNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N038",
+                    EmployeeNumber = "nurse038",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "熊护士",
+                    IdCard = "110100200001010040",
+                    Phone = "13912340040",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "HEMA",
+                    NurseRank = NurseRank.TeamLeader.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N039",
+                    EmployeeNumber = "nurse039",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "金护士",
+                    IdCard = "110100200001010041",
+                    Phone = "13912340041",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "HEMA",
+                    NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N040",
+                    EmployeeNumber = "nurse040",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "陆护士",
+                    IdCard = "110100200001010042",
+                    Phone = "13912340042",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "HEMA",
+                    NurseRank = NurseRank.HeadNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N041",
+                    EmployeeNumber = "nurse041",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "郝护士",
+                    IdCard = "110100200001010043",
+                    Phone = "13912340043",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "HEMA",
+                    NurseRank = NurseRank.TeamLeader.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N042",
+                    EmployeeNumber = "nurse042",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "孔护士",
+                    IdCard = "110100200001010044",
+                    Phone = "13912340044",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "HEMA",
+                    NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                // === 普通外科 GEN_SUR 病区护士 ===
+                new Nurse
+                {
+                    Id = "N043",
+                    EmployeeNumber = "nurse043",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "白护士",
+                    IdCard = "110100200001010045",
+                    Phone = "13912340045",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "GEN_SUR",
+                    NurseRank = NurseRank.HeadNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N044",
+                    EmployeeNumber = "nurse044",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "崔护士",
+                    IdCard = "110100200001010046",
+                    Phone = "13912340046",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "GEN_SUR",
+                    NurseRank = NurseRank.TeamLeader.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N045",
+                    EmployeeNumber = "nurse045",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "康护士",
+                    IdCard = "110100200001010047",
+                    Phone = "13912340047",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "GEN_SUR",
+                    NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N046",
+                    EmployeeNumber = "nurse046",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "毛护士",
+                    IdCard = "110100200001010048",
+                    Phone = "13912340048",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "GEN_SUR",
+                    NurseRank = NurseRank.HeadNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N047",
+                    EmployeeNumber = "nurse047",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "邱护士",
+                    IdCard = "110100200001010049",
+                    Phone = "13912340049",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "GEN_SUR",
+                    NurseRank = NurseRank.TeamLeader.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N048",
+                    EmployeeNumber = "nurse048",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "秦护士",
+                    IdCard = "110100200001010050",
+                    Phone = "13912340050",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "GEN_SUR",
+                    NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                // === 骨科 ORTH 病区护士 ===
+                new Nurse
+                {
+                    Id = "N049",
+                    EmployeeNumber = "nurse049",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "江护士",
+                    IdCard = "110100200001010049",
+                    Phone = "13912340049",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "ORTH",
+                    NurseRank = NurseRank.HeadNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N050",
+                    EmployeeNumber = "nurse050",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "史护士",
+                    IdCard = "110100200001010050",
+                    Phone = "13912340050",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "ORTH",
+                    NurseRank = NurseRank.TeamLeader.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N051",
+                    EmployeeNumber = "nurse051",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "顾护士",
+                    IdCard = "110100200001010051",
+                    Phone = "13912340051",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "ORTH",
+                    NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N052",
+                    EmployeeNumber = "nurse052",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "侯护士",
+                    IdCard = "110100200001010052",
+                    Phone = "13912340052",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "ORTH",
+                    NurseRank = NurseRank.HeadNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N053",
+                    EmployeeNumber = "nurse053",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "邵护士",
+                    IdCard = "110100200001010053",
+                    Phone = "13912340053",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "ORTH",
+                    NurseRank = NurseRank.TeamLeader.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N054",
+                    EmployeeNumber = "nurse054",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "孟护士",
+                    IdCard = "110100200001010054",
+                    Phone = "13912340054",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "ORTH",
+                    NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                // === 神经外科 NSUR 病区护士 ===
+                new Nurse
+                {
+                    Id = "N055",
+                    EmployeeNumber = "nurse055",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "龙护士",
+                    IdCard = "110100200001010055",
+                    Phone = "13912340055",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "NSUR",
+                    NurseRank = NurseRank.HeadNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N056",
+                    EmployeeNumber = "nurse056",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "万护士",
+                    IdCard = "110100200001010056",
+                    Phone = "13912340056",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "NSUR",
+                    NurseRank = NurseRank.TeamLeader.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N057",
+                    EmployeeNumber = "nurse057",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "段护士",
+                    IdCard = "110100200001010057",
+                    Phone = "13912340057",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "NSUR",
+                    NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N058",
+                    EmployeeNumber = "nurse058",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "雷护士",
+                    IdCard = "110100200001010058",
+                    Phone = "13912340058",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "NSUR",
+                    NurseRank = NurseRank.HeadNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N059",
+                    EmployeeNumber = "nurse059",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "钱护士",
+                    IdCard = "110100200001010059",
+                    Phone = "13912340059",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "NSUR",
+                    NurseRank = NurseRank.TeamLeader.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N060",
+                    EmployeeNumber = "nurse060",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "汤护士",
+                    IdCard = "110100200001010060",
+                    Phone = "13912340060",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "NSUR",
+                    NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                // === 心胸外科 CT_SUR 病区护士 ===
+                new Nurse
+                {
+                    Id = "N061",
+                    EmployeeNumber = "nurse061",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "尹护士",
+                    IdCard = "110100200001010061",
+                    Phone = "13912340061",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "CT_SUR",
+                    NurseRank = NurseRank.HeadNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N062",
+                    EmployeeNumber = "nurse062",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "黎护士",
+                    IdCard = "110100200001010062",
+                    Phone = "13912340062",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "CT_SUR",
+                    NurseRank = NurseRank.TeamLeader.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N063",
+                    EmployeeNumber = "nurse063",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "易护士",
+                    IdCard = "110100200001010063",
+                    Phone = "13912340063",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "CT_SUR",
+                    NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N064",
+                    EmployeeNumber = "nurse064",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "常护士",
+                    IdCard = "110100200001010064",
+                    Phone = "13912340064",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "CT_SUR",
+                    NurseRank = NurseRank.HeadNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N065",
+                    EmployeeNumber = "nurse065",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "武护士",
+                    IdCard = "110100200001010065",
+                    Phone = "13912340065",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "CT_SUR",
+                    NurseRank = NurseRank.TeamLeader.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N066",
+                    EmployeeNumber = "nurse066",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "乔护士",
+                    IdCard = "110100200001010066",
+                    Phone = "13912340066",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "CT_SUR",
+                    NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                // === 泌尿外科 UROL 病区护士 ===
+                new Nurse
+                {
+                    Id = "N067",
+                    EmployeeNumber = "nurse067",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "贺护士",
+                    IdCard = "110100200001010067",
+                    Phone = "13912340067",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "UROL",
+                    NurseRank = NurseRank.HeadNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N068",
+                    EmployeeNumber = "nurse068",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "赖护士",
+                    IdCard = "110100200001010068",
+                    Phone = "13912340068",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "UROL",
+                    NurseRank = NurseRank.TeamLeader.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N069",
+                    EmployeeNumber = "nurse069",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "龚护士",
+                    IdCard = "110100200001010069",
+                    Phone = "13912340069",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "UROL",
+                    NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N070",
+                    EmployeeNumber = "nurse070",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "文护士",
+                    IdCard = "110100200001010070",
+                    Phone = "13912340070",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "UROL",
+                    NurseRank = NurseRank.HeadNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N071",
+                    EmployeeNumber = "nurse071",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "庞护士",
+                    IdCard = "110100200001010071",
+                    Phone = "13912340071",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "UROL",
+                    NurseRank = NurseRank.TeamLeader.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N072",
+                    EmployeeNumber = "nurse072",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "樊护士",
+                    IdCard = "110100200001010072",
+                    Phone = "13912340072",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "UROL",
+                    NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                // === 烧伤科 BURN 病区护士 ===
+                new Nurse
+                {
+                    Id = "N073",
+                    EmployeeNumber = "nurse073",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "兰护士",
+                    IdCard = "110100200001010073",
+                    Phone = "13912340073",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "BURN",
+                    NurseRank = NurseRank.HeadNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N074",
+                    EmployeeNumber = "nurse074",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "殷护士",
+                    IdCard = "110100200001010074",
+                    Phone = "13912340074",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "BURN",
+                    NurseRank = NurseRank.TeamLeader.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N075",
+                    EmployeeNumber = "nurse075",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "施护士",
+                    IdCard = "110100200001010075",
+                    Phone = "13912340075",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "BURN",
+                    NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N076",
+                    EmployeeNumber = "nurse076",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "陶护士",
+                    IdCard = "110100200001010076",
+                    Phone = "13912340076",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "BURN",
+                    NurseRank = NurseRank.HeadNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N077",
+                    EmployeeNumber = "nurse077",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "洪护士",
+                    IdCard = "110100200001010077",
+                    Phone = "13912340077",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "BURN",
+                    NurseRank = NurseRank.TeamLeader.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N078",
+                    EmployeeNumber = "nurse078",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "翟护士",
+                    IdCard = "110100200001010078",
+                    Phone = "13912340078",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "BURN",
+                    NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                // === 妇科 GYN 病区护士 ===
+                new Nurse
+                {
+                    Id = "N079",
+                    EmployeeNumber = "nurse079",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "安护士",
+                    IdCard = "110100200001010079",
+                    Phone = "13912340079",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "GYN",
+                    NurseRank = NurseRank.HeadNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N080",
+                    EmployeeNumber = "nurse080",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "颜护士",
+                    IdCard = "110100200001010080",
+                    Phone = "13912340080",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "GYN",
+                    NurseRank = NurseRank.TeamLeader.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N081",
+                    EmployeeNumber = "nurse081",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "倪护士",
+                    IdCard = "110100200001010081",
+                    Phone = "13912340081",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "GYN",
+                    NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N082",
+                    EmployeeNumber = "nurse082",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "严护士",
+                    IdCard = "110100200001010082",
+                    Phone = "13912340082",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "GYN",
+                    NurseRank = NurseRank.HeadNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N083",
+                    EmployeeNumber = "nurse083",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "牛护士",
+                    IdCard = "110100200001010083",
+                    Phone = "13912340083",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "GYN",
+                    NurseRank = NurseRank.TeamLeader.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N084",
+                    EmployeeNumber = "nurse084",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "温护士",
+                    IdCard = "110100200001010084",
+                    Phone = "13912340084",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "GYN",
+                    NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                // === 产科 OBS 病区护士 ===
+                new Nurse
+                {
+                    Id = "N085",
+                    EmployeeNumber = "nurse085",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "芦护士",
+                    IdCard = "110100200001010085",
+                    Phone = "13912340085",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "OBS",
+                    NurseRank = NurseRank.HeadNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N086",
+                    EmployeeNumber = "nurse086",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "季护士",
+                    IdCard = "110100200001010086",
+                    Phone = "13912340086",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "OBS",
+                    NurseRank = NurseRank.TeamLeader.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N087",
+                    EmployeeNumber = "nurse087",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "俞护士",
+                    IdCard = "110100200001010087",
+                    Phone = "13912340087",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "OBS",
+                    NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N088",
+                    EmployeeNumber = "nurse088",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "章护士",
+                    IdCard = "110100200001010088",
+                    Phone = "13912340088",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "OBS",
+                    NurseRank = NurseRank.HeadNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N089",
+                    EmployeeNumber = "nurse089",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "鲁护士",
+                    IdCard = "110100200001010089",
+                    Phone = "13912340089",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "OBS",
+                    NurseRank = NurseRank.TeamLeader.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N090",
+                    EmployeeNumber = "nurse090",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "葛护士",
+                    IdCard = "110100200001010090",
+                    Phone = "13912340090",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "OBS",
+                    NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                // === 儿科 PED 病区护士 ===
+                new Nurse
+                {
+                    Id = "N091",
+                    EmployeeNumber = "nurse091",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "伍护士",
+                    IdCard = "110100200001010091",
+                    Phone = "13912340091",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "PED",
+                    NurseRank = NurseRank.HeadNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N092",
+                    EmployeeNumber = "nurse092",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "韦护士",
+                    IdCard = "110100200001010092",
+                    Phone = "13912340092",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "PED",
+                    NurseRank = NurseRank.TeamLeader.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N093",
+                    EmployeeNumber = "nurse093",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "申护士",
+                    IdCard = "110100200001010093",
+                    Phone = "13912340093",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "PED",
+                    NurseRank = NurseRank.RegularNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N094",
+                    EmployeeNumber = "nurse094",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "管护士",
+                    IdCard = "110100200001010094",
+                    Phone = "13912340094",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "PED",
+                    NurseRank = NurseRank.HeadNurse.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N095",
+                    EmployeeNumber = "nurse095",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "卢护士",
+                    IdCard = "110100200001010095",
+                    Phone = "13912340095",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "PED",
+                    NurseRank = NurseRank.TeamLeader.ToString()
+                },
+                new Nurse
+                {
+                    Id = "N096",
+                    EmployeeNumber = "nurse096",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "莫护士",
+                    IdCard = "110100200001010096",
+                    Phone = "13912340096",
+                    RoleType = "Nurse",
+                    IsActive = true,
+                    DeptCode = "PED",
+                    NurseRank = NurseRank.RegularNurse.ToString()
                 }
             };
 
@@ -298,23 +1624,161 @@ namespace CareFlow.Infrastructure.Data
             // --- 预置病房和床位数据 ---
             var wards = new Ward[]
             {
-                new Ward { Id = "IM-W01", DepartmentId = "IM" },
-                new Ward { Id = "IM-W02", DepartmentId = "IM" },
-                new Ward { Id = "SUR-W01", DepartmentId = "SUR" },
-                new Ward { Id = "PED-W01", DepartmentId = "PED" }
+                // === 内科系统病区 ===
+                new Ward { Id = "CARD-W01", DepartmentId = "CARD" },
+                new Ward { Id = "CARD-W02", DepartmentId = "CARD" },
+                new Ward { Id = "RESP-W01", DepartmentId = "RESP" },
+                new Ward { Id = "RESP-W02", DepartmentId = "RESP" },
+                new Ward { Id = "GAST-W01", DepartmentId = "GAST" },
+                new Ward { Id = "GAST-W02", DepartmentId = "GAST" },
+                new Ward { Id = "NEUR-W01", DepartmentId = "NEUR" },
+                new Ward { Id = "NEUR-W02", DepartmentId = "NEUR" },
+                new Ward { Id = "NEPH-W01", DepartmentId = "NEPH" },
+                new Ward { Id = "NEPH-W02", DepartmentId = "NEPH" },
+                new Ward { Id = "ENDO-W01", DepartmentId = "ENDO" },
+                new Ward { Id = "ENDO-W02", DepartmentId = "ENDO" },
+                new Ward { Id = "HEMA-W01", DepartmentId = "HEMA" },
+                new Ward { Id = "HEMA-W02", DepartmentId = "HEMA" },
+                // === 外科系统病区 ===
+                new Ward { Id = "GEN_SUR-W01", DepartmentId = "GEN_SUR" },
+                new Ward { Id = "GEN_SUR-W02", DepartmentId = "GEN_SUR" },
+                new Ward { Id = "ORTH-W01", DepartmentId = "ORTH" },
+                new Ward { Id = "ORTH-W02", DepartmentId = "ORTH" },
+                new Ward { Id = "NSUR-W01", DepartmentId = "NSUR" },
+                new Ward { Id = "NSUR-W02", DepartmentId = "NSUR" },
+                new Ward { Id = "CT_SUR-W01", DepartmentId = "CT_SUR" },
+                new Ward { Id = "CT_SUR-W02", DepartmentId = "CT_SUR" },
+                new Ward { Id = "UROL-W01", DepartmentId = "UROL" },
+                new Ward { Id = "UROL-W02", DepartmentId = "UROL" },
+                new Ward { Id = "BURN-W01", DepartmentId = "BURN" },
+                new Ward { Id = "BURN-W02", DepartmentId = "BURN" },
+                // === 妇产科系统病区 ===
+                new Ward { Id = "GYN-W01", DepartmentId = "GYN" },
+                new Ward { Id = "GYN-W02", DepartmentId = "GYN" },
+                new Ward { Id = "OBS-W01", DepartmentId = "OBS" },
+                new Ward { Id = "OBS-W02", DepartmentId = "OBS" },
+                // === 儿科病区 ===
+                new Ward { Id = "PED-W01", DepartmentId = "PED" },
+                new Ward { Id = "PED-W02", DepartmentId = "PED" }
             };
             context.Wards.AddRange(wards);
             context.SaveChanges();
 
             var beds = new Bed[]
             {
-                new Bed { Id = "IM-W01-001", WardId = "IM-W01", Status = "占用" },
-                new Bed { Id = "IM-W01-002", WardId = "IM-W01", Status = "占用" },
-                new Bed { Id = "IM-W01-003", WardId = "IM-W01", Status = "空闲" },
-                new Bed { Id = "IM-W02-001", WardId = "IM-W02", Status = "占用" },
-                new Bed { Id = "SUR-W01-001", WardId = "SUR-W01", Status = "占用" },
-                new Bed { Id = "SUR-W01-002", WardId = "SUR-W01", Status = "占用" },
-                new Bed { Id = "PED-W01-001", WardId = "PED-W01", Status = "占用" }
+
+                // === 心血管内科 CARD 病区床位 ===
+                new Bed { Id = "CARD-W01-001", WardId = "CARD-W01", Status = "空闲" },
+                new Bed { Id = "CARD-W01-002", WardId = "CARD-W01", Status = "空闲" },
+                new Bed { Id = "CARD-W01-003", WardId = "CARD-W01", Status = "空闲" },
+                new Bed { Id = "CARD-W02-001", WardId = "CARD-W02", Status = "空闲" },
+                new Bed { Id = "CARD-W02-002", WardId = "CARD-W02", Status = "空闲" },
+                new Bed { Id = "CARD-W02-003", WardId = "CARD-W02", Status = "空闲" },
+                // === 呼吸内科 RESP 病区床位 ===
+                new Bed { Id = "RESP-W01-001", WardId = "RESP-W01", Status = "占用" },
+                new Bed { Id = "RESP-W01-002", WardId = "RESP-W01", Status = "空闲" },
+                new Bed { Id = "RESP-W01-003", WardId = "RESP-W01", Status = "空闲" },
+                new Bed { Id = "RESP-W02-001", WardId = "RESP-W02", Status = "空闲" },
+                new Bed { Id = "RESP-W02-002", WardId = "RESP-W02", Status = "空闲" },
+                new Bed { Id = "RESP-W02-003", WardId = "RESP-W02", Status = "空闲" },
+                // === 消化内科 GAST 病区床位 ===
+                new Bed { Id = "GAST-W01-001", WardId = "GAST-W01", Status = "空闲" },
+                new Bed { Id = "GAST-W01-002", WardId = "GAST-W01", Status = "空闲" },
+                new Bed { Id = "GAST-W01-003", WardId = "GAST-W01", Status = "空闲" },
+                new Bed { Id = "GAST-W02-001", WardId = "GAST-W02", Status = "空闲" },
+                new Bed { Id = "GAST-W02-002", WardId = "GAST-W02", Status = "空闲" },
+                new Bed { Id = "GAST-W02-003", WardId = "GAST-W02", Status = "空闲" },
+                // === 神经内科 NEUR 病区床位 ===
+                new Bed { Id = "NEUR-W01-001", WardId = "NEUR-W01", Status = "空闲" },
+                new Bed { Id = "NEUR-W01-002", WardId = "NEUR-W01", Status = "空闲" },
+                new Bed { Id = "NEUR-W01-003", WardId = "NEUR-W01", Status = "空闲" },
+                new Bed { Id = "NEUR-W02-001", WardId = "NEUR-W02", Status = "空闲" },
+                new Bed { Id = "NEUR-W02-002", WardId = "NEUR-W02", Status = "空闲" },
+                new Bed { Id = "NEUR-W02-003", WardId = "NEUR-W02", Status = "空闲" },
+                // === 肾内科 NEPH 病区床位 ===
+                new Bed { Id = "NEPH-W01-001", WardId = "NEPH-W01", Status = "空闲" },
+                new Bed { Id = "NEPH-W01-002", WardId = "NEPH-W01", Status = "空闲" },
+                new Bed { Id = "NEPH-W01-003", WardId = "NEPH-W01", Status = "空闲" },
+                new Bed { Id = "NEPH-W02-001", WardId = "NEPH-W02", Status = "空闲" },
+                new Bed { Id = "NEPH-W02-002", WardId = "NEPH-W02", Status = "空闲" },
+                new Bed { Id = "NEPH-W02-003", WardId = "NEPH-W02", Status = "空闲" },
+                // === 内分泌科 ENDO 病区床位 ===
+                new Bed { Id = "ENDO-W01-001", WardId = "ENDO-W01", Status = "空闲" },
+                new Bed { Id = "ENDO-W01-002", WardId = "ENDO-W01", Status = "空闲" },
+                new Bed { Id = "ENDO-W01-003", WardId = "ENDO-W01", Status = "空闲" },
+                new Bed { Id = "ENDO-W02-001", WardId = "ENDO-W02", Status = "空闲" },
+                new Bed { Id = "ENDO-W02-002", WardId = "ENDO-W02", Status = "空闲" },
+                new Bed { Id = "ENDO-W02-003", WardId = "ENDO-W02", Status = "空闲" },
+                // === 血液内科 HEMA 病区床位 ===
+                new Bed { Id = "HEMA-W01-001", WardId = "HEMA-W01", Status = "空闲" },
+                new Bed { Id = "HEMA-W01-002", WardId = "HEMA-W01", Status = "空闲" },
+                new Bed { Id = "HEMA-W01-003", WardId = "HEMA-W01", Status = "空闲" },
+                new Bed { Id = "HEMA-W02-001", WardId = "HEMA-W02", Status = "空闲" },
+                new Bed { Id = "HEMA-W02-002", WardId = "HEMA-W02", Status = "空闲" },
+                new Bed { Id = "HEMA-W02-003", WardId = "HEMA-W02", Status = "空闲" },
+                // === 普通外科 GEN_SUR 病区床位 ===
+                new Bed { Id = "GEN_SUR-W01-001", WardId = "GEN_SUR-W01", Status = "空闲" },
+                new Bed { Id = "GEN_SUR-W01-002", WardId = "GEN_SUR-W01", Status = "占用" },
+                new Bed { Id = "GEN_SUR-W01-003", WardId = "GEN_SUR-W01", Status = "占用" },
+                new Bed { Id = "GEN_SUR-W02-001", WardId = "GEN_SUR-W02", Status = "占用" },
+                new Bed { Id = "GEN_SUR-W02-002", WardId = "GEN_SUR-W02", Status = "占用" },
+                new Bed { Id = "GEN_SUR-W02-003", WardId = "GEN_SUR-W02", Status = "占用" },
+                // === 骨科 ORTH 病区床位 ===
+                new Bed { Id = "ORTH-W01-001", WardId = "ORTH-W01", Status = "占用" },
+                new Bed { Id = "ORTH-W01-002", WardId = "ORTH-W01", Status = "空闲" },
+                new Bed { Id = "ORTH-W01-003", WardId = "ORTH-W01", Status = "空闲" },
+                new Bed { Id = "ORTH-W02-001", WardId = "ORTH-W02", Status = "空闲" },
+                new Bed { Id = "ORTH-W02-002", WardId = "ORTH-W02", Status = "空闲" },
+                new Bed { Id = "ORTH-W02-003", WardId = "ORTH-W02", Status = "空闲" },
+                // === 神经外科 NSUR 病区床位 ===
+                new Bed { Id = "NSUR-W01-001", WardId = "NSUR-W01", Status = "占用" },
+                new Bed { Id = "NSUR-W01-002", WardId = "NSUR-W01", Status = "空闲" },
+                new Bed { Id = "NSUR-W01-003", WardId = "NSUR-W01", Status = "空闲" },
+                new Bed { Id = "NSUR-W02-001", WardId = "NSUR-W02", Status = "空闲" },
+                new Bed { Id = "NSUR-W02-002", WardId = "NSUR-W02", Status = "空闲" },
+                new Bed { Id = "NSUR-W02-003", WardId = "NSUR-W02", Status = "空闲" },
+                // === 心胸外科 CT_SUR 病区床位 ===
+                new Bed { Id = "CT_SUR-W01-001", WardId = "CT_SUR-W01", Status = "占用" },
+                new Bed { Id = "CT_SUR-W01-002", WardId = "CT_SUR-W01", Status = "空闲" },
+                new Bed { Id = "CT_SUR-W01-003", WardId = "CT_SUR-W01", Status = "空闲" },
+                new Bed { Id = "CT_SUR-W02-001", WardId = "CT_SUR-W02", Status = "空闲" },
+                new Bed { Id = "CT_SUR-W02-002", WardId = "CT_SUR-W02", Status = "空闲" },
+                new Bed { Id = "CT_SUR-W02-003", WardId = "CT_SUR-W02", Status = "空闲" },
+                // === 泌尿外科 UROL 病区床位 ===
+                new Bed { Id = "UROL-W01-001", WardId = "UROL-W01", Status = "占用" },
+                new Bed { Id = "UROL-W01-002", WardId = "UROL-W01", Status = "空闲" },
+                new Bed { Id = "UROL-W01-003", WardId = "UROL-W01", Status = "空闲" },
+                new Bed { Id = "UROL-W02-001", WardId = "UROL-W02", Status = "空闲" },
+                new Bed { Id = "UROL-W02-002", WardId = "UROL-W02", Status = "空闲" },
+                new Bed { Id = "UROL-W02-003", WardId = "UROL-W02", Status = "空闲" },
+                // === 烧伤科 BURN 病区床位 ===
+                new Bed { Id = "BURN-W01-001", WardId = "BURN-W01", Status = "空闲" },
+                new Bed { Id = "BURN-W01-002", WardId = "BURN-W01", Status = "空闲" },
+                new Bed { Id = "BURN-W01-003", WardId = "BURN-W01", Status = "空闲" },
+                new Bed { Id = "BURN-W02-001", WardId = "BURN-W02", Status = "空闲" },
+                new Bed { Id = "BURN-W02-002", WardId = "BURN-W02", Status = "空闲" },
+                new Bed { Id = "BURN-W02-003", WardId = "BURN-W02", Status = "空闲" },
+                // === 妇科 GYN 病区床位 ===
+                new Bed { Id = "GYN-W01-001", WardId = "GYN-W01", Status = "空闲" },
+                new Bed { Id = "GYN-W01-002", WardId = "GYN-W01", Status = "空闲" },
+                new Bed { Id = "GYN-W01-003", WardId = "GYN-W01", Status = "空闲" },
+                new Bed { Id = "GYN-W02-001", WardId = "GYN-W02", Status = "空闲" },
+                new Bed { Id = "GYN-W02-002", WardId = "GYN-W02", Status = "空闲" },
+                new Bed { Id = "GYN-W02-003", WardId = "GYN-W02", Status = "空闲" },
+                // === 产科 OBS 病区床位 ===
+                new Bed { Id = "OBS-W01-001", WardId = "OBS-W01", Status = "空闲" },
+                new Bed { Id = "OBS-W01-002", WardId = "OBS-W01", Status = "空闲" },
+                new Bed { Id = "OBS-W01-003", WardId = "OBS-W01", Status = "空闲" },
+                new Bed { Id = "OBS-W02-001", WardId = "OBS-W02", Status = "空闲" },
+                new Bed { Id = "OBS-W02-002", WardId = "OBS-W02", Status = "空闲" },
+                new Bed { Id = "OBS-W02-003", WardId = "OBS-W02", Status = "空闲" },
+                // === 儿科 PED 病区床位 ===
+                new Bed { Id = "PED-W01-001", WardId = "PED-W01", Status = "占用" },
+                new Bed { Id = "PED-W01-002", WardId = "PED-W01", Status = "空闲" },
+                new Bed { Id = "PED-W01-003", WardId = "PED-W01", Status = "空闲" },
+                new Bed { Id = "PED-W02-001", WardId = "PED-W02", Status = "空闲" },
+                new Bed { Id = "PED-W02-002", WardId = "PED-W02", Status = "空闲" },
+                new Bed { Id = "PED-W02-003", WardId = "PED-W02", Status = "空闲" }
             };
             context.Beds.AddRange(beds);
             context.SaveChanges();
@@ -410,34 +1874,6 @@ namespace CareFlow.Infrastructure.Data
                     Remarks = "中效胰岛素，需冷藏保存"
                 },
                 
-                new Drug
-                {
-                    Id = "OXYGEN001",
-                    GenericName = "医用氧",
-                    TradeName = "医用氧",
-                    Manufacturer = "本地医用气体公司",
-                    Specification = "99.5%",
-                    DosageForm = "气体",
-                    PackageSpec = "40L钢瓶",
-                    AtcCode = "V03AN01",
-                    Category = "医用气体",
-                    AdministrationRoute = "吸入",
-                    UnitPrice = 0.08m,
-                    PriceUnit = "L",
-                    IsPrescriptionOnly = false,
-                    IsNarcotic = false,
-                    IsPsychotropic = false,
-                    IsAntibiotic = false,
-                    Status = "Active",
-                    Indications = "各种缺氧状态",
-                    Contraindications = "无绝对禁忌症",
-                    DosageInstructions = "根据病情调节流量，一般1-4L/min",
-                    SideEffects = "长期高浓度吸氧可能导致氧中毒",
-                    StorageConditions = "避免高温，远离火源",
-                    ShelfLifeMonths = 60,
-                    ApprovalNumber = "医用气体许可证",
-                    Remarks = "按升计价，持续供应"
-                },
                 
                 new Drug
                 {
@@ -584,6 +2020,594 @@ namespace CareFlow.Infrastructure.Data
                     ShelfLifeMonths = 24,
                     ApprovalNumber = "国药准字H20020066",
                     Remarks = "第三代头孢菌素，广谱抗生素"
+                },
+
+                // 心血管系统常用药
+                new Drug
+                {
+                    Id = "DRUG009",
+                    GenericName = "硝酸甘油片",
+                    TradeName = "硝酸甘油片",
+                    Manufacturer = "上海现代制药股份有限公司",
+                    Specification = "0.5mg/片",
+                    DosageForm = "片剂",
+                    PackageSpec = "100片/瓶",
+                    AtcCode = "C01DA02",
+                    Category = "抗心绞痛药",
+                    AdministrationRoute = "舌下含服",
+                    UnitPrice = 0.30m,
+                    PriceUnit = "片",
+                    IsPrescriptionOnly = false,
+                    IsNarcotic = false,
+                    IsPsychotropic = false,
+                    IsAntibiotic = false,
+                    Status = "Active",
+                    Indications = "各型心绞痛急性发作",
+                    Contraindications = "严重低血压，肥厚型心肌病",
+                    DosageInstructions = "心绞痛发作时一次0.5mg，舌下含服",
+                    SideEffects = "头痛，面部潮红，低血压",
+                    StorageConditions = "避光，密封，低温保存",
+                    ShelfLifeMonths = 24,
+                    ApprovalNumber = "国药准字H31020512",
+                    Remarks = "急性发作的急救用药"
+                },
+
+                new Drug
+                {
+                    Id = "DRUG010",
+                    GenericName = "酒石酸美托洛尔片",
+                    TradeName = "倍他乐克",
+                    Manufacturer = "阿斯利康制药有限公司",
+                    Specification = "25mg/片",
+                    DosageForm = "片剂",
+                    PackageSpec = "20片/盒",
+                    AtcCode = "C07AB02",
+                    Category = "β受体阻滞剂",
+                    AdministrationRoute = "口服",
+                    UnitPrice = 0.80m,
+                    PriceUnit = "片",
+                    IsPrescriptionOnly = true,
+                    IsNarcotic = false,
+                    IsPsychotropic = false,
+                    IsAntibiotic = false,
+                    Status = "Active",
+                    Indications = "高血压，心绞痛，心律失常",
+                    Contraindications = "严重心动过缓，心源性休克",
+                    DosageInstructions = "成人一次25-50mg，一日2次，随餐服用",
+                    SideEffects = "心动过缓，乏力，低血压",
+                    StorageConditions = "密封，在干燥处保存",
+                    ShelfLifeMonths = 36,
+                    ApprovalNumber = "国药准字H20000474",
+                    Remarks = "常用β受体阻滞剂"
+                },
+
+                // 糖尿病及电解质相关
+                new Drug
+                {
+                    Id = "DRUG011",
+                    GenericName = "二甲双胍片",
+                    TradeName = "格华止",
+                    Manufacturer = "上海施贵宝制药有限公司",
+                    Specification = "0.5g/片",
+                    DosageForm = "片剂",
+                    PackageSpec = "20片/盒",
+                    AtcCode = "A10BA02",
+                    Category = "口服降糖药",
+                    AdministrationRoute = "口服",
+                    UnitPrice = 0.60m,
+                    PriceUnit = "片",
+                    IsPrescriptionOnly = true,
+                    IsNarcotic = false,
+                    IsPsychotropic = false,
+                    IsAntibiotic = false,
+                    Status = "Active",
+                    Indications = "2型糖尿病",
+                    Contraindications = "严重肾功能不全，酮症酸中毒",
+                    DosageInstructions = "饭时或饭后口服，一次0.5g，一日2-3次",
+                    SideEffects = "胃肠道不适，少见乳酸性酸中毒",
+                    StorageConditions = "密封，在阴凉干燥处保存",
+                    ShelfLifeMonths = 36,
+                    ApprovalNumber = "国药准字H20023320",
+                    Remarks = "一线口服降糖药"
+                },
+
+                new Drug
+                {
+                    Id = "DRUG012",
+                    GenericName = "10%葡萄糖注射液",
+                    TradeName = "葡萄糖注射液",
+                    Manufacturer = "华润双鹤药业股份有限公司",
+                    Specification = "250ml/袋",
+                    DosageForm = "注射液",
+                    PackageSpec = "250ml/袋",
+                    AtcCode = "B05BA03",
+                    Category = "能量与营养补给液",
+                    AdministrationRoute = "静脉滴注",
+                    UnitPrice = 3.20m,
+                    PriceUnit = "袋",
+                    IsPrescriptionOnly = false,
+                    IsNarcotic = false,
+                    IsPsychotropic = false,
+                    IsAntibiotic = false,
+                    Status = "Active",
+                    Indications = "低血糖，补充能量",
+                    Contraindications = "高血糖，糖尿病酮症酸中毒",
+                    DosageInstructions = "静滴，根据血糖水平及病情调节滴速",
+                    SideEffects = "高血糖，静脉刺激",
+                    StorageConditions = "避光，密封保存",
+                    ShelfLifeMonths = 24,
+                    ApprovalNumber = "国药准字H11020637",
+                    Remarks = "常用静脉补液"
+                },
+
+                // 消化系统常用药
+                new Drug
+                {
+                    Id = "DRUG013",
+                    GenericName = "奥美拉唑肠溶胶囊",
+                    TradeName = "洛赛克",
+                    Manufacturer = "阿斯利康制药有限公司",
+                    Specification = "20mg/粒",
+                    DosageForm = "胶囊",
+                    PackageSpec = "14粒/盒",
+                    AtcCode = "A02BC01",
+                    Category = "质子泵抑制剂",
+                    AdministrationRoute = "口服",
+                    UnitPrice = 3.50m,
+                    PriceUnit = "粒",
+                    IsPrescriptionOnly = true,
+                    IsNarcotic = false,
+                    IsPsychotropic = false,
+                    IsAntibiotic = false,
+                    Status = "Active",
+                    Indications = "消化性溃疡，反流性食管炎",
+                    Contraindications = "对奥美拉唑过敏",
+                    DosageInstructions = "成人一次20mg，一日1次，饭前服用",
+                    SideEffects = "头痛，腹痛，腹泻",
+                    StorageConditions = "避光，干燥处保存",
+                    ShelfLifeMonths = 24,
+                    ApprovalNumber = "国药准字H20000334",
+                    Remarks = "常用胃酸抑制药"
+                },
+
+                new Drug
+                {
+                    Id = "DRUG014",
+                    GenericName = "复方氢氧化铝镁片",
+                    TradeName = "达喜",
+                    Manufacturer = "拜耳医药保健有限公司",
+                    Specification = "0.5g/片",
+                    DosageForm = "咀嚼片",
+                    PackageSpec = "20片/盒",
+                    AtcCode = "A02AD01",
+                    Category = "抗酸药",
+                    AdministrationRoute = "口服",
+                    UnitPrice = 1.20m,
+                    PriceUnit = "片",
+                    IsPrescriptionOnly = false,
+                    IsNarcotic = false,
+                    IsPsychotropic = false,
+                    IsAntibiotic = false,
+                    Status = "Active",
+                    Indications = "胃酸过多，胃痛，反酸",
+                    Contraindications = "严重肾功能不全",
+                    DosageInstructions = "饭后及睡前咀嚼，一次1-2片",
+                    SideEffects = "便秘或腹泻，少见高镁血症",
+                    StorageConditions = "密封，在干燥处保存",
+                    ShelfLifeMonths = 24,
+                    ApprovalNumber = "国药准字H10900089",
+                    Remarks = "常用抗酸药"
+                },
+
+                // 呼吸系统/感染相关
+                new Drug
+                {
+                    Id = "DRUG015",
+                    GenericName = "盐酸氨溴索口服溶液",
+                    TradeName = "沐舒坦",
+                    Manufacturer = "勃林格殷格翰药业有限公司",
+                    Specification = "15mg/2ml",
+                    DosageForm = "口服溶液",
+                    PackageSpec = "2ml×10支/盒",
+                    AtcCode = "R05CB06",
+                    Category = "祛痰药",
+                    AdministrationRoute = "口服",
+                    UnitPrice = 2.00m,
+                    PriceUnit = "支",
+                    IsPrescriptionOnly = false,
+                    IsNarcotic = false,
+                    IsPsychotropic = false,
+                    IsAntibiotic = false,
+                    Status = "Active",
+                    Indications = "急慢性支气管炎，支气管哮喘伴痰液黏稠",
+                    Contraindications = "对氨溴索过敏者",
+                    DosageInstructions = "成人一次30mg，一日2次；儿童剂量酌减",
+                    SideEffects = "恶心，皮疹",
+                    StorageConditions = "避光，室温保存",
+                    ShelfLifeMonths = 24,
+                    ApprovalNumber = "国药准字H20051002",
+                    Remarks = "常用祛痰药"
+                },
+
+                new Drug
+                {
+                    Id = "DRUG016",
+                    GenericName = "盐酸左氧氟沙星氯化钠注射液",
+                    TradeName = "左氧氟沙星注射液",
+                    Manufacturer = "齐鲁制药有限公司",
+                    Specification = "100ml:0.5g",
+                    DosageForm = "注射液",
+                    PackageSpec = "100ml/瓶",
+                    AtcCode = "J01MA12",
+                    Category = "喹诺酮类抗生素",
+                    AdministrationRoute = "静脉滴注",
+                    UnitPrice = 26.00m,
+                    PriceUnit = "瓶",
+                    IsPrescriptionOnly = true,
+                    IsNarcotic = false,
+                    IsPsychotropic = false,
+                    IsAntibiotic = true,
+                    Status = "Active",
+                    Indications = "敏感菌所致呼吸道、泌尿道等感染",
+                    Contraindications = "妊娠及哺乳期妇女，18岁以下儿童",
+                    DosageInstructions = "成人一次0.5g，一日1次静滴",
+                    SideEffects = "胃肠道反应，皮疹，少见肌腱炎",
+                    StorageConditions = "避光，室温保存",
+                    ShelfLifeMonths = 24,
+                    ApprovalNumber = "国药准字H20073257",
+                    Remarks = "广谱抗菌药，需注意不良反应"
+                },
+
+                // 镇痛解热与麻醉辅助
+                new Drug
+                {
+                    Id = "DRUG017",
+                    GenericName = "对乙酰氨基酚片",
+                    TradeName = "泰诺",
+                    Manufacturer = "上海强生制药有限公司",
+                    Specification = "0.5g/片",
+                    DosageForm = "片剂",
+                    PackageSpec = "10片/盒",
+                    AtcCode = "N02BE01",
+                    Category = "解热镇痛药",
+                    AdministrationRoute = "口服",
+                    UnitPrice = 0.90m,
+                    PriceUnit = "片",
+                    IsPrescriptionOnly = false,
+                    IsNarcotic = false,
+                    IsPsychotropic = false,
+                    IsAntibiotic = false,
+                    Status = "Active",
+                    Indications = "发热，轻中度疼痛",
+                    Contraindications = "严重肝功能不全",
+                    DosageInstructions = "成人一次0.5-1g，一日不超过4次，总量不超过4g",
+                    SideEffects = "肝功能损害，皮疹",
+                    StorageConditions = "密封，在干燥处保存",
+                    ShelfLifeMonths = 36,
+                    ApprovalNumber = "国药准字H31021473",
+                    Remarks = "常用解热镇痛药"
+                },
+
+                new Drug
+                {
+                    Id = "DRUG018",
+                    GenericName = "罗哌卡因注射液",
+                    TradeName = "罗哌卡因",
+                    Manufacturer = "扬子江药业集团有限公司",
+                    Specification = "10mg/ml，10ml/支",
+                    DosageForm = "注射液",
+                    PackageSpec = "10ml×5支/盒",
+                    AtcCode = "N01BB10",
+                    Category = "局部麻醉药",
+                    AdministrationRoute = "局部注射",
+                    UnitPrice = 18.00m,
+                    PriceUnit = "支",
+                    IsPrescriptionOnly = true,
+                    IsNarcotic = false,
+                    IsPsychotropic = false,
+                    IsAntibiotic = false,
+                    Status = "Active",
+                    Indications = "硬膜外麻醉，神经阻滞麻醉",
+                    Contraindications = "对酰胺类局麻药过敏",
+                    DosageInstructions = "由麻醉医师根据麻醉平面和手术类型调节剂量",
+                    SideEffects = "低血压，心动过缓，中枢神经系统症状",
+                    StorageConditions = "避光，凉暗处保存",
+                    ShelfLifeMonths = 24,
+                    ApprovalNumber = "国药准字H20113256",
+                    Remarks = "常用于外科手术麻醉"
+                },
+
+                // 儿科/妇产科常用药
+                new Drug
+                {
+                    Id = "DRUG019",
+                    GenericName = "小儿氨酚黄那敏颗粒",
+                    TradeName = "小儿感冒颗粒",
+                    Manufacturer = "湖南九典制药股份有限公司",
+                    Specification = "5g/袋",
+                    DosageForm = "颗粒剂",
+                    PackageSpec = "10袋/盒",
+                    AtcCode = "R05X",
+                    Category = "复方感冒药",
+                    AdministrationRoute = "口服",
+                    UnitPrice = 2.20m,
+                    PriceUnit = "袋",
+                    IsPrescriptionOnly = false,
+                    IsNarcotic = false,
+                    IsPsychotropic = false,
+                    IsAntibiotic = false,
+                    Status = "Active",
+                    Indications = "小儿普通感冒引起的发热、头痛、流涕、咳嗽",
+                    Contraindications = "严重肝肾功能不全",
+                    DosageInstructions = "2-6岁每次1/2袋，6-12岁每次1袋，一日3次",
+                    SideEffects = "嗜睡，恶心",
+                    StorageConditions = "密封，在阴凉干燥处保存",
+                    ShelfLifeMonths = 24,
+                    ApprovalNumber = "国药准字Z20050231",
+                    Remarks = "常用儿科感冒药"
+                },
+
+                new Drug
+                {
+                    Id = "DRUG020",
+                    GenericName = "硫酸亚铁叶酸片",
+                    TradeName = "铁之缘",
+                    Manufacturer = "深圳信立泰药业股份有限公司",
+                    Specification = "复方片剂",
+                    DosageForm = "片剂",
+                    PackageSpec = "30片/盒",
+                    AtcCode = "B03AA",
+                    Category = "抗贫血药",
+                    AdministrationRoute = "口服",
+                    UnitPrice = 1.10m,
+                    PriceUnit = "片",
+                    IsPrescriptionOnly = false,
+                    IsNarcotic = false,
+                    IsPsychotropic = false,
+                    IsAntibiotic = false,
+                    Status = "Active",
+                    Indications = "缺铁性贫血，妊娠期及哺乳期妇女补铁",
+                    Contraindications = "铁负荷过多性贫血",
+                    DosageInstructions = "成人一次1片，一日2-3次，饭后服用",
+                    SideEffects = "恶心，便秘，粪便颜色变深",
+                    StorageConditions = "密封，在干燥处保存",
+                    ShelfLifeMonths = 24,
+                    ApprovalNumber = "国药准字H20059112",
+                    Remarks = "妇产科常用补铁药物"
+                },
+
+                // 肿瘤/免疫及营养支持
+                new Drug
+                {
+                    Id = "DRUG021",
+                    GenericName = "注射用多西他赛",
+                    TradeName = "多西他赛",
+                    Manufacturer = "赛诺菲安万特(杭州)制药有限公司",
+                    Specification = "20mg/支",
+                    DosageForm = "冻干粉针剂",
+                    PackageSpec = "20mg/支",
+                    AtcCode = "L01CD02",
+                    Category = "抗肿瘤药",
+                    AdministrationRoute = "静脉滴注",
+                    UnitPrice = 520.00m,
+                    PriceUnit = "支",
+                    IsPrescriptionOnly = true,
+                    IsNarcotic = false,
+                    IsPsychotropic = false,
+                    IsAntibiotic = false,
+                    Status = "Active",
+                    Indications = "乳腺癌，非小细胞肺癌等多种实体瘤",
+                    Contraindications = "白细胞显著减少，严重肝功能损害",
+                    DosageInstructions = "按体表面积给药，由肿瘤专科医师制定方案",
+                    SideEffects = "骨髓抑制，脱发，恶心呕吐",
+                    StorageConditions = "2-8℃冷藏保存",
+                    ShelfLifeMonths = 24,
+                    ApprovalNumber = "国药准字H20041833",
+                    Remarks = "仅用于肿瘤科化疗方案"
+                },
+
+                new Drug
+                {
+                    Id = "DRUG022",
+                    GenericName = "甲泼尼龙片",
+                    TradeName = "美卓乐",
+                    Manufacturer = "辉瑞制药有限公司",
+                    Specification = "4mg/片",
+                    DosageForm = "片剂",
+                    PackageSpec = "30片/盒",
+                    AtcCode = "H02AB04",
+                    Category = "糖皮质激素类药物",
+                    AdministrationRoute = "口服",
+                    UnitPrice = 2.50m,
+                    PriceUnit = "片",
+                    IsPrescriptionOnly = true,
+                    IsNarcotic = false,
+                    IsPsychotropic = false,
+                    IsAntibiotic = false,
+                    Status = "Active",
+                    Indications = "自身免疫性疾病，过敏性疾病",
+                    Contraindications = "系统性真菌感染，活动性消化性溃疡",
+                    DosageInstructions = "按病情个体化给药，通常一次4-24mg，一日1次",
+                    SideEffects = "血糖升高，骨质疏松，胃肠道反应",
+                    StorageConditions = "密封，在室温干燥处保存",
+                    ShelfLifeMonths = 36,
+                    ApprovalNumber = "国药准字H20055292",
+                    Remarks = "需在医生指导下使用，注意减量停药方案"
+                },
+
+                new Drug
+                {
+                    Id = "DRUG023",
+                    GenericName = "复方氨基酸注射液（18AA）",
+                    TradeName = "复方氨基酸注射液",
+                    Manufacturer = "费森尤斯卡比(中国)医药有限公司",
+                    Specification = "250ml/瓶",
+                    DosageForm = "注射液",
+                    PackageSpec = "250ml/瓶",
+                    AtcCode = "B05BA01",
+                    Category = "营养支持用药",
+                    AdministrationRoute = "静脉滴注",
+                    UnitPrice = 68.00m,
+                    PriceUnit = "瓶",
+                    IsPrescriptionOnly = true,
+                    IsNarcotic = false,
+                    IsPsychotropic = false,
+                    IsAntibiotic = false,
+                    Status = "Active",
+                    Indications = "不能经口摄食或摄食不足导致的蛋白质缺乏",
+                    Contraindications = "严重肝肾功能不全，代谢性酸中毒",
+                    DosageInstructions = "按体重和营养需要计算剂量，静滴",
+                    SideEffects = "恶心，呕吐，少见过敏反应",
+                    StorageConditions = "避光，室温保存",
+                    ShelfLifeMonths = 24,
+                    ApprovalNumber = "国药准字H20053671",
+                    Remarks = "常用于重症和外科患者营养支持"
+                },
+
+                // 其他基础与特殊用药
+                new Drug
+                {
+                    Id = "DRUG024",
+                    GenericName = "维生素K1注射液",
+                    TradeName = "维生素K1注射液",
+                    Manufacturer = "哈尔滨三联药业股份有限公司",
+                    Specification = "10mg/ml，1ml/支",
+                    DosageForm = "注射液",
+                    PackageSpec = "1ml×10支/盒",
+                    AtcCode = "B02BA01",
+                    Category = "止血药",
+                    AdministrationRoute = "肌肉注射",
+                    UnitPrice = 1.80m,
+                    PriceUnit = "支",
+                    IsPrescriptionOnly = true,
+                    IsNarcotic = false,
+                    IsPsychotropic = false,
+                    IsAntibiotic = false,
+                    Status = "Active",
+                    Indications = "维生素K缺乏所致出血，抗凝药过量所致出血",
+                    Contraindications = "对维生素K1过敏",
+                    DosageInstructions = "成人一次10-20mg肌注，必要时重复",
+                    SideEffects = "注射部位疼痛，皮疹",
+                    StorageConditions = "避光保存",
+                    ShelfLifeMonths = 24,
+                    ApprovalNumber = "国药准字H23021986",
+                    Remarks = "基础止血药，可用于预防和治疗出血"
+                },
+
+                new Drug
+                {
+                    Id = "DRUG025",
+                    GenericName = "碳酸氢钠注射液",
+                    TradeName = "碳酸氢钠注射液",
+                    Manufacturer = "天津金耀药业有限公司",
+                    Specification = "5ml:0.42g",
+                    DosageForm = "注射液",
+                    PackageSpec = "5ml×10支/盒",
+                    AtcCode = "B05XA02",
+                    Category = "酸碱平衡调节药",
+                    AdministrationRoute = "静脉注射",
+                    UnitPrice = 1.00m,
+                    PriceUnit = "支",
+                    IsPrescriptionOnly = true,
+                    IsNarcotic = false,
+                    IsPsychotropic = false,
+                    IsAntibiotic = false,
+                    Status = "Active",
+                    Indications = "代谢性酸中毒",
+                    Contraindications = "碱中毒，高钠血症",
+                    DosageInstructions = "按碳酸氢根缺失量计算剂量，缓慢静注",
+                    SideEffects = "碱中毒，血容量负荷增加",
+                    StorageConditions = "避光，在凉暗处保存",
+                    ShelfLifeMonths = 24,
+                    ApprovalNumber = "国药准字H12020533",
+                    Remarks = "急诊及重症常备用药"
+                },
+
+                new Drug
+                {
+                    Id = "DRUG026",
+                    GenericName = "氯化钾缓释片",
+                    TradeName = "氯化钾缓释片",
+                    Manufacturer = "扬子江药业集团有限公司",
+                    Specification = "0.5g/片",
+                    DosageForm = "缓释片",
+                    PackageSpec = "12片/板×2板/盒",
+                    AtcCode = "A12BA01",
+                    Category = "电解质补充药",
+                    AdministrationRoute = "口服",
+                    UnitPrice = 1.30m,
+                    PriceUnit = "片",
+                    IsPrescriptionOnly = true,
+                    IsNarcotic = false,
+                    IsPsychotropic = false,
+                    IsAntibiotic = false,
+                    Status = "Active",
+                    Indications = "低钾血症及其预防",
+                    Contraindications = "高钾血症，严重肾功能不全",
+                    DosageInstructions = "成人一次0.5-1g，一日2-3次，饭后整片吞服",
+                    SideEffects = "恶心，腹痛，少见高钾血症",
+                    StorageConditions = "密封，在干燥处保存",
+                    ShelfLifeMonths = 24,
+                    ApprovalNumber = "国药准字H20057417",
+                    Remarks = "口服补钾常用制剂"
+                },
+
+                new Drug
+                {
+                    Id = "DRUG027",
+                    GenericName = "复方利多卡因乳膏",
+                    TradeName = "EMLA乳膏",
+                    Manufacturer = "阿斯利康制药有限公司",
+                    Specification = "5g/支",
+                    DosageForm = "乳膏剂",
+                    PackageSpec = "5g/支",
+                    AtcCode = "N01BB20",
+                    Category = "局部麻醉药",
+                    AdministrationRoute = "外用",
+                    UnitPrice = 45.00m,
+                    PriceUnit = "支",
+                    IsPrescriptionOnly = false,
+                    IsNarcotic = false,
+                    IsPsychotropic = false,
+                    IsAntibiotic = false,
+                    Status = "Active",
+                    Indications = "皮肤浅表小手术、静脉穿刺前局部麻醉",
+                    Contraindications = "应用部位皮肤破损，早产儿",
+                    DosageInstructions = "取适量涂于需麻醉皮肤表面，并覆盖1小时",
+                    SideEffects = "局部红斑，轻度水肿",
+                    StorageConditions = "避光，室温保存",
+                    ShelfLifeMonths = 24,
+                    ApprovalNumber = "国药准字H20080321",
+                    Remarks = "常用于儿科静脉穿刺镇痛"
+                },
+
+                new Drug
+                {
+                    Id = "DRUG028",
+                    GenericName = "氯雷他定片",
+                    TradeName = "开瑞坦",
+                    Manufacturer = "西安杨森制药有限公司",
+                    Specification = "10mg/片",
+                    DosageForm = "片剂",
+                    PackageSpec = "6片/盒",
+                    AtcCode = "R06AX13",
+                    Category = "第二代抗组胺药",
+                    AdministrationRoute = "口服",
+                    UnitPrice = 2.00m,
+                    PriceUnit = "片",
+                    IsPrescriptionOnly = false,
+                    IsNarcotic = false,
+                    IsPsychotropic = false,
+                    IsAntibiotic = false,
+                    Status = "Active",
+                    Indications = "过敏性鼻炎，荨麻疹",
+                    Contraindications = "对氯雷他定过敏",
+                    DosageInstructions = "成人和12岁以上儿童一次10mg，一日1次",
+                    SideEffects = "少见嗜睡，口干",
+                    StorageConditions = "密封，在干燥处保存",
+                    ShelfLifeMonths = 36,
+                    ApprovalNumber = "国药准字H20020566",
+                    Remarks = "常用抗过敏药物"
                 }
             };
             context.Drugs.AddRange(drugs);
@@ -594,6 +2618,7 @@ namespace CareFlow.Infrastructure.Data
             // ==========================================
 
             // --- 预置患者数据 ---
+            // ==================== 已入院患者 001~010 ====================
             var patients = new Patient[]
             {
                 new Patient
@@ -601,720 +2626,218 @@ namespace CareFlow.Infrastructure.Data
                     Id = "P001", Name = "张三", Gender = "男", IdCard = "110100199001010001",
                     DateOfBirth = new DateTime(1990, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                     Age = 34, Height = 175.0f, Weight = 70.5f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138001",
-                    NursingGrade = NursingGrade.Grade2, BedId = "IM-W01-001", AttendingDoctorId = "D001",
-                    OutpatientDiagnosis = "高血压2级，糖尿病",
+                    NursingGrade = NursingGrade.Grade2, BedId = "RESP-W01-001", AttendingDoctorId = "D002",
+                    OutpatientDiagnosis = "哮喘",
                     ScheduledAdmissionTime = UtcDate(2024, 12, 1, 8, 0),
                     ActualAdmissionTime = UtcDate(2024, 12, 1, 9, 30)
                 },
+                
+
+                // 普通外科患者 002~006
                 new Patient
                 {
-                    Id = "P002", Name = "李四", Gender = "女", IdCard = "110100198505050002",
-                    DateOfBirth = new DateTime(1985, 5, 5, 0, 0, 0, DateTimeKind.Utc),
-                    Age = 39, Height = 162.0f, Weight = 58.0f, Status = PatientStatus.PendingDischarge, PhoneNumber = "13800138002",
-                    NursingGrade = NursingGrade.Special, BedId = "IM-W01-002", AttendingDoctorId = "D001",
-                    OutpatientDiagnosis = "急性心肌梗死",
-                    ScheduledAdmissionTime = UtcDate(2024, 12, 5, 10, 0),
-                    ActualAdmissionTime = UtcDate(2024, 12, 5, 10, 15)
+                    Id = "P002", Name = "李四", Gender = "男", IdCard = "110100198802150002",
+                    DateOfBirth = new DateTime(1988, 2, 15, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 36, Height = 172.0f, Weight = 68.0f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138002",
+                    NursingGrade = NursingGrade.Grade2, BedId = "GEN_SUR-W01-002", AttendingDoctorId = "D008",
+                    OutpatientDiagnosis = "急性阑尾炎",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 2, 9, 0),
+                    ActualAdmissionTime = UtcDate(2024, 12, 2, 10, 15)
                 },
                 new Patient
                 {
-                    Id = "P003", Name = "王五", Gender = "女", IdCard = "110100197803030003",
-                    DateOfBirth = new DateTime(1978, 3, 3, 0, 0, 0, DateTimeKind.Utc),
-                    Age = 44, Height = 168.0f, Weight = 64.2f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138003",
-                    NursingGrade = NursingGrade.Grade3, BedId = "SUR-W01-001", AttendingDoctorId = "D002",
-                    OutpatientDiagnosis = "阑尾炎",
-                    ScheduledAdmissionTime = UtcDate(2024, 12, 10, 14, 0),
-                    ActualAdmissionTime = UtcDate(2024, 12, 10, 14, 30)
-                },
-                new Patient
-                {
-                    Id = "P004", Name = "赵六", Gender = "女", IdCard = "110100199212120004",
-                    DateOfBirth = new DateTime(1992, 12, 12, 0, 0, 0, DateTimeKind.Utc),
-                    Age = 32, Height = 165.0f, Weight = 62.8f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138004",
-                    NursingGrade = NursingGrade.Grade2, BedId = "SUR-W01-002", AttendingDoctorId = "D002",
+                    Id = "P003", Name = "王五", Gender = "女", IdCard = "110100199503200003",
+                    DateOfBirth = new DateTime(1995, 3, 20, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 29, Height = 165.0f, Weight = 58.0f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138003",
+                    NursingGrade = NursingGrade.Grade1, BedId = "GEN_SUR-W01-003", AttendingDoctorId = "D008",
                     OutpatientDiagnosis = "胆囊结石",
-                    ScheduledAdmissionTime = UtcDate(2024, 12, 12, 9, 0),
-                    ActualAdmissionTime = UtcDate(2024, 12, 12, 9, 45)
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 3, 8, 30),
+                    ActualAdmissionTime = UtcDate(2024, 12, 3, 9, 45)
                 },
                 new Patient
                 {
-                    Id = "P005", Name = "钱七", Gender = "男", IdCard = "110100201501010005",
-                    DateOfBirth = new DateTime(2015, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-                    Age = 9, Height = 135.0f, Weight = 28.5f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138005",
-                    NursingGrade = NursingGrade.Grade1, BedId = "PED-W01-001", AttendingDoctorId = "D001",
-                    OutpatientDiagnosis = "支气管肺炎",
-                    ScheduledAdmissionTime = UtcDate(2024, 12, 15, 10, 0),
-                    ActualAdmissionTime = UtcDate(2024, 12, 15, 10, 20)
+                    Id = "P004", Name = "赵六", Gender = "男", IdCard = "110100198706100004",
+                    DateOfBirth = new DateTime(1987, 6, 10, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 37, Height = 178.0f, Weight = 75.0f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138004",
+                    NursingGrade = NursingGrade.Grade2, BedId = "GEN_SUR-W02-001", AttendingDoctorId = "D008",
+                    OutpatientDiagnosis = "腹股沟疝",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 4, 10, 0),
+                    ActualAdmissionTime = UtcDate(2024, 12, 4, 11, 20)
                 },
                 new Patient
                 {
-                    Id = "P006", Name = "孙八", Gender = "男", IdCard = "110100196802020006",
-                    DateOfBirth = new DateTime(1968, 2, 2, 0, 0, 0, DateTimeKind.Utc),
-                    Age = 56, Height = 172.0f, Weight = 80.1f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138006",
-                    NursingGrade = NursingGrade.Grade3, BedId = "IM-W02-001", AttendingDoctorId = "D002",
-                    OutpatientDiagnosis = "慢性阻塞性肺病",
-                    ScheduledAdmissionTime = UtcDate(2024, 12, 18, 8, 30),
-                    ActualAdmissionTime = UtcDate(2024, 12, 18, 9, 0)
+                    Id = "P005", Name = "孙七", Gender = "女", IdCard = "110100199108250005",
+                    DateOfBirth = new DateTime(1991, 8, 25, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 33, Height = 160.0f, Weight = 55.0f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138005",
+                    NursingGrade = NursingGrade.Grade2, BedId = "GEN_SUR-W02-002", AttendingDoctorId = "D008",
+                    OutpatientDiagnosis = "甲状腺结节",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 5, 9, 0),
+                    ActualAdmissionTime = UtcDate(2024, 12, 5, 10, 30)
                 },
+                new Patient
+                {
+                    Id = "P006", Name = "周八", Gender = "女", IdCard = "110100198912050006",
+                    DateOfBirth = new DateTime(1989, 12, 5, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 35, Height = 165.0f, Weight = 60.0f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138006",
+                    NursingGrade = NursingGrade.Grade3, BedId = "GEN_SUR-W02-003", AttendingDoctorId = "D008",
+                    OutpatientDiagnosis = "乳腺纤维瘤",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 6, 8, 0),
+                    ActualAdmissionTime = UtcDate(2024, 12, 6, 9, 15)
+                },
+                
+                // 其他科室患者 007~010
+                new Patient
+                {
+                    Id = "P007", Name = "吴九", Gender = "男", IdCard = "110100199204120007",
+                    DateOfBirth = new DateTime(1992, 4, 12, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 32, Height = 180.0f, Weight = 78.0f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138007",
+                    NursingGrade = NursingGrade.Grade2, BedId = "ORTH-W01-001", AttendingDoctorId = "D009",
+                    OutpatientDiagnosis = "股骨骨折",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 7, 8, 30),
+                    ActualAdmissionTime = UtcDate(2024, 12, 7, 10, 0)
+                },
+                new Patient
+                {
+                    Id = "P008", Name = "徐十", Gender = "女", IdCard = "110100198511180008",
+                    DateOfBirth = new DateTime(1985, 11, 18, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 39, Height = 168.0f, Weight = 62.0f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138008",
+                    NursingGrade = NursingGrade.Grade1, BedId = "NSUR-W01-001", AttendingDoctorId = "D010",
+                    OutpatientDiagnosis = "脑膜瘤",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 8, 9, 0),
+                    ActualAdmissionTime = UtcDate(2024, 12, 8, 10, 45)
+                },
+                new Patient
+                {
+                    Id = "P009", Name = "马十一", Gender = "男", IdCard = "110100199709030009",
+                    DateOfBirth = new DateTime(1997, 9, 3, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 27, Height = 176.0f, Weight = 70.0f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138009",
+                    NursingGrade = NursingGrade.Special, BedId = "CT_SUR-W01-001", AttendingDoctorId = "D011",
+                    OutpatientDiagnosis = "房间隔缺损",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 9, 8, 0),
+                    ActualAdmissionTime = UtcDate(2024, 12, 9, 9, 30)
+                },
+                new Patient
+                {
+                    Id = "P010", Name = "朱十二", Gender = "男", IdCard = "110100198403280010",
+                    DateOfBirth = new DateTime(1984, 3, 28, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 40, Height = 174.0f, Weight = 73.0f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138010",
+                    NursingGrade = NursingGrade.Grade2, BedId = "UROL-W01-001", AttendingDoctorId = "D012",
+                    OutpatientDiagnosis = "肾结石",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 10, 10, 0),
+                    ActualAdmissionTime = UtcDate(2024, 12, 10, 11, 15)
+                },
+                
                 // ==================== 待入院患者（用于测试入院功能） ====================
+
                 new Patient
                 {
-                    Id = "P007", Name = "周九", Gender = "男", IdCard = "110100199203150007",
+                    Id = "P011", Name = "郑十一", Gender = "男", IdCard = "110100199203150011",
                     DateOfBirth = new DateTime(1992, 3, 15, 0, 0, 0, DateTimeKind.Utc),
-                    Age = 32, Height = 178.0f, Weight = 75.0f, Status = PatientStatus.PendingAdmission, PhoneNumber = "13800138007",
-                    NursingGrade = NursingGrade.Grade2, BedId = null, AttendingDoctorId = "D001",  // BedId 改为 null
+                    Age = 32, Height = 178.0f, Weight = 75.0f, Status = PatientStatus.PendingAdmission, PhoneNumber = "13800138011",
+                    NursingGrade = NursingGrade.Grade2, BedId = null, AttendingDoctorId = "D003",  // BedId 改为 null
                     OutpatientDiagnosis = "慢性胃炎，胃溃疡",
                     ScheduledAdmissionTime = UtcDate(2024, 12, 20, 9, 0),
                     ActualAdmissionTime = null
                 },
+                
+                // 普通外科待入院患者 012~013
                 new Patient
                 {
-                    Id = "P008", Name = "吴十", Gender = "女", IdCard = "110100198811200008",
-                    DateOfBirth = new DateTime(1988, 11, 20, 0, 0, 0, DateTimeKind.Utc),
-                    Age = 36, Height = 165.0f, Weight = 60.0f, Status = PatientStatus.PendingAdmission, PhoneNumber = "13800138008",
-                    NursingGrade = NursingGrade.Grade1, BedId = null, AttendingDoctorId = "D001",  // BedId 改为 null
-                    OutpatientDiagnosis = "心律失常，房颤",
-                    ScheduledAdmissionTime = UtcDate(2024, 12, 21, 10, 0),
+                    Id = "P012", Name = "钱十二", Gender = "男", IdCard = "110100199006220012",
+                    DateOfBirth = new DateTime(1990, 6, 22, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 34, Height = 173.0f, Weight = 69.0f, Status = PatientStatus.PendingAdmission, PhoneNumber = "13800138012",
+                    NursingGrade = NursingGrade.Grade2, BedId = null, AttendingDoctorId = "D008",
+                    OutpatientDiagnosis = "急性胆囊炎",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 21, 9, 0),
                     ActualAdmissionTime = null
                 },
                 new Patient
                 {
-                    Id = "P009", Name = "郑十一", Gender = "男", IdCard = "110100197504250009",
-                    DateOfBirth = new DateTime(1975, 4, 25, 0, 0, 0, DateTimeKind.Utc),
-                    Age = 49, Height = 170.0f, Weight = 68.5f, Status = PatientStatus.PendingAdmission, PhoneNumber = "13800138009",
-                    NursingGrade = NursingGrade.Grade2, BedId = null, AttendingDoctorId = "D002",  // BedId 改为 null
-                    OutpatientDiagnosis = "腰椎间盘突出症",
-                    ScheduledAdmissionTime = UtcDate(2024, 12, 22, 14, 0),
+                    Id = "P013", Name = "孙十三", Gender = "女", IdCard = "110100199411080013",
+                    DateOfBirth = new DateTime(1994, 11, 8, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 30, Height = 162.0f, Weight = 56.0f, Status = PatientStatus.PendingAdmission, PhoneNumber = "13800138013",
+                    NursingGrade = NursingGrade.Grade2, BedId = null, AttendingDoctorId = "D008",
+                    OutpatientDiagnosis = "腹股沟疝",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 22, 8, 30),
+                    ActualAdmissionTime = null
+                },
+                
+                // 其他科室待入院患者 014~020
+                new Patient
+                {
+                    Id = "P014", Name = "李十四", Gender = "男", IdCard = "110100198709150014",
+                    DateOfBirth = new DateTime(1987, 9, 15, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 37, Height = 177.0f, Weight = 76.0f, Status = PatientStatus.PendingAdmission, PhoneNumber = "13800138014",
+                    NursingGrade = NursingGrade.Grade1, BedId = null, AttendingDoctorId = "D001",
+                    OutpatientDiagnosis = "冠心病，心绞痛",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 23, 9, 0),
+                    ActualAdmissionTime = null
+                },
+                new Patient
+                {
+                    Id = "P015", Name = "王十五", Gender = "女", IdCard = "110100199512200015",
+                    DateOfBirth = new DateTime(1995, 12, 20, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 29, Height = 164.0f, Weight = 59.0f, Status = PatientStatus.PendingAdmission, PhoneNumber = "13800138015",
+                    NursingGrade = NursingGrade.Grade2, BedId = null, AttendingDoctorId = "D003",
+                    OutpatientDiagnosis = "胃息肉",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 24, 8, 0),
+                    ActualAdmissionTime = null
+                },
+                new Patient
+                {
+                    Id = "P016", Name = "赵十六", Gender = "男", IdCard = "110100198802280016",
+                    DateOfBirth = new DateTime(1988, 2, 28, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 36, Height = 175.0f, Weight = 71.0f, Status = PatientStatus.PendingAdmission, PhoneNumber = "13800138016",
+                    NursingGrade = NursingGrade.Grade2, BedId = null, AttendingDoctorId = "D004",
+                    OutpatientDiagnosis = "偏头痛",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 25, 9, 30),
+                    ActualAdmissionTime = null
+                },
+                new Patient
+                {
+                    Id = "P017", Name = "周十七", Gender = "男", IdCard = "110100199308100017",
+                    DateOfBirth = new DateTime(1993, 8, 10, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 31, Height = 179.0f, Weight = 77.0f, Status = PatientStatus.PendingAdmission, PhoneNumber = "13800138017",
+                    NursingGrade = NursingGrade.Grade2, BedId = null, AttendingDoctorId = "D009",
+                    OutpatientDiagnosis = "腰椎间盘突出",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 26, 8, 0),
+                    ActualAdmissionTime = null
+                },
+                new Patient
+                {
+                    Id = "P018", Name = "吴十八", Gender = "女", IdCard = "110100199007250018",
+                    DateOfBirth = new DateTime(1990, 7, 25, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 34, Height = 166.0f, Weight = 60.0f, Status = PatientStatus.PendingAdmission, PhoneNumber = "13800138018",
+                    NursingGrade = NursingGrade.Grade2, BedId = null, AttendingDoctorId = "D014",
+                    OutpatientDiagnosis = "子宫肌瘤",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 27, 9, 0),
+                    ActualAdmissionTime = null
+                },
+                new Patient
+                {
+                    Id = "P019", Name = "徐十九", Gender = "女", IdCard = "110100199205180019",
+                    DateOfBirth = new DateTime(1992, 5, 18, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 32, Height = 163.0f, Weight = 58.0f, Status = PatientStatus.PendingAdmission, PhoneNumber = "13800138019",
+                    NursingGrade = NursingGrade.Grade2, BedId = null, AttendingDoctorId = "D015",
+                    OutpatientDiagnosis = "妊娠期高血压",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 28, 8, 30),
+                    ActualAdmissionTime = null
+                },
+                new Patient
+                {
+                    Id = "P020", Name = "马二十", Gender = "男", IdCard = "110100201006050020",
+                    DateOfBirth = new DateTime(2010, 6, 5, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 14, Height = 155.0f, Weight = 45.0f, Status = PatientStatus.PendingAdmission, PhoneNumber = "13800138020",
+                    NursingGrade = NursingGrade.Grade2, BedId = null, AttendingDoctorId = "D016",
+                    OutpatientDiagnosis = "小儿肺炎",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 29, 9, 0),
                     ActualAdmissionTime = null
                 }
             };
             context.Patients.AddRange(patients);
             context.SaveChanges();
 
-            // --- 预置各种类型的医疗医嘱 ---
-            // ⚠️ 重要：PostgreSQL 的 timestamp with time zone 只接受 DateTimeKind.Utc
-            // 所有 DateTime 字段必须使用 UTC 时间，Kind 必须为 Utc
-            var currentTime = DateTime.UtcNow;
-
-            // 1. 药品医嘱 (MedicationOrder)
-            // 1. 药品医嘱 (MedicationOrder)
-            // 提示：EF Core 会自动将 Items 列表中的子项插入 MedicationOrderItems 表，并自动关联 ID
-            var medicationOrders = new List<MedicationOrder>
-            {
-                // P001: 阿司匹林 - 长期口服 (SLOTS策略)
-                new MedicationOrder
-                {
-                    PatientId = "P001", DoctorId = "D001", NurseId = "N001",
-                    CreateTime = currentTime.AddDays(-2), PlantEndTime = currentTime.AddDays(2),
-                    OrderType = "MedicationOrder", Status = OrderStatus.Accepted, IsLongTerm = true,
-                    UsageRoute = UsageRoute.PO,
-                    IsDynamicUsage = false,
-                    IntervalHours = null, // SLOTS策略不需要
-                    StartTime = currentTime.AddDays(-2),
-                    TimingStrategy = "SLOTS",
-                    SmartSlotsMask = 2 | 32, // 早餐后 + 晚餐后
-                    IntervalDays = 1,
-                    Items = new List<MedicationOrderItem>
-                    {
-                        new MedicationOrderItem { DrugId = "DRUG001", Dosage = "100mg", Note = "餐后服用" }
-                    }
-                },
-
-                // P001: 生理盐水 - 临时静脉滴注 (IMMEDIATE策略)
-                new MedicationOrder
-                {
-                    PatientId = "P001", DoctorId = "D001", NurseId = "N002",
-                    CreateTime = currentTime.AddHours(-1), PlantEndTime = currentTime.AddHours(1),
-                    OrderType = "MedicationOrder", Status = OrderStatus.InProgress, IsLongTerm = false,
-                    UsageRoute = UsageRoute.IVGTT,
-                    IsDynamicUsage = false,
-                    IntervalHours = null, // IMMEDIATE策略不需要
-                    StartTime = currentTime.AddHours(-1),
-                    TimingStrategy = "IMMEDIATE",
-                    SmartSlotsMask = 0, // IMMEDIATE策略不依赖时段
-                    IntervalDays = 0,
-                    Items = new List<MedicationOrderItem>
-                    {
-                        new MedicationOrderItem { DrugId = "DRUG002", Dosage = "250ml", Note = "缓慢滴注" }
-                    }
-                },
-
-                // P002: 胰岛素 - 长期皮下注射 (SLOTS策略)
-                new MedicationOrder
-                {
-                    PatientId = "P002", DoctorId = "D001", NurseId = "N001",
-                    CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(2),
-                    OrderType = "MedicationOrder", Status = OrderStatus.Accepted, IsLongTerm = true,
-                    UsageRoute = UsageRoute.SC,
-                    IsDynamicUsage = false,
-                    IntervalHours = null, // SLOTS策略不需要
-                    StartTime = currentTime.AddDays(-1),
-                    TimingStrategy = "SLOTS",
-                    SmartSlotsMask = 1 | 4 | 16, // 早中晚餐前
-                    IntervalDays = 1,
-                    Items = new List<MedicationOrderItem>
-                    {
-                        new MedicationOrderItem { DrugId = "DRUG003", Dosage = "8单位", Note = "餐前15分钟" }
-                    }
-                },
-
-                // // P003: 头孢曲松钠 - 静脉注射抗感染治疗 (CYCLIC策略，每8小时一次)
-                // new MedicationOrder
-                // {
-                //     PatientId = "P003", DoctorId = "D002", NurseId = "N002",
-                //     CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(1),
-                //     OrderType = "MedicationOrder", Status = OrderStatus.Accepted, IsLongTerm = true,
-                //     UsageRoute = UsageRoute.IVP, // 静脉推注
-                //     IsDynamicUsage = false,
-                //     IntervalHours = 8m, // 每8小时给药一次
-                //     StartTime = currentTime.AddDays(-1).Date.AddHours(8), // 从早上8点开始
-                //     TimingStrategy = "CYCLIC",
-                //     SmartSlotsMask = 0, // CYCLIC策略不依赖时段
-                //     IntervalDays = 1,
-                //     Items = new List<MedicationOrderItem>
-                //     {
-                //         new MedicationOrderItem { DrugId = "DRUG008", Dosage = "1.0g", Note = "溶于100ml生理盐水缓慢静推" }
-                //     }
-                // },
-
-                // P004: 红霉素眼膏 - 外用 (SLOTS策略)
-                new MedicationOrder
-                {
-                    PatientId = "P004", DoctorId = "D002",
-                    CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(2),
-                    OrderType = "MedicationOrder", Status = OrderStatus.Accepted, IsLongTerm = true,
-                    UsageRoute = UsageRoute.Topical,
-                    IsDynamicUsage = false,
-                    IntervalHours = null, // SLOTS策略不需要
-                    StartTime = currentTime.AddDays(-1),
-                    TimingStrategy = "SLOTS",
-                    SmartSlotsMask = 2 | 64, // 早餐后 + 睡前
-                    IntervalDays = 1,
-                    Items = new List<MedicationOrderItem>
-                    {
-                        new MedicationOrderItem { DrugId = "DRUG004", Dosage = "适量", Note = "薄层涂抹" }
-                    }
-                },
-
-                // *** 重点演示：P005: 混合静脉滴注 (多药混合：盐水 + 头孢) ***
-                // SLOTS策略
-                new MedicationOrder
-                {
-                    PatientId = "P005", DoctorId = "D001",
-                    CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(1),
-                    OrderType = "MedicationOrder", Status = OrderStatus.Accepted, IsLongTerm = true,
-                    UsageRoute = UsageRoute.IVGTT,
-                    IsDynamicUsage = false,
-                    IntervalHours = null, // SLOTS策略不需要
-                    StartTime = currentTime.AddDays(-1),
-                    TimingStrategy = "SLOTS",
-                    SmartSlotsMask = 2, // 早餐后
-                    IntervalDays = 1,
-                    Items = new List<MedicationOrderItem>
-                    {
-                        // 第一味药：溶媒（生理盐水）
-                        new MedicationOrderItem { DrugId = "DRUG002", Dosage = "100ml", Note = "溶媒" },
-                        // 第二味药：主药（头孢曲松钠）
-                        new MedicationOrderItem { DrugId = "DRUG008", Dosage = "2.0g", Note = "皮试阴性" }
-                    }
-                },
-
-                // P006: 杜冷丁 - 肌肉注射 (SPECIFIC策略, 指定时间给药)
-                new MedicationOrder
-                {
-                    PatientId = "P006", DoctorId = "D002",
-                    CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(3),
-                    OrderType = "MedicationOrder", Status = OrderStatus.Accepted, IsLongTerm = false,
-                    UsageRoute = UsageRoute.IM,
-                    IsDynamicUsage = true,
-                    IntervalHours = null, // SPECIFIC策略不需要
-                    StartTime = currentTime.AddHours(2), // SPECIFIC策略：唯一执行时间
-                    TimingStrategy = "SPECIFIC",
-                    SmartSlotsMask = 0, // SPECIFIC策略不依赖时段
-                    IntervalDays = 0,
-                    Items = new List<MedicationOrderItem>
-                    {
-                        new MedicationOrderItem { DrugId = "DRUG006", Dosage = "50mg", Note = "剧烈疼痛时使用" }
-                    }
-                }
-            };
-
-            // 注意：这里不需要再分别保存 Items，EF Core 会一次性保存整个对象图
-            context.MedicationOrders.AddRange(medicationOrders);
-            context.SaveChanges();
-
-            // 2. 操作医嘱 (OperationOrder) - 全面的测试数据
-            // ⚠️ 重要：PostgreSQL 的 timestamp with time zone 只接受 DateTimeKind.Utc
-            // 所有 DateTime 字段必须使用 UTC 时间，Kind 必须为 Utc
-            var utcNow = DateTime.UtcNow;
-            
-            var operationOrders = new List<OperationOrder>();
-
-            // ==========================================
-            // Immediate 类操作（即刻执行，扫码即完成）
-            // ==========================================
-            
-            // OP003 - 经口/鼻吸痰：长期医嘱，使用SLOTS策略（三餐后）
-            operationOrders.Add(new OperationOrder
-            {
-                PatientId = "P001", DoctorId = "D001", NurseId = "N001",
-                CreateTime = DateTime.UtcNow.AddDays(-1),
-                PlantEndTime = DateTime.UtcNow.AddDays(3),
-                OrderType = "OperationOrder", Status = OrderStatus.Accepted, IsLongTerm = true,
-                OpId = "OP003", OperationName = "经口/鼻吸痰", Normal = true,
-                TimingStrategy = "SLOTS",
-                StartTime = DateTime.UtcNow.AddDays(-1),
-                SmartSlotsMask = 2 | 8 | 32, // 早餐后 + 午餐后 + 晚餐后
-                IntervalDays = 1,
-                RequiresPreparation = true,
-                PreparationItems = "[\"负压吸引装置\", \"一次性吸痰管\", \"无菌手套\", \"生理盐水\", \"冲洗杯\"]",
-                EndTime = null
-            });
-
-            // OP004 - 气管切开护理：长期医嘱，使用SLOTS策略（早餐后+晚餐后）
-            operationOrders.Add(new OperationOrder
-            {
-                PatientId = "P002", DoctorId = "D001", NurseId = "N004",
-                CreateTime = DateTime.UtcNow.AddDays(-1),
-                PlantEndTime = DateTime.UtcNow.AddDays(2),
-                OrderType = "OperationOrder", Status = OrderStatus.Accepted, IsLongTerm = true,
-                OpId = "OP004", OperationName = "气管切开护理", Normal = true,
-                TimingStrategy = "SLOTS",
-                StartTime = DateTime.UtcNow.AddDays(-1),
-                SmartSlotsMask = 2 | 32, // 早餐后 + 晚餐后
-                IntervalDays = 1,
-                RequiresPreparation = true,
-                PreparationItems = "[\"气切护理包\", \"吸痰管\", \"无菌纱布\", \"系带\", \"过氧化氢/生理盐水\"]",
-                EndTime = null
-            });
-
-            // OP007 - 留置导尿术：临时医嘱，使用IMMEDIATE策略
-            operationOrders.Add(new OperationOrder
-            {
-                PatientId = "P003", DoctorId = "D002", NurseId = "N002",
-                CreateTime = DateTime.UtcNow.AddHours(-1),
-                PlantEndTime = DateTime.UtcNow.AddHours(1),
-                OrderType = "OperationOrder", Status = OrderStatus.InProgress, IsLongTerm = false,
-                OpId = "OP007", OperationName = "留置导尿术", Normal = true,
-                TimingStrategy = "IMMEDIATE",
-                RequiresPreparation = true,
-                PreparationItems = "[\"一次性导尿包\", \"无菌手套\", \"尿袋\", \"碘伏\", \"润滑油\", \"胶布\"]",
-                EndTime = null
-            });
-
-            // OP008 - 更换引流袋/尿袋：长期医嘱，使用SLOTS策略（早餐后+晚餐后）
-            operationOrders.Add(new OperationOrder
-            {
-                PatientId = "P001", DoctorId = "D001", NurseId = "N003",
-                CreateTime = DateTime.UtcNow,
-                PlantEndTime = DateTime.UtcNow.AddDays(5),
-                OrderType = "OperationOrder", Status = OrderStatus.Accepted, IsLongTerm = true,
-                OpId = "OP008", OperationName = "更换引流袋/尿袋", Normal = true,
-                TimingStrategy = "SLOTS",
-                StartTime = DateTime.UtcNow,
-                SmartSlotsMask = 2 | 32, // 早餐后 + 晚餐后
-                IntervalDays = 1,
-                RequiresPreparation = true,
-                PreparationItems = "[\"无菌引流袋/尿袋\", \"碘伏棉球\", \"弯盘\", \"血管钳\"]",
-                EndTime = null
-            });
-
-            // OP016 - 普通换药/敷料更换：长期医嘱，使用SLOTS策略（午餐前）
-            operationOrders.Add(new OperationOrder
-            {
-                PatientId = "P002", DoctorId = "D001", NurseId = "N004",
-                CreateTime = DateTime.UtcNow,
-                PlantEndTime = DateTime.UtcNow.AddDays(3),
-                OrderType = "OperationOrder", Status = OrderStatus.Accepted, IsLongTerm = true,
-                OpId = "OP016", OperationName = "普通换药/敷料更换", Normal = true,
-                TimingStrategy = "SLOTS",
-                StartTime = DateTime.UtcNow,
-                SmartSlotsMask = 4, // 午餐前
-                IntervalDays = 1,
-                RequiresPreparation = true,
-                PreparationItems = "[\"无菌换药包\", \"棉球\", \"纱布\", \"胶带\", \"生理盐水\", \"碘伏\"]",
-                EndTime = null
-            });
-
-            // ==========================================
-            // Duration 类操作（持续执行，需要开始和结束时间）
-            // ==========================================
-            
-            // OP001 - 持续低流量吸氧：长期医嘱，使用SLOTS策略（全天持续）
-            operationOrders.Add(new OperationOrder
-            {
-                PatientId = "P003", DoctorId = "D002", NurseId = "N002",
-                CreateTime = DateTime.UtcNow.AddDays(-1),
-                PlantEndTime = DateTime.UtcNow.AddDays(2),
-                OrderType = "OperationOrder", Status = OrderStatus.Accepted, IsLongTerm = true,
-                OpId = "OP001", OperationName = "持续低流量吸氧", Normal = true,
-                TimingStrategy = "CYCLIC",
-                StartTime = DateTime.UtcNow.AddDays(-1),
-                IntervalHours = 24m, // 每24小时检查一次
-                IntervalDays = 1,
-                RequiresPreparation = true,
-                PreparationItems = "[\"氧气流量表\", \"湿化瓶\", \"灭菌注射用水\", \"鼻导管/吸氧面罩\", \"棉签\"]",
-                ExpectedDurationMinutes = 1440,
-                EndTime = null
-            });
-
-            // OP002 - 雾化吸入治疗：长期医嘱，使用SLOTS策略（早餐后+午餐后）
-            operationOrders.Add(new OperationOrder
-            {
-                PatientId = "P002", DoctorId = "D001", NurseId = "N003",
-                CreateTime = DateTime.UtcNow,
-                PlantEndTime = DateTime.UtcNow.AddDays(3),
-                OrderType = "OperationOrder", Status = OrderStatus.Accepted, IsLongTerm = true,
-                OpId = "OP002", OperationName = "雾化吸入治疗", Normal = true,
-                TimingStrategy = "SLOTS",
-                StartTime = DateTime.UtcNow,
-                SmartSlotsMask = 2 | 8, // 早餐后 + 午餐后
-                IntervalDays = 1,
-                RequiresPreparation = true,
-                PreparationItems = "[\"雾化器\", \"雾化面罩/咬嘴\", \"药液\", \"生理盐水\"]",
-                ExpectedDurationMinutes = 15,
-                EndTime = null
-            });
-
-            // OP006 - 胃肠减压护理：长期医嘱，使用SLOTS策略（三餐后）
-            operationOrders.Add(new OperationOrder
-            {
-                PatientId = "P001", DoctorId = "D001", NurseId = "N001",
-                CreateTime = DateTime.UtcNow,
-                PlantEndTime = DateTime.UtcNow.AddDays(5),
-                OrderType = "OperationOrder", Status = OrderStatus.Accepted, IsLongTerm = true,
-                OpId = "OP006", OperationName = "胃肠减压护理", Normal = true,
-                TimingStrategy = "SLOTS",
-                StartTime = DateTime.UtcNow,
-                SmartSlotsMask = 2 | 8 | 32, // 早餐后 + 午餐后 + 晚餐后
-                IntervalDays = 1,
-                RequiresPreparation = true,
-                PreparationItems = "[\"负压引流器\", \"生理盐水\", \"冲洗注射器\"]",
-                RequiresResult = true,
-                ExpectedDurationMinutes = 1440,
-                EndTime = null
-            });
-
-            // OP009 - 膀胱冲洗：长期医嘱，使用SLOTS策略（早餐后+晚餐后）
-            operationOrders.Add(new OperationOrder
-            {
-                PatientId = "P004", DoctorId = "D002", NurseId = "N001",
-                CreateTime = DateTime.UtcNow,
-                PlantEndTime = DateTime.UtcNow.AddDays(3),
-                OrderType = "OperationOrder", Status = OrderStatus.Accepted, IsLongTerm = true,
-                OpId = "OP009", OperationName = "膀胱冲洗", Normal = true,
-                TimingStrategy = "SLOTS",
-                StartTime = DateTime.UtcNow,
-                SmartSlotsMask = 2 | 32, // 早餐后 + 晚餐后
-                IntervalDays = 1,
-                RequiresPreparation = true,
-                PreparationItems = "[\"膀胱冲洗器\", \"冲洗液(生理盐水)\", \"废液袋\", \"输液架\"]",
-                RequiresResult = true,
-                ExpectedDurationMinutes = 60,
-                EndTime = null
-            });
-
-            // OP019 - 心电监护：长期医嘱，使用CYCLIC策略（每24小时一次）
-            operationOrders.Add(new OperationOrder
-            {
-                PatientId = "P003", DoctorId = "D002", NurseId = "N002",
-                CreateTime = DateTime.UtcNow,
-                PlantEndTime = DateTime.UtcNow.AddDays(2),
-                OrderType = "OperationOrder", Status = OrderStatus.Accepted, IsLongTerm = true,
-                OpId = "OP019", OperationName = "心电监护", Normal = true,
-                TimingStrategy = "CYCLIC",
-                StartTime = DateTime.UtcNow,
-                IntervalHours = 24m, // 每24小时检查一次
-                IntervalDays = 1,
-                RequiresPreparation = true,
-                PreparationItems = "[\"心电监护仪\", \"电极片\", \"酒精棉球\"]",
-                ExpectedDurationMinutes = 1440,
-                EndTime = null
-            });
-
-            // ==========================================
-            // ResultPending 类操作（需要等待结果，录入结果后完成）
-            // ==========================================
-            
-            // OP011 - 快速血糖监测(末梢)：长期医嘱，使用SLOTS策略（三餐前+睡前）
-            operationOrders.Add(new OperationOrder
-            {
-                PatientId = "P002", DoctorId = "D001", NurseId = "N004",
-                CreateTime = DateTime.UtcNow,
-                PlantEndTime = DateTime.UtcNow.AddDays(7),
-                OrderType = "OperationOrder", Status = OrderStatus.Accepted, IsLongTerm = true,
-                OpId = "OP011", OperationName = "快速血糖监测(末梢)", Normal = true,
-                TimingStrategy = "SLOTS",
-                StartTime = DateTime.UtcNow,
-                SmartSlotsMask = 1 | 4 | 16 | 64, // 早餐前 + 午餐前 + 晚餐前 + 睡前
-                IntervalDays = 1,
-                RequiresPreparation = true,
-                PreparationItems = "[\"血糖仪\", \"血糖试纸\", \"采血笔\", \"75%酒精\", \"棉签\", \"锐器盒\"]",
-                RequiresResult = true,
-                ResultTemplate = "{\"Value\": 0.0, \"Unit\": \"mmol/L\", \"Note\": \"\"}",
-                EndTime = null
-            });
-
-
-            // ==========================================
-            // 特殊场景测试：不同频次类型
-            // ==========================================
-            
-            // OP017 - 造口护理：长期医嘱，使用SLOTS策略（每2天一次）
-            operationOrders.Add(new OperationOrder
-            {
-                PatientId = "P001", DoctorId = "D001", NurseId = "N001",
-                CreateTime = DateTime.UtcNow,
-                PlantEndTime = DateTime.UtcNow.AddDays(7),
-                OrderType = "OperationOrder", Status = OrderStatus.Accepted, IsLongTerm = true,
-                OpId = "OP017", OperationName = "造口护理", Normal = true,
-                TimingStrategy = "SLOTS",
-                StartTime = DateTime.UtcNow,
-                SmartSlotsMask = 8, // 午餐后
-                IntervalDays = 2, // 每2天一次
-                RequiresPreparation = true,
-                PreparationItems = "[\"造口袋\", \"造口底盘\", \"造口剪\", \"量尺\", \"护肤粉\", \"防漏膏\", \"温水\"]",
-                EndTime = null
-            });
-            
-            // OP018 - 手术切口拆线：临时医嘱，使用SPECIFIC策略
-            operationOrders.Add(new OperationOrder
-            {
-                PatientId = "P002", DoctorId = "D001", NurseId = "N004",
-                CreateTime = DateTime.UtcNow,
-                PlantEndTime = DateTime.UtcNow.AddDays(1),
-                OrderType = "OperationOrder", Status = OrderStatus.Accepted, IsLongTerm = false,
-                OpId = "OP018", OperationName = "手术切口拆线", Normal = true,
-                TimingStrategy = "SPECIFIC",
-                StartTime = DateTime.UtcNow.AddHours(2), // 2小时后执行
-                RequiresPreparation = true,
-                PreparationItems = "[\"无菌拆线包(剪刀/镊子)\", \"碘伏\", \"敷料\", \"胶布\"]",
-                EndTime = null
-            });
-            
-            // OP020 - 微量泵/注射泵使用：长期医嘱，使用CYCLIC策略（每8小时一次）
-            operationOrders.Add(new OperationOrder
-            {
-                PatientId = "P005", DoctorId = "D001", NurseId = "N005",
-                CreateTime = DateTime.UtcNow,
-                PlantEndTime = DateTime.UtcNow.AddDays(3),
-                OrderType = "OperationOrder", Status = OrderStatus.Accepted, IsLongTerm = true,
-                OpId = "OP020", OperationName = "微量泵/注射泵使用", Normal = true,
-                TimingStrategy = "CYCLIC",
-                StartTime = DateTime.UtcNow,
-                IntervalHours = 8m, // 每8小时一次
-                IntervalDays = 1,
-                RequiresPreparation = true,
-                PreparationItems = "[\"微量注射泵\", \"延长管\", \"50ml注射器\", \"药物标签\"]",
-                ExpectedDurationMinutes = 60,
-                EndTime = null
-            });
-            
-            // OP021 - 气压治疗(预防血栓)：长期医嘱，使用SLOTS策略（三餐后）
-            operationOrders.Add(new OperationOrder
-            {
-                PatientId = "P006", DoctorId = "D002", NurseId = "N007",
-                CreateTime = DateTime.UtcNow,
-                PlantEndTime = DateTime.UtcNow.AddDays(5),
-                OrderType = "OperationOrder", Status = OrderStatus.Accepted, IsLongTerm = true,
-                OpId = "OP021", OperationName = "气压治疗(预防血栓)", Normal = true,
-                TimingStrategy = "SLOTS",
-                StartTime = DateTime.UtcNow,
-                SmartSlotsMask = 2 | 8 | 32, // 早餐后 + 午餐后 + 晚餐后
-                IntervalDays = 1,
-                RequiresPreparation = true,
-                PreparationItems = "[\"气压治疗仪\", \"腿套\"]",
-                ExpectedDurationMinutes = 30,
-                EndTime = null
-            });
-
-            // 临时医嘱：指定时间执行，使用SPECIFIC策略
-            var futureTime = DateTime.UtcNow.AddHours(14).AddMinutes(30); // 今天14:30
-            operationOrders.Add(new OperationOrder
-            {
-                PatientId = "P002", DoctorId = "D001", NurseId = "N004",
-                CreateTime = DateTime.UtcNow,
-                PlantEndTime = DateTime.UtcNow.AddDays(1),
-                OrderType = "OperationOrder", Status = OrderStatus.Accepted, IsLongTerm = false,
-                OpId = "OP011", OperationName = "快速血糖监测(末梢)", Normal = true,
-                TimingStrategy = "SPECIFIC",
-                StartTime = futureTime,
-                RequiresPreparation = true,
-                PreparationItems = "[\"血糖仪\", \"血糖试纸\", \"采血笔\", \"75%酒精\", \"棉签\", \"锐器盒\"]",
-                RequiresResult = true,
-                ResultTemplate = "{\"Value\": 0.0, \"Unit\": \"mmol/L\", \"Note\": \"\"}",
-                EndTime = null
-            });
-
-            // 临时医嘱：立即执行，使用IMMEDIATE策略
-            // operationOrders.Add(new OperationOrder
-            // {
-            //     PatientId = "P003", DoctorId = "D002", NurseId = "N002",
-            //     CreateTime = DateTime.UtcNow.AddHours(-1),
-            //     PlantEndTime = DateTime.UtcNow.AddHours(1),
-            //     OrderType = "OperationOrder", Status = OrderStatus.InProgress, IsLongTerm = false,
-            //     OpId = "OP005", OperationName = "导尿", Normal = true,
-            //     TimingStrategy = "IMMEDIATE",
-            //     EndTime = null
-            // });
-
-            // 长期医嘱：1天1次，但时间已过（用于测试时间过滤），使用SLOTS策略
-            operationOrders.Add(new OperationOrder
-            {
-                PatientId = "P004", DoctorId = "D002", NurseId = "N001",
-                CreateTime = DateTime.UtcNow.AddDays(-2),
-                PlantEndTime = DateTime.UtcNow.AddDays(3),
-                OrderType = "OperationOrder", Status = OrderStatus.Accepted, IsLongTerm = true,
-                OpId = "OP002", OperationName = "雾化吸入治疗", Normal = true,
-                TimingStrategy = "SLOTS",
-                StartTime = DateTime.UtcNow.AddDays(-2),
-                SmartSlotsMask = 2, // 早餐后
-                RequiresPreparation = true,
-                PreparationItems = "[\"雾化器\", \"雾化面罩/咬嘴\", \"药液\", \"生理盐水\"]",
-                ExpectedDurationMinutes = 15,
-                IntervalDays = 1,
-                EndTime = null
-            });
-
-            // 长期医嘱：1天3次，部分时间已过（用于测试时间过滤），使用SLOTS策略
-            operationOrders.Add(new OperationOrder
-            {
-                PatientId = "P005", DoctorId = "D001", NurseId = "N005",
-                CreateTime = DateTime.UtcNow.AddDays(-1),
-                PlantEndTime = DateTime.UtcNow.AddDays(2),
-                OrderType = "OperationOrder", Status = OrderStatus.Accepted, IsLongTerm = true,
-                OpId = "OP011", OperationName = "快速血糖监测(末梢)", Normal = true,
-                TimingStrategy = "SLOTS",
-                StartTime = DateTime.UtcNow.AddDays(-1),
-                SmartSlotsMask = 1 | 4 | 16, // 早餐前 + 午餐前 + 晚餐前
-                IntervalDays = 1,
-                RequiresPreparation = true,
-                PreparationItems = "[\"血糖仪\", \"血糖试纸\", \"采血笔\", \"75%酒精\", \"棉签\", \"锐器盒\"]",
-                RequiresResult = true,
-                ResultTemplate = "{\"Value\": 0.0, \"Unit\": \"mmol/L\", \"Note\": \"\"}",
-                EndTime = null
-            });
-
-            context.OperationOrders.AddRange(operationOrders);
-            
-            // 3. 检查医嘱 (InspectionOrder)
-            var inspectionOrders = new InspectionOrder[]
-            {
-                new InspectionOrder
-                {
-                    PatientId = "P002", DoctorId = "D001",
-                    CreateTime = currentTime.AddHours(-4), PlantEndTime = currentTime.AddHours(8),
-                    OrderType = "InspectionOrder", Status = OrderStatus.PendingReceive, IsLongTerm = false,
-                    ItemCode = "CT001", ItemName = "胸部CT", RisLisId = "RIS202412060001", Location = "影像科",
-                    AppointmentTime = currentTime.AddHours(4), AppointmentPlace = "CT室1",
-                    Precautions = "检查前4小时禁食", ReportId = "",
-                    InspectionStatus = InspectionOrderStatus.Pending,
-                    Source = InspectionSource.RIS
-                },
-                new InspectionOrder
-                {
-                    PatientId = "P005", DoctorId = "D001",
-                    CreateTime = currentTime.AddHours(-1), PlantEndTime = currentTime.AddHours(6),
-                    OrderType = "InspectionOrder", Status = OrderStatus.Accepted, IsLongTerm = false,
-                    ItemCode = "LAB001", ItemName = "血常规", RisLisId = "LIS202412060001", Location = "检验科",
-                    AppointmentTime = currentTime.AddHours(2), AppointmentPlace = "采血室",
-                    Precautions = "空腹采血", ReportId = "",
-                    InspectionStatus = InspectionOrderStatus.Pending,
-                    Source = InspectionSource.LIS
-                },
-                new InspectionOrder
-                {
-                    PatientId = "P006", DoctorId = "D002",
-                    CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddHours(-2),
-                    EndTime = currentTime.AddHours(-2),
-                    OrderType = "InspectionOrder", Status = OrderStatus.Completed, IsLongTerm = false,
-                    ItemCode = "ECG001", ItemName = "常规心电图", RisLisId = "RIS202412050001", Location = "心电图室",
-                    AppointmentTime = currentTime.AddHours(-4), AppointmentPlace = "心电图室1",
-                    Precautions = "检查时保持安静", CheckStartTime = currentTime.AddHours(-4),
-                    CheckEndTime = currentTime.AddHours(-3.5), ReportPendingTime = currentTime.AddHours(-3),
-                    ReportTime = currentTime.AddHours(-2), ReportId = "ECG202412050001",
-                    InspectionStatus = InspectionOrderStatus.ReportCompleted,
-                    Source = InspectionSource.RIS
-                }
-            };
-            context.InspectionOrders.AddRange(inspectionOrders);
-            
-            // 4. 手术医嘱 (SurgicalOrder)
-            var surgicalOrders = new SurgicalOrder[]
-            {
-                // new SurgicalOrder
-                // {
-                //     PatientId = "P003", DoctorId = "D002",
-                //     CreateTime = currentTime.AddHours(-6), PlantEndTime = currentTime.AddHours(8),
-                //     OrderType = "SurgicalOrder", Status = OrderStatus.Accepted, IsLongTerm = false,
-                //     SurgeryName = "腹腔镜阑尾切除术", ScheduleTime = currentTime.AddHours(6),
-                //     AnesthesiaType = "全身麻醉", IncisionSite = "脐部及右下腹", SurgeonId = "D002",
-                //     RequiredTalk = "[\"术前禁食水宣教\", \"术前饰品摘取\", \"更换病号服\"]",
-                //     RequiredOperation = "[\"手术区域备皮\", \"留置导尿管\", \"建立静脉通路\"]",
-                //     PrepProgress = 0.6f, PrepStatus = "术前准备中",
-                //     Items = new List<MedicationOrderItem>
-                //     {
-                //         new MedicationOrderItem { DrugId = "DRUG001", Dosage = "2支", Note = "术中用药" },
-                //         new MedicationOrderItem { DrugId = "DRUG002", Dosage = "5袋", Note = "术中补液" },
-                //         new MedicationOrderItem { DrugId = "DRUG003", Dosage = "1支", Note = "术后镇痛" }
-                //     }
-                // },
-                new SurgicalOrder
-                {
-                    PatientId = "P004", DoctorId = "D002",
-                    CreateTime = currentTime.AddDays(-1), PlantEndTime = currentTime.AddDays(1),
-                    OrderType = "SurgicalOrder", Status = OrderStatus.PendingReceive, IsLongTerm = false,
-                    SurgeryName = "腹腔镜胆囊切除术", ScheduleTime = currentTime.AddDays(1).AddHours(2),
-                    AnesthesiaType = "全身麻醉", IncisionSite = "脐部及上腹部", SurgeonId = "D002",
-                    RequiredTalk = "[\"术前禁食水宣教\"]",
-                    RequiredOperation = "[\"交叉配血\",\"手术区域备皮\", \"建立静脉通路\"]",
-                    PrepProgress = 0.2f, PrepStatus = "等待术前评估",
-                    Items = new List<MedicationOrderItem>
-                    {
-                        new MedicationOrderItem { DrugId = "DRUG005", Dosage = "3粒", Note = "术前预防感染" },
-                        new MedicationOrderItem { DrugId = "DRUG002", Dosage = "10袋", Note = "术中补液" }
-                    }
-                },
-                new SurgicalOrder
-                {
-                    PatientId = "P006", DoctorId = "D002",
-                    CreateTime = currentTime.AddHours(-2), PlantEndTime = currentTime.AddHours(4),
-                    OrderType = "SurgicalOrder", Status = OrderStatus.Accepted, IsLongTerm = false,
-                    SurgeryName = "左股骨干骨折切开复位内固定术", ScheduleTime = currentTime.AddHours(2),
-                    AnesthesiaType = "腰硬联合麻醉", IncisionSite = "左大腿外侧", SurgeonId = "D002",
-                    RequiredTalk = "[\"术前禁食水宣教\", \"术前体位指导\"]",
-                    RequiredOperation = "[\"手术区域备皮\", \"留置导尿管\", \"术前抗生素皮试\"]",
-                    PrepProgress = 0.8f, PrepStatus = "急诊准备中",
-                    Items = new List<MedicationOrderItem>
-                    {
-                        new MedicationOrderItem { DrugId = "DRUG008", Dosage = "2瓶", Note = "抗感染" },
-                        new MedicationOrderItem { DrugId = "DRUG002", Dosage = "500ml", Note = "术中补液" }
-                    }
-                }
-            };
-            context.SurgicalOrders.AddRange(surgicalOrders);
-            context.SaveChanges(); // 保存所有医嘱（必须在创建 ExecutionTask 之前，以便获取 Id）
-
-            // var medicationOrders2 = new List<MedicationOrder>{
-            //     new MedicationOrder
-            //     {
-            //         PatientId = "P003", DoctorId = "D002", NurseId = "N002",
-            //         CreateTime = currentTime, PlantEndTime = currentTime.AddDays(1),
-            //         OrderType = "MedicationOrder", Status = OrderStatus.PendingReceive, IsLongTerm = true,  // 修改为Accepted，因为已生成ExecutionTask
-            //         UsageRoute = UsageRoute.IVP, // 静脉推注
-            //         IsDynamicUsage = false,
-            //         IntervalHours = 8m, // 每8小时给药一次
-            //         StartTime = currentTime.Date.AddHours(8), // 从早上8点开始
-            //         TimingStrategy = "CYCLIC",
-            //         SmartSlotsMask = 0, // CYCLIC策略不依赖时段
-            //         IntervalDays = 1,
-            //         Items = new List<MedicationOrderItem>
-            //         {
-            //             new MedicationOrderItem { DrugId = "DRUG008", Dosage = "1.0g", Note = "溶于100ml生理盐水缓慢静推" }
-            //         }
-            //     }
-            // };
-
+          
             // context.MedicationOrders.AddRange(medicationOrders2);
             // --- 护士排班相关数据 ---
             // 班次类型数据
@@ -1352,248 +2875,137 @@ namespace CareFlow.Infrastructure.Data
             var todayUtc = DateTime.UtcNow;
             var nurseRosters = new NurseRoster[]
             {
-                // 内科一病区 IM-W01
-                new NurseRoster { StaffId = "N004", WardId = "IM-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
-                new NurseRoster { StaffId = "N003", WardId = "IM-W01", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
-                new NurseRoster { StaffId = "N007", WardId = "IM-W01", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                // === 心血管内科 CARD 病区排班 ===
+                new NurseRoster { StaffId = "N001", WardId = "CARD-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N002", WardId = "CARD-W01", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N003", WardId = "CARD-W01", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N004", WardId = "CARD-W02", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N005", WardId = "CARD-W02", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N006", WardId = "CARD-W02", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
 
-                // 内科二病区 IM-W02
-                new NurseRoster { StaffId = "N001", WardId = "IM-W02", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
-                new NurseRoster { StaffId = "N004", WardId = "IM-W02", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
-                new NurseRoster { StaffId = "N003", WardId = "IM-W02", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                // === 呼吸内科 RESP 病区排班 ===
+                new NurseRoster { StaffId = "N007", WardId = "RESP-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N008", WardId = "RESP-W01", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N009", WardId = "RESP-W01", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N010", WardId = "RESP-W02", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N011", WardId = "RESP-W02", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N012", WardId = "RESP-W02", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
 
-                // 外科病区 SUR-W01
-                new NurseRoster { StaffId = "N001", WardId = "SUR-W01", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc.AddDays(-1)), Status = "Scheduled" },
-                new NurseRoster { StaffId = "N002", WardId = "SUR-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
-                new NurseRoster { StaffId = "N008", WardId = "SUR-W01", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
-                new NurseRoster { StaffId = "N001", WardId = "SUR-W01", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                // === 消化内科 GAST 病区排班 ===
+                new NurseRoster { StaffId = "N013", WardId = "GAST-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N014", WardId = "GAST-W01", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N015", WardId = "GAST-W01", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N016", WardId = "GAST-W02", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N017", WardId = "GAST-W02", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N018", WardId = "GAST-W02", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
 
-                // 儿科病区 PED-W01
-                new NurseRoster { StaffId = "N006", WardId = "PED-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
-                new NurseRoster { StaffId = "N005", WardId = "PED-W01", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
-                new NurseRoster { StaffId = "N010", WardId = "PED-W01", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                // === 神经内科 NEUR 病区排班 ===
+                new NurseRoster { StaffId = "N019", WardId = "NEUR-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N020", WardId = "NEUR-W01", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N021", WardId = "NEUR-W01", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N022", WardId = "NEUR-W02", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N023", WardId = "NEUR-W02", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N024", WardId = "NEUR-W02", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
 
-                // 备用/明日部分排班（保持原来的简单轮换示例）
-                new NurseRoster { StaffId = "N002", WardId = "SUR-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc.AddDays(1)), Status = "Scheduled" },
-                new NurseRoster { StaffId = "N001", WardId = "SUR-W01", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc.AddDays(1)), Status = "Scheduled" },
-                new NurseRoster { StaffId = "N003", WardId = "IM-W02", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc.AddDays(1)), Status = "Scheduled" },
-                new NurseRoster { StaffId = "N005", WardId = "PED-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc.AddDays(1)), Status = "Scheduled" }
+                // === 肾内科 NEPH 病区排班 ===
+                new NurseRoster { StaffId = "N025", WardId = "NEPH-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N026", WardId = "NEPH-W01", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N027", WardId = "NEPH-W01", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N028", WardId = "NEPH-W02", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N029", WardId = "NEPH-W02", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N030", WardId = "NEPH-W02", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+
+                // === 内分泌科 ENDO 病区排班 ===
+                new NurseRoster { StaffId = "N031", WardId = "ENDO-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N032", WardId = "ENDO-W01", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N033", WardId = "ENDO-W01", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N034", WardId = "ENDO-W02", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N035", WardId = "ENDO-W02", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N036", WardId = "ENDO-W02", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+
+                // === 血液内科 HEMA 病区排班 ===
+                new NurseRoster { StaffId = "N037", WardId = "HEMA-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N038", WardId = "HEMA-W01", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N039", WardId = "HEMA-W01", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N040", WardId = "HEMA-W02", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N041", WardId = "HEMA-W02", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N042", WardId = "HEMA-W02", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+
+                // === 普通外科 GEN_SUR 病区排班 ===
+                new NurseRoster { StaffId = "N043", WardId = "GEN_SUR-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N044", WardId = "GEN_SUR-W01", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N045", WardId = "GEN_SUR-W01", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N046", WardId = "GEN_SUR-W02", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N047", WardId = "GEN_SUR-W02", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N048", WardId = "GEN_SUR-W02", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+
+                // === 骨科 ORTH 病区排班 ===
+                new NurseRoster { StaffId = "N049", WardId = "ORTH-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N050", WardId = "ORTH-W01", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N051", WardId = "ORTH-W01", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N052", WardId = "ORTH-W02", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N053", WardId = "ORTH-W02", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N054", WardId = "ORTH-W02", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+
+                // === 神经外科 NSUR 病区排班 ===
+                new NurseRoster { StaffId = "N055", WardId = "NSUR-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N056", WardId = "NSUR-W01", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N057", WardId = "NSUR-W01", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N058", WardId = "NSUR-W02", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N059", WardId = "NSUR-W02", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N060", WardId = "NSUR-W02", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+
+                // === 心胸外科 CT_SUR 病区排班 ===
+                new NurseRoster { StaffId = "N061", WardId = "CT_SUR-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N062", WardId = "CT_SUR-W01", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N063", WardId = "CT_SUR-W01", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N064", WardId = "CT_SUR-W02", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N065", WardId = "CT_SUR-W02", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N066", WardId = "CT_SUR-W02", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+
+                // === 泌尿外科 UROL 病区排班 ===
+                new NurseRoster { StaffId = "N067", WardId = "UROL-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N068", WardId = "UROL-W01", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N069", WardId = "UROL-W01", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N070", WardId = "UROL-W02", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N071", WardId = "UROL-W02", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N072", WardId = "UROL-W02", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+
+                // === 烧伤科 BURN 病区排班 ===
+                new NurseRoster { StaffId = "N073", WardId = "BURN-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N074", WardId = "BURN-W01", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N075", WardId = "BURN-W01", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N076", WardId = "BURN-W02", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N077", WardId = "BURN-W02", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N078", WardId = "BURN-W02", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+
+                // === 妇科 GYN 病区排班 ===
+                new NurseRoster { StaffId = "N079", WardId = "GYN-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N080", WardId = "GYN-W01", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N081", WardId = "GYN-W01", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N082", WardId = "GYN-W02", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N083", WardId = "GYN-W02", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N084", WardId = "GYN-W02", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+
+                // === 产科 OBS 病区排班 ===
+                new NurseRoster { StaffId = "N085", WardId = "OBS-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N086", WardId = "OBS-W01", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N087", WardId = "OBS-W01", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N088", WardId = "OBS-W02", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N089", WardId = "OBS-W02", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N090", WardId = "OBS-W02", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+
+                // === 儿科 PED 病区排班 ===
+                new NurseRoster { StaffId = "N091", WardId = "PED-W01", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N092", WardId = "PED-W01", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N093", WardId = "PED-W01", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N094", WardId = "PED-W02", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N095", WardId = "PED-W02", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N096", WardId = "PED-W02", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" }
             };
             context.NurseRosters.AddRange(nurseRosters);
             context.SaveChanges(); // 保存排班数据
             
-            // --- 执行任务数据 (ExecutionTask) ---
-            var executionTasks = new CareFlow.Core.Models.Nursing.ExecutionTask[]
-            {
-                // ==================== nurse004 演示任务 ====================
-                
-                // 1️⃣ Immediate演示：P002的晚餐前胰岛素 - 状态Pending(3)
-                // 流程：点"完成任务" → 看详情 → 点"确认完成" → Completed(5)
-                new CareFlow.Core.Models.Nursing.ExecutionTask
-                {
-                    MedicalOrderId = medicationOrders[2].Id,
-                    PatientId = "P002",
-                    Category = TaskCategory.Immediate,
-                    PlannedStartTime = currentTime.Date.AddHours(9).AddMinutes(30), // UTC 09:30 (北京 17:30 晚餐前)
-                    AssignedNurseId = "N004", // nurse004 - 张护士
-                    Status = ExecutionTaskStatus.Pending,
-                    DataPayload = "{\"taskType\":\"Medication\",\"title\":\"皮下注射胰岛素 8单位\",\"drugName\":\"精蛋白锌重组人胰岛素\",\"description\":\"餐前15分钟注射，监测血糖\"}"
-                },
-                
-                // 2️⃣ Duration演示-第一步：P005的混合静脉滴注 - 状态Pending(3)
-                // 改为nurse004，用来演示 Pending → InProgress
-                new CareFlow.Core.Models.Nursing.ExecutionTask
-                {
-                    MedicalOrderId = medicationOrders[5].Id,
-                    PatientId = "P005",
-                    Category = TaskCategory.Duration,
-                    PlannedStartTime = currentTime.Date.AddHours(0).AddMinutes(30), // UTC 00:30 (北京 08:30 早餐后)
-                    AssignedNurseId = "N004", // nurse004 - 张护士（改为N004）
-                    Status = ExecutionTaskStatus.Pending,
-                    DataPayload = "{\"taskType\":\"MEDICATION_ADMINISTRATION\",\"title\":\"静脉滴注：盐水100ml+头孢曲松钠2.0g\",\"TaskType\":\"MEDICATION_ADMINISTRATION\",\"description\":\"混合液静脉滴注，皮试阴性\",\"isChecklist\":true,\"items\":[{\"id\":1,\"text\":\"核对药品：盐水\",\"isChecked\":false,\"required\":true},{\"id\":2,\"text\":\"核对药品：头孢曲松钠\",\"isChecked\":false,\"required\":true},{\"id\":3,\"text\":\"建立输液通路\",\"isChecked\":false,\"required\":true}],\"medicationInfo\":{\"drugName\":\"混合液\",\"specification\":\"盐水100ml+头孢1.0g\",\"dosage\":\"2.0g\",\"route\":\"IVGTT\",\"frequency\":\"一次性\"}}"
-                },
-                
-                // 2️⃣ Duration演示-第二步：P001的生理盐水 - 状态InProgress(4)
-                // 用来演示 InProgress → Completed
-                new CareFlow.Core.Models.Nursing.ExecutionTask
-                {
-                    MedicalOrderId = medicationOrders[1].Id,
-                    PatientId = "P001",
-                    Category = TaskCategory.Duration,
-                    PlannedStartTime = currentTime.Date.AddHours(2), // UTC 02:00 (北京 10:00)
-                    AssignedNurseId = "N004", // nurse004 - 张护士
-                    ActualStartTime = currentTime.Date.AddHours(2).AddMinutes(5),
-                    ExecutorStaffId = "N004", // 已经开始执行
-                    Status = ExecutionTaskStatus.InProgress, // ✓ InProgress(4)状态
-                    DataPayload = "{\"taskType\":\"MEDICATION_ADMINISTRATION\",\"title\":\"静脉滴注0.9%氯化钠注射液 250ml\",\"TaskType\":\"MEDICATION_ADMINISTRATION\",\"description\":\"缓慢滴注，30分钟内完成\",\"isChecklist\":true,\"items\":[{\"id\":1,\"text\":\"核对药品：生理盐水\",\"isChecked\":true,\"required\":true},{\"id\":2,\"text\":\"检查输液通路\",\"isChecked\":true,\"required\":true},{\"id\":3,\"text\":\"监测滴注速率\",\"isChecked\":false,\"required\":false}],\"medicationInfo\":{\"drugName\":\"0.9%氯化钠注射液\",\"specification\":\"250ml/袋\",\"dosage\":\"250ml\",\"route\":\"IVGTT\",\"frequency\":\"30分钟\"}}"
-                },
-                
-                // // 3️⃣ ResultPending演示：P003的皮肤测试 - 状态Pending(3)
-                // // 流程：点"完成任务" → "确认开始" → InProgress(4)
-                // //      然后点"结束任务（需录入结果）" → 输入结果 → Completed(5)
-                // new CareFlow.Core.Models.Nursing.ExecutionTask
-                // {
-                //     MedicalOrderId = surgicalOrders[0].Id,
-                //     PatientId = "P003",
-                //     Category = TaskCategory.ResultPending,
-                //     PlannedStartTime = currentTime.Date.AddHours(9), // UTC 09:00 (北京 17:00 下午)
-                //     AssignedNurseId = "N004", // nurse004 - 张护士
-                //     Status = ExecutionTaskStatus.Pending,
-                //     DataPayload = "{\"taskType\":\"SkinTest\",\"title\":\"手术前皮肤敏感性测试\",\"description\":\"对头孢曲松钠进行皮肤敏感性测试，观察反应\",\"drugName\":\"头孢曲松钠\",\"testType\":\"SkinTest\",\"testDrug\":\"头孢曲松钠 0.1ml\",\"observationTime\":\"15分钟\"}"
-                // },
-                
-                // ==================== 其他已完成的参考任务 ====================
-                
-                // P001 的药品执行任务 (阿司匹林 - 已完成参考)
-                new CareFlow.Core.Models.Nursing.ExecutionTask
-                {
-                    MedicalOrderId = medicationOrders[0].Id,
-                    PatientId = "P001",
-                    Category = TaskCategory.Immediate,
-                    PlannedStartTime = currentTime.Date.AddHours(0).AddMinutes(30), // UTC 00:30 (北京 08:30 早餐后)
-                    AssignedNurseId = "N004",
-                    Status = ExecutionTaskStatus.Pending,
-                    DataPayload = "{\"taskType\":\"Medication\",\"title\":\"口服阿司匹林 100mg\",\"drugName\":\"阿司匹林片\"}",
-                },
-                
-                // P002 的胰岛素注射任务 (今日早餐前 - 待执行参考)
-                new CareFlow.Core.Models.Nursing.ExecutionTask
-                {
-                    MedicalOrderId = medicationOrders[2].Id,
-                    PatientId = "P002",
-                    Category = TaskCategory.Immediate,
-                    PlannedStartTime = currentTime.Date.AddHours(23), // UTC 前一天 23:00 (北京 07:00 早餐前)
-                    AssignedNurseId = "N004",
-                    Status = ExecutionTaskStatus.Pending,
-                    DataPayload = "{\"taskType\":\"Medication\",\"title\":\"皮下注射胰岛素 8单位\",\"drugName\":\"精蛋白锌重组人胰岛素\"}",
-                },
-                
-                // P002 的胰岛素注射任务 (今日午餐前 - 待执行参考)
-                new CareFlow.Core.Models.Nursing.ExecutionTask
-                {
-                    MedicalOrderId = medicationOrders[2].Id,
-                    PatientId = "P002",
-                    Category = TaskCategory.Immediate,
-                    PlannedStartTime = currentTime.Date.AddHours(3).AddMinutes(30), // UTC 03:30 (北京 11:30 午餐前)
-                    AssignedNurseId = "N003", // 不同的护士
-                    Status = ExecutionTaskStatus.Pending,
-                    DataPayload = "{\"taskType\":\"Medication\",\"title\":\"皮下注射胰岛素 8单位\",\"drugName\":\"精蛋白锌重组人胰岛素\"}"
-                },
-                
-                // P003 的头孢曲松钠任务 (今日第二次给药 - 待执行参考)
-                // 注释掉：对应的 medicationOrders[3] 已被注释，避免索引越界
-                // new CareFlow.Core.Models.Nursing.ExecutionTask
-                // {
-                //     MedicalOrderId = medicationOrders[3].Id,
-                //     PatientId = "P003",
-                //     Category = TaskCategory.Immediate,
-                //     PlannedStartTime = currentTime.Date.AddHours(8), // UTC 08:00 (北京 16:00)
-                //     AssignedNurseId = "N001", // 外科默认责任护士
-                //     Status = ExecutionTaskStatus.Pending,
-                //     DataPayload = "{\"taskType\":\"Medication\",\"title\":\"静脉推注头孢曲松钠 1.0g\",\"drugName\":\"头孢曲松钠\",\"note\":\"皮试阴性\"}"
-                // },
-                
-                // P001 的生命体征采集任务 (今日早晨 - 已完成参考)
-                new CareFlow.Core.Models.Nursing.ExecutionTask
-                {
-                    MedicalOrderId = operationOrders[0].Id,
-                    PatientId = "P001",
-                    Category = TaskCategory.ResultPending,
-                    PlannedStartTime = currentTime.Date.AddHours(0), // UTC 00:00 (北京 08:00)
-                    AssignedNurseId = "N004",
-                    Status = ExecutionTaskStatus.Pending,
-                    DataPayload = "{\"taskType\":\"VitalSigns\",\"title\":\"生命体征测量\"}",
-                },
-                
-                // P002 的生命体征采集任务 (今日早晨 - 已完成参考，体温异常)
-                new CareFlow.Core.Models.Nursing.ExecutionTask
-                {
-                    MedicalOrderId = operationOrders[0].Id,
-                    PatientId = "P002",
-                    Category = TaskCategory.ResultPending,
-                    PlannedStartTime = currentTime.Date.AddHours(0), // UTC 00:00 (北京 08:00)
-                    AssignedNurseId = "N004",
-                    Status = ExecutionTaskStatus.Pending,
-                    DataPayload = "{\"taskType\":\"VitalSigns\",\"title\":\"生命体征测量\"}",
-                },
-                
-                // // P003 的手术准备任务 (手术区域备皮 - 已完成参考)
-                // new CareFlow.Core.Models.Nursing.ExecutionTask
-                // {
-                //     MedicalOrderId = surgicalOrders[0].Id,
-                //     PatientId = "P003",
-                //     Category = TaskCategory.Verification,
-                //     PlannedStartTime = currentTime.Date.AddHours(6), // UTC 06:00 (北京 14:00)
-                //     AssignedNurseId = "N001",
-                //     Status = ExecutionTaskStatus.Pending,
-                //     DataPayload = "{\"taskType\":\"SurgicalPrep\",\"title\":\"手术区域备皮\",\"surgeryName\":\"腹腔镜阑尾切除术\"}",
-                // },
-                
-                // // P003 的手术准备任务 (建立静脉通路 - 已完成参考)
-                // new CareFlow.Core.Models.Nursing.ExecutionTask
-                // {
-                //     MedicalOrderId = surgicalOrders[0].Id,
-                //     PatientId = "P003",
-                //     Category = TaskCategory.Verification,
-                //     PlannedStartTime = currentTime.Date.AddHours(7), // UTC 07:00 (北京 15:00)
-                //     AssignedNurseId = "N001",
-                //     Status = ExecutionTaskStatus.Pending,
-                //     DataPayload = "{\"taskType\":\"SurgicalPrep\",\"title\":\"建立静脉通路\",\"surgeryName\":\"腹腔镜阑尾切除术\"}",
-                // },
-                
-                // // P003 的手术准备任务 (留置导尿管 - 待执行参考)
-                // new CareFlow.Core.Models.Nursing.ExecutionTask
-                // {
-                //     MedicalOrderId = surgicalOrders[0].Id,
-                //     PatientId = "P003",
-                //     Category = TaskCategory.Verification,
-                //     PlannedStartTime = currentTime.Date.AddHours(10), // UTC 10:00 (北京 18:00)
-                //     AssignedNurseId = "N001",
-                //     Status = ExecutionTaskStatus.Pending,
-                //     DataPayload = "{\"taskType\":\"SurgicalPrep\",\"title\":\"留置导尿管\",\"surgeryName\":\"腹腔镜阑尾切除术\"}"
-                // },
-                
-                // P006 的手术准备任务 (术前抗生素皮试 - 已完成参考)
-                new CareFlow.Core.Models.Nursing.ExecutionTask
-                {
-                    MedicalOrderId = surgicalOrders[1].Id,
-                    PatientId = "P006",
-                    Category = TaskCategory.ResultPending,
-                    PlannedStartTime = currentTime.Date.AddHours(5), // UTC 05:00 (北京 13:00)
-                    AssignedNurseId = "N004",
-                    Status = ExecutionTaskStatus.Pending,
-                    DataPayload = "{\"taskType\":\"SkinTest\",\"title\":\"头孢曲松钠皮试\",\"drugName\":\"头孢曲松钠\"}",
-                },
-                
-                // P004 的眼膏涂抹任务 (今日早餐后 - 已完成参考)
-                new CareFlow.Core.Models.Nursing.ExecutionTask
-                {
-                    MedicalOrderId = medicationOrders[4].Id,
-                    PatientId = "P004",
-                    Category = TaskCategory.Immediate,
-                    PlannedStartTime = currentTime.Date.AddHours(0).AddMinutes(30), // UTC 00:30 (北京 08:30)
-                    AssignedNurseId = "N001",
-                    Status = ExecutionTaskStatus.Pending,
-                    DataPayload = "{\"taskType\":\"Medication\",\"title\":\"外用红霉素眼膏\",\"drugName\":\"红霉素眼膏\"}",
-                },
-                
-                // P001 的超时任务 (昨日晚餐后阿司匹林 - 未完成参考)
-                new CareFlow.Core.Models.Nursing.ExecutionTask
-                {
-                    MedicalOrderId = medicationOrders[0].Id,
-                    PatientId = "P001",
-                    Category = TaskCategory.Immediate,
-                    PlannedStartTime = currentTime.AddDays(-1).Date.AddHours(11), // 昨日 UTC 11:00 (北京 19:00)
-                    AssignedNurseId = "N004",
-                    Status = ExecutionTaskStatus.Incomplete,
-                    DataPayload = "{\"taskType\":\"Medication\",\"title\":\"口服阿司匹林 100mg\",\"drugName\":\"阿司匹林片\"}",
-                    ExceptionReason = "患者拒绝服药，已记录"
-                }
-            };
-            context.ExecutionTasks.AddRange(executionTasks);
-            
-            // 最后的保存
-            context.SaveChanges();
         }
     }
 }

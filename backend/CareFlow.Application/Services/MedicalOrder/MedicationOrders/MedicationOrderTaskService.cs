@@ -104,29 +104,17 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
             // 批量保存任务到数据库
             if (tasks.Any())
             {
-                var savedTaskCount = 0;
-                foreach (var task in tasks)
+                try
                 {
-                    try
-                    {
-                        // 先保存任务以获得ID
-                        await _taskRepository.AddAsync(task);
-                        savedTaskCount++;
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "保存执行任务时发生错误，任务计划时间: {PlannedTime}", 
-                            task.PlannedStartTime);
-                        // 继续处理其他任务，不让单个任务的失败影响整体流程
-                    }
+                    await _taskRepository.AddRangeAsync(tasks);
+                    _logger.LogInformation("已为医嘱 {OrderId} 成功生成 {Count} 个执行任务", 
+                        existingOrder.Id, tasks.Count);
                 }
-                
-                _logger.LogInformation("已为医嘱 {OrderId} 成功生成 {SavedCount}/{TotalCount} 个执行任务", 
-                    existingOrder.Id, savedTaskCount, tasks.Count);
-
-                if (savedTaskCount == 0)
+                catch (Exception ex)
                 {
-                    throw new InvalidOperationException("所有执行任务保存失败");
+                    _logger.LogError(ex, "批量保存 {Count} 个执行任务失败，医嘱ID: {OrderId}", 
+                        tasks.Count, order.Id);
+                    throw new InvalidOperationException($"保存执行任务失败: {ex.Message}", ex);
                 }
             }
             else
@@ -179,17 +167,26 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
                  t.Status == ExecutionTaskStatus.Pending) && 
                 t.ActualStartTime == null);
 
-            foreach (var task in pendingTasks)
+            if (pendingTasks.Any())
             {
-                task.Status = ExecutionTaskStatus.Stopped;
-                task.ExceptionReason = $"医嘱停止: {reason}";
-                task.IsRolledBack = true;
-                task.LastModifiedAt = DateTime.UtcNow;
+                // 批量更新任务状态
+                var now = DateTime.UtcNow;
+                foreach (var task in pendingTasks)
+                {
+                    task.Status = ExecutionTaskStatus.Stopped;
+                    task.ExceptionReason = $"医嘱停止: {reason}";
+                    task.IsRolledBack = true;
+                    task.LastModifiedAt = now;
+                }
                 
-                await _taskRepository.UpdateAsync(task);
+                await _taskRepository.UpdateRangeAsync(pendingTasks);
+                
+                _logger.LogInformation("已回滚医嘱 {OrderId} 的 {TaskCount} 个未执行任务", orderId, pendingTasks.Count());
             }
-
-            _logger.LogInformation("已回滚医嘱 {OrderId} 的 {TaskCount} 个未执行任务", orderId, pendingTasks.Count());
+            else
+            {
+                _logger.LogInformation("医嘱 {OrderId} 没有需要回滚的未执行任务", orderId);
+            }
         }
         catch (Exception ex)
         {
@@ -250,15 +247,16 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
         if (order == null)
             throw new ArgumentNullException(nameof(order));
 
-        var executionTime = DateTime.UtcNow;
+        var now = DateTime.UtcNow;  // 缓存当前时间，避免重复调用
+        var executionTime = now.AddMinutes(1); // 用药类改为当前时间+1分钟
         var tasks = new List<ExecutionTask>();
         
         // 1. 生成取药任务（必须）
         // 计算取药时间，确保不早于当前时间
         var retrieveTime = executionTime.AddMinutes(-30);
-        if (retrieveTime < DateTime.UtcNow)
+        if (retrieveTime < now)
         {
-            retrieveTime = DateTime.UtcNow;
+            retrieveTime = now;
             _logger.LogInformation("立即类取药任务的计划时间已调整为当前时间，医嘱ID: {OrderId}", order.Id);
         }
         
@@ -269,7 +267,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
             Category = TaskCategory.Verification, // 取药为核对类
             PlannedStartTime = retrieveTime,
             Status = ExecutionTaskStatus.Applying, // 修改：立即执行的取药任务也应该是Applying状态
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = now,
             DataPayload = GenerateRetrieveMedicationDataPayload(order, retrieveTime)
         };
         
@@ -281,7 +279,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
             Category = GetTaskCategoryFromUsageRoute(order.UsageRoute),
             PlannedStartTime = executionTime,
             Status = ExecutionTaskStatus.Pending,
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = now,
             DataPayload = GenerateTaskDataPayload(order, executionTime)
         };
         
@@ -318,9 +316,9 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
         // 1. 生成取药任务（必须）
         // 计算取药时间，确保不早于当前时间
         var retrieveTime = executionTime.AddMinutes(-30);
-        if (retrieveTime < DateTime.UtcNow)
+        if (retrieveTime < now)
         {
-            retrieveTime = DateTime.UtcNow;
+            retrieveTime = now;
             _logger.LogInformation("指定时间类取药任务的计划时间已调整为当前时间，医嘱ID: {OrderId}", order.Id);
         }
         
@@ -331,7 +329,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
             Category = TaskCategory.Verification, // 取药为核对类
             PlannedStartTime = retrieveTime,
             Status = ExecutionTaskStatus.Applying,
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = now,
             DataPayload = GenerateRetrieveMedicationDataPayload(order, retrieveTime)
         };
         
@@ -343,7 +341,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
             Category = GetTaskCategoryFromUsageRoute(order.UsageRoute),
             PlannedStartTime = executionTime,
             Status = ExecutionTaskStatus.Pending,
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = now,
             DataPayload = GenerateTaskDataPayload(order, executionTime)
         };
         
@@ -369,9 +367,10 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
             throw new ArgumentException("周期间隔天数必须大于0");
 
         var tasks = new List<ExecutionTask>();
+        var now = DateTime.UtcNow;  // 缓存当前时间，避免重复调用
         
         // 使用 StartTime 作为首次执行的完整时间（包含日期+时刻）
-        var currentExecutionTime = order.StartTime ?? DateTime.UtcNow;
+        var currentExecutionTime = order.StartTime ?? now;
         var endTime = order.PlantEndTime;
 
         if (endTime < currentExecutionTime)
@@ -437,7 +436,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
 
         var tasks = new List<ExecutionTask>();
         
-        // 解析时段位掩码
+        // 一次性加载并解析时段位掩码（避免在循环中重复查询）
         var timeSlots = await ParseSlotsMask(order.SmartSlotsMask);
         
         if (!timeSlots.Any())
@@ -550,13 +549,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
             case "SLOTS":
                 if (order.SmartSlotsMask <= 0)
                     validationErrors.Add("SLOTS策略必须指定有效的时段掩码");
-                else
-                {
-                    // 验证时段掩码是否对应有效的时间槽位
-                    var timeSlots = await ParseSlotsMask(order.SmartSlotsMask);
-                    if (!timeSlots.Any())
-                        validationErrors.Add("时段掩码未匹配到任何有效的时间槽位");
-                }
+                // 时段有效性验证延迟到生成阶段，避免重复查询
                 break;
 
             case "CYCLIC":
@@ -592,20 +585,19 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
     {
         try
         {
-            var existingTasks = await _taskRepository.ListAsync(t => 
-                t.MedicalOrderId == orderId && 
-                (t.Status == ExecutionTaskStatus.Applying || 
-                 t.Status == ExecutionTaskStatus.Applied || 
-                 t.Status == ExecutionTaskStatus.AppliedConfirmed || 
-                 t.Status == ExecutionTaskStatus.Pending || 
-                 t.Status == ExecutionTaskStatus.InProgress));
-
-            var hasPending = existingTasks.Any();
+            // 优化：只检查是否存在，不加载数据
+            var hasPending = await _taskRepository.GetQueryable()
+                .AnyAsync(t => 
+                    t.MedicalOrderId == orderId && 
+                    (t.Status == ExecutionTaskStatus.Applying || 
+                     t.Status == ExecutionTaskStatus.Applied || 
+                     t.Status == ExecutionTaskStatus.AppliedConfirmed || 
+                     t.Status == ExecutionTaskStatus.Pending || 
+                     t.Status == ExecutionTaskStatus.InProgress));
             
             if (hasPending)
             {
-                _logger.LogWarning("医嘱 {OrderId} 已存在 {TaskCount} 个未完成的执行任务", 
-                    orderId, existingTasks.Count());
+                _logger.LogWarning("医嘱 {OrderId} 已存在未完成的执行任务", orderId);
             }
 
             return hasPending;

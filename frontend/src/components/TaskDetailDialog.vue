@@ -114,12 +114,6 @@
           <el-descriptions-item label="操作名称" :span="2">
             {{ getOperationNameWithDetails(currentTask) }}
           </el-descriptions-item>
-          <el-descriptions-item label="操作代码">
-            {{ getOperationCode(currentTask) }}
-          </el-descriptions-item>
-          <el-descriptions-item label="操作部位">
-            {{ getOperationSite(currentTask) || '-' }}
-          </el-descriptions-item>
           
           <!-- 患者信息 -->
           <el-descriptions-item label="患者姓名">

@@ -114,6 +114,28 @@ namespace CareFlow.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "system_logs",
+                columns: table => new
+                {
+                    log_id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    operation_type = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    operator_id = table.Column<int>(type: "integer", nullable: true),
+                    operator_name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    operation_time = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    operation_details = table.Column<string>(type: "text", nullable: true),
+                    ip_address = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    result = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    error_message = table.Column<string>(type: "text", nullable: true),
+                    entity_type = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    entity_id = table.Column<int>(type: "integer", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_system_logs", x => x.log_id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Staffs",
                 columns: table => new
                 {
@@ -269,7 +291,8 @@ namespace CareFlow.Infrastructure.Migrations
                     OutpatientDiagnosis = table.Column<string>(type: "text", nullable: true),
                     ScheduledAdmissionTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     ActualAdmissionTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    BedId = table.Column<string>(type: "text", nullable: false),
+                    NursingAnomalyStatus = table.Column<int>(type: "integer", nullable: false),
+                    BedId = table.Column<string>(type: "text", nullable: true),
                     AttendingDoctorId = table.Column<string>(type: "text", nullable: false),
                     CreateTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
@@ -281,7 +304,7 @@ namespace CareFlow.Infrastructure.Migrations
                         column: x => x.BedId,
                         principalTable: "Beds",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.SetNull);
                     table.ForeignKey(
                         name: "FK_Patients_Doctors_AttendingDoctorId",
                         column: x => x.AttendingDoctorId,
@@ -1084,6 +1107,9 @@ namespace CareFlow.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "SurgicalOrders");
+
+            migrationBuilder.DropTable(
+                name: "system_logs");
 
             migrationBuilder.DropTable(
                 name: "VitalSignsRecords");

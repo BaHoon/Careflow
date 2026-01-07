@@ -163,6 +163,8 @@ public class OrderStatusHistoryService
             OrderStatus.Cancelled => "已取消",
             OrderStatus.PendingStop => "等待停嘱",
             OrderStatus.Stopped => "已停止",
+            OrderStatus.StoppingInProgress => "停止中",
+            OrderStatus.Abnormal => "异常态",
             _ => $"状态{(int)status}"
         };
     }

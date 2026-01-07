@@ -291,8 +291,21 @@ const handleLogout = async () => {
       cancelButtonText: '取消',
       type: 'warning'
     })
+    
+    // 记录登出日志
+    try {
+      const user = JSON.parse(localStorage.getItem('userInfo') || '{}')
+      await logLogout({
+        operatorId: user.id || null,
+        operatorName: user.fullName || user.name || '未知用户'
+      })
+    } catch (logError) {
+      console.error('记录登出日志失败:', logError)
+    }
+    
     localStorage.removeItem('token')
     localStorage.removeItem('user')
+    localStorage.removeItem('userInfo')
     router.push('/login')
   } catch (error) {
     // 取消退出

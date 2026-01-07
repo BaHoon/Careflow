@@ -1203,7 +1203,7 @@ public class OrderApplicationService : IOrderApplicationService
             await _taskRepository.UpdateAsync(task);
 
             // ==================== 检查并更新医嘱状态 ====================
-            // 当任务变为Incomplete时，检查该医嘱下的所有任务状态，决定是否需要停止医嘱
+            // 当任务变为Incomplete时，将医嘱状态改为Abnormal（异常态）
             if (task.MedicalOrderId > 0)
             {
                 _logger.LogInformation("检查医嘱 {OrderId} 的任务状态以决定是否需要停止医嘱", task.MedicalOrderId);
@@ -1216,72 +1216,27 @@ public class OrderApplicationService : IOrderApplicationService
                     medicalOrder.Status != OrderStatus.Completed &&
                     medicalOrder.Status != OrderStatus.Cancelled)
                 {
-                    // 查询该医嘱下的所有任务
-                    var allTasks = await _taskRepository.ListAsync(t => t.MedicalOrderId == task.MedicalOrderId);
+                    var originalStatus = medicalOrder.Status;
                     
-                    // 检查是否所有任务都处于终止状态（Completed/Stopped/Incomplete）
-                    var allTasksTerminated = allTasks.All(t => 
-                        t.Status == ExecutionTaskStatus.Completed ||
-                        t.Status == ExecutionTaskStatus.Stopped ||
-                        t.Status == ExecutionTaskStatus.Incomplete ||
-                        t.Status == ExecutionTaskStatus.PendingReturn);
+                    // 任务变为异常状态时，医嘱状态改为异常态（Abnormal）
+                    medicalOrder.Status = OrderStatus.Abnormal;
+                    await _context.SaveChangesAsync();
                     
-                    if (allTasksTerminated)
+                    // 添加医嘱状态变更历史记录
+                    var history = new MedicalOrderStatusHistory
                     {
-                        var originalStatus = medicalOrder.Status;
-                        
-                        // 根据医嘱原状态决定更新目标
-                        OrderStatus targetStatus;
-                        string reason;
-                        
-                        if (originalStatus == OrderStatus.StoppingInProgress)
-                        {
-                            // 停止中的医嘱 → Stopped
-                            targetStatus = OrderStatus.Stopped;
-                            reason = "任务异常取消(Incomplete)，停止中医嘱的所有任务已终止，系统自动停止医嘱";
-                        }
-                        else if (originalStatus == OrderStatus.Accepted || originalStatus == OrderStatus.InProgress)
-                        {
-                            // Accepted/InProgress → Completed
-                            targetStatus = OrderStatus.Completed;
-                            reason = "任务异常取消(Incomplete)，但所有任务已终止，医嘱标记为完成";
-                        }
-                        else
-                        {
-                            // 其他状态不处理
-                            _logger.LogInformation("医嘱 {OrderId} 当前状态为 {Status}，不需要更新", task.MedicalOrderId, originalStatus);
-                            return new ApplicationResponseDto 
-                            { 
-                                Success = true,
-                                Message = "确认成功，任务已标记为异常状态",
-                                ProcessedIds = new List<long> { taskId }
-                            };
-                        }
-                        
-                        medicalOrder.Status = targetStatus;
-                        medicalOrder.CompletedAt = DateTime.UtcNow;
-                        await _context.SaveChangesAsync();
-                        
-                        // 添加医嘱状态变更历史记录
-                        var history = new MedicalOrderStatusHistory
-                        {
-                            MedicalOrderId = medicalOrder.Id,
-                            FromStatus = originalStatus,
-                            ToStatus = targetStatus,
-                            ChangedAt = DateTime.UtcNow,
-                            ChangedById = nurseId,
-                            ChangedByType = "Nurse",
-                            Reason = reason
-                        };
-                        await _statusHistoryRepository.AddAsync(history);
-                        
-                        _logger.LogInformation("✅ 医嘱 {OrderId} 所有任务已终止，状态从 {From} 更新为 {To}", 
-                            task.MedicalOrderId, originalStatus, targetStatus);
-                    }
-                    else
-                    {
-                        _logger.LogInformation("医嘱 {OrderId} 还有未完成的任务，不更新医嘱状态", task.MedicalOrderId);
-                    }
+                        MedicalOrderId = medicalOrder.Id,
+                        FromStatus = originalStatus,
+                        ToStatus = OrderStatus.Abnormal,
+                        ChangedAt = DateTime.UtcNow,
+                        ChangedById = nurseId,
+                        ChangedByType = "Nurse",
+                        Reason = "任务异常取消，医嘱状态变为异常态，等待医生处理"
+                    };
+                    await _statusHistoryRepository.AddAsync(history);
+                    
+                    _logger.LogInformation("✅ 医嘱 {OrderId} 状态从 {From} 更新为 Abnormal（异常态）", 
+                        task.MedicalOrderId, originalStatus);
                 }
             }
 

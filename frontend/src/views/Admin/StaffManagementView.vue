@@ -94,7 +94,6 @@
           >
             <el-option label="医生" value="Doctor" />
             <el-option label="护士" value="Nurse" />
-            <el-option label="管理员" value="Admin" />
           </el-select>
 
           <!-- 科室筛选 -->
@@ -124,11 +123,10 @@
       </el-card>
 
       <!-- 统计信息 -->
-      <div class="stats-bar" v-if="totalCount > 0">
-        <span>共 <strong>{{ totalCount }}</strong> 名人员</span>
-        <span class="stat-item">医生: <strong>{{ stats.doctors }}</strong></span>
-        <span class="stat-item">护士: <strong>{{ stats.nurses }}</strong></span>
-        <span class="stat-item">管理员: <strong>{{ stats.admins }}</strong></span>
+      <div class="stats-bar" v-if="totalDoctors + totalNurses > 0">
+        <span>共 <strong>{{ totalDoctors + totalNurses }}</strong> 名人员</span>
+        <span class="stat-item">医生: <strong>{{ totalDoctors }}</strong></span>
+        <span class="stat-item">护士: <strong>{{ totalNurses }}</strong></span>
       </div>
 
       <!-- 人员列表 -->
@@ -185,8 +183,8 @@
             :page-sizes="[20, 50, 100]"
             :total="totalCount"
             layout="total, sizes, prev, pager, next, jumper"
-            @size-change="handleSearch"
-            @current-change="handleSearch"
+            @size-change="loadStaffList"
+            @current-change="loadStaffList"
           />
         </div>
       </el-card>
@@ -214,7 +212,6 @@
           <el-select v-model="formData.role" placeholder="请选择角色" style="width: 100%;" :disabled="dialogMode === 'edit'">
             <el-option label="医生" value="Doctor" />
             <el-option label="护士" value="Nurse" />
-            <el-option label="管理员" value="Admin" />
           </el-select>
         </el-form-item>
         <el-form-item label="科室" prop="deptCode">
@@ -259,6 +256,7 @@ import {
 } from '@element-plus/icons-vue';
 import { useRouter } from 'vue-router';
 import { queryStaffList, addStaff, resetPassword, updateStaff, deleteStaff } from '@/api/admin';
+import { logLogout } from '@/api/systemLog';
 
 const router = useRouter();
 
@@ -289,19 +287,13 @@ const fullName = computed(() => {
 const loading = ref(false);
 const staffList = ref([]);
 const totalCount = ref(0);
+const totalDoctors = ref(0);
+const totalNurses = ref(0);
 const currentPage = ref(1);
 const pageSize = ref(20);
 const searchKeyword = ref('');
 const roleFilter = ref('');
 const deptFilter = ref('');
-
-// 统计信息
-const stats = computed(() => {
-  const doctors = staffList.value.filter(s => s.role === 'Doctor').length;
-  const nurses = staffList.value.filter(s => s.role === 'Nurse').length;
-  const admins = staffList.value.filter(s => s.role === 'Admin').length;
-  return { doctors, nurses, admins };
-});
 
 // ==================== 弹窗状态 ====================
 const dialogVisible = ref(false);
@@ -350,6 +342,17 @@ const handleLogout = async () => {
       }
     );
     
+    // 记录登出日志
+    try {
+      const user = JSON.parse(localStorage.getItem('userInfo') || '{}')
+      await logLogout({
+        operatorId: user.id || null,
+        operatorName: user.fullName || user.name || '未知用户'
+      })
+    } catch (logError) {
+      console.error('记录登出日志失败:', logError)
+    }
+    
     localStorage.removeItem('token');
     localStorage.removeItem('userInfo');
     ElMessage.success('已退出登录');
@@ -360,6 +363,28 @@ const handleLogout = async () => {
 };
 
 // ==================== 数据加载 ====================
+const loadTotalStats = async () => {
+  try {
+    // 获取医生总数
+    const doctorResponse = await queryStaffList({
+      role: 'Doctor',
+      pageNumber: 1,
+      pageSize: 1
+    });
+    totalDoctors.value = doctorResponse.totalCount;
+    
+    // 获取护士总数
+    const nurseResponse = await queryStaffList({
+      role: 'Nurse',
+      pageNumber: 1,
+      pageSize: 1
+    });
+    totalNurses.value = nurseResponse.totalCount;
+  } catch (error) {
+    console.error('加载统计数据失败:', error);
+  }
+};
+
 const loadStaffList = async () => {
   loading.value = true;
   try {
@@ -382,6 +407,9 @@ const loadStaffList = async () => {
       isActive: s.isActive
     }));
     totalCount.value = response.totalCount;
+    
+    // 获取医生和护士的总数统计（不带筛选条件）
+    await loadTotalStats();
     
   } catch (error) {
     console.error('加载人员列表失败:', error);

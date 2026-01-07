@@ -965,7 +965,6 @@
                       </div>
                     </el-option>
                   </el-select>
-                  <span class="tip-text">选择操作名称后，系统会自动匹配对应的操作代码（后台处理）</span>
                 </div>
 
                 <div class="form-row">
@@ -977,7 +976,7 @@
                   />
                 </div>
 
-                <div class="form-row">
+                <div class="form-row" style="display: none;">
                   <label>正常/异常：</label>
                   <el-radio-group v-model="operationOrder.normal">
                     <el-radio :label="true">正常</el-radio>
@@ -1964,9 +1963,6 @@ const talkOptions = [
   { value: '更换手术服', label: '更换手术服' },
   { value: '摘除配饰', label: '摘除配饰（首饰、手表等）' },
   { value: '术前禁食', label: '术前禁食禁饮' },
-  { value: '排空膀胱', label: '排空膀胱' },
-  { value: '术前洗浴', label: '术前洗浴' },
-  { value: '备皮', label: '手术区域备皮' }
 ];
 
 // 术前操作选项

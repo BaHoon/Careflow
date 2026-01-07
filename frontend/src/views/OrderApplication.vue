@@ -32,6 +32,7 @@
         >
           <span class="tab-icon">💊</span>
           <span class="tab-label">药品申请</span>
+          <span v-if="pendingMedicationCount > 0" class="badge-dot"></span>
         </div>
         <div 
           class="tab-item"
@@ -40,6 +41,7 @@
         >
           <span class="tab-icon">🔬</span>
           <span class="tab-label">检查申请</span>
+          <span v-if="pendingInspectionCount > 0" class="badge-dot"></span>
         </div>
       </div>
 
@@ -59,7 +61,8 @@
             <el-checkbox label="Applied">已申请</el-checkbox>
             <el-checkbox label="AppliedConfirmed">已确认</el-checkbox>
             <el-checkbox label="PendingReturn">待退回</el-checkbox>
-            <el-checkbox label="PendingReturnCancelled">异常取消待退药</el-checkbox>
+            <!-- 仅药品申请显示异常取消待退药选项 -->
+            <el-checkbox v-if="activeTab === 'medication'" label="PendingReturnCancelled">异常取消待退药</el-checkbox>
           </el-checkbox-group>
         </div>
 
@@ -76,16 +79,6 @@
             @change="loadApplications"
             class="time-picker"
           />
-        </div>
-
-        <!-- 排序方式 -->
-        <div class="filter-group">
-          <span class="filter-label">排序:</span>
-          <el-select v-model="sortBy" @change="handleSortChange" class="sort-select">
-            <el-option label="计划时间" value="createTime" />
-            <el-option label="患者床号" value="bedId" />
-            <el-option label="申请状态" value="status" />
-          </el-select>
         </div>
       </div>
 
@@ -384,6 +377,10 @@ const sortBy = ref('createTime');
 const applicationList = ref([]);
 const loading = ref(false);
 
+// 待申请数量统计（用于红点提示）
+const pendingMedicationCount = ref(0);
+const pendingInspectionCount = ref(0);
+
 // 多选相关
 const selectAll = ref(false);
 const isIndeterminate = computed(() => {
@@ -406,11 +403,15 @@ const handleTabClick = (tab) => {
 };
 
 // 监听患者选择变化
-watch(selectedPatient, () => {
+watch(selectedPatient, async () => {
   if (selectedPatient.value) {
     loadApplications();
+    // 更新当前患者的待申请数量（用于红点显示）
+    await updateCurrentPatientPendingCount();
   } else {
     applicationList.value = [];
+    pendingMedicationCount.value = 0;
+    pendingInspectionCount.value = 0;
   }
 });
 
@@ -472,6 +473,39 @@ const updatePatientPendingCount = async (patientId) => {
     }
   } catch (error) {
     console.error('更新患者待申请数量失败:', error);
+  }
+};
+
+// 更新当前选中患者的待申请数量（用于红点显示）
+const updateCurrentPatientPendingCount = async () => {
+  if (!selectedPatient.value) {
+    pendingMedicationCount.value = 0;
+    pendingInspectionCount.value = 0;
+    return;
+  }
+
+  try {
+    const medicationRequest = {
+      applicationType: 'Medication',
+      patientIds: [selectedPatient.value.patientId],
+      statusFilter: ['Applying']
+    };
+    const inspectionRequest = {
+      applicationType: 'Inspection',
+      patientIds: [selectedPatient.value.patientId],
+      statusFilter: ['Applying']
+    };
+
+    const [medicationRes, inspectionRes] = await Promise.all([
+      getMedicationApplications(medicationRequest).catch(() => []),
+      getInspectionApplications(inspectionRequest).catch(() => [])
+    ]);
+
+    // 更新标签红点的数量
+    pendingMedicationCount.value = Array.isArray(medicationRes) ? medicationRes.length : 0;
+    pendingInspectionCount.value = Array.isArray(inspectionRes) ? inspectionRes.length : 0;
+  } catch (error) {
+    console.error('更新当前患者待申请数量失败:', error);
   }
 };
 
@@ -1336,6 +1370,31 @@ const formatUsageRoute = (usageRoute) => {
 
 .tab-label {
   font-size: 1rem;
+}
+
+/* 红点提示 */
+.badge-dot {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 8px;
+  height: 8px;
+  background: #f56c6c;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 0 0 1px rgba(245, 108, 108, 0.3);
+  animation: badge-pulse 2s ease-in-out infinite;
+}
+
+@keyframes badge-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.1);
+  }
 }
 
 /* ==================== 筛选工具栏 ==================== */

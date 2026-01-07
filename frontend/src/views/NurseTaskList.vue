@@ -249,7 +249,7 @@ const loadTasks = async () => {
     // 应用筛选
     filterTasks();
     
-    ElMessage.success(`加载了 ${tasks.value.length} 个任务`);
+    //ElMessage.success(`加载了 ${tasks.value.length} 个任务`);
   } catch (error) {
     console.error('加载任务列表失败:', error);
     ElMessage.error(error.message || '加载任务失败');

@@ -75,3 +75,15 @@ export function cancelRejectedOrder(orderId, doctorId, cancelReason) {
 export function withdrawStopOrder(data) {
   return api.post('/doctor/orders/withdraw-stop', data);
 }
+
+/**
+ * 处理异常态医嘱
+ * @param {Object} data - 处理请求
+ * @param {number} data.orderId - 医嘱ID
+ * @param {string} data.doctorId - 医生ID
+ * @param {string} data.handleNote - 处理说明
+ * @returns {Promise} 处理结果
+ */
+export function handleAbnormalTask(data) {
+  return api.post('/doctor/orders/handle-abnormal', data);
+}
