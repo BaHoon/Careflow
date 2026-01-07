@@ -60,7 +60,7 @@ namespace CareFlow.Infrastructure.Data
                 new Department { Id = "HEMA", DeptName = "血液内科", Location = "住院部A栋9楼" },
 
                 // === 外科系统 ===
-                new Department { Id = "GEN_SUR", DeptName = "普通外科", Location = "住院部B栋3楼" }, // 原外科主要对应普外
+                new Department { Id = "GEN_SUR", DeptName = "普通外科", Location = "住院部B栋3楼" }, 
                 new Department { Id = "ORTH", DeptName = "骨科", Location = "住院部B栋4楼" },
                 new Department { Id = "NSUR", DeptName = "神经外科", Location = "住院部B栋5楼" },
                 new Department { Id = "CT_SUR", DeptName = "心胸外科", Location = "住院部B栋6楼" },
@@ -2066,90 +2066,211 @@ namespace CareFlow.Infrastructure.Data
                     Id = "P001", Name = "张三", Gender = "男", IdCard = "110100199001010001",
                     DateOfBirth = new DateTime(1990, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                     Age = 34, Height = 175.0f, Weight = 70.5f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138001",
-                    NursingGrade = NursingGrade.Grade2, BedId = "IM-W01-001", AttendingDoctorId = "D001",
-                    OutpatientDiagnosis = "高血压2级，糖尿病",
+                    NursingGrade = NursingGrade.Grade2, BedId = "RESP-W01-001", AttendingDoctorId = "D002",
+                    OutpatientDiagnosis = "哮喘",
                     ScheduledAdmissionTime = UtcDate(2024, 12, 1, 8, 0),
                     ActualAdmissionTime = UtcDate(2024, 12, 1, 9, 30)
                 },
+                
+                // ==================== 已入院患者 002~010 ====================
+                // 普通外科患者 002~006
                 new Patient
                 {
-                    Id = "P002", Name = "李四", Gender = "女", IdCard = "110100198505050002",
-                    DateOfBirth = new DateTime(1985, 5, 5, 0, 0, 0, DateTimeKind.Utc),
-                    Age = 39, Height = 162.0f, Weight = 58.0f, Status = PatientStatus.PendingDischarge, PhoneNumber = "13800138002",
-                    NursingGrade = NursingGrade.Special, BedId = "IM-W01-002", AttendingDoctorId = "D001",
-                    OutpatientDiagnosis = "急性心肌梗死",
-                    ScheduledAdmissionTime = UtcDate(2024, 12, 5, 10, 0),
-                    ActualAdmissionTime = UtcDate(2024, 12, 5, 10, 15)
+                    Id = "P002", Name = "李四", Gender = "男", IdCard = "110100198802150002",
+                    DateOfBirth = new DateTime(1988, 2, 15, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 36, Height = 172.0f, Weight = 68.0f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138002",
+                    NursingGrade = NursingGrade.Grade2, BedId = "GEN_SUR-W01-002", AttendingDoctorId = "D008",
+                    OutpatientDiagnosis = "急性阑尾炎",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 2, 9, 0),
+                    ActualAdmissionTime = UtcDate(2024, 12, 2, 10, 15)
                 },
                 new Patient
                 {
-                    Id = "P003", Name = "王五", Gender = "女", IdCard = "110100197803030003",
-                    DateOfBirth = new DateTime(1978, 3, 3, 0, 0, 0, DateTimeKind.Utc),
-                    Age = 44, Height = 168.0f, Weight = 64.2f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138003",
-                    NursingGrade = NursingGrade.Grade3, BedId = "SUR-W01-001", AttendingDoctorId = "D002",
-                    OutpatientDiagnosis = "阑尾炎",
-                    ScheduledAdmissionTime = UtcDate(2024, 12, 10, 14, 0),
-                    ActualAdmissionTime = UtcDate(2024, 12, 10, 14, 30)
-                },
-                new Patient
-                {
-                    Id = "P004", Name = "赵六", Gender = "女", IdCard = "110100199212120004",
-                    DateOfBirth = new DateTime(1992, 12, 12, 0, 0, 0, DateTimeKind.Utc),
-                    Age = 32, Height = 165.0f, Weight = 62.8f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138004",
-                    NursingGrade = NursingGrade.Grade2, BedId = "SUR-W01-002", AttendingDoctorId = "D002",
+                    Id = "P003", Name = "王五", Gender = "女", IdCard = "110100199503200003",
+                    DateOfBirth = new DateTime(1995, 3, 20, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 29, Height = 165.0f, Weight = 58.0f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138003",
+                    NursingGrade = NursingGrade.Grade1, BedId = "GEN_SUR-W01-003", AttendingDoctorId = "D008",
                     OutpatientDiagnosis = "胆囊结石",
-                    ScheduledAdmissionTime = UtcDate(2024, 12, 12, 9, 0),
-                    ActualAdmissionTime = UtcDate(2024, 12, 12, 9, 45)
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 3, 8, 30),
+                    ActualAdmissionTime = UtcDate(2024, 12, 3, 9, 45)
                 },
                 new Patient
                 {
-                    Id = "P005", Name = "钱七", Gender = "男", IdCard = "110100201501010005",
-                    DateOfBirth = new DateTime(2015, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-                    Age = 9, Height = 135.0f, Weight = 28.5f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138005",
-                    NursingGrade = NursingGrade.Grade1, BedId = "PED-W01-001", AttendingDoctorId = "D001",
-                    OutpatientDiagnosis = "支气管肺炎",
-                    ScheduledAdmissionTime = UtcDate(2024, 12, 15, 10, 0),
-                    ActualAdmissionTime = UtcDate(2024, 12, 15, 10, 20)
+                    Id = "P004", Name = "赵六", Gender = "男", IdCard = "110100198706100004",
+                    DateOfBirth = new DateTime(1987, 6, 10, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 37, Height = 178.0f, Weight = 75.0f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138004",
+                    NursingGrade = NursingGrade.Grade2, BedId = "GEN_SUR-W01-004", AttendingDoctorId = "D008",
+                    OutpatientDiagnosis = "腹股沟疝",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 4, 10, 0),
+                    ActualAdmissionTime = UtcDate(2024, 12, 4, 11, 20)
                 },
                 new Patient
                 {
-                    Id = "P006", Name = "孙八", Gender = "男", IdCard = "110100196802020006",
-                    DateOfBirth = new DateTime(1968, 2, 2, 0, 0, 0, DateTimeKind.Utc),
-                    Age = 56, Height = 172.0f, Weight = 80.1f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138006",
-                    NursingGrade = NursingGrade.Grade3, BedId = "IM-W02-001", AttendingDoctorId = "D002",
-                    OutpatientDiagnosis = "慢性阻塞性肺病",
-                    ScheduledAdmissionTime = UtcDate(2024, 12, 18, 8, 30),
-                    ActualAdmissionTime = UtcDate(2024, 12, 18, 9, 0)
+                    Id = "P005", Name = "孙七", Gender = "女", IdCard = "110100199108250005",
+                    DateOfBirth = new DateTime(1991, 8, 25, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 33, Height = 160.0f, Weight = 55.0f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138005",
+                    NursingGrade = NursingGrade.Grade2, BedId = "GEN_SUR-W01-005", AttendingDoctorId = "D008",
+                    OutpatientDiagnosis = "甲状腺结节",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 5, 9, 0),
+                    ActualAdmissionTime = UtcDate(2024, 12, 5, 10, 30)
                 },
+                new Patient
+                {
+                    Id = "P006", Name = "周八", Gender = "女", IdCard = "110100198912050006",
+                    DateOfBirth = new DateTime(1989, 12, 5, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 35, Height = 165.0f, Weight = 60.0f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138006",
+                    NursingGrade = NursingGrade.Grade3, BedId = "GEN_SUR-W01-006", AttendingDoctorId = "D008",
+                    OutpatientDiagnosis = "乳腺纤维瘤",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 6, 8, 0),
+                    ActualAdmissionTime = UtcDate(2024, 12, 6, 9, 15)
+                },
+                
+                // 其他科室患者 007~010
+                new Patient
+                {
+                    Id = "P007", Name = "吴九", Gender = "男", IdCard = "110100199204120007",
+                    DateOfBirth = new DateTime(1992, 4, 12, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 32, Height = 180.0f, Weight = 78.0f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138007",
+                    NursingGrade = NursingGrade.Grade2, BedId = "ORTH-W01-001", AttendingDoctorId = "D009",
+                    OutpatientDiagnosis = "股骨骨折",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 7, 8, 30),
+                    ActualAdmissionTime = UtcDate(2024, 12, 7, 10, 0)
+                },
+                new Patient
+                {
+                    Id = "P008", Name = "徐十", Gender = "女", IdCard = "110100198511180008",
+                    DateOfBirth = new DateTime(1985, 11, 18, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 39, Height = 168.0f, Weight = 62.0f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138008",
+                    NursingGrade = NursingGrade.Grade1, BedId = "NSUR-W01-001", AttendingDoctorId = "D010",
+                    OutpatientDiagnosis = "脑膜瘤",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 8, 9, 0),
+                    ActualAdmissionTime = UtcDate(2024, 12, 8, 10, 45)
+                },
+                new Patient
+                {
+                    Id = "P009", Name = "马十一", Gender = "男", IdCard = "110100199709030009",
+                    DateOfBirth = new DateTime(1997, 9, 3, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 27, Height = 176.0f, Weight = 70.0f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138009",
+                    NursingGrade = NursingGrade.Special, BedId = "CT_SUR-W01-001", AttendingDoctorId = "D011",
+                    OutpatientDiagnosis = "房间隔缺损",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 9, 8, 0),
+                    ActualAdmissionTime = UtcDate(2024, 12, 9, 9, 30)
+                },
+                new Patient
+                {
+                    Id = "P010", Name = "朱十二", Gender = "男", IdCard = "110100198403280010",
+                    DateOfBirth = new DateTime(1984, 3, 28, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 40, Height = 174.0f, Weight = 73.0f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138010",
+                    NursingGrade = NursingGrade.Grade2, BedId = "UROL-W01-001", AttendingDoctorId = "D012",
+                    OutpatientDiagnosis = "肾结石",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 10, 10, 0),
+                    ActualAdmissionTime = UtcDate(2024, 12, 10, 11, 15)
+                },
+                
                 // ==================== 待入院患者（用于测试入院功能） ====================
+
                 new Patient
                 {
-                    Id = "P007", Name = "周九", Gender = "男", IdCard = "110100199203150007",
+                    Id = "P011", Name = "郑十一", Gender = "男", IdCard = "110100199203150011",
                     DateOfBirth = new DateTime(1992, 3, 15, 0, 0, 0, DateTimeKind.Utc),
-                    Age = 32, Height = 178.0f, Weight = 75.0f, Status = PatientStatus.PendingAdmission, PhoneNumber = "13800138007",
-                    NursingGrade = NursingGrade.Grade2, BedId = null, AttendingDoctorId = "D001",  // BedId 改为 null
+                    Age = 32, Height = 178.0f, Weight = 75.0f, Status = PatientStatus.PendingAdmission, PhoneNumber = "13800138011",
+                    NursingGrade = NursingGrade.Grade2, BedId = null, AttendingDoctorId = "D003",  // BedId 改为 null
                     OutpatientDiagnosis = "慢性胃炎，胃溃疡",
                     ScheduledAdmissionTime = UtcDate(2024, 12, 20, 9, 0),
                     ActualAdmissionTime = null
                 },
+                
+                // 普通外科待入院患者 012~013
                 new Patient
                 {
-                    Id = "P008", Name = "吴十", Gender = "女", IdCard = "110100198811200008",
-                    DateOfBirth = new DateTime(1988, 11, 20, 0, 0, 0, DateTimeKind.Utc),
-                    Age = 36, Height = 165.0f, Weight = 60.0f, Status = PatientStatus.PendingAdmission, PhoneNumber = "13800138008",
-                    NursingGrade = NursingGrade.Grade1, BedId = null, AttendingDoctorId = "D001",  // BedId 改为 null
-                    OutpatientDiagnosis = "心律失常，房颤",
-                    ScheduledAdmissionTime = UtcDate(2024, 12, 21, 10, 0),
+                    Id = "P012", Name = "钱十二", Gender = "男", IdCard = "110100199006220012",
+                    DateOfBirth = new DateTime(1990, 6, 22, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 34, Height = 173.0f, Weight = 69.0f, Status = PatientStatus.PendingAdmission, PhoneNumber = "13800138012",
+                    NursingGrade = NursingGrade.Grade2, BedId = null, AttendingDoctorId = "D008",
+                    OutpatientDiagnosis = "急性胆囊炎",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 21, 9, 0),
                     ActualAdmissionTime = null
                 },
                 new Patient
                 {
-                    Id = "P009", Name = "郑十一", Gender = "男", IdCard = "110100197504250009",
-                    DateOfBirth = new DateTime(1975, 4, 25, 0, 0, 0, DateTimeKind.Utc),
-                    Age = 49, Height = 170.0f, Weight = 68.5f, Status = PatientStatus.PendingAdmission, PhoneNumber = "13800138009",
-                    NursingGrade = NursingGrade.Grade2, BedId = null, AttendingDoctorId = "D002",  // BedId 改为 null
-                    OutpatientDiagnosis = "腰椎间盘突出症",
-                    ScheduledAdmissionTime = UtcDate(2024, 12, 22, 14, 0),
+                    Id = "P013", Name = "孙十三", Gender = "女", IdCard = "110100199411080013",
+                    DateOfBirth = new DateTime(1994, 11, 8, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 30, Height = 162.0f, Weight = 56.0f, Status = PatientStatus.PendingAdmission, PhoneNumber = "13800138013",
+                    NursingGrade = NursingGrade.Grade2, BedId = null, AttendingDoctorId = "D008",
+                    OutpatientDiagnosis = "腹股沟疝",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 22, 8, 30),
+                    ActualAdmissionTime = null
+                },
+                
+                // 其他科室待入院患者 014~020
+                new Patient
+                {
+                    Id = "P014", Name = "李十四", Gender = "男", IdCard = "110100198709150014",
+                    DateOfBirth = new DateTime(1987, 9, 15, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 37, Height = 177.0f, Weight = 76.0f, Status = PatientStatus.PendingAdmission, PhoneNumber = "13800138014",
+                    NursingGrade = NursingGrade.Grade1, BedId = null, AttendingDoctorId = "D001",
+                    OutpatientDiagnosis = "冠心病，心绞痛",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 23, 9, 0),
+                    ActualAdmissionTime = null
+                },
+                new Patient
+                {
+                    Id = "P015", Name = "王十五", Gender = "女", IdCard = "110100199512200015",
+                    DateOfBirth = new DateTime(1995, 12, 20, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 29, Height = 164.0f, Weight = 59.0f, Status = PatientStatus.PendingAdmission, PhoneNumber = "13800138015",
+                    NursingGrade = NursingGrade.Grade2, BedId = null, AttendingDoctorId = "D003",
+                    OutpatientDiagnosis = "胃息肉",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 24, 8, 0),
+                    ActualAdmissionTime = null
+                },
+                new Patient
+                {
+                    Id = "P016", Name = "赵十六", Gender = "男", IdCard = "110100198802280016",
+                    DateOfBirth = new DateTime(1988, 2, 28, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 36, Height = 175.0f, Weight = 71.0f, Status = PatientStatus.PendingAdmission, PhoneNumber = "13800138016",
+                    NursingGrade = NursingGrade.Grade2, BedId = null, AttendingDoctorId = "D004",
+                    OutpatientDiagnosis = "偏头痛",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 25, 9, 30),
+                    ActualAdmissionTime = null
+                },
+                new Patient
+                {
+                    Id = "P017", Name = "周十七", Gender = "男", IdCard = "110100199308100017",
+                    DateOfBirth = new DateTime(1993, 8, 10, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 31, Height = 179.0f, Weight = 77.0f, Status = PatientStatus.PendingAdmission, PhoneNumber = "13800138017",
+                    NursingGrade = NursingGrade.Grade2, BedId = null, AttendingDoctorId = "D009",
+                    OutpatientDiagnosis = "腰椎间盘突出",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 26, 8, 0),
+                    ActualAdmissionTime = null
+                },
+                new Patient
+                {
+                    Id = "P018", Name = "吴十八", Gender = "女", IdCard = "110100199007250018",
+                    DateOfBirth = new DateTime(1990, 7, 25, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 34, Height = 166.0f, Weight = 60.0f, Status = PatientStatus.PendingAdmission, PhoneNumber = "13800138018",
+                    NursingGrade = NursingGrade.Grade2, BedId = null, AttendingDoctorId = "D014",
+                    OutpatientDiagnosis = "子宫肌瘤",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 27, 9, 0),
+                    ActualAdmissionTime = null
+                },
+                new Patient
+                {
+                    Id = "P019", Name = "徐十九", Gender = "女", IdCard = "110100199205180019",
+                    DateOfBirth = new DateTime(1992, 5, 18, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 32, Height = 163.0f, Weight = 58.0f, Status = PatientStatus.PendingAdmission, PhoneNumber = "13800138019",
+                    NursingGrade = NursingGrade.Grade2, BedId = null, AttendingDoctorId = "D015",
+                    OutpatientDiagnosis = "妊娠期高血压",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 28, 8, 30),
+                    ActualAdmissionTime = null
+                },
+                new Patient
+                {
+                    Id = "P020", Name = "马二十", Gender = "男", IdCard = "110100201006050020",
+                    DateOfBirth = new DateTime(2010, 6, 5, 0, 0, 0, DateTimeKind.Utc),
+                    Age = 14, Height = 155.0f, Weight = 45.0f, Status = PatientStatus.PendingAdmission, PhoneNumber = "13800138020",
+                    NursingGrade = NursingGrade.Grade2, BedId = null, AttendingDoctorId = "D016",
+                    OutpatientDiagnosis = "小儿肺炎",
+                    ScheduledAdmissionTime = UtcDate(2024, 12, 29, 9, 0),
                     ActualAdmissionTime = null
                 }
             };
