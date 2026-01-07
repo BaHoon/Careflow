@@ -128,6 +128,11 @@ public class ExecutionRecordDto
     public DateTime? PlannedEndTime { get; set; }
     
     /// <summary>
+    /// 预计出院时间 (仅出院医嘱使用)
+    /// </summary>
+    public DateTime? DischargeTime { get; set; }
+    
+    /// <summary>
     /// 该医嘱在当天的执行任务列表
     /// </summary>
     public List<ExecutionTaskSummaryDto> Tasks { get; set; } = new();

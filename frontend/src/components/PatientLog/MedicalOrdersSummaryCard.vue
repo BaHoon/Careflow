@@ -158,8 +158,11 @@ const formatTime = (timeStr) => {
 const formatOrderContent = (record) => {
   // 如果是出院医嘱，显示特殊格式
   if (record.orderType === 'DischargeOrder') {
-    const dischargeTime = record.plantEndTime || record.createTime;
-    return `出院医嘱-预计出院时间: ${formatDateTime(dischargeTime)}`;
+    const dischargeTime = record.dischargeTime;
+    if (dischargeTime) {
+      return `预计出院时间: ${formatDateTime(dischargeTime)}`;
+    }
+    return '出院医嘱';
   }
   // 其他医嘱使用orderContent字段
   return record.orderContent || record.summary || '医嘱详情';
