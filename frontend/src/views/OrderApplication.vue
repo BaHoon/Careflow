@@ -61,7 +61,8 @@
             <el-checkbox label="Applied">已申请</el-checkbox>
             <el-checkbox label="AppliedConfirmed">已确认</el-checkbox>
             <el-checkbox label="PendingReturn">待退回</el-checkbox>
-            <el-checkbox label="PendingReturnCancelled">异常取消待退药</el-checkbox>
+            <!-- 仅药品申请显示异常取消待退药选项 -->
+            <el-checkbox v-if="activeTab === 'medication'" label="PendingReturnCancelled">异常取消待退药</el-checkbox>
           </el-checkbox-group>
         </div>
 
@@ -78,16 +79,6 @@
             @change="loadApplications"
             class="time-picker"
           />
-        </div>
-
-        <!-- 排序方式 -->
-        <div class="filter-group">
-          <span class="filter-label">排序:</span>
-          <el-select v-model="sortBy" @change="handleSortChange" class="sort-select">
-            <el-option label="计划时间" value="createTime" />
-            <el-option label="患者床号" value="bedId" />
-            <el-option label="申请状态" value="status" />
-          </el-select>
         </div>
       </div>
 
@@ -222,6 +213,11 @@
               <div class="detail-section">
                 <span class="detail-label">检查项:</span>
                 <span class="detail-value">{{ item.inspectionInfo.itemName }}</span>
+              </div>
+
+              <div v-if="item.inspectionInfo.itemCode" class="detail-section">
+                <span class="detail-label">项目编码:</span>
+                <span class="detail-value">{{ item.inspectionInfo.itemCode }}</span>
               </div>
 
               <div v-if="item.inspectionInfo.location" class="detail-section">
