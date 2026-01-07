@@ -242,11 +242,11 @@
                     <span class="value">{{ patient.bedId || '未分配' }}</span>
                   </div>
 
-                  <!-- 科室病区 -->
-                  <div class="info-row" v-if="patient.department || patient.ward">
+                  <!-- 科室 -->
+                  <div class="info-row" v-if="patient.department">
                     <el-icon><OfficeBuilding /></el-icon>
                     <span class="label">科室:</span>
-                    <span class="value">{{ patient.department }} - {{ patient.ward }}</span>
+                    <span class="value">{{ patient.department }}</span>
                   </div>
                 </div>
 

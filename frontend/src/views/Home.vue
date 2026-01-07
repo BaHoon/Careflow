@@ -74,14 +74,29 @@ import { useRouter } from 'vue-router';
 const router = useRouter();
 const currentUser = ref({ fullName: '', role: '', deptCode: '' });
 
-// 科室代码到名称的映射
+// 科室代码到名称的映射（与后端DBInitializer保持一致）
 const deptNameMap = {
-  'IM': '内科',
-  'SUR': '外科',
+  // 内科系统
+  'CARD': '心血管内科',
+  'RESP': '呼吸内科',
+  'GAST': '消化内科',
+  'NEUR': '神经内科',
+  'NEPH': '肾内科',
+  'ENDO': '内分泌科',
+  'HEMA': '血液内科',
+  // 外科系统
+  'GEN_SUR': '普通外科',
+  'ORTH': '骨科',
+  'NSUR': '神经外科',
+  'CT_SUR': '心胸外科',
+  'UROL': '泌尿外科',
+  'BURN': '烧伤科',
+  // 妇产科系统
+  'GYN': '妇科',
+  'OBS': '产科',
+  // 其他科室
   'PED': '儿科',
-  'OB': '妇产科',
-  'ICU': '重症医学科',
-  'ER': '急诊科'
+  'ADM': '行政'
 };
 
 // 计算当前科室名称
