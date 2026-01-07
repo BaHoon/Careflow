@@ -15,17 +15,15 @@
           <span class="filter-label">患者状态:</span>
           <el-select 
             v-model="filterStatus" 
-            placeholder="全部状态" 
+            placeholder="选择状态" 
             clearable
-            @change="loadPatientList"
+            @change="handleStatusFilterChange"
             size="default"
             class="status-select"
           >
             <el-option label="全部状态" :value="null" />
-            <el-option label="待入院" :value="0" />
             <el-option label="在院" :value="1" />
             <el-option label="待出院" :value="2" />
-            <el-option label="已出院" :value="3" />
           </el-select>
         </div>
 
@@ -89,6 +87,7 @@
           <template #reference>
             <div 
               class="patient-card"
+              :class="{ 'highlighted': shouldHighlight(patient) }"
               @click="handleCardClick(patient)"
             >
               <!-- 卡片头部 -->
@@ -540,10 +539,7 @@ const loadPatientList = async () => {
   try {
     const params = {};
     
-    // 添加状态筛选
-    if (filterStatus.value !== null && filterStatus.value !== undefined) {
-      params.status = filterStatus.value;
-    }
+    // 不再传递状态筛选参数，前端通过高亮处理
     
     // 添加搜索关键词
     if (searchKeyword.value && searchKeyword.value.trim()) {
@@ -588,6 +584,26 @@ const handleSearch = () => {
   searchTimer = setTimeout(() => {
     loadPatientList();
   }, 500);
+};
+
+/**
+ * 状态筛选变化处理
+ */
+const handleStatusFilterChange = () => {
+  // 状态筛选变化时不重新加载，只是更新高亮样式
+  console.log('状态筛选变化:', filterStatus.value);
+};
+
+/**
+ * 判断患者是否应该被高亮
+ */
+const shouldHighlight = (patient) => {
+  // 如果没有选择特定状态，不高亮任何患者
+  if (filterStatus.value === null || filterStatus.value === undefined) {
+    return false;
+  }
+  // 高亮匹配状态的患者
+  return patient.status === filterStatus.value;
 };
 
 // ==================== 事件处理 ====================
@@ -848,6 +864,13 @@ const getNursingGradeColor = (grade) => {
 .patient-card:hover {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
   transform: translateY(-2px);
+}
+
+/* 高亮样式 */
+.patient-card.highlighted {
+  border: 2px solid #409eff;
+  box-shadow: 0 4px 20px rgba(64, 158, 255, 0.3);
+  background: linear-gradient(135deg, #fff 0%, #f0f9ff 100%);
 }
 
 /* 卡片头部 */
