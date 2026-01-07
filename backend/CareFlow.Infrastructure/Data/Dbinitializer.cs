@@ -2099,7 +2099,7 @@ namespace CareFlow.Infrastructure.Data
                     Id = "P004", Name = "赵六", Gender = "男", IdCard = "110100198706100004",
                     DateOfBirth = new DateTime(1987, 6, 10, 0, 0, 0, DateTimeKind.Utc),
                     Age = 37, Height = 178.0f, Weight = 75.0f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138004",
-                    NursingGrade = NursingGrade.Grade2, BedId = "GEN_SUR-W01-004", AttendingDoctorId = "D008",
+                    NursingGrade = NursingGrade.Grade2, BedId = "GEN_SUR-W02-001", AttendingDoctorId = "D008",
                     OutpatientDiagnosis = "腹股沟疝",
                     ScheduledAdmissionTime = UtcDate(2024, 12, 4, 10, 0),
                     ActualAdmissionTime = UtcDate(2024, 12, 4, 11, 20)
@@ -2109,7 +2109,7 @@ namespace CareFlow.Infrastructure.Data
                     Id = "P005", Name = "孙七", Gender = "女", IdCard = "110100199108250005",
                     DateOfBirth = new DateTime(1991, 8, 25, 0, 0, 0, DateTimeKind.Utc),
                     Age = 33, Height = 160.0f, Weight = 55.0f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138005",
-                    NursingGrade = NursingGrade.Grade2, BedId = "GEN_SUR-W01-005", AttendingDoctorId = "D008",
+                    NursingGrade = NursingGrade.Grade2, BedId = "GEN_SUR-W02-002", AttendingDoctorId = "D008",
                     OutpatientDiagnosis = "甲状腺结节",
                     ScheduledAdmissionTime = UtcDate(2024, 12, 5, 9, 0),
                     ActualAdmissionTime = UtcDate(2024, 12, 5, 10, 30)
@@ -2119,7 +2119,7 @@ namespace CareFlow.Infrastructure.Data
                     Id = "P006", Name = "周八", Gender = "女", IdCard = "110100198912050006",
                     DateOfBirth = new DateTime(1989, 12, 5, 0, 0, 0, DateTimeKind.Utc),
                     Age = 35, Height = 165.0f, Weight = 60.0f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138006",
-                    NursingGrade = NursingGrade.Grade3, BedId = "GEN_SUR-W01-006", AttendingDoctorId = "D008",
+                    NursingGrade = NursingGrade.Grade3, BedId = "GEN_SUR-W02-003", AttendingDoctorId = "D008",
                     OutpatientDiagnosis = "乳腺纤维瘤",
                     ScheduledAdmissionTime = UtcDate(2024, 12, 6, 8, 0),
                     ActualAdmissionTime = UtcDate(2024, 12, 6, 9, 15)
