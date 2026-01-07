@@ -600,6 +600,26 @@ const updateAllPatientsPendingCount = async () => {
   }
 };
 
+// 操作成功后刷新患者列表和红点（统一刷新方法）
+const refreshAfterAction = async () => {
+  // 1. 刷新任务列表
+  await loadApplications();
+  
+  // 2. 刷新患者列表中的数字徽章
+  if (enableMultiSelect.value && selectedPatients.value.length > 0) {
+    // 多选模式：更新所有选中患者的待申请数量
+    await Promise.all(
+      selectedPatients.value.map(patient => updatePatientPendingCount(patient.patientId))
+    );
+  } else if (selectedPatient.value) {
+    // 单选模式：更新当前患者的待申请数量
+    await updatePatientPendingCount(selectedPatient.value.patientId);
+  }
+  
+  // 3. 刷新导航栏红点（药品申请和检查申请的未完成标识）
+  await updateCurrentPatientPendingCount();
+};
+
 // 加载申请列表
 const loadApplications = async () => {
   // 多选模式：检查selectedPatients
@@ -821,8 +841,7 @@ const handleSingleApply = async (item) => {
 
     if (response.success) {
       ElMessage.success('申请成功');
-      await loadApplications(); // 刷新列表
-      // 刷新后会自动更新待申请数量
+      await refreshAfterAction(); // 刷新列表、患者徽章和导航栏红点
     } else {
       ElMessage.error(response.message || '申请失败');
     }
@@ -939,7 +958,7 @@ const handleBatchApply = async () => {
       ElMessage.warning(`部分申请成功：成功 ${totalSuccess} 项，失败 ${failedCount} 项`);
     }
     
-    await loadApplications(); // 刷新列表（会自动更新待申请数量）
+    await refreshAfterAction(); // 刷新列表、患者徽章和导航栏红点
     selectAll.value = false;
   } catch (error) {
     console.error('批量申请失败:', error);
@@ -982,7 +1001,7 @@ const handleCancelApplication = async (item) => {
 
     if (response.success) {
       ElMessage.success('撤销成功');
-      await loadApplications();
+      await refreshAfterAction(); // 刷新列表、患者徽章和导航栏红点
     } else {
       ElMessage.error(response.message || '撤销失败');
     }
@@ -1026,7 +1045,7 @@ const handleReturnMedication = async (item) => {
     if (response.success) {
       const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
       ElMessage.success(isInspection ? '取消申请已提交' : '退药申请已提交');
-      await loadApplications();
+      await refreshAfterAction(); // 刷新列表、患者徽章和导航栏红点
     } else {
       const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
       ElMessage.error(response.message || (isInspection ? '取消申请失败' : '退药申请失败'));
@@ -1072,7 +1091,7 @@ const handleConfirmReturn = async (item) => {
     if (response.success) {
       const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
       ElMessage.success(isInspection ? '取消确认成功' : '退药确认成功');
-      await loadApplications();
+      await refreshAfterAction(); // 刷新列表、患者徽章和导航栏红点
     } else {
       const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
       ElMessage.error(response.message || (isInspection ? '取消确认失败' : '退药确认失败'));
@@ -1120,7 +1139,7 @@ const handleConfirmCancelledReturn = async (item) => {
     if (response.success) {
       const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
       ElMessage.success(isInspection ? '取消确认成功，任务已标记为异常' : '退药确认成功，任务已标记为异常');
-      await loadApplications();
+      await refreshAfterAction(); // 刷新列表、患者徽章和导航栏红点
     } else {
       const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
       ElMessage.error(response.message || (isInspection ? '确认失败' : '确认失败'));
@@ -1178,7 +1197,7 @@ const handleCancelApply = async (item) => {
 
     if (response.success) {
       ElMessage.success('取消成功');
-      await loadApplications();
+      await refreshAfterAction(); // 刷新列表、患者徽章和导航栏红点
     } else {
       ElMessage.error(response.message || '取消失败');
     }
