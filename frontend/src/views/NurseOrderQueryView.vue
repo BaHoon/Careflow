@@ -1590,8 +1590,18 @@ onMounted(async () => {
 /* ==================== 单据打印弹窗 ==================== */
 .barcode-print-dialog .el-dialog__body {
   padding: 20px;
-  max-height: 70vh;
+  max-height: 60vh;
   overflow-y: auto;
+}
+
+.barcode-print-dialog .el-dialog__footer {
+  position: sticky;
+  bottom: 0;
+  background: white;
+  z-index: 10;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid #e4e7ed;
 }
 
 .barcode-print-container {
