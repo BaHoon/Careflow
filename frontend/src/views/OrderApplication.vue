@@ -173,10 +173,6 @@
               <span v-if="item.inspectionSource" class="inspection-source">
                 · {{ item.inspectionSource }}
               </span>
-
-              
-              <!-- 加急标识 -->
-              <span v-if="item.isUrgent" class="urgent-badge">🔥 加急</span>
             </div>
 
             <!-- 药品申请详情 -->
