@@ -377,6 +377,80 @@ public class DoctorOrderController : ControllerBase
             });
         }
     }
+
+    /// <summary>
+    /// 医生处理异常任务（确认已知晓异常并恢复医嘱）
+    /// </summary>
+    /// <param name="request">处理异常请求</param>
+    /// <returns>处理结果</returns>
+    /// <remarks>
+    /// 业务逻辑：
+    /// 1. 验证医嘱状态（只有 Abnormal 异常态可以处理）
+    /// 2. 检查该医嘱下的所有任务状态
+    /// 3. 根据未完成任务的数量决定医嘱的新状态：
+    ///    - 有未完成任务 → InProgress（进行中）
+    ///    - 无未完成任务 → Completed（已完成）
+    /// 4. 记录医生的处理说明和状态变更历史
+    /// 
+    /// 示例请求：
+    /// {
+    ///   "orderId": 123,
+    ///   "doctorId": "D001",
+    ///   "handleNote": "已知晓给药任务异常，患者拒绝用药，继续观察"
+    /// }
+    /// 
+    /// 状态码说明：
+    /// - 200: 处理成功
+    /// - 400: 参数错误或状态不允许处理
+    /// - 404: 医嘱不存在
+    /// - 500: 服务器内部错误
+    /// </remarks>
+    [HttpPost("handle-abnormal")]
+    public async Task<ActionResult<HandleAbnormalResponseDto>> HandleAbnormalTask(
+        [FromBody] HandleAbnormalRequestDto request)
+    {
+        try
+        {
+            // 参数验证
+            if (request.OrderId <= 0)
+            {
+                return BadRequest(new { message = "医嘱ID无效" });
+            }
+
+            if (string.IsNullOrWhiteSpace(request.DoctorId))
+            {
+                return BadRequest(new { message = "医生ID不能为空" });
+            }
+
+            _logger.LogInformation("接收处理异常任务请求: 医嘱 {OrderId}, 医生 {DoctorId}",
+                request.OrderId, request.DoctorId);
+
+            var result = await _queryService.HandleAbnormalTaskAsync(request);
+
+            if (result.Success)
+            {
+                _logger.LogInformation("✅ 处理异常任务成功: 医嘱 {OrderId}, 新状态 {NewStatus}",
+                    request.OrderId, result.NewOrderStatus);
+                return Ok(result);
+            }
+            else
+            {
+                _logger.LogWarning("⚠️ 处理异常任务失败: {Message}", result.Message);
+                return BadRequest(result);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ 处理异常任务时发生异常: {OrderId}", request.OrderId);
+            return StatusCode(500, new HandleAbnormalResponseDto
+            {
+                Success = false,
+                OrderId = request.OrderId,
+                Message = "处理异常任务失败",
+                Errors = new List<string> { $"系统错误: {ex.Message}" }
+            });
+        }
+    }
 }
 
 // DTO类定义

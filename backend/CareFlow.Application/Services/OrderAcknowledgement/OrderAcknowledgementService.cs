@@ -88,32 +88,24 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
 
         try
         {
-            // 1. 查询该科室所有在院患者（只查询有床位的患者）
-            var patients = await _patientRepository.GetQueryable()
-                .Include(p => p.Bed)
-                    .ThenInclude(b => b.Ward)
-                .Where(p => p.BedId != null && 
-                           p.Bed != null && 
-                           p.Bed.Ward != null &&
-                           p.Bed.Ward.DepartmentId == deptCode && 
-                           (p.Status == PatientStatus.Hospitalized || p.Status == PatientStatus.PendingDischarge))
-                .ToListAsync();
-
-            _logger.LogInformation("科室患者总数: {Count}", patients.Count);
-
-            var result = new List<PatientUnacknowledgedSummaryDto>();
-
-            foreach (var patient in patients)
-            {
-                // 2. 统计该患者的未签收医嘱数量（状态为PendingReceive或PendingStop）
-                // 注意：已退回（Rejected）的医嘱不计入待签收数量，等待医生修改后重新提交
-                var unacknowledgedCount = await _orderRepository.GetQueryable()
-                    .Where(o => o.PatientId == patient.Id && 
-                               (o.Status == OrderStatus.PendingReceive || 
-                                o.Status == OrderStatus.PendingStop))
-                    .CountAsync();
-
-                result.Add(new PatientUnacknowledgedSummaryDto
+            // 🚀 性能优化：使用单次 LEFT JOIN + GROUP BY 查询替代 N+1 查询
+            // 原逻辑：先查询所有患者，再对每个患者单独查询未签收医嘱数量（N+1问题）
+            // 优化后：一次性JOIN患者表和医嘱表，使用GROUP BY统计每个患者的未签收医嘱数量
+            var result = await (
+                from patient in _patientRepository.GetQueryable()
+                    .Include(p => p.Bed)
+                        .ThenInclude(b => b.Ward)
+                where patient.BedId != null
+                    && patient.Bed != null
+                    && patient.Bed.Ward != null
+                    && patient.Bed.Ward.DepartmentId == deptCode
+                    && (patient.Status == PatientStatus.Hospitalized || patient.Status == PatientStatus.PendingDischarge)
+                // LEFT JOIN 医嘱表，并筛选未签收状态的医嘱
+                join order in _orderRepository.GetQueryable()
+                    .Where(o => o.Status == OrderStatus.PendingReceive || o.Status == OrderStatus.PendingStop)
+                    on patient.Id equals order.PatientId into patientOrders
+                // GROUP BY 患者，统计每个患者的未签收医嘱数量
+                select new PatientUnacknowledgedSummaryDto
                 {
                     PatientId = patient.Id,
                     PatientName = patient.Name,
@@ -122,11 +114,11 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
                     Age = patient.Age,
                     Weight = patient.Weight,
                     NursingGrade = (int)patient.NursingGrade,
-                    WardId = patient.Bed?.WardId ?? string.Empty,
-                    WardName = patient.Bed?.Ward?.Id ?? string.Empty,
-                    UnacknowledgedCount = unacknowledgedCount
-                });
-            }
+                    WardId = patient.Bed.WardId,
+                    WardName = patient.Bed.Ward.Id,
+                    UnacknowledgedCount = patientOrders.Count()
+                }
+            ).ToListAsync();
 
             _logger.LogInformation("✅ 成功获取 {Count} 个患者的统计信息", result.Count);
             return result;

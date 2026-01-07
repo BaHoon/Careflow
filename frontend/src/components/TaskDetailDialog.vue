@@ -112,13 +112,7 @@
           
           <!-- 操作信息 -->
           <el-descriptions-item label="操作名称" :span="2">
-            {{ getDisplayTitle(currentTask) }}
-          </el-descriptions-item>
-          <el-descriptions-item label="操作代码">
-            {{ getOperationCode(currentTask) }}
-          </el-descriptions-item>
-          <el-descriptions-item label="操作部位">
-            {{ getOperationSite(currentTask) || '-' }}
+            {{ getOperationNameWithDetails(currentTask) }}
           </el-descriptions-item>
           
           <!-- 患者信息 -->
@@ -388,32 +382,6 @@ const getOperationName = (task) => {
   if (!payload) return task.opId || '操作任务';
   
   return payload.OperationName || payload.Title || task.opId || '操作任务';
-};
-
-// 获取显示标题（与 TaskItem.vue 中的 displayTitle 逻辑保持一致）
-// 优先使用 DataPayload.Title，其次使用 taskTitle，最后使用操作名称
-const getDisplayTitle = (task) => {
-  if (!task) return '操作任务';
-  
-  // 首先尝试从 DataPayload 获取 Title
-  if (task.dataPayload) {
-    try {
-      const payload = safeParseJson(task.dataPayload);
-      if (payload && payload.Title) {
-        return payload.Title;
-      }
-    } catch (e) {
-      // ignore
-    }
-  }
-  
-  // 其次尝试使用 taskTitle
-  if (task.taskSource === 'ExecutionTask' && task.taskTitle) {
-    return task.taskTitle;
-  }
-  
-  // 最后使用操作名称
-  return getOperationName(task);
 };
 
 // 获取操作名称（带详细信息）- 优先显示详细的描述而不仅仅是操作代码

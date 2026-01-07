@@ -347,7 +347,7 @@ const loadPatientRecords = async () => {
     console.log(`✅ 加载完成，共 ${recordsList.value.length} 条记录`);
     
     if (recordsList.value.length > 0) {
-      ElMessage.success(`加载了 ${recordsList.value.length} 条记录`);
+      //ElMessage.success(`加载了 ${recordsList.value.length} 条记录`);
     }
   } catch (error) {
     console.error('❌ 加载患者综合记录失败:', error);

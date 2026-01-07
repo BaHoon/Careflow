@@ -1011,4 +1011,135 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
             return response;
         }
     }
-}
+
+    /// <summary>
+    /// 医生处理异常任务（将医嘱从异常态恢复）
+    /// </summary>
+    public async Task<HandleAbnormalResponseDto> HandleAbnormalTaskAsync(HandleAbnormalRequestDto request)
+    {
+        _logger.LogInformation("========== 医生处理异常任务 ==========");
+        _logger.LogInformation("医嘱ID: {OrderId}, 医生ID: {DoctorId}", request.OrderId, request.DoctorId);
+
+        var response = new HandleAbnormalResponseDto
+        {
+            OrderId = request.OrderId
+        };
+
+        try
+        {
+            // 1. 获取医嘱
+            var order = await _orderRepository.GetByIdAsync(request.OrderId);
+            if (order == null)
+            {
+                response.Success = false;
+                response.Message = $"医嘱 {request.OrderId} 不存在";
+                response.Errors.Add("医嘱不存在");
+                return response;
+            }
+
+            // 2. 验证医嘱状态必须为 Abnormal
+            if (order.Status != OrderStatus.Abnormal)
+            {
+                response.Success = false;
+                response.Message = $"医嘱状态为 {order.Status}，不是异常态，无需处理";
+                response.Errors.Add($"当前状态: {order.Status}");
+                return response;
+            }
+
+            // 3. 获取该医嘱下的所有任务
+            var allTasks = await _taskRepository.GetQueryable()
+                .Where(t => t.MedicalOrderId == request.OrderId)
+                .ToListAsync();
+
+            _logger.LogInformation("医嘱共有 {TotalTasks} 个任务", allTasks.Count);
+
+            // 4. 统计任务状态
+            var abnormalTasks = allTasks.Where(t => t.Status == ExecutionTaskStatus.Incomplete).ToList();
+            
+            // 统计真正待执行的任务（排除已完成、已停止、异常的任务）
+            var pendingTasks = allTasks.Where(t => 
+                t.Status == ExecutionTaskStatus.Applying ||
+                t.Status == ExecutionTaskStatus.Applied ||
+                t.Status == ExecutionTaskStatus.AppliedConfirmed ||
+                t.Status == ExecutionTaskStatus.Pending ||
+                t.Status == ExecutionTaskStatus.InProgress ||
+                t.Status == ExecutionTaskStatus.PendingReturn ||
+                t.Status == ExecutionTaskStatus.PendingReturnCancelled).ToList();
+
+            response.AbnormalTaskCount = abnormalTasks.Count;
+            response.PendingTaskCount = pendingTasks.Count;
+
+            _logger.LogInformation("异常任务: {AbnormalCount}, 待执行任务: {PendingCount}", 
+                abnormalTasks.Count, pendingTasks.Count);
+            
+            // 记录已终止的任务（Completed、Stopped、Incomplete）
+            var terminatedTasks = allTasks.Where(t =>
+                t.Status == ExecutionTaskStatus.Completed ||
+                t.Status == ExecutionTaskStatus.Stopped ||
+                t.Status == ExecutionTaskStatus.Incomplete).ToList();
+            _logger.LogInformation("已终止任务: {TerminatedCount} (Completed: {CompletedCount}, Stopped: {StoppedCount}, Incomplete: {IncompleteCount})",
+                terminatedTasks.Count,
+                allTasks.Count(t => t.Status == ExecutionTaskStatus.Completed),
+                allTasks.Count(t => t.Status == ExecutionTaskStatus.Stopped),
+                allTasks.Count(t => t.Status == ExecutionTaskStatus.Incomplete));
+
+            // 5. 决定医嘱的新状态
+            OrderStatus newStatus;
+            string reason;
+
+            if (pendingTasks.Count > 0)
+            {
+                // 还有未完成的任务 → InProgress
+                newStatus = OrderStatus.InProgress;
+                reason = $"医生已处理异常任务，医嘱恢复为进行中。处理说明：{request.HandleNote ?? "无"}";
+                _logger.LogInformation("检测到 {Count} 个未完成任务，医嘱状态将改为 InProgress", pendingTasks.Count);
+            }
+            else
+            {
+                // 没有未完成的任务 → Completed
+                newStatus = OrderStatus.Completed;
+                order.CompletedAt = DateTime.UtcNow;
+                reason = $"医生已处理异常任务，所有任务已终止，医嘱标记为已完成。处理说明：{request.HandleNote ?? "无"}";
+                _logger.LogInformation("没有未完成任务，医嘱状态将改为 Completed");
+            }
+
+            // 6. 更新医嘱状态
+            var oldStatus = order.Status;
+            order.Status = newStatus;
+            await _orderRepository.UpdateAsync(order);
+
+            // 7. 记录状态历史
+            var history = new MedicalOrderStatusHistory
+            {
+                MedicalOrderId = order.Id,
+                FromStatus = oldStatus,
+                ToStatus = newStatus,
+                ChangedAt = DateTime.UtcNow,
+                ChangedById = request.DoctorId,
+                ChangedByType = "Doctor",
+                Reason = reason
+            };
+            await _statusHistoryRepository.AddAsync(history);
+
+            // 8. 返回成功响应
+            response.Success = true;
+            response.NewOrderStatus = newStatus;
+            response.Message = newStatus == OrderStatus.InProgress 
+                ? $"处理成功，医嘱恢复为进行中（还有 {pendingTasks.Count} 个任务未完成）"
+                : "处理成功，医嘱已完成";
+
+            _logger.LogInformation("✅ 医嘱 {OrderId} 异常处理完成，状态从 Abnormal 改为 {NewStatus}",
+                request.OrderId, newStatus);
+            _logger.LogInformation("========== 处理异常任务完成 ==========");
+
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ 处理异常任务失败: {OrderId}", request.OrderId);
+            response.Success = false;
+            response.Message = "处理异常任务失败";
+            response.Errors.Add($"系统错误: {ex.Message}");
+            return response;
+        }
+    }}

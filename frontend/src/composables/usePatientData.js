@@ -113,7 +113,7 @@ export function usePatientData() {
       const summary = await getPatientsWithPendingCount(dept);
       patientList.value = summary;
       
-      ElMessage.success(`加载了 ${summary.length} 个患者`);
+      // ElMessage.success(`加载了 ${summary.length} 个患者`);
       return true;
     } catch (error) {
       console.error('加载患者列表失败:', error);

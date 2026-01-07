@@ -111,4 +111,18 @@ public interface IMedicalOrderQueryService
     /// 6. 记录撤回操作的审计信息
     /// </remarks>
     Task<WithdrawStopResponseDto> WithdrawStopAsync(WithdrawStopRequestDto request);
-}
+    
+    /// <summary>
+    /// 医生处理异常任务（将医嘱从异常态恢复）
+    /// </summary>
+    /// <param name="request">处理异常请求，包含医嘱ID、医生ID、处理说明</param>
+    /// <returns>处理结果</returns>
+    /// <remarks>
+    /// 业务逻辑：
+    /// 1. 验证医嘱状态必须为 Abnormal（异常态）
+    /// 2. 检查该医嘱下的所有任务状态
+    /// 3. 如果还有其他未完成的任务（Pending、InProgress等），医嘱状态改为 InProgress
+    /// 4. 如果没有其他未完成的任务（所有任务都是Completed、Stopped或Incomplete），医嘱状态改为 Completed
+    /// 5. 记录医生处理异常的审计信息
+    /// </remarks>
+    Task<HandleAbnormalResponseDto> HandleAbnormalTaskAsync(HandleAbnormalRequestDto request);}

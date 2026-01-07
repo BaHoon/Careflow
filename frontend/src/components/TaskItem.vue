@@ -471,8 +471,57 @@ const formatTime = (dateString) => {
 const handleClick = () => {
   console.log('TaskItem handleClick 触发');
   emit('click', props.task);
-  // 当点击任务块时，自动打开详情
-  emit('view-detail', props.task);
+  
+  // 对于ExecutionTask，根据状态直接触发相应操作
+  if (props.task.taskSource === 'ExecutionTask') {
+    const status = props.task.status;
+    
+    // 已完成或异常状态：显示详情
+    if (status === 5 || status === 'Completed' || 
+        status === 8 || status === 'Incomplete' ||
+        status === 9 || status === 'Cancelled') {
+      emit('view-detail', props.task);
+      return;
+    }
+    
+    // Applying(0)：去申请
+    if (status === 0 || status === 'Applying') {
+      handleGoToApplication();
+    }
+    // Applied(1)：等待药房确认状态，不处理（可以添加提示）
+    else if (status === 1 || status === 'Applied') {
+      // 可以选择不处理或显示提示信息
+      return;
+    }
+    // ApplicationWithPrint 且状态为 AppliedConfirmed 或 Pending：打印导引单
+    else if (props.task.category === 'ApplicationWithPrint' && 
+             (status === 2 || status === 'AppliedConfirmed' || status === 3 || status === 'Pending')) {
+      handlePrintReport();
+    }
+    // AppliedConfirmed(2) 或 Pending(3)：执行任务
+    else if (status === 2 || status === 'AppliedConfirmed' || status === 3 || status === 'Pending') {
+      handleStartCompletion();
+    }
+    // InProgress(4)：结束任务
+    else if (status === 4 || status === 'InProgress') {
+      handleFinishTask();
+    }
+  } 
+  // 对于NursingTask
+  else {
+    const status = props.task.status;
+    
+    // 已完成或已取消的任务：显示详情
+    if (status === 5 || status === 'Completed' || 
+        status === 8 || status === 'Incomplete' ||
+        status === 9 || status === 'Cancelled') {
+      emit('view-detail', props.task);
+    }
+    // 未完成的任务：触发录入界面
+    else {
+      handleStartInput();
+    }
+  }
 };
 
 const handleStartInput = () => {
@@ -575,29 +624,69 @@ const parseMedicationPayload = (payload) => {
     html += `</div>`;
   }
   
-  // 解析药品信息
+  // 如果有药品清单（MedicationInfo.Items），优先显示药品列表
+  if (payload.MedicationInfo && payload.MedicationInfo.Items && Array.isArray(payload.MedicationInfo.Items)) {
+    const items = payload.MedicationInfo.Items;
+    if (items.length > 0) {
+      html += `<div style="margin-bottom: 12px; padding: 14px; background: #f0f9ff; border-radius: 6px;">`;
+      html += `<h4 style="margin: 0 0 10px 0; color: #409eff; font-size: 14px; font-weight: 600;">💊 药品清单</h4>`;
+      html += `<table style="width: 100%; border-collapse: collapse; font-size: 13px;">`;
+      html += `<thead><tr style="background: #e8f4ff;">
+        <th style="padding: 8px; text-align: left; border: 1px solid #d9ecff;">药品名称</th>
+        <th style="padding: 8px; text-align: left; border: 1px solid #d9ecff; width: 120px;">规格</th>
+        <th style="padding: 8px; text-align: center; border: 1px solid #d9ecff; width: 100px;">剂量</th>
+        <th style="padding: 8px; text-align: left; border: 1px solid #d9ecff; width: 150px;">备注</th>
+      </tr></thead><tbody>`;
+      
+      items.forEach(item => {
+        const drugName = item.DrugName || item.drugName || '-';
+        const specification = item.Specification || item.specification || '-';
+        const dosage = item.Dosage || item.dosage || '-';
+        const note = item.Note || item.note || '';
+        
+        html += `<tr>
+          <td style="padding: 8px; border: 1px solid #d9ecff; font-weight: 600; color: #303133;">${drugName}</td>
+          <td style="padding: 8px; border: 1px solid #d9ecff; color: #606266;">${specification}</td>
+          <td style="padding: 8px; text-align: center; border: 1px solid #d9ecff; font-weight: 600; color: #67c23a;">${dosage}</td>
+          <td style="padding: 8px; border: 1px solid #d9ecff; color: #909399; font-size: 12px;">${note}</td>
+        </tr>`;
+      });
+      
+      html += `</tbody></table></div>`;
+    }
+  }
+  
+  // 解析药品信息（单个药品的详细信息）
   if (payload.MedicationInfo) {
     const med = payload.MedicationInfo;
-    html += `<div style="margin-bottom: 12px; padding: 14px; background: #f5f7fa; border-radius: 6px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);">`;
-    html += `<h4 style="margin: 0 0 10px 0; color: #409eff; font-size: 14px; font-weight: 600;">💊 药品信息</h4>`;
     
-    const medDetails = [];
-    if (med.DrugName) medDetails.push(`${med.DrugName}`);
-    if (med.Specification) medDetails.push(`规格：${med.Specification}`);
-    if (med.Dosage) medDetails.push(`剂量：${med.Dosage}`);
-    if (med.Route) {
-      // 使用 UsageRoute 枚举映射到中文
-      const routeName = getUsageRouteName(med.Route);
-      medDetails.push(`途径：${routeName}`);
+    // 只有在有额外信息时才显示这个区块
+    if (med.DrugName || med.UsageRoute !== undefined || med.FrequencyDescription || med.ExecutionTime) {
+      html += `<div style="margin-bottom: 12px; padding: 14px; background: #f5f7fa; border-radius: 6px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);">`;
+      html += `<h4 style="margin: 0 0 10px 0; color: #409eff; font-size: 14px; font-weight: 600;">💊 给药信息</h4>`;
+      
+      const medDetails = [];
+      if (med.DrugName) medDetails.push(`药品：${med.DrugName}`);
+      if (med.Specification) medDetails.push(`规格：${med.Specification}`);
+      if (med.Dosage) medDetails.push(`剂量：${med.Dosage}`);
+      if (med.UsageRoute !== undefined) {
+        const routeNames = {1: '口服', 2: '外用/涂抹', 10: '肌内注射', 11: '皮下注射', 12: '静脉推注', 20: '静脉滴注', 30: '皮试'};
+        medDetails.push(`途径：${routeNames[med.UsageRoute] || '未知途径'}`);
+      } else if (med.Route) {
+        medDetails.push(`途径：${getUsageRouteName(med.Route)}`);
+      }
+      if (med.FrequencyDescription) medDetails.push(`频次：${med.FrequencyDescription}`);
+      if (med.Frequency) medDetails.push(`频次：${med.Frequency}`);
+      if (med.ExecutionTime) medDetails.push(`执行时间：${med.ExecutionTime}`);
+      if (med.SlotName) medDetails.push(`时间段：${med.SlotName}`);
+      
+      html += `<div style="display: grid; gap: 6px;">`;
+      medDetails.forEach(detail => {
+        html += `<div style="padding: 4px 0; color: #606266;">• ${detail}</div>`;
+      });
+      html += `</div>`;
+      html += `</div>`;
     }
-    if (med.Frequency) medDetails.push(`频次：${med.Frequency}`);
-    
-    html += `<div style="display: grid; gap: 6px;">`;
-    medDetails.forEach(detail => {
-      html += `<div style="padding: 4px 0; color: #606266;">• ${detail}</div>`;
-    });
-    html += `</div>`;
-    html += `</div>`;
   }
   
   // 解析核对项
@@ -625,6 +714,90 @@ const parseMedicationPayload = (payload) => {
   return html;
 };
 
+// 解析物品核对任务（手术类）
+const parseSupplyCheckPayload = (payload) => {
+  let html = `<div style="font-size: 13px; line-height: 1.8; color: #333;">`;
+  
+  if (payload.Description) {
+    html += `<div style="margin-bottom: 12px; padding: 10px 14px; background: #f0f9ff; border-radius: 6px;">`;
+    html += `${payload.Description}`;
+    html += `</div>`;
+  }
+  
+  // 显示物品清单
+  if (payload.Items && Array.isArray(payload.Items) && payload.Items.length > 0) {
+    html += `<div style="margin-bottom: 12px; padding: 14px; background: #fef0f0; border-radius: 6px;">`;
+    html += `<h4 style="margin: 0 0 10px 0; color: #f56c6c; font-size: 14px; font-weight: 600;">📦 物品清单</h4>`;
+    html += `<table style="width: 100%; border-collapse: collapse; font-size: 13px;">`;
+    html += `<thead><tr style="background: #fde2e2;">
+      <th style="padding: 8px; text-align: left; border: 1px solid #fcd3d3;">名称</th>
+      <th style="padding: 8px; text-align: center; border: 1px solid #fcd3d3; width: 80px;">数量</th>
+      <th style="padding: 8px; text-align: center; border: 1px solid #fcd3d3; width: 70px;">类型</th>
+    </tr></thead><tbody>`;
+    
+    payload.Items.forEach(item => {
+      const typeTag = item.Type === 'Drug' ? '<span style="color: #409eff;">💊药</span>' : 
+                      item.Type === 'Equipment' ? '<span style="color: #67c23a;">🔧械</span>' : item.Type || '-';
+      html += `<tr>
+        <td style="padding: 8px; border: 1px solid #fcd3d3;">${item.Name || '-'}</td>
+        <td style="padding: 8px; text-align: center; border: 1px solid #fcd3d3; font-weight: 600;">${item.Count || '-'}</td>
+        <td style="padding: 8px; text-align: center; border: 1px solid #fcd3d3;">${typeTag}</td>
+      </tr>`;
+    });
+    
+    html += `</tbody></table></div>`;
+  }
+  
+  if (payload.IsChecklist) {
+    html += `<div style="padding: 8px 12px; background: #fdf6ec; border-radius: 4px; color: #e6a23c; font-size: 12px;">`;
+    html += `⚠️ 请逐一核对上述物品`;
+    html += `</div>`;
+  }
+  
+  html += `</div>`;
+  return html;
+};
+
+// 解析手术宣教任务
+const parseEducationPayload = (payload) => {
+  let html = `<div style="font-size: 13px; line-height: 1.8; color: #333;">`;
+  
+  if (payload.Title) {
+    html += `<h4 style="margin: 0 0 8px 0; color: #409eff; font-size: 14px; font-weight: 600;">📋 ${payload.Title}</h4>`;
+  }
+  
+  if (payload.Description) {
+    html += `<div style="padding: 12px 14px; background: #f0f9ff; border-left: 3px solid #409eff; border-radius: 4px;">`;
+    html += `${payload.Description}`;
+    html += `</div>`;
+  }
+  
+  html += `<div style="margin-top: 12px; padding: 8px 12px; background: #f5f7fa; border-radius: 4px; color: #909399; font-size: 12px;">`;
+  html += `💡 完成宣教后点击"确认完成"`;
+  html += `</div>`;
+  html += `</div>`;
+  return html;
+};
+
+// 解析术前操作任务
+const parseNursingOpPayload = (payload) => {
+  let html = `<div style="font-size: 13px; line-height: 1.8; color: #333;">`;
+  
+  if (payload.Title) {
+    html += `<h4 style="margin: 0 0 8px 0; color: #e6a23c; font-size: 14px; font-weight: 600;">📋 ${payload.Title}</h4>`;
+  }
+  
+  if (payload.Description) {
+    html += `<div style="padding: 12px 14px; background: #fef0f0; border-left: 3px solid #e6a23c; border-radius: 4px;">`;
+    html += `${payload.Description}`;
+    html += `</div>`;
+  }
+  
+  
+  html += `</div>`;
+  return html;
+};
+
 // 解析通用DataPayload - 简化版，隐藏技术细节
 const parseDataPayload = (dataPayload) => {
   if (!dataPayload) return '';
@@ -632,9 +805,24 @@ const parseDataPayload = (dataPayload) => {
   try {
     const payload = JSON.parse(dataPayload);
     
-    // 如果是药品医嘱，使用专门的解析函数
+    // 药品给药任务
     if (payload.TaskType === 'MEDICATION_ADMINISTRATION' || payload.taskType === 'RetrieveMedication') {
       return parseMedicationPayload(payload);
+    }
+    
+    // 物品核对任务（手术类）
+    if (payload.TaskType === 'SUPPLY_CHECK') {
+      return parseSupplyCheckPayload(payload);
+    }
+    
+    // 手术宣教任务
+    if (payload.TaskType === 'EDUCATION') {
+      return parseEducationPayload(payload);
+    }
+    
+    // 术前操作任务
+    if (payload.TaskType === 'NURSING_OP') {
+      return parseNursingOpPayload(payload);
     }
     
     // 其他类型：仅显示人类可读的信息，不显示技术字段
@@ -741,7 +929,7 @@ const handleStartCompletion = async () => {
           <span style="color: #303133; font-weight: 600;">${props.task.orderTypeName || '执行任务'}</span>
           
           <span style="color: #909399;">📝 任务：</span>
-          <span style="color: #303133; font-weight: 600;">${props.task.taskTitle || categoryText.value}</span>
+          <span style="color: #303133; font-weight: 600;">${displayTitle.value}</span>
           
           <span style="color: #909399;">🕑 计划时间：</span>
           <span style="color: #606266;">${formatTime(props.task.plannedStartTime)}</span>`;
@@ -775,41 +963,99 @@ const handleStartCompletion = async () => {
       </div>`;
     }
     
-    // Immediate 类别：直接完成
+    // Immediate 类别：直接完成，支持备注
     if (category === 'Immediate') {
       message += `<div style="margin-top: 12px; padding: 8px 12px; background: #fdf6ec; border-radius: 4px; color: #e6a23c; font-size: 12px;">
         ⚡ 此任务将直接标记为完成
       </div></div>`;
       
-      await ElMessageBox.confirm(
+      // 询问是否需要输入备注
+      const { value: remarkValue } = await ElMessageBox.prompt(
         message,
         '确认完成任务',
         {
           confirmButtonText: '确认完成',
           cancelButtonText: '取消',
           type: 'warning',
+          inputType: 'textarea',
+          inputPlaceholder: '请输入完成备注（可选）...',
           dangerouslyUseHTMLString: true,
           customClass: 'task-completion-dialog'
         }
       );
+
+      const nurseId = getCurrentNurseId();
+      if (!nurseId) {
+        ElMessage.error('未找到护士信息');
+        return;
+      }
+
+      const taskId = props.task.id;
+      if (!taskId) {
+        ElMessage.error('任务ID无效');
+        return;
+      }
+
+      // 备注格式
+      let resultPayload = null;
+      if (remarkValue && remarkValue.trim()) {
+        resultPayload = `完成备注：${remarkValue}.`;
+      }
+
+      // 调用API完成任务
+      const response = await completeExecutionTask(taskId, nurseId, resultPayload);
+      ElMessage.success(response.message || '任务已完成');
+      
+      // 通知父组件刷新数据
+      emit('task-cancelled', taskId);
+      return;
     } 
-    // Verification 类别：直接完成（核对类）
+    // Verification 类别：直接完成（核对类），支持备注
     else if (category === 'Verification') {
       message += `<div style="margin-top: 12px; padding: 8px 12px; background: #f0f9ff; border-radius: 4px; color: #409eff; font-size: 12px;">
         ✓ 核对完成后将更新任务状态
       </div></div>`;
       
-      await ElMessageBox.confirm(
+      // 询问是否需要输入备注
+      const { value: remarkValue } = await ElMessageBox.prompt(
         message,
         '确认核对完成',
         {
           confirmButtonText: '确认完成',
           cancelButtonText: '取消',
           type: 'warning',
+          inputType: 'textarea',
+          inputPlaceholder: '请输入核对备注（可选）...',
           dangerouslyUseHTMLString: true,
           customClass: 'task-completion-dialog'
         }
       );
+
+      const nurseId = getCurrentNurseId();
+      if (!nurseId) {
+        ElMessage.error('未找到护士信息');
+        return;
+      }
+
+      const taskId = props.task.id;
+      if (!taskId) {
+        ElMessage.error('任务ID无效');
+        return;
+      }
+
+      // 备注格式
+      let resultPayload = null;
+      if (remarkValue && remarkValue.trim()) {
+        resultPayload = `核对备注：${remarkValue}.`;
+      }
+
+      // 调用API完成任务
+      const response = await completeExecutionTask(taskId, nurseId, resultPayload);
+      ElMessage.success(response.message || '任务已完成');
+      
+      // 通知父组件刷新数据
+      emit('task-cancelled', taskId);
+      return;
     }
     // Duration 和 ResultPending 类别：开始执行
     else if (category === 'Duration' || category === 'ResultPending') {
@@ -862,25 +1108,6 @@ const handleStartCompletion = async () => {
       ElMessage.warning(`任务类别 ${category} 的流程暂未实现`);
       return;
     }
-
-    const nurseId = getCurrentNurseId();
-    if (!nurseId) {
-      ElMessage.error('未找到护士信息');
-      return;
-    }
-
-    const taskId = props.task.id;
-    if (!taskId) {
-      ElMessage.error('任务ID无效');
-      return;
-    }
-
-    // 调用API完成第一阶段（Immediate直接到Completed）
-    const response = await completeExecutionTask(taskId, nurseId, null);
-    ElMessage.success(response.message || '任务已更新');
-    
-    // 通知父组件刷新数据
-    emit('task-cancelled', taskId);
   } catch (error) {
     if (error !== 'cancel') {
       console.error('开始完成任务失败:', error);
@@ -909,7 +1136,7 @@ const handleFinishTask = async () => {
           <span style="color: #303133; font-weight: 600;">${props.task.orderTypeName || '执行任务'}</span>
           
           <span style="color: #909399;">📝 任务：</span>
-          <span style="color: #303133; font-weight: 600;">${props.task.taskTitle || categoryText.value}</span>
+          <span style="color: #303133; font-weight: 600;">${displayTitle.value}</span>
           
           <span style="color: #909399;">🕑 计划时间：</span>
           <span style="color: #606266;">${formatTime(props.task.plannedStartTime)}</span>`;

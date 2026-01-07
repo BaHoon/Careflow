@@ -69,6 +69,7 @@
             <el-checkbox :label="6">已撤回</el-checkbox>
             <el-checkbox :label="7">已退回</el-checkbox>
             <el-checkbox :label="9">停止中</el-checkbox>
+            <el-checkbox :label="10">异常态</el-checkbox>
           </el-checkbox-group>
         </div>
 
@@ -192,6 +193,15 @@
             >
               撤回停嘱
             </el-button>
+            <!-- 异常态医嘱：处理异常按钮 -->
+            <el-button 
+              v-if="order.status === 10"
+              type="danger" 
+              size="small"
+              @click.stop="handleAbnormalOrder(order)"
+            >
+              处理异常
+            </el-button>
             <!-- 已退回医嘱的操作按钮 -->
             <el-button 
               v-if="order.status === 7"
@@ -270,7 +280,7 @@ import PatientInfoBar from '@/components/PatientInfoBar.vue';
 import OrderDetailPanel from '@/components/OrderDetailPanel.vue';
 import StopOrderPanel from '@/components/StopOrderPanel.vue';
 import { usePatientData } from '@/composables/usePatientData';
-import { queryOrders, getOrderDetail, stopOrder, resubmitRejectedOrder, cancelRejectedOrder, withdrawStopOrder } from '@/api/doctorOrder';
+import { queryOrders, getOrderDetail, stopOrder, resubmitRejectedOrder, cancelRejectedOrder, withdrawStopOrder, handleAbnormalTask } from '@/api/doctorOrder';
 
 // ==================== 患者数据 ====================
 const { 
@@ -284,8 +294,8 @@ const {
 } = usePatientData();
 
 // ==================== 筛选条件 ====================
-// 默认显示未签收(1,8)、已签收(2)、进行中(3)、停止中(9)的医嘱
-const statusFilter = ref([1, 8, 2, 3, 9]);
+// 默认显示未签收(1,8)、已签收(2)、进行中(3)、停止中(9)、异常态(10)的医嘱
+const statusFilter = ref([1, 8, 2, 3, 9, 10]);
 // 默认显示所有类型
 const typeFilter = ref(['MedicationOrder', 'InspectionOrder', 'OperationOrder', 'SurgicalOrder', 'DischargeOrder']);
 // 时间范围
@@ -344,7 +354,8 @@ const loadOrders = async () => {
       4: [4, 5],  // 已结束 → Completed(4), Stopped(5)
       6: [6],     // 已撤回 → Cancelled(6)
       7: [7],     // 已退回 → Rejected(7)
-      9: [9]      // 停止中 → StoppingInProgress(9)
+      9: [9],     // 停止中 → StoppingInProgress(9)
+      10: [10]    // 异常态 → Abnormal(10)
     };
 
     // 将选中的筛选项映射为实际状态值
@@ -607,6 +618,47 @@ const handleWithdrawStop = async (order) => {
   }
 };
 
+// ==================== 处理异常态医嘱 ====================
+const handleAbnormalOrder = async (order) => {
+  try {
+    const { value: handleNote } = await ElMessageBox.prompt(
+      `医嘱当前为异常状态，请输入处理说明：`,
+      '处理异常医嘱',
+      {
+        confirmButtonText: '确认处理',
+        cancelButtonText: '取消',
+        inputPlaceholder: '请输入处理说明',
+        inputValidator: (value) => {
+          if (!value || value.trim() === '') {
+            return '请输入处理说明';
+          }
+          return true;
+        }
+      }
+    );
+
+    const currentDoctor = getCurrentDoctor();
+    const result = await handleAbnormalTask({
+      orderId: order.id,
+      doctorId: currentDoctor.staffId,
+      handleNote: handleNote.trim()
+    });
+
+    if (result.success) {
+      const statusText = result.newOrderStatus === 3 ? '进行中' : '已完成';
+      ElMessage.success(`处理成功，医嘱状态已变更为【${statusText}】`);
+      await loadOrders();
+    } else {
+      ElMessage.error(result.message || '处理失败');
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('处理异常医嘱失败:', error);
+      ElMessage.error(error.message || '处理异常医嘱失败');
+    }
+  }
+};
+
 // ==================== 获取完成任务数 ====================
 // 获取完成任务数（Completed + Incomplete）
 // 注：后端 completedTaskCount 已包含 Completed 和 Incomplete 状态
@@ -649,7 +701,8 @@ const getStatusText = (status) => {
     6: '已取消',
     7: '已退回',
     8: '等待停嘱',
-    9: '停止中'
+    9: '停止中',
+    10: '异常态'
   };
   return statusMap[status] || `状态${status}`;
 };
@@ -665,7 +718,8 @@ const getStatusColor = (status) => {
     6: 'info',
     7: 'danger',
     8: 'warning',
-    9: 'warning'  // 停止中显示为警告色
+    9: 'warning',  // 停止中显示为警告色
+    10: 'danger'   // 异常态显示为危险色
   };
   return colorMap[status] || 'info';
 };

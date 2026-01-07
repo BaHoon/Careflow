@@ -86,6 +86,7 @@
               <el-checkbox :label="4">已结束</el-checkbox>
               <el-checkbox :label="7">已退回</el-checkbox>
               <el-checkbox :label="9">停止中</el-checkbox>
+              <el-checkbox :label="10">异常态</el-checkbox>
             </el-checkbox-group>
           </div>
 
@@ -634,7 +635,8 @@ const loadOrders = async () => {
       4: [4, 5],  // 已结束 → Completed(4), Stopped(5)
       6: [6],     // 已撤回 → Cancelled(6)
       7: [7],     // 已退回 → Rejected(7)
-      9: [9]      // 停止中 → StoppingInProgress(9)
+      9: [9],     // 停止中 → StoppingInProgress(9)
+      10: [10]    // 异常态 → Abnormal(10)
     };
 
     // 将选中的筛选项映射为实际状态值
@@ -675,7 +677,7 @@ const loadOrders = async () => {
     console.log(`✅ 加载成功，共 ${orderList.value.length} 条医嘱`);
     
     if (orderList.value.length > 0) {
-      ElMessage.success(`加载了 ${orderList.value.length} 条医嘱`);
+      //ElMessage.success(`加载了 ${orderList.value.length} 条医嘱`);
     }
   } catch (error) {
     console.error('❌ 加载医嘱列表失败:', error);
@@ -1111,7 +1113,9 @@ const getStatusText = (status) => {
     5: '已停止',
     6: '已取消',
     7: '已退回',
-    8: '等待停嘱'
+    8: '等待停嘱',
+    9: '停止中',
+    10: '异常态'
   };
   return statusMap[status] || `状态${status}`;
 };
@@ -1126,7 +1130,9 @@ const getStatusColor = (status) => {
     5: 'info',
     6: 'info',
     7: 'danger',
-    8: 'warning'
+    8: 'warning',
+    9: 'warning',
+    10: 'danger'
   };
   return colorMap[status] || 'info';
 };
@@ -1583,17 +1589,25 @@ onMounted(async () => {
 
 /* ==================== 单据打印弹窗 ==================== */
 .barcode-print-dialog .el-dialog__body {
-  padding: 20px;
-  max-height: 70vh;
-  overflow-y: auto;
+  padding: 0;
+  height: 70vh;
+  overflow: hidden;
+}
+
+.barcode-print-dialog .el-dialog__footer {
+  margin: 0;
+  padding: 0;
 }
 
 .barcode-print-container {
-  min-height: 400px;
+  height: 70vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .barcode-search-bar {
-  margin-bottom: 20px;
+  flex-shrink: 0;
+  padding: 20px 20px 10px 20px;
 }
 
 .barcode-search-bar .search-input {
@@ -1608,9 +1622,26 @@ onMounted(async () => {
 }
 
 .barcode-grid {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 20px 20px 20px;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
   gap: 20px;
+  align-content: start;
+}
+
+/* 加载和空状态也要固定在容器内 */
+.barcode-print-container .loading-state,
+.barcode-print-container .empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: var(--text-secondary);
+  gap: 16px;
 }
 
 .barcode-item {

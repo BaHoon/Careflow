@@ -199,7 +199,7 @@ const loadChartData = async () => {
     if (vitalSigns.value.length === 0) {
       ElMessage.info('该日期范围内没有护理记录');
     } else {
-      ElMessage.success(`加载了 ${vitalSigns.value.length} 条护理记录`);
+      //ElMessage.success(`加载了 ${vitalSigns.value.length} 条护理记录`);
       // 等待DOM更新后绘制图表
       await nextTick();
       setTimeout(() => {
