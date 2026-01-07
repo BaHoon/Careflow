@@ -66,28 +66,27 @@
             <el-checkbox :label="2">已签收</el-checkbox>
             <el-checkbox :label="3">进行中</el-checkbox>
             <el-checkbox :label="4">已结束</el-checkbox>
-            <el-checkbox :label="6">已撤回</el-checkbox>
+            <el-checkbox :label="6">已取消</el-checkbox>
             <el-checkbox :label="7">已退回</el-checkbox>
             <el-checkbox :label="9">停止中</el-checkbox>
             <el-checkbox :label="10">异常态</el-checkbox>
           </el-checkbox-group>
         </div>
 
-        <!-- 排序方式 -->
-        <div class="filter-group">
-          <span class="filter-label">排序:</span>
-          <el-select v-model="sortBy" @change="handleSortChange" class="sort-select" size="small">
-            <el-option label="创建时间" value="CreateTime" />
-            <el-option label="医嘱状态" value="Status" />
-            <el-option label="医嘱类型" value="OrderType" />
-          </el-select>
-          <el-switch
-            v-model="sortDescending"
-            @change="handleSortChange"
-            active-text="降序"
-            inactive-text="升序"
-            style="margin-left: 10px;"
-          />
+        <!-- 内容搜索 -->
+        <div class="filter-group search-group">
+          <el-input
+            v-model="searchKeyword"
+            placeholder="搜索医嘱内容（药品名/检查项/手术名）"
+            clearable
+            @input="loadOrders"
+            size="small"
+            class="search-input"
+          >
+            <template #prefix>
+              <el-icon><Search /></el-icon>
+            </template>
+          </el-input>
         </div>
       </div>
 
@@ -274,7 +273,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Loading, InfoFilled } from '@element-plus/icons-vue';
+import { Loading, InfoFilled, Search } from '@element-plus/icons-vue';
 import PatientListPanel from '@/components/PatientListPanel.vue';
 import PatientInfoBar from '@/components/PatientInfoBar.vue';
 import OrderDetailPanel from '@/components/OrderDetailPanel.vue';
@@ -300,9 +299,8 @@ const statusFilter = ref([1, 8, 2, 3, 9, 10]);
 const typeFilter = ref(['MedicationOrder', 'InspectionOrder', 'OperationOrder', 'SurgicalOrder', 'DischargeOrder']);
 // 时间范围
 const timeRange = ref(null);
-// 排序方式（默认创建时间降序）
-const sortBy = ref('CreateTime');
-const sortDescending = ref(true);
+// 搜索关键词
+const searchKeyword = ref('');
 
 // ==================== 医嘱列表数据 ====================
 const orderList = ref([]);
@@ -369,9 +367,7 @@ const loadOrders = async () => {
     const requestData = {
       patientId: selectedPatient.value.patientId,
       statuses: mappedStatuses,
-      orderTypes: typeFilter.value.length > 0 ? typeFilter.value : null,
-      sortBy: sortBy.value,
-      sortDescending: sortDescending.value
+      orderTypes: typeFilter.value.length > 0 ? typeFilter.value : null
     };
 
     // 添加时间范围
@@ -381,7 +377,20 @@ const loadOrders = async () => {
     }
 
     const response = await queryOrders(requestData);
-    orderList.value = response.orders || [];
+    let orders = response.orders || [];
+    
+    // 应用搜索过滤
+    if (searchKeyword.value && searchKeyword.value.trim()) {
+      const keyword = searchKeyword.value.trim().toLowerCase();
+      orders = orders.filter(order => {
+        // 搜索医嘱摘要/内容
+        const summary = (order.summary || '').toLowerCase();
+        const content = (order.orderContent || '').toLowerCase();
+        return summary.includes(keyword) || content.includes(keyword);
+      });
+    }
+    
+    orderList.value = orders;
     
     console.log(`✅ 加载成功，共 ${orderList.value.length} 条医嘱`);
   } catch (error) {
@@ -391,11 +400,6 @@ const loadOrders = async () => {
   } finally {
     loading.value = false;
   }
-};
-
-// ==================== 排序处理 ====================
-const handleSortChange = () => {
-  loadOrders();
 };
 
 // ==================== 医嘱卡片点击 ====================
@@ -873,8 +877,14 @@ onMounted(async () => {
   width: 360px;
 }
 
-.sort-select {
-  width: 140px;
+.search-group {
+  flex: 1;
+  min-width: 300px;
+}
+
+.search-input {
+  width: 100%;
+  max-width: 400px;
 }
 
 /* ==================== 医嘱列表 ==================== */

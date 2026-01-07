@@ -108,26 +108,40 @@ const getOrderTypeName = (type) => {
   return nameMap[type] || '其他';
 };
 
-// 获取任务状态颜色
+// 获取任务状态颜色（与OrderDetailPanel保持一致）
 const getTaskStatusColor = (status) => {
   const statusMap = {
-    1: 'warning',    // Pending
-    2: 'success',    // Completed
-    3: 'info',       // Cancelled
-    4: 'primary',    // InProgress
+    0: 'info',      // 待申请
+    1: 'info',      // 已申请
+    2: 'primary',   // 已确认
+    3: 'warning',   // 待执行
+    4: 'primary',   // 进行中
+    5: 'success',   // 已完成
+    6: 'warning',   // 停止锁定
+    7: 'info',      // 已停止
+    8: 'danger',    // 异常
+    9: 'danger',    // 待退药
+    10: 'danger'    // 异常取消待退药
   };
   return statusMap[status] || 'info';
 };
 
-// 获取任务状态文本
+// 获取任务状态文本（与OrderDetailPanel保持一致）
 const getTaskStatusText = (status) => {
   const textMap = {
-    1: '待执行',
-    2: '已完成',
-    3: '已取消',
-    4: '执行中'
+    0: '待申请',
+    1: '已申请',
+    2: '已确认',
+    3: '待执行',
+    4: '进行中',
+    5: '已完成',
+    6: '停止锁定',
+    7: '已停止',
+    8: '异常',
+    9: '待退药',
+    10: '异常取消待退药'
   };
-  return textMap[status] || '未知';
+  return textMap[status] || `状态${status}`;
 };
 
 // 格式化时间
