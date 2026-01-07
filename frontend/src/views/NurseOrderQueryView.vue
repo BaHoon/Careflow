@@ -1589,27 +1589,25 @@ onMounted(async () => {
 
 /* ==================== 单据打印弹窗 ==================== */
 .barcode-print-dialog .el-dialog__body {
-  padding: 20px;
-  max-height: 60vh;
-  overflow-y: auto;
+  padding: 0;
+  height: 70vh;
+  overflow: hidden;
 }
 
 .barcode-print-dialog .el-dialog__footer {
-  position: sticky;
-  bottom: 0;
-  background: white;
-  z-index: 10;
   margin: 0;
   padding: 0;
-  border-top: 1px solid #e4e7ed;
 }
 
 .barcode-print-container {
-  min-height: 400px;
+  height: 70vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .barcode-search-bar {
-  margin-bottom: 20px;
+  flex-shrink: 0;
+  padding: 20px 20px 10px 20px;
 }
 
 .barcode-search-bar .search-input {
@@ -1624,9 +1622,26 @@ onMounted(async () => {
 }
 
 .barcode-grid {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 20px 20px 20px;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
   gap: 20px;
+  align-content: start;
+}
+
+/* 加载和空状态也要固定在容器内 */
+.barcode-print-container .loading-state,
+.barcode-print-container .empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: var(--text-secondary);
+  gap: 16px;
 }
 
 .barcode-item {
