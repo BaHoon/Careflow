@@ -160,16 +160,13 @@
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="操作" min-width="200" fixed="right">
+          <el-table-column label="操作" min-width="150" fixed="right">
             <template #default="{ row }">
               <el-button type="primary" link size="small" @click="showEditDialog(row)">
                 编辑
               </el-button>
               <el-button type="warning" link size="small" @click="handleResetPassword(row)">
                 重置密码
-              </el-button>
-              <el-button type="danger" link size="small" @click="handleDelete(row)">
-                删除
               </el-button>
             </template>
           </el-table-column>
@@ -396,16 +393,18 @@ const loadStaffList = async () => {
       pageSize: pageSize.value
     });
     
-    // 后端返回的字段映射
-    staffList.value = response.staffList.map(s => ({
-      staffId: s.staffId,
-      fullName: s.fullName,
-      role: s.role,
-      deptCode: s.deptCode,
-      wardId: s.wardId || '',
-      createdAt: s.createdAt,
-      isActive: s.isActive
-    }));
+    // 后端返回的字段映射，过滤掉管理员
+    staffList.value = response.staffList
+      .filter(s => s.role !== 'Admin') // 不显示管理员
+      .map(s => ({
+        staffId: s.staffId,
+        fullName: s.fullName,
+        role: s.role,
+        deptCode: s.deptCode,
+        wardId: s.wardId || '',
+        createdAt: s.createdAt,
+        isActive: s.isActive
+      }));
     totalCount.value = response.totalCount;
     
     // 获取医生和护士的总数统计（不带筛选条件）
