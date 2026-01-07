@@ -27,7 +27,9 @@ public enum OrderStatus
     /// <summary>待签收停止医嘱</summary>
     PendingStop=8,
     /// <summary>停止中 - 护士已签收停止医嘱，停止节点之前的任务仍在执行</summary>
-    StoppingInProgress=9
+    StoppingInProgress=9,
+    /// <summary>异常态 - 医嘱中存在异常任务，需要医生处理</summary>
+    Abnormal=10
 }
 
 public enum TaskType { Dispensing = 1, Administration = 2, Patrol = 3 } // 配药/给药/巡视

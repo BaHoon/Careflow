@@ -248,14 +248,6 @@
             <span class="label">操作名称:</span>
             <span class="value highlight">{{ detail.operationName || detail.operationCode || '未知操作' }}</span>
           </div>
-          <div class="info-item">
-            <span class="label">操作代码:</span>
-            <span class="value">{{ detail.operationCode }}</span>
-          </div>
-          <div v-if="detail.targetSite" class="info-item">
-            <span class="label">操作部位:</span>
-            <span class="value">{{ detail.targetSite }}</span>
-          </div>
           <div v-if="detail.timingStrategy" class="info-item">
             <span class="label">时间策略:</span>
             <span class="value">{{ getTimingStrategyName(detail.timingStrategy) }}</span>
@@ -1362,7 +1354,8 @@ const formatDateTime = (dateString) => {
 const getStatusText = (status) => {
   const statusMap = {
     0: '草稿', 1: '未签收', 2: '已签收', 3: '进行中',
-    4: '已完成', 5: '已拒绝', 6: '已取消', 7: '等待停嘱', 8: '已停止'
+    4: '已完成', 5: '已停止', 6: '已取消', 7: '已退回', 
+    8: '等待停嘱', 9: '停止中', 10: '异常态'
   };
   return statusMap[status] || `状态${status}`;
 };
@@ -1370,7 +1363,8 @@ const getStatusText = (status) => {
 const getStatusColor = (status) => {
   const colorMap = {
     0: 'info', 1: 'warning', 2: 'primary', 3: 'success',
-    4: 'success', 5: 'danger', 6: 'info', 7: 'warning', 8: 'info'
+    4: 'success', 5: 'info', 6: 'info', 7: 'danger', 
+    8: 'warning', 9: 'warning', 10: 'danger'
   };
   return colorMap[status] || 'info';
 };
