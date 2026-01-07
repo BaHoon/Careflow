@@ -304,16 +304,16 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
             throw new ArgumentException("SPECIFIC策略必须指定执行时间（StartTime）");
         }
 
-        // 只生成未来时间的任务
-        if (order.StartTime.Value <= DateTime.UtcNow)
-        {
-            _logger.LogWarning("医嘱 {OrderId} 的执行时间 {StartTime} 已过期，跳过任务生成", 
-                order.Id, order.StartTime.Value);
-            return new List<ExecutionTask>();
-        }
-
+        var now = DateTime.UtcNow;
         var executionTime = order.StartTime.Value;
         var tasks = new List<ExecutionTask>();
+
+        // 允许为过去的时间生成任务，但记录日志提醒
+        if (executionTime <= now)
+        {
+            _logger.LogInformation("医嘱 {OrderId} 的执行时间 {StartTime} 早于当前时间，仍然生成任务（可能需要立即执行）", 
+                order.Id, executionTime);
+        }
         
         // 1. 生成取药任务（必须）
         // 计算取药时间，确保不早于当前时间
@@ -381,44 +381,45 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
         }
 
         var intervalHours = (double)order.IntervalHours.Value;
+        var now = DateTime.UtcNow;
 
         // 按时间间隔循环生成任务，直到超过结束时间
+        // 为所有时间点生成任务（包括过去的），过去的任务会显示为逾期状态
         while (currentExecutionTime <= endTime)
         {
-            // 只生成未来时间的任务
-            if (currentExecutionTime > DateTime.UtcNow)
+            // 1. 生成取药任务
+            var retrieveTask = new ExecutionTask
             {
-                // 1. 生成取药任务
-                var retrieveTask = new ExecutionTask
-                {
-                    MedicalOrderId = order.Id,
-                    PatientId = order.PatientId,
-                    Category = TaskCategory.Verification,
-                    PlannedStartTime = currentExecutionTime.AddMinutes(-30),
-                    Status = ExecutionTaskStatus.Applying,
-                    CreatedAt = DateTime.UtcNow,
-                    DataPayload = GenerateRetrieveMedicationDataPayload(order, currentExecutionTime.AddMinutes(-30))
-                };
-                
-                // 2. 生成给药任务
-                var administrationTask = new ExecutionTask
-                {
-                    MedicalOrderId = order.Id,
-                    PatientId = order.PatientId,
-                    Category = GetTaskCategoryFromUsageRoute(order.UsageRoute),
-                    PlannedStartTime = currentExecutionTime,
-                    Status = ExecutionTaskStatus.Pending,
-                    CreatedAt = DateTime.UtcNow,
-                    DataPayload = GenerateTaskDataPayload(order, currentExecutionTime)
-                };
-                
-                tasks.Add(retrieveTask);
-                tasks.Add(administrationTask);
-            }
+                MedicalOrderId = order.Id,
+                PatientId = order.PatientId,
+                Category = TaskCategory.Verification,
+                PlannedStartTime = currentExecutionTime.AddMinutes(-30),
+                Status = ExecutionTaskStatus.Applying,
+                CreatedAt = now,
+                DataPayload = GenerateRetrieveMedicationDataPayload(order, currentExecutionTime.AddMinutes(-30))
+            };
+            
+            // 2. 生成给药任务
+            var administrationTask = new ExecutionTask
+            {
+                MedicalOrderId = order.Id,
+                PatientId = order.PatientId,
+                Category = GetTaskCategoryFromUsageRoute(order.UsageRoute),
+                PlannedStartTime = currentExecutionTime,
+                Status = ExecutionTaskStatus.Pending,
+                CreatedAt = now,
+                DataPayload = GenerateTaskDataPayload(order, currentExecutionTime)
+            };
+            
+            tasks.Add(retrieveTask);
+            tasks.Add(administrationTask);
 
             // 移动到下一次执行时间
             currentExecutionTime = currentExecutionTime.AddHours(intervalHours);
         }
+        
+        _logger.LogInformation("医嘱 {OrderId} CYCLIC策略生成 {TaskCount} 个任务（包括 {PastCount} 个过去时间点的任务）", 
+            order.Id, tasks.Count, tasks.Count(t => t.PlannedStartTime < now));
 
         return tasks;
     }
@@ -455,44 +456,46 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
             return tasks;
         }
 
+        var now = DateTime.UtcNow;
+        
+        // 为所有时间点生成任务（包括过去的），过去的任务会显示为逾期状态
         for (var date = startDate; date <= endDate; date = date.AddDays(order.IntervalDays))
         {
             foreach (var slot in timeSlots)
             {
                 var executionTime = date.Add(slot.DefaultTime);
                 
-                // 只生成未来时间的任务
-                if (executionTime > DateTime.UtcNow)
+                // 1. 生成取药任务（必须）
+                var retrieveTask = new ExecutionTask
                 {
-                    // 1. 生成取药任务（必须）
-                    var retrieveTask = new ExecutionTask
-                    {
-                        MedicalOrderId = order.Id,
-                        PatientId = order.PatientId,
-                        Category = TaskCategory.Verification, // 取药为核对类
-                        PlannedStartTime = executionTime.AddMinutes(-30), // 提前30分钟取药
-                        Status = ExecutionTaskStatus.Applying,
-                        CreatedAt = DateTime.UtcNow,
-                        DataPayload = GenerateRetrieveMedicationDataPayload(order, executionTime.AddMinutes(-30))
-                    };
-                    
-                    // 2. 生成给药任务
-                    var administrationTask = new ExecutionTask
-                    {
-                        MedicalOrderId = order.Id,
-                        PatientId = order.PatientId,
-                        Category = GetTaskCategoryFromUsageRoute(order.UsageRoute),
-                        PlannedStartTime = executionTime,
-                        Status = ExecutionTaskStatus.Pending,
-                        CreatedAt = DateTime.UtcNow,
-                        DataPayload = GenerateTaskDataPayload(order, executionTime, slot.SlotName)
-                    };
-                    
-                    tasks.Add(retrieveTask);
-                    tasks.Add(administrationTask);
-                }
+                    MedicalOrderId = order.Id,
+                    PatientId = order.PatientId,
+                    Category = TaskCategory.Verification, // 取药为核对类
+                    PlannedStartTime = executionTime.AddMinutes(-30), // 提前30分钟取药
+                    Status = ExecutionTaskStatus.Applying,
+                    CreatedAt = now,
+                    DataPayload = GenerateRetrieveMedicationDataPayload(order, executionTime.AddMinutes(-30))
+                };
+                
+                // 2. 生成给药任务
+                var administrationTask = new ExecutionTask
+                {
+                    MedicalOrderId = order.Id,
+                    PatientId = order.PatientId,
+                    Category = GetTaskCategoryFromUsageRoute(order.UsageRoute),
+                    PlannedStartTime = executionTime,
+                    Status = ExecutionTaskStatus.Pending,
+                    CreatedAt = now,
+                    DataPayload = GenerateTaskDataPayload(order, executionTime, slot.SlotName)
+                };
+                
+                tasks.Add(retrieveTask);
+                tasks.Add(administrationTask);
             }
         }
+        
+        _logger.LogInformation("医嘱 {OrderId} SLOTS策略生成 {TaskCount} 个任务（包括 {PastCount} 个过去时间点的任务）", 
+            order.Id, tasks.Count, tasks.Count(t => t.PlannedStartTime < now));
 
         return tasks;
     }
@@ -541,8 +544,7 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
             case "SPECIFIC":
                 if (!order.StartTime.HasValue)
                     validationErrors.Add("SPECIFIC策略必须指定执行时间（StartTime）");
-                else if (order.StartTime.Value <= DateTime.UtcNow)
-                    validationErrors.Add("执行时间必须是未来时间");
+                // 移除未来时间限制，允许指定过去的时间
                 break;
 
             case "SLOTS":

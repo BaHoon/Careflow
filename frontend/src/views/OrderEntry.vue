@@ -2137,11 +2137,8 @@ const selectStrategy = (strategy) => {
       break;
       
     case 'SPECIFIC':
-      // 指定时间单次执行：开始时间和结束时间相同
-      const specificNow = new Date();
-      currentOrder.startTime = getLocalISOString(specificNow);
-      // plantEndTime 与 startTime 相同（单次执行）
-      currentOrder.plantEndTime = getLocalISOString(specificNow);
+      // 指定时间单次执行：不自动填充时间，由用户手动选择
+      // currentOrder.startTime 和 plantEndTime 保持为 null，等待用户选择
       break;
       
     case 'CYCLIC':
@@ -2283,10 +2280,8 @@ const onOperationStrategyChange = () => {
     operationOrder.intervalHours = null;
     operationOrder.smartSlotsMask = 0;
     operationOrder.intervalDays = 1;
-    // SPECIFIC策略：开始时间和结束时间相同（单次执行）
-    const specificNow = new Date();
-    operationOrder.startTime = getLocalISOString(specificNow);
-    operationOrder.plantEndTime = getLocalISOString(specificNow);
+    // SPECIFIC策略：不自动填充时间，由用户手动选择
+    // operationOrder.startTime 和 plantEndTime 保持为 null，等待用户选择
   } else if (strategy === 'CYCLIC') {
     operationOrder.smartSlotsMask = 0;
     operationOrder.intervalDays = 1;
