@@ -287,7 +287,8 @@ import {
   getPendingAdmissionPatient,
   getAvailableBeds,
   processPatientAdmission,
-  getNursingGradeText
+  getNursingGradeText,
+  getPatientStatusText
 } from '@/api/patient';
 
 const router = useRouter();
@@ -400,9 +401,10 @@ const handleBarcodeUpload = async (e) => {
   const file = e.target.files?.[0];
   if (!file) return;
 
+  let loadingMsg = null;
   try {
     errorMessage.value = '';
-    const msg = ElMessage.info({ message: '识别条形码中...', duration: 0 });
+    loadingMsg = ElMessage.info({ message: '识别条形码中...', duration: 0 });
     barcodeFile = file;
 
     // 显示预览
@@ -412,7 +414,8 @@ const handleBarcodeUpload = async (e) => {
 
     // 调用后端识别条形码
     const result = await recognizePatientBarcode(file);
-    msg.close();
+    loadingMsg && loadingMsg.close();
+    loadingMsg = null;
 
     if (result.success && result.patientId) {
       recognizedPatientId.value = result.patientId;
@@ -432,13 +435,53 @@ const handleBarcodeUpload = async (e) => {
       ElMessage.error(result.message || '识别失败');
     }
   } catch (err) {
+    // 确保加载提示被关闭
+    if (loadingMsg) {
+      loadingMsg.close();
+      loadingMsg = null;
+    }
+
     // 如果是科室不匹配或没有空余床位错误，不显示额外的错误消息（已由相应函数显示）
     if (err.isDepartmentMismatch || err.isNoAvailableBeds) {
       // 已由相应函数处理，直接返回
       return;
     }
-    errorMessage.value = err.response?.data?.message || err.message || '识别失败';
-    ElMessage.error('识别失败: ' + (err.response?.data?.message || err.message));
+
+    const serverMessage = err.response?.data?.message;
+    const currentStatus = err.response?.data?.currentStatus;
+
+    // 针对“患者已在院/状态不为待入院”的特殊提示处理
+    if (typeof currentStatus === 'number' && currentStatus !== 0) {
+      const statusText = getPatientStatusText(currentStatus);
+      const title = '患者状态不符';
+      const content = `该患者当前状态为【${statusText}】，不能重复办理入院。\n\n` +
+        '请选择是退出当前入院办理，还是重新上传其他患者的条形码？';
+
+      try {
+        await ElMessageBox.confirm(
+          content,
+          title,
+          {
+            confirmButtonText: '退出办理入院',
+            cancelButtonText: '重新上传条形码',
+            type: 'warning',
+            distinguishCancelAndClose: true
+          }
+        );
+        // 确认：退出办理入院，返回护士工作台
+        router.push('/nurse/dashboard');
+      } catch (boxErr) {
+        // 取消或关闭：重新开始上传流程
+        resetToFirstStep();
+      }
+
+      // 界面上也记录错误文案
+      errorMessage.value = serverMessage || `患者当前状态为 ${statusText}，无法办理入院`;
+      return;
+    }
+
+    errorMessage.value = serverMessage || err.message || '识别失败';
+    ElMessage.error('识别失败: ' + (serverMessage || err.message));
   }
 };
 
