@@ -655,7 +655,7 @@ const loadPatientList = async () => {
     const summary = await getPatientsWithPendingCount(deptCode);
     patientList.value = summary;
     
-    ElMessage.success(`加载了 ${summary.length} 个患者`);
+    //ElMessage.success(`加载了 ${summary.length} 个患者`);
   } catch (error) {
     console.error('加载患者列表失败:', error);
     ElMessage.error(error.message || '加载患者列表失败');

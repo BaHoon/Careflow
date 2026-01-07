@@ -610,7 +610,7 @@ namespace CareFlow.Infrastructure.Data
                 {
                     Id = "P002", Name = "李四", Gender = "女", IdCard = "110100198505050002",
                     DateOfBirth = new DateTime(1985, 5, 5, 0, 0, 0, DateTimeKind.Utc),
-                    Age = 39, Height = 162.0f, Weight = 58.0f, Status = PatientStatus.PendingDischarge, PhoneNumber = "13800138002",
+                    Age = 39, Height = 162.0f, Weight = 58.0f, Status = PatientStatus.Hospitalized, PhoneNumber = "13800138002",
                     NursingGrade = NursingGrade.Special, BedId = "IM-W01-002", AttendingDoctorId = "D001",
                     OutpatientDiagnosis = "急性心肌梗死",
                     ScheduledAdmissionTime = UtcDate(2024, 12, 5, 10, 0),
@@ -735,7 +735,7 @@ namespace CareFlow.Infrastructure.Data
                 new NurseRoster { StaffId = "N007", WardId = "IM-W01", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
 
                 // 内科二病区 IM-W02
-                new NurseRoster { StaffId = "N001", WardId = "IM-W02", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
+                new NurseRoster { StaffId = "N007", WardId = "IM-W02", ShiftId = "DAY", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
                 new NurseRoster { StaffId = "N004", WardId = "IM-W02", ShiftId = "EVENING", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
                 new NurseRoster { StaffId = "N003", WardId = "IM-W02", ShiftId = "NIGHT", WorkDate = DateOnly.FromDateTime(todayUtc), Status = "Scheduled" },
 

@@ -675,7 +675,7 @@ const loadOrders = async () => {
     console.log(`✅ 加载成功，共 ${orderList.value.length} 条医嘱`);
     
     if (orderList.value.length > 0) {
-      ElMessage.success(`加载了 ${orderList.value.length} 条医嘱`);
+      //ElMessage.success(`加载了 ${orderList.value.length} 条医嘱`);
     }
   } catch (error) {
     console.error('❌ 加载医嘱列表失败:', error);

@@ -1802,6 +1802,8 @@ namespace CareFlow.WebApi.Controllers
                 var task = await _context.ExecutionTasks
                     .Include(t => t.Patient)
                     .Include(t => t.MedicalOrder)
+                        .ThenInclude(o => o.Items)
+                            .ThenInclude(i => i.Drug)
                     .FirstOrDefaultAsync(t => t.Id == id);
 
                 if (task == null)

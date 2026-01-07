@@ -148,25 +148,53 @@ const formatJson = (jsonString) => {
 const parseMedicationPayload = (payload) => {
   let html = `<div style="font-size: 13px; line-height: 1.8;">`;
   
-  if (payload.Title) {
-    html += `<p><strong>任务：</strong>${payload.Title}</p>`;
+  // 如果有药品清单（MedicationInfo.Items），优先显示药品列表
+  if (payload.MedicationInfo && payload.MedicationInfo.Items && Array.isArray(payload.MedicationInfo.Items)) {
+    const items = payload.MedicationInfo.Items;
+    if (items.length > 0) {
+      html += `<div style="margin-bottom: 12px; padding: 10px; background: #f0f9ff; border-left: 3px solid #409eff; border-radius: 4px;">`;
+      html += `<p style="margin: 0 0 8px 0; font-weight: 600; color: #409eff;">💊 药品清单</p>`;
+      html += `<table style="width: 100%; border-collapse: collapse;">`;
+      html += `<thead><tr style="background: #e8f4ff;">
+        <th style="padding: 6px; text-align: left; border: 1px solid #d9ecff;">药品名称</th>
+        <th style="padding: 6px; text-align: left; border: 1px solid #d9ecff; width: 100px;">规格</th>
+        <th style="padding: 6px; text-align: center; border: 1px solid #d9ecff; width: 80px;">剂量</th>
+        <th style="padding: 6px; text-align: left; border: 1px solid #d9ecff; width: 120px;">备注</th>
+      </tr></thead><tbody>`;
+      
+      items.forEach(item => {
+        const drugName = item.DrugName || item.drugName || '-';
+        const specification = item.Specification || item.specification || '-';
+        const dosage = item.Dosage || item.dosage || '-';
+        const note = item.Note || item.note || '';
+        
+        html += `<tr>
+          <td style="padding: 6px; border: 1px solid #d9ecff; font-weight: 600;">${drugName}</td>
+          <td style="padding: 6px; border: 1px solid #d9ecff; color: #606266;">${specification}</td>
+          <td style="padding: 6px; text-align: center; border: 1px solid #d9ecff; font-weight: 600; color: #67c23a;">${dosage}</td>
+          <td style="padding: 6px; border: 1px solid #d9ecff; color: #909399; font-size: 12px;">${note}</td>
+        </tr>`;
+      });
+      
+      html += `</tbody></table></div>`;
+    }
   }
   
-  if (payload.Description) {
-    html += `<p><strong>医嘱内容：</strong>${payload.Description}</p>`;
-  }
-  
-  // 解析药品信息
+  // 显示给药信息
   if (payload.MedicationInfo) {
     const med = payload.MedicationInfo;
-    html += `<div style="margin-top: 8px; padding: 8px; background: #f0f9ff; border-left: 3px solid #409eff;">`;
-    html += `<p style="margin: 0; font-weight: 600; color: #409eff;">💊 药品信息</p>`;
-    if (med.DrugName) html += `<p style="margin: 4px 0;">药品名称：${med.DrugName}</p>`;
-    if (med.Specification) html += `<p style="margin: 4px 0;">规格：${med.Specification}</p>`;
-    if (med.Dosage) html += `<p style="margin: 4px 0;">剂量：${med.Dosage}</p>`;
-    if (med.Route) html += `<p style="margin: 4px 0;">途径：${med.Route}</p>`;
-    if (med.Frequency) html += `<p style="margin: 4px 0;">频次：${med.Frequency}</p>`;
-    html += `</div>`;
+    if (med.UsageRoute !== undefined || med.FrequencyDescription || med.ExecutionTime) {
+      html += `<div style="margin-top: 8px; padding: 8px; background: #fef0f0; border-left: 3px solid #f56c6c; border-radius: 4px;">`;
+      html += `<p style="margin: 0 0 4px 0; font-weight: 600; color: #f56c6c;">📋 给药信息</p>`;
+      if (med.UsageRoute !== undefined) {
+        const routeNames = {1: '口服', 2: '外用/涂抹', 10: '肌内注射', 11: '皮下注射', 12: '静脉推注', 20: '静脉滴注', 30: '皮试'};
+        html += `<p style="margin: 4px 0;">途径：${routeNames[med.UsageRoute] || '未知途径'}</p>`;
+      }
+      if (med.FrequencyDescription) html += `<p style="margin: 4px 0;">频次：${med.FrequencyDescription}</p>`;
+      if (med.ExecutionTime) html += `<p style="margin: 4px 0;">执行时间：${med.ExecutionTime}</p>`;
+      if (med.SlotName) html += `<p style="margin: 4px 0;">时间段：${med.SlotName}</p>`;
+      html += `</div>`;
+    }
   }
   
   // 解析核对项
@@ -188,6 +216,96 @@ const parseMedicationPayload = (payload) => {
   return html;
 };
 
+// 解析物品核对任务（手术类）
+const parseSupplyCheckPayload = (payload) => {
+  let html = `<div style="font-size: 13px; line-height: 1.8;">`;
+  
+  if (payload.Description) {
+    html += `<p style="color: #606266; margin-bottom: 12px;">${payload.Description}</p>`;
+  }
+  
+  // 显示物品清单
+  if (payload.Items && Array.isArray(payload.Items) && payload.Items.length > 0) {
+    html += `<div style="margin-bottom: 12px; padding: 10px; background: #fef0f0; border-left: 3px solid #f56c6c; border-radius: 4px;">`;
+    html += `<p style="margin: 0 0 8px 0; font-weight: 600; color: #f56c6c;">📦 物品清单</p>`;
+    html += `<table style="width: 100%; border-collapse: collapse;">`;
+    html += `<thead><tr style="background: #fde2e2;">
+      <th style="padding: 6px; text-align: left; border: 1px solid #fcd3d3;">名称</th>
+      <th style="padding: 6px; text-align: center; border: 1px solid #fcd3d3; width: 80px;">数量</th>
+      <th style="padding: 6px; text-align: center; border: 1px solid #fcd3d3; width: 80px;">类型</th>
+      <th style="padding: 6px; text-align: left; border: 1px solid #fcd3d3;">备注</th>
+    </tr></thead><tbody>`;
+    
+    payload.Items.forEach(item => {
+      const typeTag = item.Type === 'Drug' ? '<span style="color: #409eff;">药品</span>' : 
+                      item.Type === 'Equipment' ? '<span style="color: #67c23a;">器械</span>' : item.Type || '-';
+      html += `<tr>
+        <td style="padding: 6px; border: 1px solid #fcd3d3;">${item.Name || '-'}</td>
+        <td style="padding: 6px; text-align: center; border: 1px solid #fcd3d3;">${item.Count || '-'}</td>
+        <td style="padding: 6px; text-align: center; border: 1px solid #fcd3d3;">${typeTag}</td>
+        <td style="padding: 6px; border: 1px solid #fcd3d3; color: #909399;">${item.Note || '-'}</td>
+      </tr>`;
+    });
+    
+    html += `</tbody></table></div>`;
+  }
+  
+  // 核对项
+  if (payload.IsChecklist) {
+    html += `<p style="color: #e6a23c; font-size: 12px; margin-top: 8px;">⚠️ 请逐一核对上述物品</p>`;
+  }
+  
+  html += `</div>`;
+  return html;
+};
+
+// 解析手术宣教任务
+const parseEducationPayload = (payload) => {
+  let html = `<div style="font-size: 13px; line-height: 1.8;">`;
+  
+  if (payload.Description) {
+    html += `<div style="padding: 10px; background: #f0f9ff; border-left: 3px solid #409eff; border-radius: 4px;">`;
+    html += `<p style="margin: 0; color: #303133;">${payload.Description}</p>`;
+    html += `</div>`;
+  }
+  
+  html += `<p style="color: #909399; font-size: 12px; margin-top: 8px;">💡 完成宣教后点击"确认完成"</p>`;
+  html += `</div>`;
+  return html;
+};
+
+// 解析术前操作任务
+const parseNursingOpPayload = (payload) => {
+  let html = `<div style="font-size: 13px; line-height: 1.8;">`;
+  
+  if (payload.Description) {
+    html += `<div style="padding: 10px; background: #fef0f0; border-left: 3px solid #e6a23c; border-radius: 4px;">`;
+    html += `<p style="margin: 0; color: #303133;">${payload.Description}</p>`;
+    html += `</div>`;
+  }
+  
+  html += `</div>`;
+  return html;
+};
+
+// 解析通用任务（简化显示）
+const parseGenericPayload = (payload) => {
+  let html = `<div style="font-size: 13px; line-height: 1.8;">`;
+  
+  // 只显示关键信息
+  if (payload.Title && payload.Title !== payload.Description) {
+    html += `<p><strong>标题：</strong>${payload.Title}</p>`;
+  }
+  
+  if (payload.Description) {
+    html += `<p><strong>说明：</strong>${payload.Description}</p>`;
+  }
+  
+  // 不显示过多的技术字段（如TaskType等）
+  html += `</div>`;
+  return html;
+};
+
 // 解析通用DataPayload为HTML
 const parseDataPayloadHtml = (dataPayload) => {
   if (!dataPayload) return '<p style="color: #909399;">无数据</p>';
@@ -195,23 +313,28 @@ const parseDataPayloadHtml = (dataPayload) => {
   try {
     const payload = JSON.parse(dataPayload);
     
-    // 如果是药品医嘱，使用专门的解析函数
+    // 药品给药任务
     if (payload.TaskType === 'MEDICATION_ADMINISTRATION') {
       return parseMedicationPayload(payload);
     }
     
-    // 其他类型使用通用格式
-    let html = `<div style="font-size: 13px; line-height: 1.8;">`;
-    Object.entries(payload).forEach(([key, value]) => {
-      if (typeof value === 'object' && value !== null) {
-        html += `<p><strong>${key}:</strong></p>`;
-        html += `<pre style="margin: 4px 0; padding: 8px; background: #f5f5f5; border-radius: 4px; font-size: 12px;">${JSON.stringify(value, null, 2)}</pre>`;
-      } else {
-        html += `<p><strong>${key}:</strong> ${value}</p>`;
-      }
-    });
-    html += `</div>`;
-    return html;
+    // 物品核对任务（手术类）
+    if (payload.TaskType === 'SUPPLY_CHECK') {
+      return parseSupplyCheckPayload(payload);
+    }
+    
+    // 手术宣教任务
+    if (payload.TaskType === 'EDUCATION') {
+      return parseEducationPayload(payload);
+    }
+    
+    // 术前操作任务
+    if (payload.TaskType === 'NURSING_OP') {
+      return parseNursingOpPayload(payload);
+    }
+    
+    // 通用格式（简化显示，不显示过多技术细节）
+    return parseGenericPayload(payload);
   } catch {
     return `<pre style="font-size: 12px;">${dataPayload}</pre>`;
   }
