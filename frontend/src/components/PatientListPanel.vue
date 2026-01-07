@@ -597,10 +597,8 @@ const handleMultiSelectToggle = (value) => {
   border-radius: 4px;
   font-size: 0.75rem;
   font-weight: bold;
-  display: inline-flex;
-  align-items: center;
+  display: inline-block;
   margin-bottom: 8px;
-  width: 190px;
 }
 
 .patient-card.active .bed-badge {
