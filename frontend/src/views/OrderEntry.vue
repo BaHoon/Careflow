@@ -965,7 +965,6 @@
                       </div>
                     </el-option>
                   </el-select>
-                  <span class="tip-text">选择操作名称后，系统会自动匹配对应的操作代码（后台处理）</span>
                 </div>
 
                 <div class="form-row">
@@ -977,7 +976,7 @@
                   />
                 </div>
 
-                <div class="form-row">
+                <div class="form-row" style="display: none;">
                   <label>正常/异常：</label>
                   <el-radio-group v-model="operationOrder.normal">
                     <el-radio :label="true">正常</el-radio>

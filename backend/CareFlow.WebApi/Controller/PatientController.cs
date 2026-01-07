@@ -907,6 +907,7 @@ public class PatientController : ControllerBase
 
             var patient = await _patientRepository.GetQueryable()
                 .Include(p => p.AttendingDoctor)
+                    .ThenInclude(d => d.Department)
                 .FirstOrDefaultAsync(p => p.Id == patientId);
 
             if (patient == null)
@@ -937,7 +938,9 @@ public class PatientController : ControllerBase
                 ScheduledAdmissionTime = patient.ScheduledAdmissionTime,
                 NursingGrade = patient.NursingGrade,
                 AttendingDoctorId = patient.AttendingDoctorId,
-                AttendingDoctorName = patient.AttendingDoctor?.Name ?? string.Empty
+                AttendingDoctorName = patient.AttendingDoctor?.Name ?? string.Empty,
+                DepartmentId = patient.AttendingDoctor?.DeptCode,
+                DepartmentName = patient.AttendingDoctor?.Department?.DeptName
             };
 
             return Ok(result);

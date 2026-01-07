@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CareFlow.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251227152416_InitCreate")]
+    [Migration("20260106133505_InitCreate")]
     partial class InitCreate
     {
         /// <inheritdoc />
@@ -936,7 +936,6 @@ namespace CareFlow.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("BedId")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<DateTime>("CreateTime")
@@ -959,6 +958,9 @@ namespace CareFlow.Infrastructure.Migrations
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<int>("NursingAnomalyStatus")
+                        .HasColumnType("integer");
 
                     b.Property<int>("NursingGrade")
                         .HasColumnType("integer");
@@ -1076,6 +1078,67 @@ namespace CareFlow.Infrastructure.Migrations
                     b.HasIndex("DepartmentId");
 
                     b.ToTable("Wards");
+                });
+
+            modelBuilder.Entity("CareFlow.Core.Models.SystemLog", b =>
+                {
+                    b.Property<int>("LogId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("log_id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("LogId"));
+
+                    b.Property<int?>("EntityId")
+                        .HasColumnType("integer")
+                        .HasColumnName("entity_id");
+
+                    b.Property<string>("EntityType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("entity_type");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("text")
+                        .HasColumnName("error_message");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("ip_address");
+
+                    b.Property<string>("OperationDetails")
+                        .HasColumnType("text")
+                        .HasColumnName("operation_details");
+
+                    b.Property<DateTime>("OperationTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("operation_time");
+
+                    b.Property<string>("OperationType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("operation_type");
+
+                    b.Property<int?>("OperatorId")
+                        .HasColumnType("integer")
+                        .HasColumnName("operator_id");
+
+                    b.Property<string>("OperatorName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("operator_name");
+
+                    b.Property<string>("Result")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("result");
+
+                    b.HasKey("LogId");
+
+                    b.ToTable("system_logs");
                 });
 
             modelBuilder.Entity("CareFlow.Core.Models.Medical.DischargeOrder", b =>
@@ -1601,8 +1664,7 @@ namespace CareFlow.Infrastructure.Migrations
                     b.HasOne("CareFlow.Core.Models.Space.Bed", "Bed")
                         .WithMany()
                         .HasForeignKey("BedId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("AttendingDoctor");
 

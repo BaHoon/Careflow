@@ -319,7 +319,9 @@ const patientInfo = ref({
   scheduledAdmissionTime: null,
   nursingGrade: 0,
   attendingDoctorId: '',
-  attendingDoctorName: ''
+  attendingDoctorName: '',
+  departmentId: '', // 病人所属科室ID
+  departmentName: '' // 病人所属科室名称
 });
 
 // 入院表单
@@ -415,7 +417,8 @@ const handleBarcodeUpload = async (e) => {
     if (result.success && result.patientId) {
       recognizedPatientId.value = result.patientId;
       
-      // 获取患者信息
+      // 获取患者信息（内部已检查科室匹配）
+      // 如果科室不匹配，loadPatientInfo 会抛出错误，会被 catch 块捕获
       await loadPatientInfo(result.patientId);
       
       ElMessage.success('条形码识别成功，患者信息已加载');
@@ -429,6 +432,11 @@ const handleBarcodeUpload = async (e) => {
       ElMessage.error(result.message || '识别失败');
     }
   } catch (err) {
+    // 如果是科室不匹配或没有空余床位错误，不显示额外的错误消息（已由相应函数显示）
+    if (err.isDepartmentMismatch || err.isNoAvailableBeds) {
+      // 已由相应函数处理，直接返回
+      return;
+    }
     errorMessage.value = err.response?.data?.message || err.message || '识别失败';
     ElMessage.error('识别失败: ' + (err.response?.data?.message || err.message));
   }
@@ -455,34 +463,109 @@ const loadPatientInfo = async (patientId) => {
       scheduledAdmissionTime: info.scheduledAdmissionTime,
       nursingGrade: info.nursingGrade,
       attendingDoctorId: info.attendingDoctorId,
-      attendingDoctorName: info.attendingDoctorName
+      attendingDoctorName: info.attendingDoctorName,
+      departmentId: info.departmentId || '',
+      departmentName: info.departmentName || ''
     };
+    
+    // 检查科室匹配（如果科室不匹配，会阻止继续操作）
+    const departmentMatch = await checkDepartmentMatch();
+    if (!departmentMatch) {
+      // 科室不匹配，已由 checkDepartmentMatch 处理，抛出特殊错误以阻止后续操作
+      const error = new Error('科室不匹配');
+      error.isDepartmentMismatch = true;
+      throw error;
+    }
     
     // 填充入院表单
     admissionForm.value.nursingGrade = info.nursingGrade;
     admissionForm.value.outpatientDiagnosis = info.outpatientDiagnosis || '';
     
-    // 加载可用床位
+    // 检查该科室是否有空余床位
+    const hasAvailableBeds = await checkAvailableBeds();
+    if (!hasAvailableBeds) {
+      // 没有空余床位，已由 checkAvailableBeds 处理，抛出特殊错误以阻止后续操作
+      const error = new Error('没有空余床位');
+      error.isNoAvailableBeds = true;
+      throw error;
+    }
+    
+    // 加载可用床位（只加载当前科室的）
     await loadAvailableBeds();
   } catch (err) {
-    ElMessage.error('加载患者信息失败: ' + (err.response?.data?.message || err.message));
+    // 如果是科室不匹配或没有空余床位错误，不显示额外的错误消息（已由相应函数显示）
+    if (!err.isDepartmentMismatch && !err.isNoAvailableBeds) {
+      ElMessage.error('加载患者信息失败: ' + (err.response?.data?.message || err.message));
+    }
     throw err;
   } finally {
     loading.value = false;
   }
 };
 
-// 加载可用床位（不限制科室，显示所有空床位）
+// 检查该科室是否有空余床位
+const checkAvailableBeds = async () => {
+  const nurseInfo = getCurrentNurse();
+  if (!nurseInfo) {
+    return true; // 如果无法获取护士信息，跳过检查
+  }
+  
+  const departmentId = patientInfo.value.departmentId || nurseInfo.deptCode;
+  if (!departmentId) {
+    return true; // 如果没有科室信息，跳过检查
+  }
+  
+  try {
+    // 获取该科室的空床位
+    const beds = await getAvailableBeds({ departmentId });
+    
+    if (!beds || beds.length === 0) {
+      const departmentName = patientInfo.value.departmentName || nurseInfo.deptName || '当前科室';
+      
+      try {
+        await ElMessageBox.confirm(
+          `当前科室（${departmentName}）没有空余床位！\n\n请联系管理员添加床位后再办理入院。`,
+          '无可用床位',
+          {
+            confirmButtonText: '退出办理入院',
+            cancelButtonText: '取消',
+            type: 'warning',
+            distinguishCancelAndClose: true
+          }
+        );
+        
+        // 用户选择退出办理入院
+        router.push('/nurse/dashboard');
+      } catch (err) {
+        // 用户选择取消或关闭，也退出办理入院
+        router.push('/nurse/dashboard');
+      }
+      return false;
+    }
+    
+    return true;
+  } catch (err) {
+    console.error('检查可用床位失败:', err);
+    // 如果检查失败，允许继续（可能是网络问题）
+    return true;
+  }
+};
+
+// 加载可用床位（只加载当前科室的空床位）
 const loadAvailableBeds = async () => {
   try {
     loadingBeds.value = true;
     
-    // 不传任何参数，获取所有空床位
-    const beds = await getAvailableBeds({});
+    // 获取当前科室的空床位
+    const nurseInfo = getCurrentNurse();
+    const departmentId = patientInfo.value.departmentId || nurseInfo?.deptCode;
+    
+    const beds = await getAvailableBeds({ departmentId });
     availableBeds.value = beds || [];
     
     if (availableBeds.value.length === 0) {
-      ElMessage.warning('当前没有可用床位，请联系管理员');
+      // 这种情况理论上不应该发生，因为 checkAvailableBeds 已经检查过了
+      ElMessage.warning('当前科室没有可用床位，请联系管理员');
     } else {
       console.log(`成功加载 ${availableBeds.value.length} 个可用床位`);
     }
@@ -542,9 +625,101 @@ const goBack = () => {
   }
 };
 
+// 检查科室匹配
+const checkDepartmentMatch = async () => {
+  const nurseInfo = getCurrentNurse();
+  if (!nurseInfo) {
+    return true; // 如果无法获取护士信息，跳过检查
+  }
+  
+  const nurseDeptCode = nurseInfo.deptCode;
+  const patientDeptId = patientInfo.value.departmentId;
+  
+  // 如果病人没有科室信息，跳过检查
+  if (!patientDeptId) {
+    return true;
+  }
+  
+  // 检查科室是否匹配
+  if (nurseDeptCode !== patientDeptId) {
+    const nurseDeptName = nurseInfo.deptName || nurseInfo.deptCode || '未知科室';
+    const patientDeptName = patientInfo.value.departmentName || '未知科室';
+    
+    try {
+      await ElMessageBox.confirm(
+        `科室不匹配！\n\n当前登录护士所属科室：${nurseDeptName}\n该病人所属科室：${patientDeptName}\n\n您不是该病人负责科室的护士，无法为其办理入院。`,
+        '科室权限检查失败',
+        {
+          confirmButtonText: '重新上传条形码',
+          cancelButtonText: '关闭',
+          type: 'error',
+          distinguishCancelAndClose: true
+        }
+      );
+      
+      // 用户选择重新上传条形码
+      resetToFirstStep();
+    } catch (err) {
+      // 用户选择关闭或取消
+      if (err === 'cancel' || err === 'close') {
+        router.push('/nurse/dashboard');
+      } else {
+        resetToFirstStep();
+      }
+    }
+    return false;
+  }
+  
+  return true;
+};
+
+// 重置到第一步
+const resetToFirstStep = () => {
+  currentStep.value = 0;
+  recognizedPatientId.value = '';
+  barcodePreview.value = '';
+  barcodeFile = null;
+  errorMessage.value = '';
+  patientInfo.value = {
+    patientId: '',
+    name: '',
+    gender: '',
+    idCard: '',
+    dateOfBirth: null,
+    age: 0,
+    height: 0,
+    weight: 0,
+    phoneNumber: '',
+    outpatientDiagnosis: '',
+    scheduledAdmissionTime: null,
+    nursingGrade: 0,
+    attendingDoctorId: '',
+    attendingDoctorName: '',
+    departmentId: '',
+    departmentName: ''
+  };
+  admissionForm.value = {
+    bedId: '',
+    nursingGrade: 2,
+    outpatientDiagnosis: '',
+    actualAdmissionTime: null
+  };
+  availableBeds.value = [];
+  // 清空文件输入
+  if (barcodeInput.value) {
+    barcodeInput.value.value = '';
+  }
+};
+
 // 提交入院
 const submitAdmission = async () => {
   try {
+    // 再次检查科室匹配（防止在步骤2中修改了信息）
+    const departmentMatch = await checkDepartmentMatch();
+    if (!departmentMatch) {
+      return; // 科室不匹配，已由 checkDepartmentMatch 处理
+    }
+    
     await ElMessageBox.confirm(
       `确认为患者 ${patientInfo.value.name} (${patientInfo.value.patientId}) 办理入院？`,
       '确认办理入院',
@@ -614,10 +789,16 @@ onMounted(async () => {
   if (patientId) {
     try {
       await loadPatientInfo(patientId);
+      // 如果科室不匹配或没有空余床位，loadPatientInfo 会抛出错误，会被 catch 捕获
+      // 相应的检查函数已经处理了错误提示和页面跳转/重置
       recognizedPatientId.value = patientId;
       currentStep.value = 1; // 直接进入第二步
     } catch (err) {
-      console.error('加载患者信息失败:', err);
+      // 如果是科室不匹配或没有空余床位错误，已由相应函数处理，不需要额外处理
+      if (!err.isDepartmentMismatch && !err.isNoAvailableBeds) {
+        console.error('加载患者信息失败:', err);
+        ElMessage.error('加载患者信息失败: ' + (err.response?.data?.message || err.message));
+      }
     }
   } else {
     // 加载可用床位（用于显示）
