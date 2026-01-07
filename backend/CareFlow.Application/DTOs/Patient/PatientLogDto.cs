@@ -182,6 +182,18 @@ public class ExecutionTaskSummaryDto
     /// 任务状态
     /// </summary>
     public ExecutionTaskStatus Status { get; set; }
+    
+    /// <summary>
+    /// 执行结果（仅ResultPending类任务有值）
+    /// 记录测量数值、检测数据、皮试结果等
+    /// </summary>
+    public string? ResultPayload { get; set; }
+    
+    /// <summary>
+    /// 执行备注（所有任务类型都可填写）
+    /// 记录执行过程中的备注、观察、特殊情况说明
+    /// </summary>
+    public string? ExecutionRemarks { get; set; }
 }
 
 /// <summary>

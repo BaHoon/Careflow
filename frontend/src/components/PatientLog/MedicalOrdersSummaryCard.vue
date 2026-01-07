@@ -47,6 +47,20 @@
               >
                 {{ getTaskStatusText(task.status) }}
               </el-tag>
+              
+              <!-- 执行结果（仅对ResultPending类任务且有结果时显示） -->
+              <div v-if="task.resultPayload && task.resultPayload.trim()" class="task-result">
+                <el-icon><InfoFilled /></el-icon>
+                <span class="result-label">执行结果：</span>
+                <span class="result-value">{{ task.resultPayload }}</span>
+              </div>
+              
+              <!-- 执行备注（有备注时显示） -->
+              <div v-if="task.executionRemarks && task.executionRemarks.trim()" class="task-remarks">
+                <el-icon><EditPen /></el-icon>
+                <span class="remarks-label">执行备注：</span>
+                <span class="remarks-value">{{ task.executionRemarks }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -57,7 +71,7 @@
 
 <script setup>
 import { ref } from 'vue';
-import { Clock } from '@element-plus/icons-vue';
+import { Clock, InfoFilled, EditPen } from '@element-plus/icons-vue';
 
 const props = defineProps({
   summary: {
@@ -317,6 +331,7 @@ const getTaskTitle = (task) => {
           color: #606266;
           padding: 6px 0;
           border-top: 1px solid #e4e7ed;
+          flex-wrap: wrap;
           
           &:first-child {
             border-top: none;
@@ -367,6 +382,66 @@ const getTaskTitle = (task) => {
           
           .status-tag {
             margin-left: auto;
+          }
+          
+          /* 执行结果样式 */
+          .task-result {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            margin-top: 8px;
+            background: #e8f4ff;
+            border-left: 3px solid #409eff;
+            border-radius: 4px;
+            
+            .el-icon {
+              color: #409eff;
+              flex-shrink: 0;
+            }
+            
+            .result-label {
+              font-weight: 600;
+              color: #409eff;
+              flex-shrink: 0;
+            }
+            
+            .result-value {
+              color: #303133;
+              font-weight: 500;
+              word-break: break-word;
+            }
+          }
+          
+          /* 执行备注样式 */
+          .task-remarks {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            margin-top: 8px;
+            background: #f0f9ff;
+            border-left: 3px solid #67c23a;
+            border-radius: 4px;
+            
+            .el-icon {
+              color: #67c23a;
+              flex-shrink: 0;
+            }
+            
+            .remarks-label {
+              font-weight: 600;
+              color: #67c23a;
+              flex-shrink: 0;
+            }
+            
+            .remarks-value {
+              color: #606266;
+              word-break: break-word;
+              white-space: pre-wrap;
+            }
           }
         }
       }

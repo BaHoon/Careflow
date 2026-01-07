@@ -238,7 +238,9 @@ public class PatientLogService : IPatientLogService
                     AssignedNurseName = t.AssignedNurse?.Name,
                     DataPayload = t.DataPayload,
                     Category = t.Category,
-                    Status = t.Status
+                    Status = t.Status,
+                    ResultPayload = t.ResultPayload, // 执行结果
+                    ExecutionRemarks = t.ExecutionRemarks // 执行备注
                 }).ToList()
             };
 

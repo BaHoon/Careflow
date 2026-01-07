@@ -711,7 +711,9 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
             CompleterNurseName = t.CompleterNurse?.Name,
             StatusBeforeLocking = t.StatusBeforeLocking,
             ExceptionReason = t.ExceptionReason,
-            DataPayload = t.DataPayload // 添加DataPayload字段，包含Title等任务详细信息
+            DataPayload = t.DataPayload, // 添加DataPayload字段，包含Title等任务详细信息
+            ResultPayload = t.ResultPayload, // 执行结果（仅ResultPending类任务有值）
+            ExecutionRemarks = t.ExecutionRemarks // 执行备注（所有任务类型都可填写）
         }).ToList();
     }
 

@@ -364,20 +364,36 @@
               <div class="task-section">
                 <div class="section-title">👨‍⚕️ 护士信息</div>
                 <div v-if="task.assignedNurseName" class="timeline-item">
-                  <span class="timeline-label">理论执行护士:</span>
+                  <span class="timeline-label">计划执行护士:</span>
                   <span class="timeline-value">{{ task.assignedNurseName }}</span>
                 </div>
                 <div v-if="task.executorName" class="timeline-item">
-                  <span class="timeline-label">实际开始护士:</span>
+                  <span class="timeline-label">实际开始执行护士:</span>
                   <span class="timeline-value">{{ task.executorName }}</span>
                 </div>
                 <div v-if="task.completerNurseName" class="timeline-item">
-                  <span class="timeline-label">实际结束护士:</span>
+                  <span class="timeline-label">实际结束执行护士:</span>
                   <span class="timeline-value">{{ task.completerNurseName }}</span>
                 </div>
                 <div v-if="!task.assignedNurseName && !task.executorName && !task.completerNurseName" class="timeline-item">
                   <span class="timeline-label">护士信息:</span>
                   <span class="timeline-value" style="color: #909399;">暂无</span>
+                </div>
+              </div>
+
+              <!-- 执行结果（仅对ResultPending类任务且有结果时显示） -->
+              <div v-if="task.resultPayload && task.resultPayload.trim()" class="task-section">
+                <div class="section-title">📊 执行结果</div>
+                <div class="timeline-item">
+                  <div class="result-content">{{ task.resultPayload }}</div>
+                </div>
+              </div>
+
+              <!-- 执行备注（有备注时显示） -->
+              <div v-if="task.executionRemarks && task.executionRemarks.trim()" class="task-section">
+                <div class="section-title">📝 执行备注</div>
+                <div class="timeline-item">
+                  <div class="remarks-content">{{ task.executionRemarks }}</div>
                 </div>
               </div>
 
@@ -2085,6 +2101,23 @@ const handlePrintTaskBarcode = async (task) => {
 
 .timeline-badge.duration {
   color: #909399;
+}
+
+.result-content,
+.remarks-content {
+  color: #303133;
+  font-weight: 500;
+  padding: 12px;
+  background: #f5f7fa;
+  border-radius: 4px;
+  border-left: 3px solid #409eff;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.remarks-content {
+  border-left-color: #67c23a;
 }
 
 .task-detail-row {
