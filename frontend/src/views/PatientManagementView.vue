@@ -300,12 +300,12 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="预约入院时间">
-              <el-input v-model="currentPatient.scheduledAdmissionTime" disabled class="readonly-input" />
+              <el-input :value="formatDateTime(currentPatient.scheduledAdmissionTime)" disabled class="readonly-input" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="实际入院时间">
-              <el-input v-model="currentPatient.actualAdmissionTime" disabled class="readonly-input" />
+              <el-input :value="formatDateTime(currentPatient.actualAdmissionTime)" disabled class="readonly-input" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -774,6 +774,27 @@ const getNursingGradeColor = (grade) => {
     3: 'info'      // 三级 - 灰色
   };
   return colorMap[grade] || 'info';
+};
+
+/**
+ * 格式化日期时间
+ */
+const formatDateTime = (dateTime) => {
+  if (!dateTime) return '-';
+  try {
+    const date = new Date(dateTime);
+    // JavaScript的toLocaleString会自动转换为本地时区（北京时间UTC+8）
+    return date.toLocaleString('zh-CN', { 
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Asia/Shanghai'
+    });
+  } catch {
+    return dateTime;
+  }
 };
 </script>
 

@@ -413,12 +413,12 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="预约入院时间">
-              <el-input v-model="currentPatient.scheduledAdmissionTime" disabled class="readonly-input" />
+              <el-input :value="formatDateTime(currentPatient.scheduledAdmissionTime)" disabled class="readonly-input" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="实际入院时间">
-              <el-input v-model="currentPatient.actualAdmissionTime" disabled class="readonly-input" />
+              <el-input :value="formatDateTime(currentPatient.actualAdmissionTime)" disabled class="readonly-input" />
             </el-form-item>
           </el-col>
         </el-row>
