@@ -33,21 +33,12 @@ namespace CareFlow.Application.Services
             // 用时间+patientId来计算护士
             if (string.IsNullOrEmpty(order.NurseId))
             {
-                // 确定我们要用哪个时间去查排班
-                DateTime targetTime = DateTime.UtcNow; // 默认用当前时间
-
-                // 如果是手术医嘱，用排期时间
-                if (order is SurgicalOrder sOrder && sOrder.ScheduleTime != default)
-                {
-                    targetTime = sOrder.ScheduleTime;
-                }
-                // 如果是药品医嘱，且有开始时间，用开始时间
-                else if (order is MedicationOrder mOrder && mOrder.StartTime.HasValue)
-                {
-                    targetTime = mOrder.StartTime.Value;
-                }
+                // 使用医嘱创建时间（当前时间）来分配负责护士
+                // 负责护士是指接收和签收医嘱的护士，应该基于医嘱开具时间而不是执行时间
+                DateTime targetTime = DateTime.UtcNow;
         
-                // 2. 使用确定的目标时间去计算
+                // 注意：所有类型的医嘱都使用创建时间来计算负责护士
+                // 不再使用StartTime或ScheduleTime，因为那是执行时间，不是签收时间
                 order.NurseId = await _nurseAssignmentService
                     .CalculateResponsibleNurseAsync(order.PatientId, targetTime);
             }

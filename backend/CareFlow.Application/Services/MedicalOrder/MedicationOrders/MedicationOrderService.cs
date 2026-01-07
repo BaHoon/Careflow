@@ -270,9 +270,11 @@ public class MedicationOrderService : IMedicationOrderService
     {
         try
         {
+            // 使用医嘱创建时间来分配负责护士，而不是计划开始时间
+            // 负责护士是指接收和签收医嘱的护士，应该基于医嘱开具时间而不是执行时间
             var responsibleNurseId = await _nurseAssignmentService.CalculateResponsibleNurseAsync(
                 patientId,
-                order.StartTime ?? DateTime.UtcNow);
+                order.CreateTime);
 
             if (!string.IsNullOrEmpty(responsibleNurseId))
             {
