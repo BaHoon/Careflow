@@ -1342,15 +1342,6 @@
                     <el-radio-button :label="2">
                       <i class="el-icon-success"></i> 好转出院
                     </el-radio-button>
-                    <el-radio-button :label="3">
-                      <i class="el-icon-sort"></i> 转院
-                    </el-radio-button>
-                    <el-radio-button :label="4">
-                      <i class="el-icon-warning"></i> 自动出院
-                    </el-radio-button>
-                    <el-radio-button :label="5">
-                      <i class="el-icon-close"></i> 死亡
-                    </el-radio-button>
                     <el-radio-button :label="99">
                       <i class="el-icon-more"></i> 其他
                     </el-radio-button>
@@ -1806,7 +1797,7 @@ const surgicalOrder = reactive({
 
 // 出院医嘱的响应式数据
 const dischargeOrder = reactive({
-  dischargeType: 2,          // 出院类型：1-治愈 2-好转 3-转院 4-自动出院 5-死亡 99-其他
+  dischargeType: 2,          // 出院类型：1-治愈 2-好转 99-其他
   dischargeTime: null,       // 出院时间
   dischargeDiagnosis: '',    // 出院诊断
   dischargeInstructions: '', // 出院医嘱
@@ -4063,9 +4054,6 @@ const getOrderSummary = (order) => {
     const typeNames = {
       1: '治愈出院',
       2: '好转出院',
-      3: '转院',
-      4: '自动出院',
-      5: '死亡',
       99: '其他出院'
     };
     return typeNames[order.dischargeType] || '出院';
