@@ -8,6 +8,8 @@
 
     <!-- 左侧患者列表面板 -->
     <PatientListPanel 
+      v-loading="patientListLoading"
+      element-loading-text="正在加载患者列表..."
       :patient-list="patientList"
       :selected-patients="selectedPatients"
       :my-ward-id="currentScheduledWardId"
@@ -240,6 +242,7 @@ const {
 } = usePatientData();
 
 const loading = ref(false);
+const patientListLoading = ref(false); // 患者列表加载状态
 
 // 筛选条件
 const dateRange = ref([]);
@@ -273,11 +276,23 @@ onMounted(async () => {
     today.toISOString().split('T')[0]
   ];
   
-  // 初始化患者数据（获取排班病区 + 加载患者列表）
-  await initializePatientData();
-  
-  console.log(`✅ 初始化完成，当前排班病区: ${currentScheduledWardId.value}`);
-  console.log(`📊 患者列表加载完成，共 ${patientList.value.length} 位患者`);
+  // 🚀 性能优化：延迟加载患者列表，让页面框架先渲染
+  // 使用 setTimeout 将患者列表加载推迟到下一个事件循环
+  // 这样用户可以立即看到页面框架，而不是等待数据加载完成
+  setTimeout(async () => {
+    patientListLoading.value = true;
+    try {
+      // 初始化患者数据（获取排班病区 + 加载患者列表）
+      await initializePatientData();
+      console.log(`✅ 初始化完成，当前排班病区: ${currentScheduledWardId.value}`);
+      console.log(`📊 患者列表加载完成，共 ${patientList.value.length} 位患者`);
+    } catch (error) {
+      console.error('❌ 患者列表加载失败:', error);
+      ElMessage.error('患者列表加载失败');
+    } finally {
+      patientListLoading.value = false;
+    }
+  }, 100); // 延迟100ms，让页面先渲染
 });
 
 // ==================== 监听患者选择变化 ====================
