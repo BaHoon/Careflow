@@ -380,7 +380,6 @@ public class MedicationOrderTaskService : IMedicationOrderTaskService
         }
 
         var intervalHours = (double)order.IntervalHours.Value;
-        var now = DateTime.UtcNow;
 
         // 按时间间隔循环生成任务，直到超过结束时间
         // 为所有时间点生成任务（包括过去的），过去的任务会显示为逾期状态
