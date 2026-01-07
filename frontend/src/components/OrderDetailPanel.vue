@@ -1506,12 +1506,13 @@ const getTaskStatusColor = (status) => {
 // 获取任务类型样式和名称（使用正确的TaskCategory枚举：1-6）
 const getTaskCategoryStyle = (category) => {
   const categoryMap = {
-    1: { name: '操作', color: '#67c23a', type: 'success' },      // Immediate 即刻执行
-    2: { name: '操作', color: '#409eff', type: 'primary' },      // Duration 持续执行
-    3: { name: '操作', color: '#e6a23c', type: 'warning' },      // ResultPending 结果等待
-    4: { name: '操作', color: '#9b59b6', type: 'info' },         // DataCollection 护理记录
-    5: { name: '取药核对', color: '#909399', type: 'info' },      // Verification 核对类
-    6: { name: '检查申请', color: '#17a2b8', type: 'info' }       // ApplicationWithPrint 申请打印
+    1: { name: '即刻执行', color: '#67c23a', type: 'success' },      // Immediate 即刻执行
+    2: { name: '持续执行', color: '#409eff', type: 'primary' },      // Duration 持续执行
+    3: { name: '结果等待', color: '#e6a23c', type: 'warning' },      // ResultPending 结果等待
+    4: { name: '护理记录', color: '#9b59b6', type: 'info' },         // DataCollection 护理记录
+    5: { name: '取药核对', color: '#909399', type: 'info' },         // Verification 核对类
+    6: { name: '检查申请', color: '#17a2b8', type: 'info' },         // ApplicationWithPrint 申请打印
+    11: { name: '出院确认', color: '#f56c6c', type: 'danger' }       // DischargeConfirmation 出院确认
   };
   return categoryMap[category] || { name: '未知', color: '#909399', type: 'info' };
 };
