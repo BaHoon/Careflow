@@ -803,6 +803,7 @@ namespace CareFlow.WebApi.Controllers
                         Status = task.Status,
                         DataPayload = task.DataPayload,
                         ResultPayload = task.ResultPayload,
+                        ExecutionRemarks = task.ExecutionRemarks,
                         AssignedNurseId = task.AssignedNurseId, // 使用责任护士
                         AssignedNurseName = assignedNurseName,
                         ExecutorNurseId = task.ExecutorStaffId,  // 添加实际执行护士

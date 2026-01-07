@@ -62,6 +62,26 @@
         <el-icon><CircleCheck /></el-icon>
         <span>完成时间：{{ formatTime(task.actualEndTime) }}</span>
       </div>
+
+      <!-- 显示执行结果（仅结果返回类任务且状态为InProgress或Completed） -->
+      <div 
+        v-if="isResultPendingTask && hasResult" 
+        class="task-result"
+      >
+        <el-icon><Document /></el-icon>
+        <span class="result-label">执行结果：</span>
+        <span class="result-value">{{ task.resultPayload }}</span>
+      </div>
+
+      <!-- 显示执行备注（如果有备注信息） -->
+      <div 
+        v-if="hasRemarks" 
+        class="task-remarks"
+      >
+        <el-icon><Edit /></el-icon>
+        <span class="remarks-label">执行备注：</span>
+        <span class="remarks-value">{{ task.executionRemarks }}</span>
+      </div>
     </div>
     </div>
 
@@ -293,6 +313,23 @@ const emit = defineEmits(['click', 'start-input', 'view-detail', 'task-cancelled
 const isCompleted = computed(() => {
   return props.task.status === 'Completed' || props.task.status === 5 ||
          props.task.status === 'Incomplete' || props.task.status === 8;
+});
+
+// 判断是否为结果返回类任务
+const isResultPendingTask = computed(() => {
+  return props.task.category === 'ResultPending' || props.task.category === 3;
+});
+
+// 判断是否有执行结果（仅对InProgress或Completed状态显示）
+const hasResult = computed(() => {
+  const hasStatus = props.task.status === 'InProgress' || props.task.status === 4 ||
+                    props.task.status === 'Completed' || props.task.status === 5;
+  return hasStatus && props.task.resultPayload && props.task.resultPayload.trim().length > 0;
+});
+
+// 判断是否有执行备注
+const hasRemarks = computed(() => {
+  return props.task.executionRemarks && props.task.executionRemarks.trim().length > 0;
 });
 
 // 显示标题（优先使用 DataPayload.Title，其次 taskTitle，最后使用类别文本）
@@ -1957,6 +1994,73 @@ const handlePrintBarcode = async () => {
 .task-actions :deep(.el-button--danger:active) {
   background-color: #dd6161;
   border-color: #dd6161;
+}
+
+/* 执行结果样式 */
+.task-result {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%);
+  border-left: 3px solid #67c23a;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.task-result .el-icon {
+  color: #67c23a;
+  font-size: 16px;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.task-result .result-label {
+  color: #606266;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.task-result .result-value {
+  color: #303133;
+  word-break: break-word;
+  flex: 1;
+}
+
+/* 执行备注样式 */
+.task-remarks {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+  border-left: 3px solid #409eff;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.task-remarks .el-icon {
+  color: #409eff;
+  font-size: 16px;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.task-remarks .remarks-label {
+  color: #606266;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.task-remarks .remarks-value {
+  color: #303133;
+  word-break: break-word;
+  white-space: pre-wrap;
+  flex: 1;
 }
 </style>
 

@@ -117,6 +117,7 @@ public class NurseTaskDto
     public ExecutionTaskStatus Status { get; set; } = ExecutionTaskStatus.Pending;
     public string DataPayload { get; set; } = string.Empty;
     public string? ResultPayload { get; set; }
+    public string? ExecutionRemarks { get; set; }
     
     // --- 延迟状态字段（新增）---
     
