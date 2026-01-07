@@ -14,6 +14,7 @@ public class DrugListDto
     public string? Pinyin { get; set; }
     public string? Category { get; set; }
     public decimal? UnitPrice { get; set; }
+    public string? PriceUnit { get; set; }
 }
 
 /// <summary>

@@ -550,6 +550,7 @@ const handleResubmit = async (order) => {
     
     ElMessage.success('重新提交成功');
     await loadOrders();
+    await loadAbnormalAndRejectedCounts(); // 刷新徽章
   } catch (error) {
     if (error !== 'cancel') {
       console.error('重新提交失败:', error);
@@ -578,6 +579,7 @@ const handleCancel = async (order) => {
     
     ElMessage.success('撤销成功');
     await loadOrders();
+    await loadAbnormalAndRejectedCounts(); // 刷新徽章
   } catch (error) {
     if (error !== 'cancel') {
       console.error('撤销失败:', error);
@@ -657,6 +659,7 @@ const handleAbnormalOrder = async (order) => {
       const statusText = result.newOrderStatus === 3 ? '进行中' : '已完成';
       ElMessage.success(`处理成功，医嘱状态已变更为【${statusText}】`);
       await loadOrders();
+      await loadAbnormalAndRejectedCounts(); // 刷新徽章
     } else {
       ElMessage.error(result.message || '处理失败');
     }
