@@ -86,6 +86,7 @@
               <el-checkbox :label="4">已结束</el-checkbox>
               <el-checkbox :label="7">已退回</el-checkbox>
               <el-checkbox :label="9">停止中</el-checkbox>
+              <el-checkbox :label="10">异常态</el-checkbox>
             </el-checkbox-group>
           </div>
 
@@ -634,7 +635,8 @@ const loadOrders = async () => {
       4: [4, 5],  // 已结束 → Completed(4), Stopped(5)
       6: [6],     // 已撤回 → Cancelled(6)
       7: [7],     // 已退回 → Rejected(7)
-      9: [9]      // 停止中 → StoppingInProgress(9)
+      9: [9],     // 停止中 → StoppingInProgress(9)
+      10: [10]    // 异常态 → Abnormal(10)
     };
 
     // 将选中的筛选项映射为实际状态值
@@ -1111,7 +1113,9 @@ const getStatusText = (status) => {
     5: '已停止',
     6: '已取消',
     7: '已退回',
-    8: '等待停嘱'
+    8: '等待停嘱',
+    9: '停止中',
+    10: '异常态'
   };
   return statusMap[status] || `状态${status}`;
 };
@@ -1126,7 +1130,9 @@ const getStatusColor = (status) => {
     5: 'info',
     6: 'info',
     7: 'danger',
-    8: 'warning'
+    8: 'warning',
+    9: 'warning',
+    10: 'danger'
   };
   return colorMap[status] || 'info';
 };
