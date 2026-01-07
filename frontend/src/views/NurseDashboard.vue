@@ -992,7 +992,7 @@ const handleSavePatientDetail = async () => {
     
     // 如果没有任何字段需要更新，直接关闭对话框
     if (Object.keys(updateData).length === 0) {
-      ElMessage.info('没有修改任何信息');
+      ElMessage.info({ message: '没有修改任何信息', duration: 3000 });
       patientDetailDialogVisible.value = false;
       savingPatientDetail.value = false;
       return;

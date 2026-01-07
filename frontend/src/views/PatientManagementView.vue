@@ -730,7 +730,7 @@ const handleSavePatientDetail = async () => {
  */
 const handleAdmission = async (patient) => {
   // TODO: 实现入院办理功能
-  ElMessage.info(`入院办理功能将在后续版本实现（患者: ${patient.name}）`);
+  ElMessage.info({ message: `入院办理功能将在后续版本实现（患者: ${patient.name}）`, duration: 3000 });
 };
 
 /**
@@ -738,14 +738,14 @@ const handleAdmission = async (patient) => {
  */
 const handleDischarge = async (patient) => {
   // TODO: 第四阶段实现出院检查弹窗
-  ElMessage.info(`出院检查功能将在第四阶段实现（患者ID: ${patient.id}）`);
+  ElMessage.info({ message: `出院检查功能将在第四阶段实现（患者ID: ${patient.id}）`, duration: 3000 });
 };
 
 /**
  * 新增患者
  */
 const handleAddPatient = () => {
-  ElMessage.info('新增患者功能将在后续版本实现');
+  ElMessage.info({ message: '新增患者功能将在后续版本实现', duration: 3000 });
 };
 
 // ==================== 辅助方法 ====================

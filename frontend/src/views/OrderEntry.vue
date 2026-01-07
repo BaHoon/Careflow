@@ -2364,7 +2364,7 @@ const addPreparationItem = () => {
 
 const removePreparationItem = (index) => {
   const removed = operationOrder.preparationItems.splice(index, 1)[0];
-  ElMessage.info(`已移除：${removed}`);
+  ElMessage.info({ message: `已移除：${removed}`, duration: 3000 });
 };
 
 // 获取本地时间的 ISO 格式字符串（不带时区标识，用于 el-date-picker 显示）
@@ -3028,7 +3028,7 @@ const validateAndAddDischargeOrder = async () => {
       }).catch((action) => {
         // 用户取消
         if (action === 'cancel') {
-          ElMessage.info('已取消，请先处理阻塞医嘱');
+          ElMessage.info({ message: '已取消，请先处理阻塞医嘱', duration: 3000 });
         }
       });
       
@@ -3079,12 +3079,12 @@ const validateAndAddDischargeOrder = async () => {
 
 const removeFromCart = (index) => {
   orderCart.value.splice(index, 1);
-  ElMessage.info('已从清单中移除');
+  ElMessage.info({ message: '已从清单中移除', duration: 3000 });
 };
 
 const clearCart = () => {
   orderCart.value = [];
-  ElMessage.info('已清空待提交清单');
+  ElMessage.info({ message: '已清空待提交清单', duration: 3000 });
 };
 
 const submitAll = async () => {

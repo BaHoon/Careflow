@@ -404,7 +404,7 @@ const handleBarcodeUpload = async (e) => {
   let loadingMsg = null;
   try {
     errorMessage.value = '';
-    loadingMsg = ElMessage.info({ message: '识别条形码中...', duration: 0 });
+    loadingMsg = ElMessage.info({ message: '识别条形码中...', duration: 3000 });
     barcodeFile = file;
 
     // 显示预览

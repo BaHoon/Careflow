@@ -287,7 +287,7 @@ const handleTaskUpload = async (e) => {
   if (!file) return;
 
   try {
-    const msg = ElMessage.info({ message: '识别条形码中...', duration: 0 });
+    const msg = ElMessage.info({ message: '识别条形码中...', duration: 3000 });
     taskFile = file;
 
     // 显示预览
@@ -313,7 +313,7 @@ const handleTaskUpload = async (e) => {
       ).then(({ value }) => {
         return parseInt(value);
       }).catch(() => {
-        ElMessage.info('已取消');
+        ElMessage.info({ message: '已取消', duration: 3000 });
         return null;
       });
       
@@ -381,7 +381,7 @@ const handleSecondUpload = async (e) => {
   if (!file) return;
 
   try {
-    const msg = ElMessage.info({ message: '验证中...', duration: 0 });
+    const msg = ElMessage.info({ message: '验证中...', duration: 3000 });
     secondFile = file;
 
     const reader = new FileReader();
@@ -456,7 +456,7 @@ const handleEndUpload = async (e) => {
   if (!file) return;
 
   try {
-    const msg = ElMessage.info({ message: '验证中...', duration: 0 });
+    const msg = ElMessage.info({ message: '验证中...', duration: 3000 });
     endFile = file;
 
     const reader = new FileReader();
@@ -490,7 +490,7 @@ const finish = async () => {
 
   let msg = null;
   try {
-    msg = ElMessage.info({ message: '完成任务中...', duration: 0 });
+    msg = ElMessage.info({ message: '完成任务中...', duration: 3000 });
     
     // 获取当前登录护士的信息
     let nurseId = null;
@@ -771,7 +771,7 @@ const toggleDrugStatus = (drug) => {
     // 已核对 -> 取消核对
     drug.scanned = false;
     confirmedCount.value--;
-    ElMessage.info(`已取消: ${drug.drugName || drug.drugId}`);
+    ElMessage.info({ message: `已取消: ${drug.drugName || drug.drugId}`, duration: 3000 });
   } else {
     // 未核对 -> 标记为已核对
     drug.scanned = true;
