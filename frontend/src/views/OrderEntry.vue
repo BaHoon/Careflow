@@ -212,7 +212,7 @@
                       type="datetime"
                       :placeholder="currentOrder.isLongTerm ? '选择医嘱结束时间' : '选择医嘱开始时间'"
                       :disabled="currentOrder.timingStrategy === 'IMMEDIATE'"
-                      :disabled-date="disablePastDates"
+                      :disabled-date="currentOrder.isLongTerm ? disableEndDateBeforeStart : disablePastDates"
                       :disabled-time="currentOrder.isLongTerm ? disableTimesBeforeStart : undefined"
                       format="YYYY-MM-DD HH:mm"
                       value-format="YYYY-MM-DDTHH:mm:ss"
@@ -1147,7 +1147,7 @@
                       type="datetime"
                       :placeholder="operationOrder.isLongTerm ? '选择医嘱结束时间' : '选择医嘱开始时间'"
                       :disabled="operationOrder.timingStrategy === 'IMMEDIATE'"
-                      :disabled-date="disablePastDates"
+                      :disabled-date="operationOrder.isLongTerm ? disableEndDateBeforeStart : disablePastDates"
                       :disabled-time="operationOrder.isLongTerm ? disableTimesBeforeStart : undefined"
                       format="YYYY-MM-DD HH:mm"
                       value-format="YYYY-MM-DDTHH:mm:ss"
@@ -2739,6 +2739,16 @@ const addToCart = async () => {
   // 根据医嘱类型暂存对应数据
   if (activeType.value === 'OperationOrder') {
     // 暂存操作医嘱（参照药品类医嘱，必须包含patientId）
+    // 如果是长期医嘱，验证结束时间不能早于开始时间
+    if (operationOrder.isLongTerm && operationOrder.startTime && operationOrder.plantEndTime) {
+      const startTime = new Date(operationOrder.startTime);
+      const endTime = new Date(operationOrder.plantEndTime);
+      if (endTime.getTime() < startTime.getTime()) {
+        ElMessage.error('长期医嘱的结束时间不能早于开始时间');
+        return;
+      }
+    }
+    
     const orderData = {
       orderType: 'OperationOrder',
       patientId: selectedPatient.value.id, // 添加patientId字段
@@ -2806,6 +2816,16 @@ const addToCart = async () => {
     return;
   } else {
     // 暂存药品医嘱（原有逻辑）
+    // 如果是长期医嘱，验证结束时间不能早于开始时间
+    if (currentOrder.isLongTerm && currentOrder.startTime && currentOrder.plantEndTime) {
+      const startTime = new Date(currentOrder.startTime);
+      const endTime = new Date(currentOrder.plantEndTime);
+      if (endTime.getTime() < startTime.getTime()) {
+        ElMessage.error('长期医嘱的结束时间不能早于开始时间');
+        return;
+      }
+    }
+    
     orderCart.value.push({
       ...JSON.parse(JSON.stringify(currentOrder)),
       orderType: 'MedicationOrder',
@@ -3751,6 +3771,32 @@ const disablePastDates = (time) => {
   return time.getTime() < Date.now() - 24 * 60 * 60 * 1000;
 };
 
+// 禁用早于开始时间的日期（用于长期医嘱的结束时间选择）
+const disableEndDateBeforeStart = (time) => {
+  // 首先禁用过去的日期
+  if (time.getTime() < Date.now() - 24 * 60 * 60 * 1000) {
+    return true;
+  }
+  
+  // 获取开始时间
+  let startTimeValue = null;
+  if (activeType.value === 'MedicationOrder') {
+    startTimeValue = currentOrder.startTime;
+  } else if (activeType.value === 'OperationOrder') {
+    startTimeValue = operationOrder.startTime;
+  }
+  
+  if (!startTimeValue) return false;
+  
+  const startTime = new Date(startTimeValue);
+  // 将时间部分清零，只比较日期
+  const startDate = new Date(startTime.getFullYear(), startTime.getMonth(), startTime.getDate());
+  const selectedDate = new Date(time.getFullYear(), time.getMonth(), time.getDate());
+  
+  // 禁用早于开始日期的所有日期
+  return selectedDate.getTime() < startDate.getTime();
+};
+
 // 随访日期不能早于出院时间
 const disableFollowUpPastDates = (time) => {
   if (dischargeOrder.dischargeTime) {
@@ -3803,8 +3849,21 @@ const disableTimesBeforeStart = (date) => {
   const startTime = new Date(startTimeValue);
   const selectedDate = new Date(date);
   
+  // 将日期部分标准化为零点时间进行比较
+  const startDateOnly = new Date(startTime.getFullYear(), startTime.getMonth(), startTime.getDate());
+  const selectedDateOnly = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+  
+  // 如果选择的日期早于开始日期，理论上不应该到这里（因为日期已被禁用）
+  if (selectedDateOnly.getTime() < startDateOnly.getTime()) {
+    // 禁用所有时间
+    return {
+      disabledHours: () => Array.from({ length: 24 }, (_, i) => i),
+      disabledMinutes: () => Array.from({ length: 60 }, (_, i) => i)
+    };
+  }
+  
   // 如果选择的日期与开始日期是同一天，禁用开始时间之前的时间
-  if (selectedDate.toDateString() === startTime.toDateString()) {
+  if (selectedDateOnly.getTime() === startDateOnly.getTime()) {
     return {
       disabledHours: () => {
         const hours = [];
@@ -3825,6 +3884,8 @@ const disableTimesBeforeStart = (date) => {
       }
     };
   }
+  
+  // 如果选择的日期晚于开始日期，不禁用任何时间
   return {};
 };
 
