@@ -384,16 +384,34 @@ const getTaskTimingStatus = (task) => {
 
 const getTaskStatusText = (status) => {
   const statusMap = {
-    0: '待申请', 1: '已申请', 2: '已确认', 3: '待执行',
-    4: '进行中', 5: '已完成', 6: '未完成', 7: '停嘱中', 8: '已停止'
+    0: '待申请', 
+    1: '已申请', 
+    2: '已确认', 
+    3: '待执行',
+    4: '进行中', 
+    5: '已完成', 
+    6: '停止锁定', 
+    7: '已停止',
+    8: '异常',
+    9: '待退药',
+    10: '异常取消待退药'
   };
   return statusMap[status] || `状态${status}`;
 };
 
 const getTaskStatusColor = (status) => {
   const colorMap = {
-    0: 'info', 1: 'warning', 2: 'primary', 3: 'primary',
-    4: 'success', 5: 'success', 6: 'danger', 7: 'warning', 8: 'info'
+    0: 'info', 
+    1: 'warning', 
+    2: 'primary', 
+    3: 'primary',
+    4: 'success', 
+    5: 'success', 
+    6: 'warning', 
+    7: 'info',
+    8: 'danger',
+    9: 'danger',
+    10: 'danger'
   };
   return colorMap[status] || 'info';
 };
