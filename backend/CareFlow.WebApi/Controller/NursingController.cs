@@ -1530,8 +1530,27 @@ namespace CareFlow.WebApi.Controllers
                                 // 保存原状态用于历史记录
                                 var originalStatus = medicalOrder.Status;
                                 
-                                medicalOrder.Status = OrderStatus.Completed;
-                                medicalOrder.CompletedAt = DateTime.UtcNow;
+                                // 特殊处理：出院医嘱在任务完成后应标记为进行中，而不是已完成
+                                // 出院医嘱只有在办理出院后才应标记为已完成
+                                OrderStatus newStatus;
+                                string reason;
+                                
+                                if (medicalOrder.OrderType == "DischargeOrder")
+                                {
+                                    newStatus = OrderStatus.InProgress;
+                                    reason = "出院医嘱下所有任务执行完成，系统自动标记为进行中（等待办理出院）";
+                                }
+                                else
+                                {
+                                    newStatus = OrderStatus.Completed;
+                                    reason = "医嘱下所有任务执行完成，系统自动完成医嘱";
+                                }
+                                
+                                medicalOrder.Status = newStatus;
+                                if (newStatus == OrderStatus.Completed)
+                                {
+                                    medicalOrder.CompletedAt = DateTime.UtcNow;
+                                }
                                 await _context.SaveChangesAsync();
                                 
                                 // 添加医嘱状态变更历史记录
@@ -1539,15 +1558,15 @@ namespace CareFlow.WebApi.Controllers
                                 {
                                     MedicalOrderId = medicalOrder.Id,
                                     FromStatus = originalStatus,
-                                    ToStatus = OrderStatus.Completed,
+                                    ToStatus = newStatus,
                                     ChangedAt = DateTime.UtcNow,
                                     ChangedById = nurseStaffId,
                                     ChangedByType = "Nurse",
-                                    Reason = "医嘱下所有任务执行完成，系统自动完成医嘱"
+                                    Reason = reason
                                 };
                                 await _statusHistoryRepository.AddAsync(history);
                                 
-                                Console.WriteLine($"[CompleteExecutionTask] 医嘱 {medicalOrderId} 下所有任务已完成，医嘱状态已更新为 Completed");
+                                Console.WriteLine($"[CompleteExecutionTask] 医嘱 {medicalOrderId} 下所有任务已完成，医嘱状态已更新为 {newStatus}");
                             }
                         }
                     }

@@ -1096,11 +1096,21 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
             }
             else
             {
-                // 没有未完成的任务 → Completed
-                newStatus = OrderStatus.Completed;
-                order.CompletedAt = DateTime.UtcNow;
-                reason = $"医生已处理异常任务，所有任务已终止，医嘱标记为已完成。处理说明：{request.HandleNote ?? "无"}";
-                _logger.LogInformation("没有未完成任务，医嘱状态将改为 Completed");
+                // 没有未完成的任务
+                // 特殊处理：出院医嘱应标记为进行中，而不是已完成（等待办理出院）
+                if (order.OrderType == "DischargeOrder")
+                {
+                    newStatus = OrderStatus.InProgress;
+                    reason = $"医生已处理异常任务，出院医嘱所有任务已终止，标记为进行中（等待办理出院）。处理说明：{request.HandleNote ?? "无"}";
+                    _logger.LogInformation("出院医嘱没有未完成任务，医嘱状态将改为 InProgress");
+                }
+                else
+                {
+                    newStatus = OrderStatus.Completed;
+                    order.CompletedAt = DateTime.UtcNow;
+                    reason = $"医生已处理异常任务，所有任务已终止，医嘱标记为已完成。处理说明：{request.HandleNote ?? "无"}";
+                    _logger.LogInformation("没有未完成任务，医嘱状态将改为 Completed");
+                }
             }
 
             // 6. 更新医嘱状态

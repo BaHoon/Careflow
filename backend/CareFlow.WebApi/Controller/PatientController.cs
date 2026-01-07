@@ -24,6 +24,7 @@ public class PatientController : ControllerBase
     private readonly ILogger<PatientController> _logger;
     private readonly ICareFlowDbContext _dbContext;
     private readonly IBarcodeService _barcodeService;
+    private readonly IRepository<MedicalOrderStatusHistory, long> _statusHistoryRepository;
 
     public PatientController(
         IRepository<Patient, string> patientRepository,
@@ -34,7 +35,8 @@ public class PatientController : ControllerBase
         IRepository<Nurse, string> nurseRepository,
         ILogger<PatientController> logger,
         ICareFlowDbContext dbContext,
-        IBarcodeService barcodeService)
+        IBarcodeService barcodeService,
+        IRepository<MedicalOrderStatusHistory, long> statusHistoryRepository)
     {
         _patientRepository = patientRepository;
         _bedRepository = bedRepository;
@@ -45,6 +47,7 @@ public class PatientController : ControllerBase
         _logger = logger;
         _dbContext = dbContext;
         _barcodeService = barcodeService;
+        _statusHistoryRepository = statusHistoryRepository;
     }
 
     /// <summary>
@@ -657,9 +660,10 @@ public class PatientController : ControllerBase
             {
                 _logger.LogInformation("开始办理患者出院事务，患者ID: {PatientId}", patientId);
                 
-                // 1. 查找患者的出院医嘱
+                // 1. 查找患者的出院医嘱（同时查找已签收和进行中两种状态）
                 var dischargeOrder = await _dischargeOrderRepository.GetQueryable()
-                    .Where(o => o.PatientId == patientId && o.Status == OrderStatus.Accepted)
+                    .Where(o => o.PatientId == patientId && 
+                           (o.Status == OrderStatus.Accepted || o.Status == OrderStatus.InProgress))
                     .OrderByDescending(o => o.CreateTime)
                     .FirstOrDefaultAsync();
                 
@@ -672,13 +676,29 @@ public class PatientController : ControllerBase
                 
                 var dischargeTime = DateTime.UtcNow;
                 
-                // 2. 更新出院医嘱的确认信息
+                // 2. 更新出院医嘱的确认信息和状态
+                var originalStatus = dischargeOrder.Status;
                 dischargeOrder.DischargeConfirmedByNurseId = request.OperatorId;
                 dischargeOrder.DischargeConfirmedAt = dischargeTime;
+                dischargeOrder.Status = OrderStatus.Completed;
+                dischargeOrder.CompletedAt = dischargeTime;
                 
-                _logger.LogInformation("更新出院医嘱确认信息，医嘱ID: {OrderId}, 护士ID: {NurseId}", 
-                    dischargeOrder.Id, request.OperatorId);
+                _logger.LogInformation("更新出院医嘱确认信息，医嘱ID: {OrderId}, 护士ID: {NurseId}, 状态从 {OriginalStatus} 更新为 Completed", 
+                    dischargeOrder.Id, request.OperatorId, originalStatus);
                 await _dischargeOrderRepository.UpdateAsync(dischargeOrder);
+                
+                // 2.1 添加医嘱状态变更历史记录
+                var orderHistory = new MedicalOrderStatusHistory
+                {
+                    MedicalOrderId = dischargeOrder.Id,
+                    FromStatus = originalStatus,
+                    ToStatus = OrderStatus.Completed,
+                    ChangedAt = dischargeTime,
+                    ChangedById = request.OperatorId,
+                    ChangedByType = "Nurse",
+                    Reason = "办理出院，出院医嘱标记为已完成"
+                };
+                await _statusHistoryRepository.AddAsync(orderHistory);
                 
                 // 3. 获取患者床位信息（用于释放床位）
                 Bed? bed = null;
