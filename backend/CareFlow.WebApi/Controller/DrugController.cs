@@ -83,7 +83,8 @@ public class DrugController : ControllerBase
                     Barcode = null, // 数据库中暂无此字段
                     Pinyin = null, // 数据库中暂无此字段
                     Category = d.Category,
-                    UnitPrice = d.UnitPrice
+                    UnitPrice = d.UnitPrice,
+                    PriceUnit = d.PriceUnit
                 }).ToList()
             };
 

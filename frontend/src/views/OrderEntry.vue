@@ -298,7 +298,11 @@
                       placeholder="剂量 (如 0.5g)" 
                       class="dosage-input"
                       style="width: 120px"
-                    />
+                    >
+                      <template #append v-if="item.drugId">
+                        {{ getDrugUnit(item.drugId) }}
+                      </template>
+                    </el-input>
                     <el-input 
                       v-model="item.note" 
                       placeholder="备注 (可选)" 
@@ -861,7 +865,11 @@
                       placeholder="剂量 (如 0.5g)" 
                       class="dosage-input"
                       style="width: 120px"
-                    />
+                    >
+                      <template #append v-if="item.drugId">
+                        {{ getDrugUnit(item.drugId) }}
+                      </template>
+                    </el-input>
                     <el-input 
                       v-model="item.note" 
                       placeholder="备注 (可选)" 
@@ -1428,7 +1436,11 @@
                       placeholder="剂量 (如 0.5g)" 
                       class="dosage-input"
                       style="width: 120px"
-                    />
+                    >
+                      <template #append v-if="item.drugId">
+                        {{ getDrugUnit(item.drugId) }}
+                      </template>
+                    </el-input>
                     <el-input 
                       v-model="item.note" 
                       placeholder="备注 (可选)" 
@@ -3890,6 +3902,11 @@ const formatTime = (timeSpan) => {
 
 const getDrugName = (id) => {
   return drugDict.value.find(d => d.id === id)?.genericName || id;
+};
+
+const getDrugUnit = (id) => {
+  const drug = drugDict.value.find(d => d.id === id);
+  return drug?.PriceUnit || drug?.priceUnit || '';
 };
 
 const formatDateTime = (datetime) => {
