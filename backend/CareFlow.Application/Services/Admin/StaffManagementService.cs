@@ -80,6 +80,25 @@ public class StaffManagementService
             .Take(request.PageSize)
             .ToListAsync();
 
+        // 如果是查询医生，需要获取医生的职称信息
+        var doctorIds = staffList
+            .Where(s => s.RoleType == "Doctor")
+            .Select(s => s.Id)
+            .ToList();
+        
+        var doctors = new Dictionary<string, string>();
+        if (doctorIds.Any())
+        {
+            var doctorList = await _doctorRepository.GetQueryable()
+                .Where(d => doctorIds.Contains(d.Id))
+                .ToListAsync();
+            
+            foreach (var doctor in doctorList)
+            {
+                doctors[doctor.Id] = doctor.Title;
+            }
+        }
+
         // 映射到DTO
         var staffDtos = staffList.Select(s => new StaffDto
         {
@@ -89,6 +108,7 @@ public class StaffManagementService
             Role = s.RoleType,
             DeptCode = s.DeptCode,
             DeptName = s.Department?.DeptName ?? "",
+            Title = s.RoleType == "Doctor" && doctors.ContainsKey(s.Id) ? doctors[s.Id] : null,
             IsActive = s.IsActive,
             CreatedAt = s.CreateTime
         }).ToList();

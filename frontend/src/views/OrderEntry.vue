@@ -1737,6 +1737,7 @@ import { batchCreateInspectionOrders } from '../api/inspectionOrder';
 import { batchCreateSurgicalOrders } from '../api/surgicalOrder';
 import { batchCreateOperationOrders } from '../api/operationOrder';
 import { batchCreateDischargeOrders, validateDischargeOrderCreation } from '../api/dischargeOrder';
+import { queryStaffList } from '../api/admin';
 import { toBeijingTimeISO } from '../utils/timezone';
 
 // 当前用户信息（从localStorage获取登录信息）
@@ -1970,12 +1971,10 @@ const talkOptions = [
 
 // 术前操作选项
 const preoperativeOperationOptions = [
-  { value: '术前针注射', label: '术前针注射' },
-  { value: '留置针埋置', label: '留置针埋置' },
-  { value: '采血', label: '采血检查' },
-  { value: '导尿管', label: '导尿管置入' },
-  { value: '心电监护', label: '心电监护' },
-  { value: '吸氧', label: '术前吸氧' }
+  { value: '备皮', label: '备皮' },
+  { value: '皮肤清洁', label: '皮肤清洁' },
+  { value: '手术位置标记', label: '手术位置标记' },
+  { value: '胃管置入', label: '胃管置入' }
 ];
 
 // 护理等级修改表单
@@ -3988,17 +3987,46 @@ const initDefaultSurgicalDrugs = () => {
 
 // 加载医生列表
 const loadDoctorList = async () => {
-  // 暂时使用模拟数据（API接口未实现）
-  console.log('加载医生列表（使用模拟数据）');
-  doctorList.value = [
-    { staffId: 'D001', name: '张医生', title: '主任医师' },
-    { staffId: 'D002', name: '李医生', title: '副主任医师' },
-    { staffId: 'D003', name: '王医生', title: '主治医师' }
-  ];
-  
-  // 自动选择当前登录医生
-  if (currentUser.value?.staffId) {
-    surgicalOrder.surgeonId = currentUser.value.staffId;
+  try {
+    // 获取当前医生的科室代码
+    const deptCode = currentUser.value?.deptCode;
+    
+    if (!deptCode) {
+      ElMessage.warning('未获取到科室信息，无法加载医生列表');
+      doctorList.value = [];
+      return;
+    }
+    
+    // 调用API获取本科室的医生列表
+    const response = await queryStaffList({
+      role: 'Doctor',
+      deptCode: deptCode,
+      pageNumber: 1,
+      pageSize: 100  // 获取足够多的医生，一般一个科室不会有超过100个医生
+    });
+    
+    // 映射数据格式
+    doctorList.value = response.staffList
+      .filter(doctor => doctor.isActive)  // 只显示启用的医生
+      .map(doctor => ({
+        staffId: doctor.staffId,
+        name: doctor.fullName,
+        title: doctor.title || ''  // 使用后端返回的title字段
+      }));
+    
+    console.log('医生列表加载成功:', doctorList.value.length, '科室:', deptCode);
+    
+    // 自动选择当前登录医生（如果存在）
+    if (currentUser.value?.staffId) {
+      const currentDoctor = doctorList.value.find(d => d.staffId === currentUser.value.staffId);
+      if (currentDoctor) {
+        surgicalOrder.surgeonId = currentUser.value.staffId;
+      }
+    }
+  } catch (error) {
+    console.error('加载医生列表失败:', error);
+    ElMessage.error('加载医生列表失败: ' + (error.response?.data?.message || error.message));
+    doctorList.value = [];
   }
 };
 

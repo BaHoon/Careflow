@@ -313,7 +313,7 @@ namespace CareFlow.Infrastructure.Data
                     Title = DoctorTitle.Chief.ToString(),
                     PrescriptionAuthLevel = "High"
                 },
-                // === 其他保留科室 ===
+                // === 儿科科室 ===
                 new Doctor
                 {
                     Id = "D016",
@@ -325,6 +325,35 @@ namespace CareFlow.Infrastructure.Data
                     RoleType = "Doctor",
                     IsActive = true,
                     DeptCode = "PED",
+                    Title = DoctorTitle.Chief.ToString(),
+                    PrescriptionAuthLevel = "High"
+                },
+                // === 测试用-普通外科医生 ===
+                new Doctor
+                {
+                    Id = "D017",
+                    EmployeeNumber = "doc017",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "裴医生",
+                    IdCard = "110100200001010017",
+                    Phone = "13912340017",
+                    RoleType = "Doctor",
+                    IsActive = true,
+                    DeptCode = "GEN_SUR",
+                    Title = DoctorTitle.Chief.ToString(),
+                    PrescriptionAuthLevel = "High"
+                },
+                new Doctor
+                {
+                    Id = "D018",
+                    EmployeeNumber = "doc018",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "欧阳医生",
+                    IdCard = "110100200001010018",
+                    Phone = "13912340018",
+                    RoleType = "Doctor",
+                    IsActive = true,
+                    DeptCode = "GEN_SUR",
                     Title = DoctorTitle.Chief.ToString(),
                     PrescriptionAuthLevel = "High"
                 }
