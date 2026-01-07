@@ -152,8 +152,8 @@
                 {{ getOrderTypeName(item.orderType) }}
               </el-tag>
               
-              <!-- 医嘱ID -->
-              <span class="order-id">#{{ item.orderId }}</span>
+              <!-- 任务ID -->
+              <span class="task-id">#{{ item.relatedId }}</span>
               
               <!-- 主要内容：药品申请显示 "计划时间 - 第一个药品" -->
               <!-- 手术类药品申请显示 "手术日期 - 手术名称" -->
@@ -1526,7 +1526,7 @@ const formatUsageRoute = (usageRoute) => {
   flex-wrap: wrap;
 }
 
-.order-id {
+.task-id {
   font-size: 0.85rem;
   font-weight: 700;
   color: var(--primary-color);
