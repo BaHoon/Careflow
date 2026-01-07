@@ -85,6 +85,7 @@
               <el-checkbox :label="3">进行中</el-checkbox>
               <el-checkbox :label="4">已结束</el-checkbox>
               <el-checkbox :label="9">停止中</el-checkbox>
+              <el-checkbox :label="10">异常态</el-checkbox>
             </el-checkbox-group>
           </div>
 

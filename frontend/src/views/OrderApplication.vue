@@ -215,11 +215,6 @@
                 <span class="detail-value">{{ item.inspectionInfo.itemName }}</span>
               </div>
 
-              <div v-if="item.inspectionInfo.itemCode" class="detail-section">
-                <span class="detail-label">项目编码:</span>
-                <span class="detail-value">{{ item.inspectionInfo.itemCode }}</span>
-              </div>
-
               <div v-if="item.inspectionInfo.location" class="detail-section">
                 <span class="detail-label">检查地点:</span>
                 <span class="detail-value">{{ item.inspectionInfo.location }}</span>
