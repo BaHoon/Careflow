@@ -8,7 +8,8 @@
       :multi-select="false"
       title="患者列表"
       :show-pending-filter="false"
-      :show-badge="false"
+      :show-badge="true"
+      badge-field="abnormalAndRejectedCount"
       :collapsed="false"
       @patient-select="handlePatientSelect"
     />
@@ -790,7 +791,39 @@ const formatDateTime = (dateString) => {
 onMounted(async () => {
   // 医生端不需要排班信息，跳过排班检查
   await initializePatientData(null, true);
+  // 加载每个患者的异常和已退回医嘱计数
+  await loadAbnormalAndRejectedCounts();
 });
+
+// ==================== 加载异常和已退回医嘱计数 ====================
+const loadAbnormalAndRejectedCounts = async () => {
+  try {
+    // 对每个患者查询异常(10)和已退回(7)医嘱数量
+    const countsPromises = patientList.value.map(async (patient) => {
+      try {
+        const requestData = {
+          patientId: patient.patientId,
+          statuses: [7, 10], // 已退回(7) 和 异常态(10)
+          orderTypes: ['MedicationOrder', 'InspectionOrder', 'OperationOrder', 'SurgicalOrder', 'DischargeOrder']
+        };
+        const response = await queryOrders(requestData);
+        const count = response.orders?.length || 0;
+        // 添加计数到患者对象
+        patient.abnormalAndRejectedCount = count;
+        return count;
+      } catch (error) {
+        console.error(`加载患者 ${patient.patientId} 的异常/已退回医嘱计数失败:`, error);
+        patient.abnormalAndRejectedCount = 0;
+        return 0;
+      }
+    });
+    
+    await Promise.all(countsPromises);
+    console.log('异常/已退回医嘱计数加载完成');
+  } catch (error) {
+    console.error('加载异常/已退回医嘱计数失败:', error);
+  }
+};
 </script>
 
 <style scoped>

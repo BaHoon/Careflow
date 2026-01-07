@@ -4973,7 +4973,7 @@ watch(activeType, (newType) => {
   display: inline-flex;
   align-items: center;
   margin-bottom: 8px;
-  width: 190px;
+  width: 170px;
 }
 
 .patient-card.active .bed-badge {
