@@ -371,10 +371,19 @@ const loadOrders = async () => {
       orderTypes: typeFilter.value.length > 0 ? typeFilter.value : null
     };
 
-    // 添加时间范围
+    // 添加时间范围（转换为 UTC ISO 格式）
     if (timeRange.value && timeRange.value.length === 2) {
-      requestData.createTimeFrom = timeRange.value[0];
-      requestData.createTimeTo = timeRange.value[1];
+      // 将日期时间字符串转换为 UTC ISO 格式
+      // 前端日期选择器返回的是 "YYYY-MM-DDTHH:mm:ss" 格式（无时区信息）
+      // 需要转换为 UTC 格式供后端使用
+      const startDate = new Date(timeRange.value[0]);
+      const endDate = new Date(timeRange.value[1]);
+      
+      requestData.createTimeFrom = startDate.toISOString(); // 转换为 UTC: "2025-12-25T00:00:00.000Z"
+      requestData.createTimeTo = endDate.toISOString();     // 转换为 UTC: "2025-12-25T23:59:59.999Z"
+      
+      console.log(`🕐 时间范围筛选: ${timeRange.value[0]} ~ ${timeRange.value[1]}`);
+      console.log(`🌍 转换为UTC: ${requestData.createTimeFrom} ~ ${requestData.createTimeTo}`);
     }
 
     const response = await queryOrders(requestData);
