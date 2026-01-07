@@ -278,7 +278,7 @@
                     <el-select 
                       v-model="item.drugId" 
                       filterable 
-                      placeholder="搜索药品名称/简拼/条码"
+                      placeholder="搜索药品名称/简拼"
                       class="drug-select"
                     >
                       <el-option 
