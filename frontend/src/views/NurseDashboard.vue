@@ -96,17 +96,18 @@
             <span class="filter-label">患者状态:</span>
             <el-select 
               v-model="patientFilterStatus" 
-              placeholder="全部状态" 
+              placeholder="选择状态" 
+              multiple
+              collapse-tags
+              collapse-tags-tooltip
               clearable
               @change="loadPatientData"
               size="default"
               class="status-select"
+              style="width: 200px;"
             >
-              <el-option label="全部状态" :value="-1" />
-              <el-option label="待入院" :value="0" />
               <el-option label="在院" :value="1" />
               <el-option label="待出院" :value="2" />
-              <el-option label="已出院" :value="3" />
             </el-select>
           </div>
 
@@ -654,7 +655,7 @@ const selectedWardId = ref('');
 const loadingPatients = ref(false);
 const patientList = ref([]);
 const patientWardGroups = ref([]); // 患者按病区分组
-const patientFilterStatus = ref(-1);
+const patientFilterStatus = ref([]); // 多选状态数组
 const patientSearchKeyword = ref('');
 let patientSearchTimer = null;
 
@@ -813,9 +814,9 @@ const loadPatientData = async () => {
       params.wardId = selectedWardId.value;
     }
     
-    // 添加状态筛选
-    if (patientFilterStatus.value !== null && patientFilterStatus.value !== undefined && patientFilterStatus.value !== -1) {
-      params.status = patientFilterStatus.value;
+    // 添加状态筛选（多选）
+    if (patientFilterStatus.value && patientFilterStatus.value.length > 0) {
+      params.statuses = patientFilterStatus.value.join(',');
     }
     // 注意：后端默认已排除待入院和已出院患者，无需前端额外处理
     

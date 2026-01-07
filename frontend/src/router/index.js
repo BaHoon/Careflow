@@ -19,6 +19,7 @@ import TaskScan from '../views/TaskScan.vue'
 import PatientManagementView from '../views/PatientManagementView.vue'
 import NurseScheduleView from '../views/NurseScheduleView.vue'
 import PatientAdmission from '../views/PatientAdmission.vue'
+import PatientLogView from '../views/PatientLogView.vue'
 
 // 医生子页面
 import OrderEntry from '../views/OrderEntry.vue'
@@ -107,7 +108,7 @@ const router = createRouter({
         {
           path: 'patient-log', // 相对路径，实际路径为 /nurse/patient-log
           name: 'nurse-patient-log',
-          component: () => import('../views/PatientLogView.vue'),
+          component: PatientLogView,
           meta: { title: '患者日志' }
         },
         {
@@ -148,7 +149,7 @@ const router = createRouter({
         {
           path: 'patient-log', // 相对路径，实际路径为 /doctor/patient-log
           name: 'doctor-patient-log',
-          component: () => import('../views/PatientLogView.vue'),
+          component: PatientLogView,
           meta: { title: '患者日志' }
         }
       ]
