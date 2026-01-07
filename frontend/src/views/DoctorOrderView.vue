@@ -639,10 +639,10 @@ const handleAbnormalOrder = async (order) => {
     
     // 显示护士取消的原因，让医生确认处理
     await ElMessageBox.confirm(
-      `医嘱当前为异常状态\n\n护士取消原因：\n${cancelReason}\n\n确认处理该异常医嘱吗？`,
+      `医嘱当前为异常状态。护士取消原因：${cancelReason}。是否知晓？`,
       '处理异常医嘱',
       {
-        confirmButtonText: '确认处理',
+        confirmButtonText: '我已知晓',
         cancelButtonText: '取消',
         type: 'warning'
       }
