@@ -194,14 +194,6 @@
                 >
                   批量签收 ({{ selectedNewCount }})
                 </el-button>
-                <el-button 
-                  type="danger"
-                  :disabled="selectedNewCount === 0"
-                  @click="rejectBatch"
-                  class="action-btn"
-                >
-                  批量退回 ({{ selectedNewCount }})
-                </el-button>
               </div>
             </div>
 
@@ -347,14 +339,6 @@
                   class="action-btn"
                 >
                   批量签收 ({{ selectedStoppedCount }})
-                </el-button>
-                <el-button 
-                  type="danger" 
-                  :disabled="selectedStoppedCount === 0"
-                  @click="rejectStoppedBatch"
-                  class="action-btn"
-                >
-                  批量退回 ({{ selectedStoppedCount }})
                 </el-button>
               </div>
             </div>

@@ -432,6 +432,32 @@ const handlePatientSelect = (eventData) => {
 
 // 组件挂载时初始化
 onMounted(async () => {
+  // 设置默认时间范围：前一天到后一天（中国时间）
+  const now = new Date();
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  yesterday.setHours(0, 0, 0, 0);
+  
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(23, 59, 59, 999);
+  
+  // 格式化为 YYYY-MM-DDTHH:mm:ss 格式
+  const formatToDateTimeLocal = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+  };
+  
+  timeRange.value = [
+    formatToDateTimeLocal(yesterday),
+    formatToDateTimeLocal(tomorrow)
+  ];
+  
   await initializePatientData();
   // 初始化后更新所有患者的待申请数量
   await updateAllPatientsPendingCount();
@@ -779,13 +805,15 @@ const handleBatchApply = async () => {
     return;
   }
 
-  const hasUrgent = selectedItems.some(item => item.isUrgent);
+  // 分离加急和非加急申请
+  const urgentItems = selectedItems.filter(item => item.isUrgent);
+  const normalItems = selectedItems.filter(item => !item.isUrgent);
 
   // 加急确认
-  if (hasUrgent) {
+  if (urgentItems.length > 0) {
     try {
       await ElMessageBox.confirm(
-        `您选择了 ${selectedItems.length} 项申请，其中包含加急项。是否继续？`,
+        `您选择了 ${selectedItems.length} 项申请，其中 ${urgentItems.length} 项为加急。是否继续？`,
         '批量申请确认',
         {
           confirmButtonText: '确认申请',
@@ -801,30 +829,74 @@ const handleBatchApply = async () => {
 
   loading.value = true;
   try {
-    let response;
-    if (activeTab.value === 'medication') {
-      response = await submitMedicationApplication({
-        nurseId: currentNurse.staffId,  // ✅ 使用 staffId 字段
-        taskIds: selectedItems.map(item => item.relatedId),
-        isUrgent: hasUrgent,
-        remarks: '批量申请'
-      });
-    } else {
-      response = await submitInspectionApplication({
-        nurseId: currentNurse.staffId,  // ✅ 使用 staffId 字段
-        taskIds: selectedItems.map(item => item.relatedId),  // ✅ 使用 taskIds 而不是 orderIds
-        isUrgent: hasUrgent,
-        remarks: '批量申请'
-      });
+    let totalSuccess = 0;
+    const responses = [];
+
+    // 分别提交加急和非加急申请
+    if (urgentItems.length > 0) {
+      if (activeTab.value === 'medication') {
+        const response = await submitMedicationApplication({
+          nurseId: currentNurse.staffId,
+          taskIds: urgentItems.map(item => item.relatedId),
+          isUrgent: true,
+          remarks: '批量申请（加急）'
+        });
+        responses.push(response);
+        if (response.success) {
+          totalSuccess += response.processedIds?.length || urgentItems.length;
+        }
+      } else {
+        const response = await submitInspectionApplication({
+          nurseId: currentNurse.staffId,
+          taskIds: urgentItems.map(item => item.relatedId),
+          isUrgent: true,
+          remarks: '批量申请（加急）'
+        });
+        responses.push(response);
+        if (response.success) {
+          totalSuccess += response.processedIds?.length || urgentItems.length;
+        }
+      }
     }
 
-    if (response.success) {
-      ElMessage.success(`批量申请成功：${response.processedIds?.length || selectedItems.length} 项`);
-      await loadApplications(); // 刷新列表（会自动更新待申请数量）
-      selectAll.value = false;
-    } else {
-      ElMessage.error(response.message || '批量申请失败');
+    if (normalItems.length > 0) {
+      if (activeTab.value === 'medication') {
+        const response = await submitMedicationApplication({
+          nurseId: currentNurse.staffId,
+          taskIds: normalItems.map(item => item.relatedId),
+          isUrgent: false,
+          remarks: '批量申请'
+        });
+        responses.push(response);
+        if (response.success) {
+          totalSuccess += response.processedIds?.length || normalItems.length;
+        }
+      } else {
+        const response = await submitInspectionApplication({
+          nurseId: currentNurse.staffId,
+          taskIds: normalItems.map(item => item.relatedId),
+          isUrgent: false,
+          remarks: '批量申请'
+        });
+        responses.push(response);
+        if (response.success) {
+          totalSuccess += response.processedIds?.length || normalItems.length;
+        }
+      }
     }
+
+    // 检查是否全部成功
+    const allSuccess = responses.every(r => r.success);
+    
+    if (allSuccess) {
+      ElMessage.success(`批量申请成功：${totalSuccess} 项`);
+    } else {
+      const failedCount = selectedItems.length - totalSuccess;
+      ElMessage.warning(`部分申请成功：成功 ${totalSuccess} 项，失败 ${failedCount} 项`);
+    }
+    
+    await loadApplications(); // 刷新列表（会自动更新待申请数量）
+    selectAll.value = false;
   } catch (error) {
     console.error('批量申请失败:', error);
     ElMessage.error('批量申请失败');
