@@ -434,15 +434,8 @@ const handleStopOrder = async (order) => {
   try {
     // 特殊处理：出院医嘱且已签收或进行中状态，直接停止所有任务，不让医生选择
     if (order.orderType === 'DischargeOrder' && (order.status === 2 || order.status === 3)) {
-      // 先获取任务列表，找到第一个任务作为停止节点
-      const detail = await getOrderDetail(order.id);
-      if (!detail.tasks || detail.tasks.length === 0) {
-        ElMessage.error('该医嘱没有任务，无法停止');
-        return;
-      }
-
       await ElMessageBox.confirm(
-        '出院医嘱停止后将停止所有相关任务，确认停止该医嘱吗？',
+        '出院医嘱停止后将恢复患者为在院状态，确认停止该医嘱吗？',
         '停止出院医嘱',
         {
           confirmButtonText: '确认停止',
@@ -460,18 +453,24 @@ const handleStopOrder = async (order) => {
           inputPattern: /\S+/,
           inputErrorMessage: '停止原因不能为空',
           inputType: 'textarea',
-          inputPlaceholder: '例如：患者病情好转，无需出院'
+          inputPlaceholder: '例如：患者病情有变，暂不出院'
         }
       );
 
       const currentDoctor = getCurrentDoctor();
-      // 使用第一个任务作为停止节点（停止第一个任务后的所有任务，即停止所有任务）
-      const firstTask = detail.tasks[0];
+      
+      // 先获取任务列表
+      const detail = await getOrderDetail(order.id);
+      
+      // 如果有任务，使用第一个任务作为停止节点；如果没有任务，stopAfterTaskId为null
+      // 后端会特殊处理出院医嘱无任务的情况
+      const stopAfterTaskId = (detail.tasks && detail.tasks.length > 0) ? detail.tasks[0].id : null;
+      
       const requestData = {
         orderId: order.id,
         doctorId: currentDoctor.staffId,
         stopReason: stopReason,
-        stopAfterTaskId: firstTask.id
+        stopAfterTaskId: stopAfterTaskId
       };
 
       const result = await stopOrder(requestData);
