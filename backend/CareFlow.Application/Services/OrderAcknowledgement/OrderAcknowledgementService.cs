@@ -720,6 +720,31 @@ public class OrderAcknowledgementService : IOrderAcknowledgementService
         
         _logger.LogInformation("✅ 医嘱 {OrderId} 状态已从 PendingStop 更新为 {NewStatus}", order.Id, order.Status);
         
+        // 2.1 如果是出院医嘱，检查并更新患者状态
+        if (order is DischargeOrder)
+        {
+            _logger.LogInformation("检测到停止出院医嘱，检查患者状态");
+            var patient = await _patientRepository.GetByIdAsync(order.PatientId);
+            if (patient != null)
+            {
+                // 如果患者当前状态为待出院，则改回在院
+                if (patient.Status == PatientStatus.PendingDischarge)
+                {
+                    patient.Status = PatientStatus.Hospitalized;
+                    await _patientRepository.UpdateAsync(patient);
+                    _logger.LogInformation("✅ 患者 {PatientId} 状态已从待出院更新为在院（出院医嘱已停止）", order.PatientId);
+                }
+                else
+                {
+                    _logger.LogInformation("患者 {PatientId} 当前状态为 {Status}，无需更新", order.PatientId, patient.Status);
+                }
+            }
+            else
+            {
+                _logger.LogWarning("⚠️ 未找到患者 {PatientId}，无法更新状态", order.PatientId);
+            }
+        }
+        
         // 3. 插入状态历史记录
         var history = new MedicalOrderStatusHistory
         {
