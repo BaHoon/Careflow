@@ -21,6 +21,8 @@
       <PatientInfoBar 
         :patients="selectedPatients"
         :is-multi-select="enableMultiSelect"
+        :sort-by="sortBy"
+        @sort-change="handleSortChange"
       />
 
       <!-- Tab导航栏（点击切换） -->
@@ -119,8 +121,8 @@
           
           <!-- 申请内容 -->
           <div class="application-content">
-            <!-- 患者信息（单选时不显示，因为上方已有患者信息栏） -->
-            <div v-if="false" class="application-patient-tag">
+            <!-- 患者信息（多选模式时显示） -->
+            <div v-if="enableMultiSelect" class="application-patient-tag">
               <span class="patient-bed-tag">{{ item.bedId }}</span>
               <span class="patient-name-tag">{{ item.patientName }}</span>
             </div>
@@ -366,7 +368,7 @@ const activeTab = ref('medication'); // 'medication' | 'inspection'
 // 筛选条件
 const statusFilter = ref(['Applying']); // 默认显示待申请
 const timeRange = ref(null); // [startTime, endTime]
-const sortBy = ref('createTime');
+const sortBy = ref('time'); // 'time' | 'patient'
 
 // 申请列表数据
 const applicationList = ref([]);
@@ -397,18 +399,34 @@ const handleTabClick = (tab) => {
   loadApplications();
 };
 
-// 监听患者选择变化
+// 排序方式变化处理
+const handleSortChange = (newSortBy) => {
+  sortBy.value = newSortBy;
+};
+
+// 监听患者选择变化（单选模式）
 watch(selectedPatient, async () => {
-  if (selectedPatient.value) {
+  if (!enableMultiSelect.value && selectedPatient.value) {
     loadApplications();
     // 更新当前患者的待申请数量（用于红点显示）
     await updateCurrentPatientPendingCount();
-  } else {
+  } else if (!enableMultiSelect.value && !selectedPatient.value) {
     applicationList.value = [];
     pendingMedicationCount.value = 0;
     pendingInspectionCount.value = 0;
   }
 });
+
+// 监听多选患者列表变化（多选模式）
+watch(selectedPatients, async () => {
+  if (enableMultiSelect.value && selectedPatients.value.length > 0) {
+    loadApplications();
+  } else if (enableMultiSelect.value && selectedPatients.value.length === 0) {
+    applicationList.value = [];
+    pendingMedicationCount.value = 0;
+    pendingInspectionCount.value = 0;
+  }
+}, { deep: true });
 
 // 患者选择处理
 const handlePatientSelect = (eventData) => {
@@ -584,7 +602,13 @@ const updateAllPatientsPendingCount = async () => {
 
 // 加载申请列表
 const loadApplications = async () => {
-  if (!selectedPatient.value) {
+  // 多选模式：检查selectedPatients
+  // 单选模式：检查selectedPatient
+  const hasPatients = enableMultiSelect.value 
+    ? selectedPatients.value.length > 0 
+    : selectedPatient.value !== null;
+  
+  if (!hasPatients) {
     applicationList.value = [];
     return;
   }
@@ -603,10 +627,15 @@ const loadApplications = async () => {
       return;
     }
 
+    // 获取患者ID列表
+    const patientIds = enableMultiSelect.value
+      ? selectedPatients.value.map(p => p.patientId)
+      : [selectedPatient.value.patientId];
+
     // 构造请求参数（与后端DTO匹配）
     const requestData = {
       applicationType: activeTab.value === 'medication' ? 'Medication' : 'Inspection',
-      patientIds: [selectedPatient.value.patientId]
+      patientIds: patientIds
     };
 
     // 添加状态筛选
@@ -648,8 +677,16 @@ const loadApplications = async () => {
       }));
       console.log('✅ 成功加载', applicationList.value.length, '条申请记录');
       
-      // 更新当前患者的待申请数量
-      updatePatientPendingCount(selectedPatient.value.patientId);
+      // 更新患者的待申请数量
+      if (enableMultiSelect.value) {
+        // 多选模式：更新所有选中患者的待申请数量
+        selectedPatients.value.forEach(patient => {
+          updatePatientPendingCount(patient.patientId);
+        });
+      } else if (selectedPatient.value) {
+        // 单选模式：更新当前患者的待申请数量
+        updatePatientPendingCount(selectedPatient.value.patientId);
+      }
     } else if (response && response.success) {
       // 兼容可能的标准格式响应
       applicationList.value = (response.data || []).map(item => ({
@@ -695,7 +732,19 @@ const loadApplications = async () => {
 const sortedApplications = computed(() => {
   const list = [...applicationList.value];
   
+  // 多选模式下，支持按患者分组排序
+  if (enableMultiSelect.value && sortBy.value === 'patient') {
+    return list.sort((a, b) => {
+      // 先按床位号排序
+      const bedCompare = a.bedId.localeCompare(b.bedId);
+      if (bedCompare !== 0) return bedCompare;
+      // 同一患者按计划开始时间排序
+      return new Date(a.plannedStartTime) - new Date(b.plannedStartTime);
+    });
+  }
+  
   switch (sortBy.value) {
+    case 'time':
     case 'createTime':
       // 按计划开始时间从早到晚排序（升序）
       return list.sort((a, b) => new Date(a.plannedStartTime) - new Date(b.plannedStartTime));
@@ -708,11 +757,6 @@ const sortedApplications = computed(() => {
       return list;
   }
 });
-
-// 排序变化处理
-const handleSortChange = () => {
-  // 触发计算属性重新计算即可
-};
 
 // 全选处理
 const handleSelectAllChange = (value) => {
@@ -1554,6 +1598,26 @@ const formatUsageRoute = (usageRoute) => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+/* ==================== 排序控制（多选模式） ==================== */
+
+.sort-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.sort-label {
+  font-size: 0.9rem;
+  color: var(--text-regular);
+  font-weight: 500;
+}
+
+.sort-radio :deep(.el-radio-button__inner) {
+  padding: 6px 15px;
+  font-size: 0.85rem;
 }
 
 /* ==================== 患者标签（多选模式） ==================== */
