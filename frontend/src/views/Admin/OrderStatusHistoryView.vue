@@ -113,7 +113,6 @@
           >
             <el-option label="医生" value="Doctor" />
             <el-option label="护士" value="Nurse" />
-            <el-option label="系统" value="System" />
           </el-select>
         </div>
 
