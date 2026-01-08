@@ -321,6 +321,12 @@ const handlePatientSelect = ({ patient }) => {
 const loadPatientLog = async () => {
   if (selectedPatients.value.length === 0) return;
   
+  // 如果没有选择任何内容类型，清空日志并返回
+  if (contentTypes.value.length === 0) {
+    dailyLogs.value = [];
+    return;
+  }
+  
   loading.value = true;
   try {
     // 🔧 将日期字符串转换为UTC时间范围

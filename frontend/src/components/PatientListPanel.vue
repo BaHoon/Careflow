@@ -350,7 +350,8 @@ const getBadgeTitle = (patient) => {
     'unacknowledgedCount': '待签收医嘱',
     'pendingTaskCount': '待处理任务',
     'urgentCount': '紧急事项',
-    'unreadCount': '未读消息'
+    'unreadCount': '未读消息',
+    'abnormalAndRejectedCount': '异常/已退回医嘱'
   };
   const fieldLabel = fieldNameMap[props.badgeField] || '待处理';
   return `${fieldLabel}: ${badgeValue}`;

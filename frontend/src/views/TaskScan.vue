@@ -140,6 +140,19 @@
               <p><strong>计划时间:</strong> {{ formatTime(currentTask.plannedStartTime) }}</p>
             </div>
 
+            <!-- 结果输入框（仅ResultPending任务第二次完成时显示） -->
+            <div v-if="currentTask.category === 3 && (currentTask.status === 4 || currentTask.status === 'InProgress')" class="result-box">
+              <label for="result">执行结果（必填）<span style="color: red;">*</span>：</label>
+              <el-input
+                id="result"
+                v-model="resultValue"
+                type="textarea"
+                placeholder="请输入执行结果，例如：血糖值 5.6 mmol/L、体温 36.8℃、皮试阴性等"
+                :rows="3"
+              />
+            </div>
+
+            <!-- 备注输入框（所有任务都可填写） -->
             <div class="remark-box">
               <label for="remark">备注（可选）：</label>
               <el-input
@@ -147,7 +160,7 @@
                 v-model="remarks"
                 type="textarea"
                 placeholder="请输入执行过程中的备注信息"
-                :rows="4"
+                :rows="3"
               />
             </div>
 
@@ -178,9 +191,13 @@
                   <span class="label">完成时间:</span>
                   <span class="value">{{ formatHistoryTime(t.completedTime) }}</span>
                 </div>
-                <div v-if="t.remarks && t.remarks !== '无备注'" class="h-remarks">
-                  <span class="label">备注:</span>
-                  <span class="value">{{ t.remarks }}</span>
+                <div v-if="t.result && t.result !== ''" class="h-result">
+                  <span class="label">执行结果:</span>
+                  <span class="value result-text">{{ t.result }}</span>
+                </div>
+                <div v-if="t.executionRemarks && t.executionRemarks !== ''" class="h-remarks">
+                  <span class="label">执行备注:</span>
+                  <span class="value">{{ t.executionRemarks }}</span>
                 </div>
               </div>
             </div>
@@ -227,7 +244,8 @@ const currentUser = ref(getUserInfo());
 const currentStep = ref(0);
 const currentTask = ref(null);
 const showHistory = ref(false);
-const remarks = ref('');
+const remarks = ref(''); // 执行备注
+const resultValue = ref(''); // 执行结果（仅ResultPending任务使用）
 const drugInputValue = ref(''); // 药品输入框
 
 // 从 localStorage 加载执行历史
@@ -268,8 +286,9 @@ const handleTaskUpload = async (e) => {
   const file = e.target.files?.[0];
   if (!file) return;
 
+  let msg = null;
   try {
-    const msg = ElMessage.info({ message: '识别条形码中...', duration: 0 });
+    msg = ElMessage.info({ message: '识别条形码中...', duration: 3000 });
     taskFile = file;
 
     // 显示预览
@@ -279,7 +298,10 @@ const handleTaskUpload = async (e) => {
 
     // 调用后端的条形码识别接口
     const result = await api.recognizeTaskBarcode(file);
-    msg.close();
+    if (msg) {
+      msg.close();
+      msg = null;
+    }
     
     // 后端识别失败或没有返回有效的taskId，提示用户手动输入
     if (!result || !result.taskId || result.taskId === 0) {
@@ -295,7 +317,7 @@ const handleTaskUpload = async (e) => {
       ).then(({ value }) => {
         return parseInt(value);
       }).catch(() => {
-        ElMessage.info('已取消');
+        ElMessage.info({ message: '已取消', duration: 3000 });
         return null;
       });
       
@@ -335,22 +357,61 @@ const handleTaskUpload = async (e) => {
     }
     
     if (currentTask.value.category === 5) {
+      // 药品核对任务：前端状态需要与后端保持一致
       totalCount.value = currentTask.value.drugs?.length || 0;
-      // 重置所有药品的 scanned 状态为 false（每次新任务都从头开始）
+      confirmedCount.value = 0;
+
       if (currentTask.value.drugs) {
+        // 先全部重置为未核对
         currentTask.value.drugs.forEach(drug => {
           drug.scanned = false;
         });
+
+        // 再根据后端 ResultPayload 中的 scannedDrugIds 恢复已核对状态
+        try {
+          const payloadRaw = currentTask.value.resultPayload || currentTask.value.result || null;
+          if (payloadRaw) {
+            const payload = JSON.parse(payloadRaw);
+            const scannedIds =
+              (payload && (payload.scannedDrugIds || payload.ScannedDrugIds)) || [];
+
+            if (Array.isArray(scannedIds) && scannedIds.length > 0) {
+              currentTask.value.drugs.forEach(drug => {
+                if (scannedIds.includes(drug.drugId)) {
+                  drug.scanned = true;
+                  confirmedCount.value++;
+                }
+              });
+            }
+          }
+        } catch (parseErr) {
+          console.warn('解析任务结果中的已核对药品列表失败:', parseErr);
+        }
       }
-      confirmedCount.value = 0; // 重置已核对计数
+
       if (totalCount.value === 0) {
         message.value = { type: 'warning', text: '未能从任务中读取期望药品清单，扫码将仅记录条码' };
+      } else {
+        // 如果后端已有部分核对记录，则给出提示
+        if (confirmedCount.value > 0) {
+          message.value = {
+            type: 'info',
+            text: `该任务已有 ${confirmedCount.value}/${totalCount.value} 个药品完成核对`
+          };
+        } else {
+          message.value = null;
+        }
       }
     }
     
     // 任务加载成功后自动进入第2步
     setTimeout(() => nextStep(), 1000);
   } catch (err) {
+    // 确保弹窗被关闭
+    if (msg) {
+      msg.close();
+      msg = null;
+    }
     if (err.message !== '已取消') {
       ElMessage.error('处理条形码失败: ' + err.message);
     }
@@ -362,8 +423,9 @@ const handleSecondUpload = async (e) => {
   const file = e.target.files?.[0];
   if (!file) return;
 
+  let msg = null;
   try {
-    const msg = ElMessage.info({ message: '验证中...', duration: 0 });
+    msg = ElMessage.info({ message: '验证中...', duration: 3000 });
     secondFile = file;
 
     const reader = new FileReader();
@@ -380,32 +442,62 @@ const handleSecondUpload = async (e) => {
       result = await api.validatePatientBarcodeImage(currentTask.value.id, taskFile, file);
     }
     
-    msg.close();
+    if (msg) {
+      msg.close();
+      msg = null;
+    }
 
     if (result.isMatched) {
       if (currentTask.value.category === 5) {
-        // 如果后端识别出了药品 ID，自动在前端打钩对应的药品
-        if (result.scannedDrugId) {
-          const targetDrug = currentTask.value.drugs?.find(d => d.drugId === result.scannedDrugId);
-          if (targetDrug && !targetDrug.scanned) {
-            targetDrug.scanned = true;
-            confirmedCount.value++;
-          }
-        }
+        // 药品验证逻辑
+        // 首先检查后端返回的消息，判断是否已扫描
+        const backendMessage = result.message || '';
+        const isAlreadyScanned = backendMessage.includes('已扫描') || backendMessage.includes('已核对');
         
-        // 从后端结果更新已确认数和总数（后端返回 scannedCount/expectedCount/progress）
+        let targetDrug = null;
+        if (result.scannedDrugId && currentTask.value.drugs) {
+          targetDrug = currentTask.value.drugs.find(d => d.drugId === result.scannedDrugId) || null;
+        }
+
+        // 无论是否重复扫描，都先根据后端返回的 scannedCount / expectedCount 同步前端统计
+        if (typeof result.expectedCount === 'number') {
+          totalCount.value = result.expectedCount;
+        }
         if (typeof result.scannedCount === 'number') {
           confirmedCount.value = result.scannedCount;
         }
 
-        if (typeof result.expectedCount === 'number') {
-          totalCount.value = result.expectedCount;
+        // 同步当前药品的 scanned 状态（后端已认为该药品在已扫描列表中）
+        if (targetDrug) {
+          targetDrug.scanned = true;
         }
 
-        message.value = { type: 'success', text: `药品已核对 （${confirmedCount.value}/${totalCount.value}）` };
+        if (isAlreadyScanned) {
+          // 后端已经记录为已扫描：提示“已核对过了”
+          const drugName = targetDrug?.drugName || result.scannedDrugId || '';
+          message.value = {
+            type: 'warning',
+            text: `该药品已经核对过了: ${drugName} （${confirmedCount.value}/${totalCount.value}）`
+          };
+          ElMessage.warning(`该药品已经核对过了: ${drugName}`);
+          // 清除预览便于下一次扫描
+          secondPreview.value = '';
+          return;
+        }
+
+        // 正常首次核对成功
+        const drugName = targetDrug?.drugName || result.scannedDrugId || '';
+        message.value = {
+          type: 'success',
+          text: `药品已核对 （${confirmedCount.value}/${totalCount.value}）`
+        };
+        ElMessage.success(`药品已核对: ${drugName}`);
 
         // 如果后端返回 progress 并且完成
-        const progress = typeof result.progress === 'number' ? result.progress : (totalCount.value > 0 ? Math.round((confirmedCount.value / totalCount.value) * 100) : 0);
+        const progress = typeof result.progress === 'number'
+          ? result.progress
+          : (totalCount.value > 0 ? Math.round((confirmedCount.value / totalCount.value) * 100) : 0);
+
         if (progress >= 100 && totalCount.value > 0) {
           ElMessage.success('所有药品已核对');
           setTimeout(() => nextStep(), 1500);
@@ -427,6 +519,11 @@ const handleSecondUpload = async (e) => {
       secondPreview.value = '';
     }
   } catch (err) {
+    // 确保弹窗被关闭
+    if (msg) {
+      msg.close();
+      msg = null;
+    }
     message.value = { type: 'error', text: '✗ 验证失败' };
     ElMessage.error('验证失败: ' + err.message);
   }
@@ -437,18 +534,27 @@ const handleEndUpload = async (e) => {
   const file = e.target.files?.[0];
   if (!file) return;
 
+  let msg = null;
   try {
-    const msg = ElMessage.info({ message: '验证中...', duration: 0 });
+    msg = ElMessage.info({ message: '验证中...', duration: 3000 });
     endFile = file;
 
     const reader = new FileReader();
     reader.onload = r => endPreview.value = r.target?.result;
     reader.readAsDataURL(file);
 
-    msg.close();
+    if (msg) {
+      msg.close();
+      msg = null;
+    }
     message.value = { type: 'success', text: '✓ 已确认' };
     // 不再自动完成，让用户手动点击"完成任务"按钮
   } catch (err) {
+    // 确保弹窗被关闭
+    if (msg) {
+      msg.close();
+      msg = null;
+    }
     message.value = { type: 'error', text: '✗ 错误' };
     ElMessage.error('处理失败: ' + err.message);
   }
@@ -472,7 +578,7 @@ const finish = async () => {
 
   let msg = null;
   try {
-    msg = ElMessage.info({ message: '完成任务中...', duration: 0 });
+    msg = ElMessage.info({ message: '完成任务中...', duration: 3000 });
     
     // 获取当前登录护士的信息
     let nurseId = null;
@@ -489,19 +595,20 @@ const finish = async () => {
     const category = currentTask.value.category;
     const currentStatus = currentTask.value.status;
     let resultPayload = null;
+    let executionRemarks = null;
     
     if (category === 1 || category === 4) {
       // Immediate、DataCollection：一次完成（Pending → Completed）
       if (remarks.value) {
-        resultPayload = remarks.value;
+        executionRemarks = remarks.value;
       }
-      await api.completeExecutionTask(currentTask.value.id, nurseId, resultPayload);
+      await api.completeExecutionTask(currentTask.value.id, nurseId, resultPayload, executionRemarks);
       
       msg?.close();
       ElMessage.success(`任务已由 ${currentUser.value.fullName} 完成！`);
       
       // 添加到历史
-      addToHistory(currentTask.value);
+      await addToHistory(currentTask.value.id);
 
       // 重置
       reset();
@@ -510,15 +617,15 @@ const finish = async () => {
       // Verification(核对药品)：一次完成（Pending → Completed）
       // 所有药品已核对完毕，直接完成任务
       if (remarks.value) {
-        resultPayload = `核对备注：${remarks.value}`;
+        executionRemarks = remarks.value;
       }
-      await api.completeExecutionTask(currentTask.value.id, nurseId, resultPayload);
+      await api.completeExecutionTask(currentTask.value.id, nurseId, resultPayload, executionRemarks);
       
       msg?.close();
       ElMessage.success(`任务已由 ${currentUser.value.fullName} 完成！`);
       
       // 添加到历史
-      addToHistory(currentTask.value);
+      await addToHistory(currentTask.value.id);
 
       // 重置
       reset();
@@ -528,11 +635,11 @@ const finish = async () => {
       
       if (currentStatus === 3 || currentStatus === 'Pending') {
         // 第一次调用：Pending → InProgress
-        // 备注格式：开始备注：[内容]
+        // 开始备注
         if (remarks.value) {
-          resultPayload = `开始备注：${remarks.value}.`;
+          executionRemarks = `${remarks.value}.`;
         }
-        await api.completeExecutionTask(currentTask.value.id, nurseId, resultPayload);
+        await api.completeExecutionTask(currentTask.value.id, nurseId, resultPayload, executionRemarks);
         
         msg?.close();
         ElMessage.success(`任务已开始执行，请再扫一次以完成任务`);
@@ -540,23 +647,35 @@ const finish = async () => {
         // 重置为第0步让护士再扫一次
         currentStep.value = 0;
         remarks.value = '';
+        resultValue.value = '';
         taskPreview.value = '';
         secondPreview.value = '';
         message.value = null;
         return;
       } else if (currentStatus === 4 || currentStatus === 'InProgress') {
         // 第二次调用：InProgress → Completed
-        // 后端会自动合并为：开始备注：内容1.结束备注：内容2.的格式
-        if (remarks.value) {
-          resultPayload = remarks.value;
+        // 对于ResultPending任务，需要验证结果必填
+        if (category === 3) {
+          if (!resultValue.value || resultValue.value.trim() === '') {
+            msg?.close();
+            ElMessage.error('结果返回类任务必须填写执行结果！');
+            return;
+          }
+          resultPayload = resultValue.value;
         }
-        await api.completeExecutionTask(currentTask.value.id, nurseId, resultPayload);
+        
+        // 备注（可选）
+        if (remarks.value) {
+          executionRemarks = remarks.value;
+        }
+        
+        await api.completeExecutionTask(currentTask.value.id, nurseId, resultPayload, executionRemarks);
         
         msg?.close();
         ElMessage.success(`任务已由 ${currentUser.value.fullName} 完成！`);
         
         // 添加到历史
-        addToHistory(currentTask.value);
+        await addToHistory(currentTask.value.id);
 
         // 重置
         reset();
@@ -568,7 +687,7 @@ const finish = async () => {
     ElMessage.success(`任务已由 ${currentUser.value.fullName} 完成！`);
     
     // 添加到历史
-    addToHistory(currentTask.value);
+    await addToHistory(currentTask.value.id);
 
     // 重置
     reset();
@@ -589,6 +708,7 @@ const reset = () => {
   endPreview.value = '';
   message.value = null;
   remarks.value = '';
+  resultValue.value = '';
   confirmedCount.value = 0;
   totalCount.value = 0;
 };
@@ -603,18 +723,39 @@ const saveHistoryToStorage = () => {
 };
 
 // 添加历史记录
-const addToHistory = (task) => {
-  history.value.unshift({
-    id: task.id,
-    patientName: task.patientName,
-    bedId: task.bedId,
-    category: task.category,
-    categoryName: getCategoryName(task.category),
-    completedTime: new Date().toISOString(),
-    completedBy: currentUser.value?.fullName || '未知',
-    remarks: remarks.value || '无备注'
-  });
-  saveHistoryToStorage();
+const addToHistory = async (taskId) => {
+  try {
+    // 重新获取任务最新数据，确保获取完整的 ExecutionRemarks 和 ResultPayload
+    const taskDetail = await api.getExecutionTaskDetail(taskId);
+    
+    history.value.unshift({
+      id: taskDetail.id,
+      patientName: taskDetail.patientName,
+      bedId: taskDetail.bedId,
+      category: taskDetail.category,
+      categoryName: getCategoryName(taskDetail.category),
+      completedTime: new Date().toISOString(),
+      completedBy: currentUser.value?.fullName || '未知',
+      result: taskDetail.resultPayload || '', // 执行结果（从数据库获取）
+      executionRemarks: taskDetail.executionRemarks || '' // 执行备注（从数据库获取完整内容）
+    });
+    saveHistoryToStorage();
+  } catch (error) {
+    console.error('添加执行历史失败:', error);
+    // 即使获取失败，也使用基本信息添加到历史
+    history.value.unshift({
+      id: taskId,
+      patientName: currentTask.value?.patientName || '未知',
+      bedId: currentTask.value?.bedId || '',
+      category: currentTask.value?.category || 0,
+      categoryName: getCategoryName(currentTask.value?.category || 0),
+      completedTime: new Date().toISOString(),
+      completedBy: currentUser.value?.fullName || '未知',
+      result: resultValue.value || '',
+      executionRemarks: remarks.value || ''
+    });
+    saveHistoryToStorage();
+  }
 };
 
 // 清空历史
@@ -638,7 +779,7 @@ const clearHistory = () => {
 
 // 辅助函数
 const getCategoryName = (cat) => {
-  const names = { 1: '立即执行', 2: '持续执行', 3: '结果待收集', 5: '核对药品' };
+  const names = { 1: '立即执行', 2: '持续执行', 3: '结果返回类', 4: '数据收集', 5: '核对药品' };
   return names[cat] || '其他';
 };
 
@@ -718,7 +859,7 @@ const toggleDrugStatus = (drug) => {
     // 已核对 -> 取消核对
     drug.scanned = false;
     confirmedCount.value--;
-    ElMessage.info(`已取消: ${drug.drugName || drug.drugId}`);
+    ElMessage.info({ message: `已取消: ${drug.drugName || drug.drugId}`, duration: 3000 });
   } else {
     // 未核对 -> 标记为已核对
     drug.scanned = true;
@@ -1007,6 +1148,21 @@ onBeforeUnmount(() => {
   font-weight: 500;
 }
 
+.result-box {
+  margin-bottom: 20px;
+  padding: 15px;
+  background: #fff7e6;
+  border-radius: 6px;
+  border-left: 4px solid #e6a23c;
+}
+
+.result-box label {
+  display: block;
+  margin-bottom: 8px;
+  color: #303133;
+  font-weight: 500;
+}
+
 .progress {
   background: #f5f7fa;
   padding: 15px;
@@ -1247,9 +1403,10 @@ onBeforeUnmount(() => {
 .h-patient,
 .h-executor,
 .h-time,
+.h-result,
 .h-remarks {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   margin-top: 6px;
   font-size: 13px;
@@ -1258,18 +1415,38 @@ onBeforeUnmount(() => {
 .h-patient .label,
 .h-executor .label,
 .h-time .label,
+.h-result .label,
 .h-remarks .label {
   color: #909399;
   font-weight: 500;
   min-width: 60px;
+  flex-shrink: 0;
 }
 
 .h-patient .value,
 .h-executor .value,
 .h-time .value,
+.h-result .value,
 .h-remarks .value {
   color: #303133;
   flex: 1;
+  word-break: break-word;
+}
+
+.h-result {
+  background: #fff7e6;
+  padding: 8px;
+  border-radius: 4px;
+  border-left: 3px solid #e6a23c;
+}
+
+.h-result .label {
+  color: #e6a23c;
+}
+
+.h-result .result-text {
+  color: #303133;
+  font-weight: 500;
 }
 
 .bed-id {

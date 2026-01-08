@@ -194,22 +194,15 @@
                 >
                   批量签收 ({{ selectedNewCount }})
                 </el-button>
-                <el-button 
-                  type="danger"
-                  :disabled="selectedNewCount === 0"
-                  @click="rejectBatch"
-                  class="action-btn"
-                >
-                  批量退回 ({{ selectedNewCount }})
-                </el-button>
               </div>
             </div>
 
             <!-- 医嘱列表 -->
             <div v-for="order in sortedNewOrders" 
                  :key="order.orderId"
-                 class="order-item">
-              <el-checkbox v-model="order.selected" @change="handleOrderSelectChange" />
+                 class="order-item"
+                 @click="handleOrderClick(order)">
+              <el-checkbox v-model="order.selected" @change="handleOrderSelectChange" @click.stop />
               
               <div class="order-content">
                 <!-- 多选模式下显示患者信息 -->
@@ -302,7 +295,7 @@
               </div>
 
               <!-- 操作按钮 -->
-              <div class="order-actions">
+              <div class="order-actions" @click.stop>
                 <el-button 
                   type="primary" 
                   @click="acknowledgeOne(order)"
@@ -348,22 +341,15 @@
                 >
                   批量签收 ({{ selectedStoppedCount }})
                 </el-button>
-                <el-button 
-                  type="danger" 
-                  :disabled="selectedStoppedCount === 0"
-                  @click="rejectStoppedBatch"
-                  class="action-btn"
-                >
-                  批量退回 ({{ selectedStoppedCount }})
-                </el-button>
               </div>
             </div>
 
             <!-- 停止医嘱列表 -->
             <div v-for="order in sortedStoppedOrders" 
                  :key="order.orderId"
-                 class="order-item stopped">
-              <el-checkbox v-model="order.selected" @change="handleOrderSelectChange" />
+                 class="order-item stopped"
+                 @click="handleOrderClick(order)">
+              <el-checkbox v-model="order.selected" @change="handleOrderSelectChange" @click.stop />
               
               <div class="order-content">
                 <!-- 多选模式下显示患者信息 -->
@@ -400,7 +386,7 @@
                 </div>
               </div>
 
-              <div class="order-actions">
+              <div class="order-actions" @click.stop>
                 <el-button 
                   type="primary" 
                   @click="acknowledgeStoppedOne(order)"
@@ -427,6 +413,23 @@
         </el-tab-pane>
       </el-tabs>
     </section>
+
+    <!-- ==================== 医嘱详情弹窗 ==================== -->
+    <el-dialog
+      v-model="detailDialogVisible"
+      :title="`医嘱详情 - ${currentOrderDetail?.summary || ''}`"
+      width="900px"
+      class="order-detail-dialog"
+      :close-on-click-modal="false"
+    >
+      <div class="order-detail-dialog-body">
+        <OrderDetailPanel 
+          v-if="currentOrderDetail"
+          :detail="currentOrderDetail"
+          :nurse-mode="true"
+        />
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -452,6 +455,9 @@ import {
 import { confirmReturnMedication } from '../api/orderApplication';
 // 导入出院医嘱验证API
 import { validateDischargeOrderAcknowledgement } from '../api/dischargeOrder';
+// 导入医嘱详情相关API和组件
+import { getOrderDetail } from '../api/nurseOrder';
+import OrderDetailPanel from '../components/OrderDetailPanel.vue';
 import { ElLoading } from 'element-plus';
 
 // ==================== 状态管理 ====================
@@ -472,6 +478,10 @@ const showOnlyPending = ref(false);
 const enableMultiSelect = ref(false);
 const orderSortBy = ref('time'); // 'time' | 'patient'
 const currentScheduledWardId = ref(null); // 护士当前排班的病区ID
+
+// 医嘱详情弹窗
+const detailDialogVisible = ref(false);
+const currentOrderDetail = ref(null);
 
 // 当前护士信息
 const getCurrentNurse = () => {
@@ -1753,6 +1763,33 @@ const formatDateTime = (dateTime) => {
     return dateTime;
   }
 };
+
+// ==================== 医嘱详情查看 ====================
+/**
+ * 医嘱卡片点击事件
+ */
+const handleOrderClick = (order) => {
+  viewOrderDetail(order);
+};
+
+/**
+ * 查看医嘱详情
+ */
+const viewOrderDetail = async (order) => {
+  try {
+    console.log('📖 查看医嘱详情:', order.orderId, order.displayText);
+    
+    // 获取完整的医嘱详情（包含任务列表）
+    const detail = await getOrderDetail(order.orderId);
+    currentOrderDetail.value = detail;
+    detailDialogVisible.value = true;
+    
+    console.log('✅ 医嘱详情加载成功');
+  } catch (error) {
+    console.error('❌ 获取医嘱详情失败:', error);
+    ElMessage.error('获取医嘱详情失败');
+  }
+};
 </script>
 
 <style scoped>
@@ -2360,12 +2397,17 @@ const formatDateTime = (dateTime) => {
   transition: all 0.3s;
   background: white;
   align-items: center;
+  cursor: pointer;
 }
 
 .order-item:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   border-color: var(--primary-color);
   transform: translateY(-2px);
+}
+
+.order-item:active {
+  transform: translateY(0);
 }
 
 .order-item.stopped {
@@ -2582,6 +2624,38 @@ const formatDateTime = (dateTime) => {
 .empty-state p {
   font-size: 1rem;
   color: var(--text-secondary);
+}
+
+/* ==================== 医嘱详情弹窗 ==================== */
+.order-detail-dialog :deep(.el-dialog__body) {
+  padding: 20px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.order-detail-dialog-body {
+  max-height: 70vh;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+/* 自定义滚动条样式 */
+.order-detail-dialog-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.order-detail-dialog-body::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.order-detail-dialog-body::-webkit-scrollbar-thumb {
+  background: #c0c4cc;
+  border-radius: 3px;
+}
+
+.order-detail-dialog-body::-webkit-scrollbar-thumb:hover {
+  background: #909399;
 }
 
 /* ==================== 响应式 ==================== */

@@ -200,6 +200,7 @@ public class SurgicalOrderTaskController : ControllerBase
             IsRolledBack = t.IsRolledBack,
             DataPayload = t.DataPayload, // 核心字段：包含具体的 JSON 内容
             ResultPayload = t.ResultPayload,
+            ExecutionRemarks = t.ExecutionRemarks,
             ExceptionReason = t.ExceptionReason,
             CreatedAt = t.CreatedAt
         }).OrderBy(t => t.PlannedStartTime).ToList();

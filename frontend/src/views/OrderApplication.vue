@@ -21,6 +21,8 @@
       <PatientInfoBar 
         :patients="selectedPatients"
         :is-multi-select="enableMultiSelect"
+        :sort-by="sortBy"
+        @sort-change="handleSortChange"
       />
 
       <!-- Tab导航栏（点击切换） -->
@@ -119,8 +121,8 @@
           
           <!-- 申请内容 -->
           <div class="application-content">
-            <!-- 患者信息（单选时不显示，因为上方已有患者信息栏） -->
-            <div v-if="false" class="application-patient-tag">
+            <!-- 患者信息（多选模式时显示） -->
+            <div v-if="enableMultiSelect" class="application-patient-tag">
               <span class="patient-bed-tag">{{ item.bedId }}</span>
               <span class="patient-name-tag">{{ item.patientName }}</span>
             </div>
@@ -171,10 +173,6 @@
               <span v-if="item.inspectionSource" class="inspection-source">
                 · {{ item.inspectionSource }}
               </span>
-
-              
-              <!-- 加急标识 -->
-              <span v-if="item.isUrgent" class="urgent-badge">🔥 加急</span>
             </div>
 
             <!-- 药品申请详情 -->
@@ -213,11 +211,6 @@
               <div class="detail-section">
                 <span class="detail-label">检查项:</span>
                 <span class="detail-value">{{ item.inspectionInfo.itemName }}</span>
-              </div>
-
-              <div v-if="item.inspectionInfo.itemCode" class="detail-section">
-                <span class="detail-label">项目编码:</span>
-                <span class="detail-value">{{ item.inspectionInfo.itemCode }}</span>
               </div>
 
               <div v-if="item.inspectionInfo.location" class="detail-section">
@@ -371,7 +364,7 @@ const activeTab = ref('medication'); // 'medication' | 'inspection'
 // 筛选条件
 const statusFilter = ref(['Applying']); // 默认显示待申请
 const timeRange = ref(null); // [startTime, endTime]
-const sortBy = ref('createTime');
+const sortBy = ref('time'); // 'time' | 'patient'
 
 // 申请列表数据
 const applicationList = ref([]);
@@ -402,18 +395,34 @@ const handleTabClick = (tab) => {
   loadApplications();
 };
 
-// 监听患者选择变化
+// 排序方式变化处理
+const handleSortChange = (newSortBy) => {
+  sortBy.value = newSortBy;
+};
+
+// 监听患者选择变化（单选模式）
 watch(selectedPatient, async () => {
-  if (selectedPatient.value) {
+  if (!enableMultiSelect.value && selectedPatient.value) {
     loadApplications();
     // 更新当前患者的待申请数量（用于红点显示）
     await updateCurrentPatientPendingCount();
-  } else {
+  } else if (!enableMultiSelect.value && !selectedPatient.value) {
     applicationList.value = [];
     pendingMedicationCount.value = 0;
     pendingInspectionCount.value = 0;
   }
 });
+
+// 监听多选患者列表变化（多选模式）
+watch(selectedPatients, async () => {
+  if (enableMultiSelect.value && selectedPatients.value.length > 0) {
+    loadApplications();
+  } else if (enableMultiSelect.value && selectedPatients.value.length === 0) {
+    applicationList.value = [];
+    pendingMedicationCount.value = 0;
+    pendingInspectionCount.value = 0;
+  }
+}, { deep: true });
 
 // 患者选择处理
 const handlePatientSelect = (eventData) => {
@@ -437,6 +446,32 @@ const handlePatientSelect = (eventData) => {
 
 // 组件挂载时初始化
 onMounted(async () => {
+  // 设置默认时间范围：前一天到后一天（中国时间）
+  const now = new Date();
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  yesterday.setHours(0, 0, 0, 0);
+  
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(23, 59, 59, 999);
+  
+  // 格式化为 YYYY-MM-DDTHH:mm:ss 格式
+  const formatToDateTimeLocal = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+  };
+  
+  timeRange.value = [
+    formatToDateTimeLocal(yesterday),
+    formatToDateTimeLocal(tomorrow)
+  ];
+  
   await initializePatientData();
   // 初始化后更新所有患者的待申请数量
   await updateAllPatientsPendingCount();
@@ -561,9 +596,35 @@ const updateAllPatientsPendingCount = async () => {
   }
 };
 
+// 操作成功后刷新患者列表和红点（统一刷新方法）
+const refreshAfterAction = async () => {
+  // 1. 刷新任务列表
+  await loadApplications();
+  
+  // 2. 刷新患者列表中的数字徽章
+  if (enableMultiSelect.value && selectedPatients.value.length > 0) {
+    // 多选模式：更新所有选中患者的待申请数量
+    await Promise.all(
+      selectedPatients.value.map(patient => updatePatientPendingCount(patient.patientId))
+    );
+  } else if (selectedPatient.value) {
+    // 单选模式：更新当前患者的待申请数量
+    await updatePatientPendingCount(selectedPatient.value.patientId);
+  }
+  
+  // 3. 刷新导航栏红点（药品申请和检查申请的未完成标识）
+  await updateCurrentPatientPendingCount();
+};
+
 // 加载申请列表
 const loadApplications = async () => {
-  if (!selectedPatient.value) {
+  // 多选模式：检查selectedPatients
+  // 单选模式：检查selectedPatient
+  const hasPatients = enableMultiSelect.value 
+    ? selectedPatients.value.length > 0 
+    : selectedPatient.value !== null;
+  
+  if (!hasPatients) {
     applicationList.value = [];
     return;
   }
@@ -582,10 +643,15 @@ const loadApplications = async () => {
       return;
     }
 
+    // 获取患者ID列表
+    const patientIds = enableMultiSelect.value
+      ? selectedPatients.value.map(p => p.patientId)
+      : [selectedPatient.value.patientId];
+
     // 构造请求参数（与后端DTO匹配）
     const requestData = {
       applicationType: activeTab.value === 'medication' ? 'Medication' : 'Inspection',
-      patientIds: [selectedPatient.value.patientId]
+      patientIds: patientIds
     };
 
     // 添加状态筛选
@@ -627,8 +693,16 @@ const loadApplications = async () => {
       }));
       console.log('✅ 成功加载', applicationList.value.length, '条申请记录');
       
-      // 更新当前患者的待申请数量
-      updatePatientPendingCount(selectedPatient.value.patientId);
+      // 更新患者的待申请数量
+      if (enableMultiSelect.value) {
+        // 多选模式：更新所有选中患者的待申请数量
+        selectedPatients.value.forEach(patient => {
+          updatePatientPendingCount(patient.patientId);
+        });
+      } else if (selectedPatient.value) {
+        // 单选模式：更新当前患者的待申请数量
+        updatePatientPendingCount(selectedPatient.value.patientId);
+      }
     } else if (response && response.success) {
       // 兼容可能的标准格式响应
       applicationList.value = (response.data || []).map(item => ({
@@ -674,7 +748,19 @@ const loadApplications = async () => {
 const sortedApplications = computed(() => {
   const list = [...applicationList.value];
   
+  // 多选模式下，支持按患者分组排序
+  if (enableMultiSelect.value && sortBy.value === 'patient') {
+    return list.sort((a, b) => {
+      // 先按床位号排序
+      const bedCompare = a.bedId.localeCompare(b.bedId);
+      if (bedCompare !== 0) return bedCompare;
+      // 同一患者按计划开始时间排序
+      return new Date(a.plannedStartTime) - new Date(b.plannedStartTime);
+    });
+  }
+  
   switch (sortBy.value) {
+    case 'time':
     case 'createTime':
       // 按计划开始时间从早到晚排序（升序）
       return list.sort((a, b) => new Date(a.plannedStartTime) - new Date(b.plannedStartTime));
@@ -687,11 +773,6 @@ const sortedApplications = computed(() => {
       return list;
   }
 });
-
-// 排序变化处理
-const handleSortChange = () => {
-  // 触发计算属性重新计算即可
-};
 
 // 全选处理
 const handleSelectAllChange = (value) => {
@@ -756,8 +837,7 @@ const handleSingleApply = async (item) => {
 
     if (response.success) {
       ElMessage.success('申请成功');
-      await loadApplications(); // 刷新列表
-      // 刷新后会自动更新待申请数量
+      await refreshAfterAction(); // 刷新列表、患者徽章和导航栏红点
     } else {
       ElMessage.error(response.message || '申请失败');
     }
@@ -784,13 +864,15 @@ const handleBatchApply = async () => {
     return;
   }
 
-  const hasUrgent = selectedItems.some(item => item.isUrgent);
+  // 分离加急和非加急申请
+  const urgentItems = selectedItems.filter(item => item.isUrgent);
+  const normalItems = selectedItems.filter(item => !item.isUrgent);
 
   // 加急确认
-  if (hasUrgent) {
+  if (urgentItems.length > 0) {
     try {
       await ElMessageBox.confirm(
-        `您选择了 ${selectedItems.length} 项申请，其中包含加急项。是否继续？`,
+        `您选择了 ${selectedItems.length} 项申请，其中 ${urgentItems.length} 项为加急。是否继续？`,
         '批量申请确认',
         {
           confirmButtonText: '确认申请',
@@ -806,30 +888,74 @@ const handleBatchApply = async () => {
 
   loading.value = true;
   try {
-    let response;
-    if (activeTab.value === 'medication') {
-      response = await submitMedicationApplication({
-        nurseId: currentNurse.staffId,  // ✅ 使用 staffId 字段
-        taskIds: selectedItems.map(item => item.relatedId),
-        isUrgent: hasUrgent,
-        remarks: '批量申请'
-      });
-    } else {
-      response = await submitInspectionApplication({
-        nurseId: currentNurse.staffId,  // ✅ 使用 staffId 字段
-        taskIds: selectedItems.map(item => item.relatedId),  // ✅ 使用 taskIds 而不是 orderIds
-        isUrgent: hasUrgent,
-        remarks: '批量申请'
-      });
+    let totalSuccess = 0;
+    const responses = [];
+
+    // 分别提交加急和非加急申请
+    if (urgentItems.length > 0) {
+      if (activeTab.value === 'medication') {
+        const response = await submitMedicationApplication({
+          nurseId: currentNurse.staffId,
+          taskIds: urgentItems.map(item => item.relatedId),
+          isUrgent: true,
+          remarks: '批量申请（加急）'
+        });
+        responses.push(response);
+        if (response.success) {
+          totalSuccess += response.processedIds?.length || urgentItems.length;
+        }
+      } else {
+        const response = await submitInspectionApplication({
+          nurseId: currentNurse.staffId,
+          taskIds: urgentItems.map(item => item.relatedId),
+          isUrgent: true,
+          remarks: '批量申请（加急）'
+        });
+        responses.push(response);
+        if (response.success) {
+          totalSuccess += response.processedIds?.length || urgentItems.length;
+        }
+      }
     }
 
-    if (response.success) {
-      ElMessage.success(`批量申请成功：${response.processedIds?.length || selectedItems.length} 项`);
-      await loadApplications(); // 刷新列表（会自动更新待申请数量）
-      selectAll.value = false;
-    } else {
-      ElMessage.error(response.message || '批量申请失败');
+    if (normalItems.length > 0) {
+      if (activeTab.value === 'medication') {
+        const response = await submitMedicationApplication({
+          nurseId: currentNurse.staffId,
+          taskIds: normalItems.map(item => item.relatedId),
+          isUrgent: false,
+          remarks: '批量申请'
+        });
+        responses.push(response);
+        if (response.success) {
+          totalSuccess += response.processedIds?.length || normalItems.length;
+        }
+      } else {
+        const response = await submitInspectionApplication({
+          nurseId: currentNurse.staffId,
+          taskIds: normalItems.map(item => item.relatedId),
+          isUrgent: false,
+          remarks: '批量申请'
+        });
+        responses.push(response);
+        if (response.success) {
+          totalSuccess += response.processedIds?.length || normalItems.length;
+        }
+      }
     }
+
+    // 检查是否全部成功
+    const allSuccess = responses.every(r => r.success);
+    
+    if (allSuccess) {
+      ElMessage.success(`批量申请成功：${totalSuccess} 项`);
+    } else {
+      const failedCount = selectedItems.length - totalSuccess;
+      ElMessage.warning(`部分申请成功：成功 ${totalSuccess} 项，失败 ${failedCount} 项`);
+    }
+    
+    await refreshAfterAction(); // 刷新列表、患者徽章和导航栏红点
+    selectAll.value = false;
   } catch (error) {
     console.error('批量申请失败:', error);
     ElMessage.error('批量申请失败');
@@ -871,7 +997,7 @@ const handleCancelApplication = async (item) => {
 
     if (response.success) {
       ElMessage.success('撤销成功');
-      await loadApplications();
+      await refreshAfterAction(); // 刷新列表、患者徽章和导航栏红点
     } else {
       ElMessage.error(response.message || '撤销失败');
     }
@@ -915,7 +1041,7 @@ const handleReturnMedication = async (item) => {
     if (response.success) {
       const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
       ElMessage.success(isInspection ? '取消申请已提交' : '退药申请已提交');
-      await loadApplications();
+      await refreshAfterAction(); // 刷新列表、患者徽章和导航栏红点
     } else {
       const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
       ElMessage.error(response.message || (isInspection ? '取消申请失败' : '退药申请失败'));
@@ -961,7 +1087,7 @@ const handleConfirmReturn = async (item) => {
     if (response.success) {
       const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
       ElMessage.success(isInspection ? '取消确认成功' : '退药确认成功');
-      await loadApplications();
+      await refreshAfterAction(); // 刷新列表、患者徽章和导航栏红点
     } else {
       const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
       ElMessage.error(response.message || (isInspection ? '取消确认失败' : '退药确认失败'));
@@ -1009,7 +1135,7 @@ const handleConfirmCancelledReturn = async (item) => {
     if (response.success) {
       const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
       ElMessage.success(isInspection ? '取消确认成功，任务已标记为异常' : '退药确认成功，任务已标记为异常');
-      await loadApplications();
+      await refreshAfterAction(); // 刷新列表、患者徽章和导航栏红点
     } else {
       const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
       ElMessage.error(response.message || (isInspection ? '确认失败' : '确认失败'));
@@ -1067,7 +1193,7 @@ const handleCancelApply = async (item) => {
 
     if (response.success) {
       ElMessage.success('取消成功');
-      await loadApplications();
+      await refreshAfterAction(); // 刷新列表、患者徽章和导航栏红点
     } else {
       ElMessage.error(response.message || '取消失败');
     }
@@ -1487,6 +1613,26 @@ const formatUsageRoute = (usageRoute) => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+/* ==================== 排序控制（多选模式） ==================== */
+
+.sort-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.sort-label {
+  font-size: 0.9rem;
+  color: var(--text-regular);
+  font-weight: 500;
+}
+
+.sort-radio :deep(.el-radio-button__inner) {
+  padding: 6px 15px;
+  font-size: 0.85rem;
 }
 
 /* ==================== 患者标签（多选模式） ==================== */

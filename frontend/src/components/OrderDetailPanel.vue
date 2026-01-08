@@ -67,7 +67,23 @@
             <span class="value">{{ detail.signedByNurseName }}</span>
           </div>
           
-          <div v-if="detail.stopReason" class="info-item full-width stop-info">
+          <!-- ==================== 异常原因记录区域 ==================== -->
+          <!-- 退回原因 -->
+          <div v-if="detail.rejectReason" class="info-item full-width exception-info reject-info">
+            <span class="label">退回原因:</span>
+            <span class="value danger">{{ detail.rejectReason }}</span>
+          </div>
+          <div v-if="detail.rejectedAt" class="info-item">
+            <span class="label">退回时间:</span>
+            <span class="value">{{ formatDateTime(detail.rejectedAt) }}</span>
+          </div>
+          <div v-if="detail.rejectedByNurseName" class="info-item">
+            <span class="label">退回护士:</span>
+            <span class="value">{{ detail.rejectedByNurseName }}</span>
+          </div>
+          
+          <!-- 停嘱原因 -->
+          <div v-if="detail.stopReason" class="info-item full-width exception-info stop-info">
             <span class="label">停嘱原因:</span>
             <span class="value danger">{{ detail.stopReason }}</span>
           </div>
@@ -78,6 +94,34 @@
           <div v-if="detail.stopDoctorName" class="info-item">
             <span class="label">停嘱医生:</span>
             <span class="value">{{ detail.stopDoctorName }}</span>
+          </div>
+          
+          <!-- 拒绝停嘱原因 -->
+          <div v-if="detail.stopRejectReason" class="info-item full-width exception-info stop-reject-info">
+            <span class="label">拒绝停嘱原因:</span>
+            <span class="value warning">{{ detail.stopRejectReason }}</span>
+          </div>
+          <div v-if="detail.stopRejectedAt" class="info-item">
+            <span class="label">拒绝停嘱时间:</span>
+            <span class="value">{{ formatDateTime(detail.stopRejectedAt) }}</span>
+          </div>
+          <div v-if="detail.stopRejectedByNurseName" class="info-item">
+            <span class="label">拒绝停嘱护士:</span>
+            <span class="value">{{ detail.stopRejectedByNurseName }}</span>
+          </div>
+          
+          <!-- 撤销原因 -->
+          <div v-if="detail.cancelReason" class="info-item full-width exception-info cancel-info">
+            <span class="label">撤销原因:</span>
+            <span class="value danger">{{ detail.cancelReason }}</span>
+          </div>
+          <div v-if="detail.cancelledAt" class="info-item">
+            <span class="label">撤销时间:</span>
+            <span class="value">{{ formatDateTime(detail.cancelledAt) }}</span>
+          </div>
+          <div v-if="detail.cancelledByDoctorName" class="info-item">
+            <span class="label">撤销医生:</span>
+            <span class="value">{{ detail.cancelledByDoctorName }}</span>
           </div>
           
           <div v-if="detail.remarks" class="info-item full-width">
@@ -364,20 +408,44 @@
               <div class="task-section">
                 <div class="section-title">👨‍⚕️ 护士信息</div>
                 <div v-if="task.assignedNurseName" class="timeline-item">
-                  <span class="timeline-label">理论执行护士:</span>
+                  <span class="timeline-label">计划执行护士:</span>
                   <span class="timeline-value">{{ task.assignedNurseName }}</span>
                 </div>
                 <div v-if="task.executorName" class="timeline-item">
-                  <span class="timeline-label">实际开始护士:</span>
+                  <span class="timeline-label">实际开始执行护士:</span>
                   <span class="timeline-value">{{ task.executorName }}</span>
                 </div>
                 <div v-if="task.completerNurseName" class="timeline-item">
-                  <span class="timeline-label">实际结束护士:</span>
+                  <span class="timeline-label">实际结束执行护士:</span>
                   <span class="timeline-value">{{ task.completerNurseName }}</span>
                 </div>
                 <div v-if="!task.assignedNurseName && !task.executorName && !task.completerNurseName" class="timeline-item">
                   <span class="timeline-label">护士信息:</span>
                   <span class="timeline-value" style="color: #909399;">暂无</span>
+                </div>
+              </div>
+
+              <!-- 执行结果（仅对ResultPending类任务且有结果时显示，隐藏取药任务的执行结果） -->
+              <div v-if="task.resultPayload && task.resultPayload.trim() && !isRetrieveMedicationTask(task)" class="task-section">
+                <div class="section-title">📊 执行结果</div>
+                <div class="timeline-item">
+                  <div class="result-content">{{ task.resultPayload }}</div>
+                </div>
+              </div>
+
+              <!-- 执行备注（有备注时显示） -->
+              <div v-if="task.executionRemarks && task.executionRemarks.trim()" class="task-section">
+                <div class="section-title">📝 执行备注</div>
+                <div class="timeline-item">
+                  <div class="remarks-content">{{ task.executionRemarks }}</div>
+                </div>
+              </div>
+
+              <!-- 异常原因（仅异常状态显示） -->
+              <div v-if="(task.status === 8 || task.status === 'Incomplete') && task.exceptionReason && task.exceptionReason.trim()" class="task-section exception-section">
+                <div class="section-title">⚠️ 异常原因</div>
+                <div class="timeline-item">
+                  <div class="exception-content">{{ task.exceptionReason }}</div>
                 </div>
               </div>
 
@@ -904,12 +972,12 @@ const handleStartCompletion = async (task) => {
       }
 
       // 备注格式
-      let resultPayload = null;
+      let executionRemarks = null;
       if (remarkValue && remarkValue.trim()) {
-        resultPayload = `完成备注：${remarkValue}.`;
+        executionRemarks = remarkValue;
       }
 
-      const response = await completeExecutionTask(task.id, nurseId, resultPayload);
+      const response = await completeExecutionTask(task.id, nurseId, null, executionRemarks);
       ElMessage.success(response.message || '任务已完成');
       emit('task-updated', task.id);
       return;
@@ -940,12 +1008,12 @@ const handleStartCompletion = async (task) => {
       }
 
       // 备注格式
-      let resultPayload = null;
+      let executionRemarks = null;
       if (remarkValue && remarkValue.trim()) {
-        resultPayload = `核对备注：${remarkValue}.`;
+        executionRemarks = remarkValue;
       }
 
-      const response = await completeExecutionTask(task.id, nurseId, resultPayload);
+      const response = await completeExecutionTask(task.id, nurseId, null, executionRemarks);
       ElMessage.success(response.message || '任务已完成');
       emit('task-updated', task.id);
       return;
@@ -975,13 +1043,13 @@ const handleStartCompletion = async (task) => {
         return;
       }
 
-      // 第一阶段备注格式：开始备注：内容.
-      let resultPayload = null;
+      // 第一阶段备注格式
+      let executionRemarks = null;
       if (remarkValue && remarkValue.trim()) {
-        resultPayload = `开始备注：${remarkValue}.`;
+        executionRemarks = remarkValue;
       }
 
-      const response = await completeExecutionTask(task.id, nurseId, resultPayload);
+      const response = await completeExecutionTask(task.id, nurseId, null, executionRemarks);
       ElMessage.success(response.message || '任务已开始执行，请继续完成第二阶段');
       emit('task-updated', task.id);
       return;
@@ -1002,6 +1070,7 @@ const handleFinishTask = async (task) => {
   try {
     const category = task.category;
     let resultPayload = null;
+    let remarkValue = ''; // 用于存储备注信息
     const taskDetails = parseTaskDataPayload(task.dataPayload);
 
     let message = `<div style="text-align: left; font-size: 13px; line-height: 1.8;">
@@ -1049,70 +1118,70 @@ const handleFinishTask = async (task) => {
 
     if (category === 3 || category === 'ResultPending') {
       message += `<div style="margin-top: 12px; padding: 8px 12px; background: #fdf6ec; border-radius: 4px; color: #e6a23c; font-size: 12px;">
-        📥 请在下方分别输入执行结果和结束备注
+        📥 请分别输入执行结果和结束备注
+      </div>
+      <div style="margin-top: 16px;">
+        <div style="margin-bottom: 12px;">
+          <label style="display: block; margin-bottom: 6px; color: #606266; font-weight: 600;">
+            <span style="color: #f56c6c;">*</span> 执行结果：
+          </label>
+          <textarea id="result-input" rows="3" placeholder="请输入执行结果（必填）..." 
+            style="width: 100%; padding: 8px 12px; border: 1px solid #dcdfe6; border-radius: 4px; font-size: 13px; resize: vertical; font-family: inherit;"></textarea>
+        </div>
+        <div>
+          <label style="display: block; margin-bottom: 6px; color: #606266; font-weight: 600;">
+            结束备注：
+          </label>
+          <textarea id="remarks-input" rows="3" placeholder="请输入结束备注信息（可选）..." 
+            style="width: 100%; padding: 8px 12px; border: 1px solid #dcdfe6; border-radius: 4px; font-size: 13px; resize: vertical; font-family: inherit;"></textarea>
+        </div>
       </div></div>`;
       
-      // 第一步：获取执行结果（必填）
       let resultValue = '';
-      try {
-        const resultPrompt = message + `<div style="margin-top: 16px; padding: 8px 12px; background: #f0f9ff; border-radius: 4px; color: #409eff; font-size: 12px;">
-          ➡️ 第1步：请先输入执行结果
-        </div>`;
-        
-        const { value } = await ElMessageBox.prompt(
-          resultPrompt,
-          '结束任务 - 录入结果',
-          {
-            confirmButtonText: '下一步',
-            cancelButtonText: '取消',
-            inputType: 'textarea',
-            inputPlaceholder: '请输入执行结果（必填）...',
-            inputValidator: (value) => {
-              if (!value || value.trim().length === 0) {
-                return '执行结果不能为空';
-              }
-              return true;
-            },
-            dangerouslyUseHTMLString: true,
-            customClass: 'task-completion-dialog'
-          }
-        );
-        resultValue = value;
-      } catch (error) {
-        if (error !== 'cancel') {
-          throw error;
-        }
-        return;
-      }
       
-      // 第二步：获取结束备注（可选）
-      let remarkValue = '';
       try {
-        const remarkPrompt = message + `<div style="margin-top: 16px; padding: 8px 12px; background: #f0f9ff; border-radius: 4px; color: #409eff; font-size: 12px;">
-          ➡️ 第2步：请输入结束备注（可选）
-        </div>`;
-        
-        const { value } = await ElMessageBox.prompt(
-          remarkPrompt,
-          '结束任务 - 录入备注',
+        await ElMessageBox.confirm(
+          message,
+          '结束任务',
           {
             confirmButtonText: '确认完成',
             cancelButtonText: '取消',
-            inputType: 'textarea',
-            inputPlaceholder: '请输入结束备注信息（可选）...',
             dangerouslyUseHTMLString: true,
-            customClass: 'task-completion-dialog'
+            customClass: 'task-completion-dialog',
+            beforeClose: (action, instance, done) => {
+              if (action === 'confirm') {
+                const resultInput = document.getElementById('result-input');
+                const remarksInput = document.getElementById('remarks-input');
+                
+                if (resultInput) {
+                  resultValue = resultInput.value?.trim() || '';
+                }
+                if (remarksInput) {
+                  remarkValue = remarksInput.value?.trim() || '';
+                }
+                
+                // 验证执行结果必填
+                if (!resultValue) {
+                  ElMessage.warning('执行结果不能为空');
+                  return;
+                }
+                
+                done();
+              } else {
+                done();
+              }
+            }
           }
         );
-        remarkValue = value || '';
       } catch (error) {
-        if (error !== 'cancel') {
-          throw error;
+        if (error === 'cancel') {
+          return;
         }
-        return;
+        throw error;
       }
       
-      resultPayload = resultValue + (remarkValue ? `\n${remarkValue}` : '');
+      resultPayload = resultValue;
+      // remarkValue 将作为独立参数传递给 API
     } else if (category === 2 || category === 'Duration') {
       message += `<div style="margin-top: 12px; padding: 8px 12px; background: #f0f9ff; border-radius: 4px; color: #409eff; font-size: 12px;">
         📝 请在下方输入结束备注信息
@@ -1130,7 +1199,7 @@ const handleFinishTask = async (task) => {
           customClass: 'task-completion-dialog'
         }
       );
-      resultPayload = value || '';
+      remarkValue = value || '';
     } else {
       ElMessage.warning(`任务类别 ${category} 的流程暂未实现`);
       return;
@@ -1142,7 +1211,7 @@ const handleFinishTask = async (task) => {
       return;
     }
 
-    const response = await completeExecutionTask(task.id, nurseId, resultPayload);
+    const response = await completeExecutionTask(task.id, nurseId, resultPayload, remarkValue);
     ElMessage.success(response.message || '任务已完成');
     emit('task-updated', task.id);
   } catch (error) {
@@ -1489,12 +1558,13 @@ const getTaskStatusColor = (status) => {
 // 获取任务类型样式和名称（使用正确的TaskCategory枚举：1-6）
 const getTaskCategoryStyle = (category) => {
   const categoryMap = {
-    1: { name: '操作', color: '#67c23a', type: 'success' },      // Immediate 即刻执行
-    2: { name: '操作', color: '#409eff', type: 'primary' },      // Duration 持续执行
-    3: { name: '操作', color: '#e6a23c', type: 'warning' },      // ResultPending 结果等待
-    4: { name: '操作', color: '#9b59b6', type: 'info' },         // DataCollection 护理记录
-    5: { name: '取药核对', color: '#909399', type: 'info' },      // Verification 核对类
-    6: { name: '检查申请', color: '#17a2b8', type: 'info' }       // ApplicationWithPrint 申请打印
+    1: { name: '即刻执行', color: '#67c23a', type: 'success' },      // Immediate 即刻执行
+    2: { name: '持续执行', color: '#409eff', type: 'primary' },      // Duration 持续执行
+    3: { name: '结果等待', color: '#e6a23c', type: 'warning' },      // ResultPending 结果等待
+    4: { name: '护理记录', color: '#9b59b6', type: 'info' },         // DataCollection 护理记录
+    5: { name: '取药核对', color: '#909399', type: 'info' },         // Verification 核对类
+    6: { name: '检查申请', color: '#17a2b8', type: 'info' },         // ApplicationWithPrint 申请打印
+    11: { name: '出院确认', color: '#f56c6c', type: 'danger' }       // DischargeConfirmation 出院确认
   };
   return categoryMap[category] || { name: '未知', color: '#909399', type: 'info' };
 };
@@ -1517,6 +1587,45 @@ const formatTime = (dateString) => {
   } catch {
     return '--:--';
   }
+};
+
+// 判断是否为取药任务
+const isRetrieveMedicationTask = (task) => {
+  if (!task) return false;
+  
+  // 检查 resultPayload 中是否包含 scannedDrugIds 字段（取药任务特有的执行结果格式）
+  if (task.resultPayload) {
+    try {
+      const resultPayload = JSON.parse(task.resultPayload);
+      if (resultPayload && (resultPayload.scannedDrugIds || resultPayload.ScannedDrugIds)) {
+        return true;
+      }
+    } catch (e) {
+      // 如果解析失败，检查字符串中是否包含 scannedDrugIds
+      if (task.resultPayload.includes('scannedDrugIds') || task.resultPayload.includes('ScannedDrugIds')) {
+        return true;
+      }
+    }
+  }
+  
+  // 检查 dataPayload 中的 Title 是否包含"取药"
+  if (task.dataPayload) {
+    try {
+      const dataPayload = JSON.parse(task.dataPayload);
+      if (dataPayload && dataPayload.Title && dataPayload.Title.includes('取药')) {
+        return true;
+      }
+    } catch (e) {
+      // 忽略解析错误
+    }
+  }
+  
+  // 检查 taskTitle 是否包含"取药"
+  if (task.taskTitle && task.taskTitle.includes('取药')) {
+    return true;
+  }
+  
+  return false;
 };
 
 // 计算延迟分钟数
@@ -1810,11 +1919,53 @@ const handlePrintTaskBarcode = async (task) => {
   color: #f56c6c;
 }
 
-.stop-info {
-  background: #fef0f0;
+/* 异常原因信息样式 */
+.exception-info {
   padding: 12px;
   border-radius: 6px;
+  margin-top: 8px;
+}
+
+.reject-info {
+  background: #fef0f0;
   border-left: 4px solid #f56c6c;
+}
+
+.stop-info {
+  background: #fef0f0;
+  border-left: 4px solid #f56c6c;
+}
+
+.stop-reject-info {
+  background: #fdf6ec;
+  border-left: 4px solid #e6a23c;
+}
+
+.cancel-info {
+  background: #fef0f0;
+  border-left: 4px solid #f56c6c;
+}
+
+.value.warning {
+  color: #e6a23c;
+}
+
+.exception-section {
+  border-top: 2px dashed #f56c6c;
+  padding-top: 16px;
+  margin-top: 16px;
+}
+
+.exception-content {
+  color: #f56c6c;
+  font-weight: 600;
+  padding: 12px;
+  background: #fef0f0;
+  border-radius: 4px;
+  border-left: 3px solid #f56c6c;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .medication-info {
@@ -2084,6 +2235,23 @@ const handlePrintTaskBarcode = async (task) => {
 
 .timeline-badge.duration {
   color: #909399;
+}
+
+.result-content,
+.remarks-content {
+  color: #303133;
+  font-weight: 500;
+  padding: 12px;
+  background: #f5f7fa;
+  border-radius: 4px;
+  border-left: 3px solid #409eff;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.remarks-content {
+  border-left-color: #67c23a;
 }
 
 .task-detail-row {

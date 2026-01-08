@@ -76,10 +76,16 @@
         <div class="payload-content" v-html="parseDataPayloadHtml(task.dataPayload)"></div>
       </div>
 
-      <!-- ResultPayload 详情 -->
-      <div v-if="task.resultPayload" class="detail-section">
+      <!-- ResultPayload 详情（隐藏取药任务的执行结果） -->
+      <div v-if="task.resultPayload && !isRetrieveMedicationTask(task)" class="detail-section">
         <h4>执行结果</h4>
         <pre class="json-display">{{ formatJson(task.resultPayload) }}</pre>
+      </div>
+
+      <!-- 异常原因（仅异常状态显示） -->
+      <div v-if="(task.status === 8 || task.status === 'Incomplete') && task.exceptionReason && task.exceptionReason.trim()" class="detail-section exception-section">
+        <h4>⚠️ 异常原因</h4>
+        <div class="exception-content">{{ task.exceptionReason }}</div>
       </div>
     </div>
 
@@ -131,6 +137,45 @@ const formatDateTime = (dateString) => {
     minute: '2-digit',
     second: '2-digit'
   });
+};
+
+// 判断是否为取药任务
+const isRetrieveMedicationTask = (task) => {
+  if (!task) return false;
+  
+  // 检查 resultPayload 中是否包含 scannedDrugIds 字段（取药任务特有的执行结果格式）
+  if (task.resultPayload) {
+    try {
+      const resultPayload = JSON.parse(task.resultPayload);
+      if (resultPayload && (resultPayload.scannedDrugIds || resultPayload.ScannedDrugIds)) {
+        return true;
+      }
+    } catch (e) {
+      // 如果解析失败，检查字符串中是否包含 scannedDrugIds
+      if (task.resultPayload.includes('scannedDrugIds') || task.resultPayload.includes('ScannedDrugIds')) {
+        return true;
+      }
+    }
+  }
+  
+  // 检查 dataPayload 中的 Title 是否包含"取药"
+  if (task.dataPayload) {
+    try {
+      const dataPayload = JSON.parse(task.dataPayload);
+      if (dataPayload && dataPayload.Title && dataPayload.Title.includes('取药')) {
+        return true;
+      }
+    } catch (e) {
+      // 忽略解析错误
+    }
+  }
+  
+  // 检查 taskTitle 是否包含"取药"
+  if (task.taskTitle && task.taskTitle.includes('取药')) {
+    return true;
+  }
+  
+  return false;
 };
 
 // 格式化JSON
@@ -436,5 +481,23 @@ const getStatusText = (status) => {
   overflow-y: auto;
   margin: 0;
   color: #303133;
+}
+
+.exception-section {
+  border-top: 2px dashed #f56c6c;
+  padding-top: 16px;
+  margin-top: 16px;
+}
+
+.exception-content {
+  color: #f56c6c;
+  font-weight: 600;
+  padding: 12px;
+  background: #fef0f0;
+  border-radius: 4px;
+  border-left: 3px solid #f56c6c;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 </style>

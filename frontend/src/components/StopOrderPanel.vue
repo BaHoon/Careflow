@@ -384,16 +384,34 @@ const getTaskTimingStatus = (task) => {
 
 const getTaskStatusText = (status) => {
   const statusMap = {
-    0: '待申请', 1: '已申请', 2: '已确认', 3: '待执行',
-    4: '进行中', 5: '已完成', 6: '未完成', 7: '停嘱中', 8: '已停止'
+    0: '待申请', 
+    1: '已申请', 
+    2: '已确认', 
+    3: '待执行',
+    4: '进行中', 
+    5: '已完成', 
+    6: '停止锁定', 
+    7: '已停止',
+    8: '异常',
+    9: '待退药',
+    10: '异常取消待退药'
   };
   return statusMap[status] || `状态${status}`;
 };
 
 const getTaskStatusColor = (status) => {
   const colorMap = {
-    0: 'info', 1: 'warning', 2: 'primary', 3: 'primary',
-    4: 'success', 5: 'success', 6: 'danger', 7: 'warning', 8: 'info'
+    0: 'info', 
+    1: 'warning', 
+    2: 'primary', 
+    3: 'primary',
+    4: 'success', 
+    5: 'success', 
+    6: 'warning', 
+    7: 'info',
+    8: 'danger',
+    9: 'danger',
+    10: 'danger'
   };
   return colorMap[status] || 'info';
 };
@@ -401,14 +419,15 @@ const getTaskStatusColor = (status) => {
 // 获取任务类型样式和名称（使用正确的TaskCategory枚举：1-6）
 const getTaskCategoryStyle = (category) => {
   const categoryMap = {
-    1: { name: '\u64cd\u4f5c', color: '#67c23a', type: 'success' },      // Immediate 即刻执行
-    2: { name: '\u64cd\u4f5c', color: '#409eff', type: 'primary' },      // Duration 持续执行
-    3: { name: '\u64cd\u4f5c', color: '#e6a23c', type: 'warning' },      // ResultPending 结果等待
-    4: { name: '\u64cd\u4f5c', color: '#9b59b6', type: 'info' },         // DataCollection 护理记录
-    5: { name: '\u53d6\u836f\u6838\u5bf9', color: '#909399', type: '' },          // Verification 核对类
-    6: { name: '\u68c0\u67e5\u7533\u8bf7', color: '#17a2b8', type: 'info' }       // ApplicationWithPrint 申请打印
+    1: { name: '即刻执行', color: '#67c23a', type: 'success' },      // Immediate 即刻执行
+    2: { name: '持续执行', color: '#409eff', type: 'primary' },      // Duration 持续执行
+    3: { name: '结果等待', color: '#e6a23c', type: 'warning' },      // ResultPending 结果等待
+    4: { name: '护理记录', color: '#9b59b6', type: 'info' },         // DataCollection 护理记录
+    5: { name: '取药核对', color: '#909399', type: 'info' },         // Verification 核对类
+    6: { name: '检查申请', color: '#17a2b8', type: 'info' },         // ApplicationWithPrint 申请打印
+    11: { name: '出院确认', color: '#f56c6c', type: 'danger' }       // DischargeConfirmation 出院确认
   };
-  return categoryMap[category] || { name: '\u672a\u77e5', color: '#909399', type: 'info' };
+  return categoryMap[category] || { name: '未知', color: '#909399', type: 'info' };
 };
 
 const getOrderTypeName = (orderType) => {

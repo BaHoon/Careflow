@@ -41,6 +41,11 @@ public class StaffDto
     public string? WardId { get; set; }
     
     /// <summary>
+    /// 医生职称（医生专用）
+    /// </summary>
+    public string? Title { get; set; }
+    
+    /// <summary>
     /// 是否启用
     /// </summary>
     public bool IsActive { get; set; }

@@ -20,10 +20,16 @@ public class CompleteExecutionTaskDto
     public string NurseId { get; set; } = string.Empty;
 
     /// <summary>
-    /// 执行结果（JSON格式）
-    /// 根据任务类别，可能包含：测量数值、扫描记录、核对结果等
+    /// 执行结果（仅用于ResultPending类任务）
+    /// 例如：测量数值、检测数据、皮试结果等
     /// </summary>
     public string? ResultPayload { get; set; }
+    
+    /// <summary>
+    /// 执行备注（所有任务类型都可填写）
+    /// 记录执行过程中的备注、观察、特殊情况说明
+    /// </summary>
+    public string? ExecutionRemarks { get; set; }
 }
 
 /// <summary>

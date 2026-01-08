@@ -8,7 +8,8 @@
       :multi-select="false"
       title="患者列表"
       :show-pending-filter="false"
-      :show-badge="false"
+      :show-badge="true"
+      badge-field="abnormalAndRejectedCount"
       :collapsed="false"
       @patient-select="handlePatientSelect"
     />
@@ -66,28 +67,27 @@
             <el-checkbox :label="2">已签收</el-checkbox>
             <el-checkbox :label="3">进行中</el-checkbox>
             <el-checkbox :label="4">已结束</el-checkbox>
-            <el-checkbox :label="6">已撤回</el-checkbox>
+            <el-checkbox :label="6">已取消</el-checkbox>
             <el-checkbox :label="7">已退回</el-checkbox>
             <el-checkbox :label="9">停止中</el-checkbox>
             <el-checkbox :label="10">异常态</el-checkbox>
           </el-checkbox-group>
         </div>
 
-        <!-- 排序方式 -->
-        <div class="filter-group">
-          <span class="filter-label">排序:</span>
-          <el-select v-model="sortBy" @change="handleSortChange" class="sort-select" size="small">
-            <el-option label="创建时间" value="CreateTime" />
-            <el-option label="医嘱状态" value="Status" />
-            <el-option label="医嘱类型" value="OrderType" />
-          </el-select>
-          <el-switch
-            v-model="sortDescending"
-            @change="handleSortChange"
-            active-text="降序"
-            inactive-text="升序"
-            style="margin-left: 10px;"
-          />
+        <!-- 内容搜索 -->
+        <div class="filter-group search-group">
+          <el-input
+            v-model="searchKeyword"
+            placeholder="搜索医嘱内容（药品名/检查项/手术名）"
+            clearable
+            @input="loadOrders"
+            size="small"
+            class="search-input"
+          >
+            <template #prefix>
+              <el-icon><Search /></el-icon>
+            </template>
+          </el-input>
         </div>
       </div>
 
@@ -274,7 +274,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Loading, InfoFilled } from '@element-plus/icons-vue';
+import { Loading, InfoFilled, Search } from '@element-plus/icons-vue';
 import PatientListPanel from '@/components/PatientListPanel.vue';
 import PatientInfoBar from '@/components/PatientInfoBar.vue';
 import OrderDetailPanel from '@/components/OrderDetailPanel.vue';
@@ -300,9 +300,8 @@ const statusFilter = ref([1, 8, 2, 3, 9, 10]);
 const typeFilter = ref(['MedicationOrder', 'InspectionOrder', 'OperationOrder', 'SurgicalOrder', 'DischargeOrder']);
 // 时间范围
 const timeRange = ref(null);
-// 排序方式（默认创建时间降序）
-const sortBy = ref('CreateTime');
-const sortDescending = ref(true);
+// 搜索关键词
+const searchKeyword = ref('');
 
 // ==================== 医嘱列表数据 ====================
 const orderList = ref([]);
@@ -369,19 +368,39 @@ const loadOrders = async () => {
     const requestData = {
       patientId: selectedPatient.value.patientId,
       statuses: mappedStatuses,
-      orderTypes: typeFilter.value.length > 0 ? typeFilter.value : null,
-      sortBy: sortBy.value,
-      sortDescending: sortDescending.value
+      orderTypes: typeFilter.value.length > 0 ? typeFilter.value : null
     };
 
-    // 添加时间范围
+    // 添加时间范围（转换为 UTC ISO 格式）
     if (timeRange.value && timeRange.value.length === 2) {
-      requestData.createTimeFrom = timeRange.value[0];
-      requestData.createTimeTo = timeRange.value[1];
+      // 将日期时间字符串转换为 UTC ISO 格式
+      // 前端日期选择器返回的是 "YYYY-MM-DDTHH:mm:ss" 格式（无时区信息）
+      // 需要转换为 UTC 格式供后端使用
+      const startDate = new Date(timeRange.value[0]);
+      const endDate = new Date(timeRange.value[1]);
+      
+      requestData.createTimeFrom = startDate.toISOString(); // 转换为 UTC: "2025-12-25T00:00:00.000Z"
+      requestData.createTimeTo = endDate.toISOString();     // 转换为 UTC: "2025-12-25T23:59:59.999Z"
+      
+      console.log(`🕐 时间范围筛选: ${timeRange.value[0]} ~ ${timeRange.value[1]}`);
+      console.log(`🌍 转换为UTC: ${requestData.createTimeFrom} ~ ${requestData.createTimeTo}`);
     }
 
     const response = await queryOrders(requestData);
-    orderList.value = response.orders || [];
+    let orders = response.orders || [];
+    
+    // 应用搜索过滤
+    if (searchKeyword.value && searchKeyword.value.trim()) {
+      const keyword = searchKeyword.value.trim().toLowerCase();
+      orders = orders.filter(order => {
+        // 搜索医嘱摘要/内容
+        const summary = (order.summary || '').toLowerCase();
+        const content = (order.orderContent || '').toLowerCase();
+        return summary.includes(keyword) || content.includes(keyword);
+      });
+    }
+    
+    orderList.value = orders;
     
     console.log(`✅ 加载成功，共 ${orderList.value.length} 条医嘱`);
   } catch (error) {
@@ -391,11 +410,6 @@ const loadOrders = async () => {
   } finally {
     loading.value = false;
   }
-};
-
-// ==================== 排序处理 ====================
-const handleSortChange = () => {
-  loadOrders();
 };
 
 // ==================== 医嘱卡片点击 ====================
@@ -420,15 +434,8 @@ const handleStopOrder = async (order) => {
   try {
     // 特殊处理：出院医嘱且已签收或进行中状态，直接停止所有任务，不让医生选择
     if (order.orderType === 'DischargeOrder' && (order.status === 2 || order.status === 3)) {
-      // 先获取任务列表，找到第一个任务作为停止节点
-      const detail = await getOrderDetail(order.id);
-      if (!detail.tasks || detail.tasks.length === 0) {
-        ElMessage.error('该医嘱没有任务，无法停止');
-        return;
-      }
-
       await ElMessageBox.confirm(
-        '出院医嘱停止后将停止所有相关任务，确认停止该医嘱吗？',
+        '出院医嘱停止后将恢复患者为在院状态，确认停止该医嘱吗？',
         '停止出院医嘱',
         {
           confirmButtonText: '确认停止',
@@ -446,18 +453,24 @@ const handleStopOrder = async (order) => {
           inputPattern: /\S+/,
           inputErrorMessage: '停止原因不能为空',
           inputType: 'textarea',
-          inputPlaceholder: '例如：患者病情好转，无需出院'
+          inputPlaceholder: '例如：患者病情有变，暂不出院'
         }
       );
 
       const currentDoctor = getCurrentDoctor();
-      // 使用第一个任务作为停止节点（停止第一个任务后的所有任务，即停止所有任务）
-      const firstTask = detail.tasks[0];
+      
+      // 先获取任务列表
+      const detail = await getOrderDetail(order.id);
+      
+      // 如果有任务，使用第一个任务作为停止节点；如果没有任务，stopAfterTaskId为null
+      // 后端会特殊处理出院医嘱无任务的情况
+      const stopAfterTaskId = (detail.tasks && detail.tasks.length > 0) ? detail.tasks[0].id : null;
+      
       const requestData = {
         orderId: order.id,
         doctorId: currentDoctor.staffId,
         stopReason: stopReason,
-        stopAfterTaskId: firstTask.id
+        stopAfterTaskId: stopAfterTaskId
       };
 
       const result = await stopOrder(requestData);
@@ -518,8 +531,8 @@ const handleStopConfirm = async (stopData) => {
 
 // ==================== 判断是否可以停止医嘱 ====================
 const canStopOrder = (order) => {
-  // 待签收(1)、已签收(2)、进行中(3)或停止中(9)状态可以停止
-  if (order.status === 1 || order.status === 2 || order.status === 3 || order.status === 9) {
+  // 待签收(1)、已签收(2)、进行中(3)、停止中(9)或异常态(10)状态可以停止
+  if (order.status === 1 || order.status === 2 || order.status === 3 || order.status === 9 || order.status === 10) {
     return true;
   }
   
@@ -545,6 +558,7 @@ const handleResubmit = async (order) => {
     
     ElMessage.success('重新提交成功');
     await loadOrders();
+    await loadAbnormalAndRejectedCounts(); // 刷新徽章
   } catch (error) {
     if (error !== 'cancel') {
       console.error('重新提交失败:', error);
@@ -573,6 +587,7 @@ const handleCancel = async (order) => {
     
     ElMessage.success('撤销成功');
     await loadOrders();
+    await loadAbnormalAndRejectedCounts(); // 刷新徽章
   } catch (error) {
     if (error !== 'cancel') {
       console.error('撤销失败:', error);
@@ -621,19 +636,23 @@ const handleWithdrawStop = async (order) => {
 // ==================== 处理异常态医嘱 ====================
 const handleAbnormalOrder = async (order) => {
   try {
-    const { value: handleNote } = await ElMessageBox.prompt(
-      `医嘱当前为异常状态，请输入处理说明：`,
+    // 先获取医嘱详情，找到异常任务的取消原因
+    const detail = await getOrderDetail(order.id);
+    const abnormalTasks = detail.tasks.filter(t => t.status === 8); // Incomplete状态
+    
+    let cancelReason = '未找到取消原因';
+    if (abnormalTasks.length > 0 && abnormalTasks[0].exceptionReason) {
+      cancelReason = abnormalTasks[0].exceptionReason;
+    }
+    
+    // 显示护士取消的原因，让医生确认处理
+    await ElMessageBox.confirm(
+      `医嘱当前为异常状态。护士取消原因：${cancelReason}。是否知晓？`,
       '处理异常医嘱',
       {
-        confirmButtonText: '确认处理',
+        confirmButtonText: '我已知晓',
         cancelButtonText: '取消',
-        inputPlaceholder: '请输入处理说明',
-        inputValidator: (value) => {
-          if (!value || value.trim() === '') {
-            return '请输入处理说明';
-          }
-          return true;
-        }
+        type: 'warning'
       }
     );
 
@@ -641,13 +660,14 @@ const handleAbnormalOrder = async (order) => {
     const result = await handleAbnormalTask({
       orderId: order.id,
       doctorId: currentDoctor.staffId,
-      handleNote: handleNote.trim()
+      handleNote: `医生已确认处理异常任务。原因：${cancelReason}`
     });
 
     if (result.success) {
       const statusText = result.newOrderStatus === 3 ? '进行中' : '已完成';
       ElMessage.success(`处理成功，医嘱状态已变更为【${statusText}】`);
       await loadOrders();
+      await loadAbnormalAndRejectedCounts(); // 刷新徽章
     } else {
       ElMessage.error(result.message || '处理失败');
     }
@@ -786,7 +806,39 @@ const formatDateTime = (dateString) => {
 onMounted(async () => {
   // 医生端不需要排班信息，跳过排班检查
   await initializePatientData(null, true);
+  // 加载每个患者的异常和已退回医嘱计数
+  await loadAbnormalAndRejectedCounts();
 });
+
+// ==================== 加载异常和已退回医嘱计数 ====================
+const loadAbnormalAndRejectedCounts = async () => {
+  try {
+    // 对每个患者查询异常(10)和已退回(7)医嘱数量
+    const countsPromises = patientList.value.map(async (patient) => {
+      try {
+        const requestData = {
+          patientId: patient.patientId,
+          statuses: [7, 10], // 已退回(7) 和 异常态(10)
+          orderTypes: ['MedicationOrder', 'InspectionOrder', 'OperationOrder', 'SurgicalOrder', 'DischargeOrder']
+        };
+        const response = await queryOrders(requestData);
+        const count = response.orders?.length || 0;
+        // 添加计数到患者对象
+        patient.abnormalAndRejectedCount = count;
+        return count;
+      } catch (error) {
+        console.error(`加载患者 ${patient.patientId} 的异常/已退回医嘱计数失败:`, error);
+        patient.abnormalAndRejectedCount = 0;
+        return 0;
+      }
+    });
+    
+    await Promise.all(countsPromises);
+    console.log('异常/已退回医嘱计数加载完成');
+  } catch (error) {
+    console.error('加载异常/已退回医嘱计数失败:', error);
+  }
+};
 </script>
 
 <style scoped>
@@ -873,8 +925,14 @@ onMounted(async () => {
   width: 360px;
 }
 
-.sort-select {
-  width: 140px;
+.search-group {
+  flex: 1;
+  min-width: 300px;
+}
+
+.search-input {
+  width: 100%;
+  max-width: 400px;
 }
 
 /* ==================== 医嘱列表 ==================== */

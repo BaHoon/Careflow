@@ -803,6 +803,7 @@ namespace CareFlow.WebApi.Controllers
                         Status = task.Status,
                         DataPayload = task.DataPayload,
                         ResultPayload = task.ResultPayload,
+                        ExecutionRemarks = task.ExecutionRemarks,
                         AssignedNurseId = task.AssignedNurseId, // 使用责任护士
                         AssignedNurseName = assignedNurseName,
                         ExecutorNurseId = task.ExecutorStaffId,  // 添加实际执行护士
@@ -1364,23 +1365,35 @@ namespace CareFlow.WebApi.Controllers
                     }
                 }
 
-                // 更新任务信息 - 处理备注
-                if (!string.IsNullOrEmpty(dto.ResultPayload))
+                // 更新任务信息 - 处理备注和结果
+                if (!string.IsNullOrEmpty(dto.ExecutionRemarks))
                 {
                     // 对于 Duration 和 ResultPending，如果是第二次调用，需要合并备注为指定格式
                     if ((task.Category == TaskCategory.Duration || task.Category == TaskCategory.ResultPending) &&
                         targetStatus == ExecutionTaskStatus.Completed &&
-                        !string.IsNullOrEmpty(task.ResultPayload))
+                        !string.IsNullOrEmpty(task.ExecutionRemarks))
                     {
                         // 已经有备注（开始备注），追加结束备注
                         // 格式：开始备注：内容1.结束备注：内容2.
-                        task.ResultPayload = task.ResultPayload + "结束备注：" + dto.ResultPayload + ".";
+                        task.ExecutionRemarks = task.ExecutionRemarks + "结束备注：" + dto.ExecutionRemarks + ".";
+                    }
+                    else if ((task.Category == TaskCategory.Duration || task.Category == TaskCategory.ResultPending) &&
+                             targetStatus == ExecutionTaskStatus.InProgress)
+                    {
+                        // 第一次调用（Pending → InProgress），添加开始备注前缀
+                        task.ExecutionRemarks = "开始备注：" + dto.ExecutionRemarks + ".";
                     }
                     else
                     {
-                        // 第一次调用或覆盖
-                        task.ResultPayload = dto.ResultPayload;
+                        // 其他情况（Immediate、DataCollection、Verification等）直接存储
+                        task.ExecutionRemarks = dto.ExecutionRemarks;
                     }
+                }
+                
+                // 处理执行结果（仅用于ResultPending类任务）
+                if (!string.IsNullOrEmpty(dto.ResultPayload))
+                {
+                    task.ResultPayload = dto.ResultPayload;
                 }
 
                 // 如果转换到 Completed 状态，设置完成信息
@@ -1530,8 +1543,27 @@ namespace CareFlow.WebApi.Controllers
                                 // 保存原状态用于历史记录
                                 var originalStatus = medicalOrder.Status;
                                 
-                                medicalOrder.Status = OrderStatus.Completed;
-                                medicalOrder.CompletedAt = DateTime.UtcNow;
+                                // 特殊处理：出院医嘱在任务完成后应标记为进行中，而不是已完成
+                                // 出院医嘱只有在办理出院后才应标记为已完成
+                                OrderStatus newStatus;
+                                string reason;
+                                
+                                if (medicalOrder.OrderType == "DischargeOrder")
+                                {
+                                    newStatus = OrderStatus.InProgress;
+                                    reason = "出院医嘱下所有任务执行完成，系统自动标记为进行中（等待办理出院）";
+                                }
+                                else
+                                {
+                                    newStatus = OrderStatus.Completed;
+                                    reason = "医嘱下所有任务执行完成，系统自动完成医嘱";
+                                }
+                                
+                                medicalOrder.Status = newStatus;
+                                if (newStatus == OrderStatus.Completed)
+                                {
+                                    medicalOrder.CompletedAt = DateTime.UtcNow;
+                                }
                                 await _context.SaveChangesAsync();
                                 
                                 // 添加医嘱状态变更历史记录
@@ -1539,15 +1571,15 @@ namespace CareFlow.WebApi.Controllers
                                 {
                                     MedicalOrderId = medicalOrder.Id,
                                     FromStatus = originalStatus,
-                                    ToStatus = OrderStatus.Completed,
+                                    ToStatus = newStatus,
                                     ChangedAt = DateTime.UtcNow,
                                     ChangedById = nurseStaffId,
                                     ChangedByType = "Nurse",
-                                    Reason = "医嘱下所有任务执行完成，系统自动完成医嘱"
+                                    Reason = reason
                                 };
                                 await _statusHistoryRepository.AddAsync(history);
                                 
-                                Console.WriteLine($"[CompleteExecutionTask] 医嘱 {medicalOrderId} 下所有任务已完成，医嘱状态已更新为 Completed");
+                                Console.WriteLine($"[CompleteExecutionTask] 医嘱 {medicalOrderId} 下所有任务已完成，医嘱状态已更新为 {newStatus}");
                             }
                         }
                     }
@@ -1790,6 +1822,7 @@ namespace CareFlow.WebApi.Controllers
                     medicalOrderId = task.MedicalOrderId,
                     executorStaffId = task.ExecutorStaffId,
                     resultPayload = task.ResultPayload,
+                    executionRemarks = task.ExecutionRemarks,
                     drugs = GetTaskDrugs(task) // 用于核对类任务
                 };
 

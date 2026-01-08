@@ -77,13 +77,26 @@
             {{ currentTask.allowedDelayMinutes !== undefined && currentTask.allowedDelayMinutes !== null ? formatAllowedDelayMinutes(currentTask.allowedDelayMinutes) : '-' }}
           </el-descriptions-item>
           
-          <!-- 异常原因 -->
+          <!-- 异常原因（仅异常状态显示） -->
           <el-descriptions-item
-            v-if="currentTask.exceptionReason"
+            v-if="(currentTask.status === 8 || currentTask.status === 'Incomplete') && currentTask.exceptionReason && currentTask.exceptionReason.trim()"
             label="异常原因"
             :span="2"
           >
-            <span style="color: #f56c6c;">{{ currentTask.exceptionReason }}</span>
+            <div class="exception-reason-display">
+              <span style="color: #f56c6c; font-weight: 600;">{{ currentTask.exceptionReason }}</span>
+            </div>
+          </el-descriptions-item>
+          
+          <!-- 取消原因（NursingTask） -->
+          <el-descriptions-item
+            v-if="currentTask.cancelReason && currentTask.cancelReason.trim()"
+            label="取消原因"
+            :span="2"
+          >
+            <div class="exception-reason-display">
+              <span style="color: #f56c6c; font-weight: 600;">{{ currentTask.cancelReason }}</span>
+            </div>
           </el-descriptions-item>
         </el-descriptions>
       </div>
@@ -202,22 +215,24 @@
             <p class="task-description">{{ getTaskDescription(currentTask) }}</p>
           </el-descriptions-item>
           
-          <!-- 执行结果 -->
+          <!-- 执行结果（隐藏取药任务的执行结果） -->
           <el-descriptions-item
-            v-if="currentTask.resultPayload"
+            v-if="currentTask.resultPayload && !isRetrieveMedicationTask(currentTask)"
             label="执行结果"
             :span="2"
           >
             <pre class="json-display">{{ formatJson(currentTask.resultPayload) }}</pre>
           </el-descriptions-item>
           
-          <!-- 异常原因 -->
+          <!-- 异常原因（仅异常状态显示） -->
           <el-descriptions-item
-            v-if="currentTask.exceptionReason"
+            v-if="(currentTask.status === 8 || currentTask.status === 'Incomplete') && currentTask.exceptionReason && currentTask.exceptionReason.trim()"
             label="异常原因"
             :span="2"
           >
-            <span style="color: #f56c6c;">{{ currentTask.exceptionReason }}</span>
+            <div class="exception-reason-display">
+              <span style="color: #f56c6c; font-weight: 600;">{{ currentTask.exceptionReason }}</span>
+            </div>
           </el-descriptions-item>
         </el-descriptions>
       </div>
@@ -532,6 +547,48 @@ const formatAllowedDelayMinutes = (delay) => {
   
   return `${delayNum} 分钟`;
 };
+
+// 判断是否为取药任务
+const isRetrieveMedicationTask = (task) => {
+  if (!task) return false;
+  
+  // 检查 resultPayload 中是否包含 scannedDrugIds 字段（取药任务特有的执行结果格式）
+  if (task.resultPayload) {
+    try {
+      const resultPayload = typeof task.resultPayload === 'string' 
+        ? JSON.parse(task.resultPayload) 
+        : task.resultPayload;
+      if (resultPayload && (resultPayload.scannedDrugIds || resultPayload.ScannedDrugIds)) {
+        return true;
+      }
+    } catch (e) {
+      // 如果解析失败，检查字符串中是否包含 scannedDrugIds
+      if (typeof task.resultPayload === 'string' && 
+          (task.resultPayload.includes('scannedDrugIds') || task.resultPayload.includes('ScannedDrugIds'))) {
+        return true;
+      }
+    }
+  }
+  
+  // 检查 dataPayload 中的 Title 是否包含"取药"
+  if (task.dataPayload) {
+    try {
+      const dataPayload = safeParseJson(task.dataPayload);
+      if (dataPayload && dataPayload.Title && dataPayload.Title.includes('取药')) {
+        return true;
+      }
+    } catch (e) {
+      // 忽略解析错误
+    }
+  }
+  
+  // 检查 taskTitle 是否包含"取药"
+  if (task.taskTitle && task.taskTitle.includes('取药')) {
+    return true;
+  }
+  
+  return false;
+};
 </script>
 
 <style scoped>
@@ -607,6 +664,16 @@ const formatAllowedDelayMinutes = (delay) => {
 
 :deep(.el-tag) {
   border-radius: 4px;
+}
+
+.exception-reason-display {
+  padding: 10px 14px;
+  background: #fef0f0;
+  border-radius: 6px;
+  border-left: 3px solid #f56c6c;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 @keyframes slideDown {

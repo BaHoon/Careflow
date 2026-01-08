@@ -97,15 +97,13 @@
             <el-select 
               v-model="patientFilterStatus" 
               placeholder="选择状态" 
-              multiple
-              collapse-tags
-              collapse-tags-tooltip
               clearable
-              @change="loadPatientData"
+              @change="handlePatientStatusFilterChange"
               size="default"
               class="status-select"
               style="width: 200px;"
             >
+              <el-option label="全部状态" :value="null" />
               <el-option label="在院" :value="1" />
               <el-option label="待出院" :value="2" />
             </el-select>
@@ -188,6 +186,7 @@
                 <template #reference>
                   <div 
                     class="patient-card"
+                    :class="{ 'highlighted': shouldHighlightPatient(patient) }"
                     @click="handlePatientCardClick(patient)"
                   >
                 <!-- 卡片头部 -->
@@ -414,12 +413,12 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="预约入院时间">
-              <el-input v-model="currentPatient.scheduledAdmissionTime" disabled class="readonly-input" />
+              <el-input :value="formatDateTime(currentPatient.scheduledAdmissionTime)" disabled class="readonly-input" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="实际入院时间">
-              <el-input v-model="currentPatient.actualAdmissionTime" disabled class="readonly-input" />
+              <el-input :value="formatDateTime(currentPatient.actualAdmissionTime)" disabled class="readonly-input" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -655,7 +654,7 @@ const selectedWardId = ref('');
 const loadingPatients = ref(false);
 const patientList = ref([]);
 const patientWardGroups = ref([]); // 患者按病区分组
-const patientFilterStatus = ref([]); // 多选状态数组
+const patientFilterStatus = ref(null); // 单选状态
 const patientSearchKeyword = ref('');
 let patientSearchTimer = null;
 
@@ -814,10 +813,7 @@ const loadPatientData = async () => {
       params.wardId = selectedWardId.value;
     }
     
-    // 添加状态筛选（多选）
-    if (patientFilterStatus.value && patientFilterStatus.value.length > 0) {
-      params.statuses = patientFilterStatus.value.join(',');
-    }
+    // 不再传递状态筛选参数，前端通过高亮处理
     // 注意：后端默认已排除待入院和已出院患者，无需前端额外处理
     
     // 添加搜索关键词
@@ -889,6 +885,26 @@ const handlePatientSearch = () => {
   patientSearchTimer = setTimeout(() => {
     loadPatientData();
   }, 500);
+};
+
+/**
+ * 患者状态筛选变化处理
+ */
+const handlePatientStatusFilterChange = () => {
+  // 状态筛选变化时不重新加载，只是更新高亮样式
+  console.log('患者状态筛选变化:', patientFilterStatus.value);
+};
+
+/**
+ * 判断患者是否应该被高亮
+ */
+const shouldHighlightPatient = (patient) => {
+  // 如果没有选择特定状态，不高亮任何患者
+  if (patientFilterStatus.value === null || patientFilterStatus.value === undefined) {
+    return false;
+  }
+  // 高亮匹配状态的患者
+  return patient.status === patientFilterStatus.value;
 };
 
 /**
@@ -976,7 +992,7 @@ const handleSavePatientDetail = async () => {
     
     // 如果没有任何字段需要更新，直接关闭对话框
     if (Object.keys(updateData).length === 0) {
-      ElMessage.info('没有修改任何信息');
+      ElMessage.info({ message: '没有修改任何信息', duration: 3000 });
       patientDetailDialogVisible.value = false;
       savingPatientDetail.value = false;
       return;
@@ -1379,12 +1395,16 @@ onMounted(() => {
   transform: translateY(-2px);
 }
 
+/* 高亮样式 */
+.patient-card.highlighted {
+  border: 2px solid #409eff;
+  box-shadow: 0 4px 20px rgba(64, 158, 255, 0.3);
+  background: linear-gradient(135deg, #fff 0%, #f0f9ff 100%);
+}
+
 .patient-card-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #e4e7ed;
 }
 
 .patient-card-header .status-tag {

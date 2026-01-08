@@ -278,7 +278,7 @@
                     <el-select 
                       v-model="item.drugId" 
                       filterable 
-                      placeholder="搜索药品名称/简拼/条码"
+                      placeholder="搜索药品名称/简拼"
                       class="drug-select"
                     >
                       <el-option 
@@ -298,7 +298,11 @@
                       placeholder="剂量 (如 0.5g)" 
                       class="dosage-input"
                       style="width: 120px"
-                    />
+                    >
+                      <template #append v-if="item.drugId">
+                        {{ getDrugUnit(item.drugId) }}
+                      </template>
+                    </el-input>
                     <el-input 
                       v-model="item.note" 
                       placeholder="备注 (可选)" 
@@ -861,7 +865,11 @@
                       placeholder="剂量 (如 0.5g)" 
                       class="dosage-input"
                       style="width: 120px"
-                    />
+                    >
+                      <template #append v-if="item.drugId">
+                        {{ getDrugUnit(item.drugId) }}
+                      </template>
+                    </el-input>
                     <el-input 
                       v-model="item.note" 
                       placeholder="备注 (可选)" 
@@ -1342,15 +1350,6 @@
                     <el-radio-button :label="2">
                       <i class="el-icon-success"></i> 好转出院
                     </el-radio-button>
-                    <el-radio-button :label="3">
-                      <i class="el-icon-sort"></i> 转院
-                    </el-radio-button>
-                    <el-radio-button :label="4">
-                      <i class="el-icon-warning"></i> 自动出院
-                    </el-radio-button>
-                    <el-radio-button :label="5">
-                      <i class="el-icon-close"></i> 死亡
-                    </el-radio-button>
                     <el-radio-button :label="99">
                       <i class="el-icon-more"></i> 其他
                     </el-radio-button>
@@ -1437,7 +1436,11 @@
                       placeholder="剂量 (如 0.5g)" 
                       class="dosage-input"
                       style="width: 120px"
-                    />
+                    >
+                      <template #append v-if="item.drugId">
+                        {{ getDrugUnit(item.drugId) }}
+                      </template>
+                    </el-input>
                     <el-input 
                       v-model="item.note" 
                       placeholder="备注 (可选)" 
@@ -1734,6 +1737,7 @@ import { batchCreateInspectionOrders } from '../api/inspectionOrder';
 import { batchCreateSurgicalOrders } from '../api/surgicalOrder';
 import { batchCreateOperationOrders } from '../api/operationOrder';
 import { batchCreateDischargeOrders, validateDischargeOrderCreation } from '../api/dischargeOrder';
+import { queryStaffList } from '../api/admin';
 import { toBeijingTimeISO } from '../utils/timezone';
 
 // 当前用户信息（从localStorage获取登录信息）
@@ -1806,7 +1810,7 @@ const surgicalOrder = reactive({
 
 // 出院医嘱的响应式数据
 const dischargeOrder = reactive({
-  dischargeType: 2,          // 出院类型：1-治愈 2-好转 3-转院 4-自动出院 5-死亡 99-其他
+  dischargeType: 2,          // 出院类型：1-治愈 2-好转 99-其他
   dischargeTime: null,       // 出院时间
   dischargeDiagnosis: '',    // 出院诊断
   dischargeInstructions: '', // 出院医嘱
@@ -1967,12 +1971,10 @@ const talkOptions = [
 
 // 术前操作选项
 const preoperativeOperationOptions = [
-  { value: '术前针注射', label: '术前针注射' },
-  { value: '留置针埋置', label: '留置针埋置' },
-  { value: '采血', label: '采血检查' },
-  { value: '导尿管', label: '导尿管置入' },
-  { value: '心电监护', label: '心电监护' },
-  { value: '吸氧', label: '术前吸氧' }
+  { value: '备皮', label: '备皮' },
+  { value: '皮肤清洁', label: '皮肤清洁' },
+  { value: '手术位置标记', label: '手术位置标记' },
+  { value: '胃管置入', label: '胃管置入' }
 ];
 
 // 护理等级修改表单
@@ -2362,7 +2364,7 @@ const addPreparationItem = () => {
 
 const removePreparationItem = (index) => {
   const removed = operationOrder.preparationItems.splice(index, 1)[0];
-  ElMessage.info(`已移除：${removed}`);
+  ElMessage.info({ message: `已移除：${removed}`, duration: 3000 });
 };
 
 // 获取本地时间的 ISO 格式字符串（不带时区标识，用于 el-date-picker 显示）
@@ -3026,7 +3028,7 @@ const validateAndAddDischargeOrder = async () => {
       }).catch((action) => {
         // 用户取消
         if (action === 'cancel') {
-          ElMessage.info('已取消，请先处理阻塞医嘱');
+          ElMessage.info({ message: '已取消，请先处理阻塞医嘱', duration: 3000 });
         }
       });
       
@@ -3077,12 +3079,12 @@ const validateAndAddDischargeOrder = async () => {
 
 const removeFromCart = (index) => {
   orderCart.value.splice(index, 1);
-  ElMessage.info('已从清单中移除');
+  ElMessage.info({ message: '已从清单中移除', duration: 3000 });
 };
 
 const clearCart = () => {
   orderCart.value = [];
-  ElMessage.info('已清空待提交清单');
+  ElMessage.info({ message: '已清空待提交清单', duration: 3000 });
 };
 
 const submitAll = async () => {
@@ -3901,6 +3903,11 @@ const getDrugName = (id) => {
   return drugDict.value.find(d => d.id === id)?.genericName || id;
 };
 
+const getDrugUnit = (id) => {
+  const drug = drugDict.value.find(d => d.id === id);
+  return drug?.PriceUnit || drug?.priceUnit || '';
+};
+
 const formatDateTime = (datetime) => {
   if (!datetime) return '';
   try {
@@ -3980,17 +3987,46 @@ const initDefaultSurgicalDrugs = () => {
 
 // 加载医生列表
 const loadDoctorList = async () => {
-  // 暂时使用模拟数据（API接口未实现）
-  console.log('加载医生列表（使用模拟数据）');
-  doctorList.value = [
-    { staffId: 'D001', name: '张医生', title: '主任医师' },
-    { staffId: 'D002', name: '李医生', title: '副主任医师' },
-    { staffId: 'D003', name: '王医生', title: '主治医师' }
-  ];
-  
-  // 自动选择当前登录医生
-  if (currentUser.value?.staffId) {
-    surgicalOrder.surgeonId = currentUser.value.staffId;
+  try {
+    // 获取当前医生的科室代码
+    const deptCode = currentUser.value?.deptCode;
+    
+    if (!deptCode) {
+      ElMessage.warning('未获取到科室信息，无法加载医生列表');
+      doctorList.value = [];
+      return;
+    }
+    
+    // 调用API获取本科室的医生列表
+    const response = await queryStaffList({
+      role: 'Doctor',
+      deptCode: deptCode,
+      pageNumber: 1,
+      pageSize: 100  // 获取足够多的医生，一般一个科室不会有超过100个医生
+    });
+    
+    // 映射数据格式
+    doctorList.value = response.staffList
+      .filter(doctor => doctor.isActive)  // 只显示启用的医生
+      .map(doctor => ({
+        staffId: doctor.staffId,
+        name: doctor.fullName,
+        title: doctor.title || ''  // 使用后端返回的title字段
+      }));
+    
+    console.log('医生列表加载成功:', doctorList.value.length, '科室:', deptCode);
+    
+    // 自动选择当前登录医生（如果存在）
+    if (currentUser.value?.staffId) {
+      const currentDoctor = doctorList.value.find(d => d.staffId === currentUser.value.staffId);
+      if (currentDoctor) {
+        surgicalOrder.surgeonId = currentUser.value.staffId;
+      }
+    }
+  } catch (error) {
+    console.error('加载医生列表失败:', error);
+    ElMessage.error('加载医生列表失败: ' + (error.response?.data?.message || error.message));
+    doctorList.value = [];
   }
 };
 
@@ -4063,9 +4099,6 @@ const getOrderSummary = (order) => {
     const typeNames = {
       1: '治愈出院',
       2: '好转出院',
-      3: '转院',
-      4: '自动出院',
-      5: '死亡',
       99: '其他出院'
     };
     return typeNames[order.dischargeType] || '出院';
@@ -4985,7 +5018,7 @@ watch(activeType, (newType) => {
   display: inline-flex;
   align-items: center;
   margin-bottom: 8px;
-  width: 190px;
+  width: 170px;
 }
 
 .patient-card.active .bed-badge {

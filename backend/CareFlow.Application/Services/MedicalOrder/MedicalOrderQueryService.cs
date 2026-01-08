@@ -326,7 +326,54 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
                 return response;
             }
 
-            // 3. 验证停止节点任务是否存在（已签收医嘱才需要验证）
+            // 3. 获取该医嘱的所有任务（按计划时间排序）
+            var allTasks = await _taskRepository.GetQueryable()
+                .Where(t => t.MedicalOrderId == request.OrderId)
+                .OrderBy(t => t.PlannedStartTime)
+                .ToListAsync();
+
+            _logger.LogInformation("医嘱共有 {TotalTasks} 个任务", allTasks.Count);
+
+            // 3.1 特殊处理：出院医嘱如果没有任务，直接停止（不需要指定停止节点）
+            if (order.OrderType == "DischargeOrder" && allTasks.Count == 0)
+            {
+                _logger.LogInformation("检测到无任务的出院医嘱，直接停止（无需指定停止节点）");
+                
+                var oldStatus = order.Status;
+                order.Status = OrderStatus.PendingStop;
+                order.StopReason = request.StopReason;
+                order.StopOrderTime = DateTime.UtcNow;
+                order.StopDoctorId = request.DoctorId;
+                order.StopAfterTaskId = null; // 无任务时停止节点为null
+                
+                await _orderRepository.UpdateAsync(order);
+                
+                // 记录状态历史
+                var stopHistory = new MedicalOrderStatusHistory
+                {
+                    MedicalOrderId = order.Id,
+                    FromStatus = oldStatus,
+                    ToStatus = OrderStatus.PendingStop,
+                    ChangedAt = DateTime.UtcNow,
+                    ChangedById = request.DoctorId,
+                    ChangedByType = "Doctor",
+                    Reason = $"医生停止无任务的出院医嘱: {request.StopReason}"
+                };
+                await _statusHistoryRepository.AddAsync(stopHistory);
+                
+                _logger.LogInformation("✅ 无任务的出院医嘱已停止: {OrderId}", order.Id);
+                
+                response.Success = true;
+                response.Message = "出院医嘱已停止（无任务）";
+                response.OrderStatus = OrderStatus.PendingStop;
+                response.StopOrderTime = order.StopOrderTime.Value;
+                response.LockedTaskIds = new List<long>();
+                response.LockedTasks = new List<LockedTaskDto>();
+                
+                return response;
+            }
+
+            // 4. 验证停止节点任务是否存在（已签收医嘱才需要验证）
             if (!request.StopAfterTaskId.HasValue || request.StopAfterTaskId.Value <= 0)
             {
                 response.Success = false;
@@ -344,14 +391,6 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
                 return response;
             }
 
-            // 4. 获取该医嘱的所有任务（按计划时间排序）
-            var allTasks = await _taskRepository.GetQueryable()
-                .Where(t => t.MedicalOrderId == request.OrderId)
-                .OrderBy(t => t.PlannedStartTime)
-                .ToListAsync();
-
-            _logger.LogInformation("医嘱共有 {TotalTasks} 个任务", allTasks.Count);
-
             // 5. 找到停止节点在任务列表中的位置
             var stopAfterIndex = allTasks.FindIndex(t => t.Id == request.StopAfterTaskId.Value);
             if (stopAfterIndex == -1)
@@ -362,7 +401,7 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
                 return response;
             }
 
-            // 5.1 如果医嘱已经是StoppingInProgress状态，验证新的停止节点不能晚于之前的停止节点
+            // 6.1 如果医嘱已经是StoppingInProgress状态，验证新的停止节点不能晚于之前的停止节点
             if (order.Status == OrderStatus.StoppingInProgress)
             {
                 // 查找之前被停止的任务（状态为Stopped且有StatusBeforeLocking的）
@@ -391,7 +430,7 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
                 }
             }
 
-            // 6. 筛选需要锁定的任务：停止节点及之后的所有待申请、已申请、就绪、待执行状态的任务
+            // 7. 筛选需要锁定的任务：停止节点及之后的所有待申请、已申请、就绪、待执行状态的任务
             var tasksToLock = allTasks
                 .Skip(stopAfterIndex) // 包含停止节点及之后的任务
                 .Where(t => t.Status == ExecutionTaskStatus.Applying 
@@ -402,7 +441,7 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
 
             _logger.LogInformation("需要锁定 {LockCount} 个任务（包含停止节点，状态: 待申请/已申请/就绪/待执行）", tasksToLock.Count);
 
-            // 7. 锁定任务：保存原状态 → 改为 OrderStopping
+            // 8. 锁定任务：保存原状态 → 改为 OrderStopping
             var lockedTasks = new List<LockedTaskDto>();
 
             foreach (var task in tasksToLock)
@@ -430,7 +469,7 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
                     task.Id, originalStatus);
             }
 
-            // 8. 更新医嘱状态：InProgress/Accepted/StoppingInProgress → PendingStop
+            // 9. 更新医嘱状态：InProgress/Accepted/StoppingInProgress → PendingStop
             var previousStatus = order.Status;
             
             order.Status = OrderStatus.PendingStop;
@@ -672,7 +711,9 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
             CompleterNurseName = t.CompleterNurse?.Name,
             StatusBeforeLocking = t.StatusBeforeLocking,
             ExceptionReason = t.ExceptionReason,
-            DataPayload = t.DataPayload // 添加DataPayload字段，包含Title等任务详细信息
+            DataPayload = t.DataPayload, // 添加DataPayload字段，包含Title等任务详细信息
+            ResultPayload = t.ResultPayload, // 执行结果（仅ResultPending类任务有值）
+            ExecutionRemarks = t.ExecutionRemarks // 执行备注（所有任务类型都可填写）
         }).ToList();
     }
 
@@ -1096,11 +1137,21 @@ public class MedicalOrderQueryService : IMedicalOrderQueryService
             }
             else
             {
-                // 没有未完成的任务 → Completed
-                newStatus = OrderStatus.Completed;
-                order.CompletedAt = DateTime.UtcNow;
-                reason = $"医生已处理异常任务，所有任务已终止，医嘱标记为已完成。处理说明：{request.HandleNote ?? "无"}";
-                _logger.LogInformation("没有未完成任务，医嘱状态将改为 Completed");
+                // 没有未完成的任务
+                // 特殊处理：出院医嘱应标记为进行中，而不是已完成（等待办理出院）
+                if (order.OrderType == "DischargeOrder")
+                {
+                    newStatus = OrderStatus.InProgress;
+                    reason = $"医生已处理异常任务，出院医嘱所有任务已终止，标记为进行中（等待办理出院）。处理说明：{request.HandleNote ?? "无"}";
+                    _logger.LogInformation("出院医嘱没有未完成任务，医嘱状态将改为 InProgress");
+                }
+                else
+                {
+                    newStatus = OrderStatus.Completed;
+                    order.CompletedAt = DateTime.UtcNow;
+                    reason = $"医生已处理异常任务，所有任务已终止，医嘱标记为已完成。处理说明：{request.HandleNote ?? "无"}";
+                    _logger.LogInformation("没有未完成任务，医嘱状态将改为 Completed");
+                }
             }
 
             // 6. 更新医嘱状态

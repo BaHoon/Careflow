@@ -47,6 +47,20 @@
               >
                 {{ getTaskStatusText(task.status) }}
               </el-tag>
+              
+              <!-- 执行结果（仅对ResultPending类任务且有结果时显示，隐藏取药任务的执行结果） -->
+              <div v-if="task.resultPayload && task.resultPayload.trim() && !isRetrieveMedicationTask(task)" class="task-result">
+                <el-icon><InfoFilled /></el-icon>
+                <span class="result-label">执行结果：</span>
+                <span class="result-value">{{ task.resultPayload }}</span>
+              </div>
+              
+              <!-- 执行备注（有备注时显示） -->
+              <div v-if="task.executionRemarks && task.executionRemarks.trim()" class="task-remarks">
+                <el-icon><EditPen /></el-icon>
+                <span class="remarks-label">执行备注：</span>
+                <span class="remarks-value">{{ task.executionRemarks }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -57,7 +71,7 @@
 
 <script setup>
 import { ref } from 'vue';
-import { Clock } from '@element-plus/icons-vue';
+import { Clock, InfoFilled, EditPen } from '@element-plus/icons-vue';
 
 const props = defineProps({
   summary: {
@@ -108,26 +122,40 @@ const getOrderTypeName = (type) => {
   return nameMap[type] || '其他';
 };
 
-// 获取任务状态颜色
+// 获取任务状态颜色（与OrderDetailPanel保持一致）
 const getTaskStatusColor = (status) => {
   const statusMap = {
-    1: 'warning',    // Pending
-    2: 'success',    // Completed
-    3: 'info',       // Cancelled
-    4: 'primary',    // InProgress
+    0: 'info',      // 待申请
+    1: 'info',      // 已申请
+    2: 'primary',   // 已确认
+    3: 'warning',   // 待执行
+    4: 'primary',   // 进行中
+    5: 'success',   // 已完成
+    6: 'warning',   // 停止锁定
+    7: 'info',      // 已停止
+    8: 'danger',    // 异常
+    9: 'danger',    // 待退药
+    10: 'danger'    // 异常取消待退药
   };
   return statusMap[status] || 'info';
 };
 
-// 获取任务状态文本
+// 获取任务状态文本（与OrderDetailPanel保持一致）
 const getTaskStatusText = (status) => {
   const textMap = {
-    1: '待执行',
-    2: '已完成',
-    3: '已取消',
-    4: '执行中'
+    0: '待申请',
+    1: '已申请',
+    2: '已确认',
+    3: '待执行',
+    4: '进行中',
+    5: '已完成',
+    6: '停止锁定',
+    7: '已停止',
+    8: '异常',
+    9: '待退药',
+    10: '异常取消待退药'
   };
-  return textMap[status] || '未知';
+  return textMap[status] || `状态${status}`;
 };
 
 // 格式化时间
@@ -144,8 +172,11 @@ const formatTime = (timeStr) => {
 const formatOrderContent = (record) => {
   // 如果是出院医嘱，显示特殊格式
   if (record.orderType === 'DischargeOrder') {
-    const dischargeTime = record.plantEndTime || record.createTime;
-    return `出院医嘱-预计出院时间: ${formatDateTime(dischargeTime)}`;
+    const dischargeTime = record.dischargeTime;
+    if (dischargeTime) {
+      return `预计出院时间: ${formatDateTime(dischargeTime)}`;
+    }
+    return '出院医嘱';
   }
   // 其他医嘱使用orderContent字段
   return record.orderContent || record.summary || '医嘱详情';
@@ -173,6 +204,45 @@ const formatDateTime = (dateTimeString) => {
   } catch (error) {
     return dateTimeString;
   }
+};
+
+// 判断是否为取药任务
+const isRetrieveMedicationTask = (task) => {
+  if (!task) return false;
+  
+  // 检查 resultPayload 中是否包含 scannedDrugIds 字段（取药任务特有的执行结果格式）
+  if (task.resultPayload) {
+    try {
+      const resultPayload = JSON.parse(task.resultPayload);
+      if (resultPayload && (resultPayload.scannedDrugIds || resultPayload.ScannedDrugIds)) {
+        return true;
+      }
+    } catch (e) {
+      // 如果解析失败，检查字符串中是否包含 scannedDrugIds
+      if (task.resultPayload.includes('scannedDrugIds') || task.resultPayload.includes('ScannedDrugIds')) {
+        return true;
+      }
+    }
+  }
+  
+  // 检查 dataPayload 中的 Title 是否包含"取药"
+  if (task.dataPayload) {
+    try {
+      const dataPayload = JSON.parse(task.dataPayload);
+      if (dataPayload && dataPayload.Title && dataPayload.Title.includes('取药')) {
+        return true;
+      }
+    } catch (e) {
+      // 忽略解析错误
+    }
+  }
+  
+  // 检查 taskTitle 是否包含"取药"
+  if (task.taskTitle && task.taskTitle.includes('取药')) {
+    return true;
+  }
+  
+  return false;
 };
 
 // 解析任务的DataPayload获取标题
@@ -300,6 +370,7 @@ const getTaskTitle = (task) => {
           color: #606266;
           padding: 6px 0;
           border-top: 1px solid #e4e7ed;
+          flex-wrap: wrap;
           
           &:first-child {
             border-top: none;
@@ -350,6 +421,66 @@ const getTaskTitle = (task) => {
           
           .status-tag {
             margin-left: auto;
+          }
+          
+          /* 执行结果样式 */
+          .task-result {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            margin-top: 8px;
+            background: #e8f4ff;
+            border-left: 3px solid #409eff;
+            border-radius: 4px;
+            
+            .el-icon {
+              color: #409eff;
+              flex-shrink: 0;
+            }
+            
+            .result-label {
+              font-weight: 600;
+              color: #409eff;
+              flex-shrink: 0;
+            }
+            
+            .result-value {
+              color: #303133;
+              font-weight: 500;
+              word-break: break-word;
+            }
+          }
+          
+          /* 执行备注样式 */
+          .task-remarks {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            margin-top: 8px;
+            background: #f0f9ff;
+            border-left: 3px solid #67c23a;
+            border-radius: 4px;
+            
+            .el-icon {
+              color: #67c23a;
+              flex-shrink: 0;
+            }
+            
+            .remarks-label {
+              font-weight: 600;
+              color: #67c23a;
+              flex-shrink: 0;
+            }
+            
+            .remarks-value {
+              color: #606266;
+              word-break: break-word;
+              white-space: pre-wrap;
+            }
           }
         }
       }

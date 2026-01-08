@@ -15,17 +15,15 @@
           <span class="filter-label">患者状态:</span>
           <el-select 
             v-model="filterStatus" 
-            placeholder="全部状态" 
+            placeholder="选择状态" 
             clearable
-            @change="loadPatientList"
+            @change="handleStatusFilterChange"
             size="default"
             class="status-select"
           >
             <el-option label="全部状态" :value="null" />
-            <el-option label="待入院" :value="0" />
             <el-option label="在院" :value="1" />
             <el-option label="待出院" :value="2" />
-            <el-option label="已出院" :value="3" />
           </el-select>
         </div>
 
@@ -89,6 +87,7 @@
           <template #reference>
             <div 
               class="patient-card"
+              :class="{ 'highlighted': shouldHighlight(patient) }"
               @click="handleCardClick(patient)"
             >
               <!-- 卡片头部 -->
@@ -301,12 +300,12 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="预约入院时间">
-              <el-input v-model="currentPatient.scheduledAdmissionTime" disabled class="readonly-input" />
+              <el-input :value="formatDateTime(currentPatient.scheduledAdmissionTime)" disabled class="readonly-input" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="实际入院时间">
-              <el-input v-model="currentPatient.actualAdmissionTime" disabled class="readonly-input" />
+              <el-input :value="formatDateTime(currentPatient.actualAdmissionTime)" disabled class="readonly-input" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -540,10 +539,7 @@ const loadPatientList = async () => {
   try {
     const params = {};
     
-    // 添加状态筛选
-    if (filterStatus.value !== null && filterStatus.value !== undefined) {
-      params.status = filterStatus.value;
-    }
+    // 不再传递状态筛选参数，前端通过高亮处理
     
     // 添加搜索关键词
     if (searchKeyword.value && searchKeyword.value.trim()) {
@@ -588,6 +584,26 @@ const handleSearch = () => {
   searchTimer = setTimeout(() => {
     loadPatientList();
   }, 500);
+};
+
+/**
+ * 状态筛选变化处理
+ */
+const handleStatusFilterChange = () => {
+  // 状态筛选变化时不重新加载，只是更新高亮样式
+  console.log('状态筛选变化:', filterStatus.value);
+};
+
+/**
+ * 判断患者是否应该被高亮
+ */
+const shouldHighlight = (patient) => {
+  // 如果没有选择特定状态，不高亮任何患者
+  if (filterStatus.value === null || filterStatus.value === undefined) {
+    return false;
+  }
+  // 高亮匹配状态的患者
+  return patient.status === filterStatus.value;
 };
 
 // ==================== 事件处理 ====================
@@ -714,7 +730,7 @@ const handleSavePatientDetail = async () => {
  */
 const handleAdmission = async (patient) => {
   // TODO: 实现入院办理功能
-  ElMessage.info(`入院办理功能将在后续版本实现（患者: ${patient.name}）`);
+  ElMessage.info({ message: `入院办理功能将在后续版本实现（患者: ${patient.name}）`, duration: 3000 });
 };
 
 /**
@@ -722,14 +738,14 @@ const handleAdmission = async (patient) => {
  */
 const handleDischarge = async (patient) => {
   // TODO: 第四阶段实现出院检查弹窗
-  ElMessage.info(`出院检查功能将在第四阶段实现（患者ID: ${patient.id}）`);
+  ElMessage.info({ message: `出院检查功能将在第四阶段实现（患者ID: ${patient.id}）`, duration: 3000 });
 };
 
 /**
  * 新增患者
  */
 const handleAddPatient = () => {
-  ElMessage.info('新增患者功能将在后续版本实现');
+  ElMessage.info({ message: '新增患者功能将在后续版本实现', duration: 3000 });
 };
 
 // ==================== 辅助方法 ====================
@@ -758,6 +774,27 @@ const getNursingGradeColor = (grade) => {
     3: 'info'      // 三级 - 灰色
   };
   return colorMap[grade] || 'info';
+};
+
+/**
+ * 格式化日期时间
+ */
+const formatDateTime = (dateTime) => {
+  if (!dateTime) return '-';
+  try {
+    const date = new Date(dateTime);
+    // JavaScript的toLocaleString会自动转换为本地时区（北京时间UTC+8）
+    return date.toLocaleString('zh-CN', { 
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Asia/Shanghai'
+    });
+  } catch {
+    return dateTime;
+  }
 };
 </script>
 
@@ -848,6 +885,13 @@ const getNursingGradeColor = (grade) => {
 .patient-card:hover {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
   transform: translateY(-2px);
+}
+
+/* 高亮样式 */
+.patient-card.highlighted {
+  border: 2px solid #409eff;
+  box-shadow: 0 4px 20px rgba(64, 158, 255, 0.3);
+  background: linear-gradient(135deg, #fff 0%, #f0f9ff 100%);
 }
 
 /* 卡片头部 */

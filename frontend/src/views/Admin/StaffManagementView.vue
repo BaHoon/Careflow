@@ -105,11 +105,23 @@
             style="width: 150px;"
             @change="handleSearch"
           >
-            <el-option label="IM" value="IM" />
-            <el-option label="SUR" value="SUR" />
+            <el-option label="CARD" value="CARD" />
+            <el-option label="RESP" value="RESP" />
+            <el-option label="GAST" value="GAST" />
+            <el-option label="NEUR" value="NEUR" />
+            <el-option label="NEPH" value="NEPH" />
+            <el-option label="ENDO" value="ENDO" />
+            <el-option label="HEMA" value="HEMA" />
+            <el-option label="GEN_SUR" value="GEN_SUR" />
+            <el-option label="ORTH" value="ORTH" />
+            <el-option label="NSUR" value="NSUR" />
+            <el-option label="CT_SUR" value="CT_SUR" />
+            <el-option label="UROL" value="UROL" />
+            <el-option label="BURN" value="BURN" />
+            <el-option label="GYN" value="GYN" />
+            <el-option label="OBS" value="OBS" />
             <el-option label="PED" value="PED" />
             <el-option label="ADM" value="ADM" />
-            <el-option label="CHK" value="CHK" />
           </el-select>
 
           <div style="flex: 1;"></div>
@@ -153,23 +165,13 @@
               {{ formatDateTime(row.createdAt) }}
             </template>
           </el-table-column>
-          <el-table-column label="状态" width="80">
-            <template #default="{ row }">
-              <el-tag :type="row.isActive ? 'success' : 'info'" size="small">
-                {{ row.isActive ? '启用' : '禁用' }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" min-width="200" fixed="right">
+          <el-table-column label="操作" min-width="150" fixed="right">
             <template #default="{ row }">
               <el-button type="primary" link size="small" @click="showEditDialog(row)">
                 编辑
               </el-button>
               <el-button type="warning" link size="small" @click="handleResetPassword(row)">
                 重置密码
-              </el-button>
-              <el-button type="danger" link size="small" @click="handleDelete(row)">
-                删除
               </el-button>
             </template>
           </el-table-column>
@@ -396,16 +398,18 @@ const loadStaffList = async () => {
       pageSize: pageSize.value
     });
     
-    // 后端返回的字段映射
-    staffList.value = response.staffList.map(s => ({
-      staffId: s.staffId,
-      fullName: s.fullName,
-      role: s.role,
-      deptCode: s.deptCode,
-      wardId: s.wardId || '',
-      createdAt: s.createdAt,
-      isActive: s.isActive
-    }));
+    // 后端返回的字段映射，过滤掉管理员
+    staffList.value = response.staffList
+      .filter(s => s.role !== 'Admin') // 不显示管理员
+      .map(s => ({
+        staffId: s.staffId,
+        fullName: s.fullName,
+        role: s.role,
+        deptCode: s.deptCode,
+        wardId: s.wardId || '',
+        createdAt: s.createdAt,
+        isActive: s.isActive
+      }));
     totalCount.value = response.totalCount;
     
     // 获取医生和护士的总数统计（不带筛选条件）

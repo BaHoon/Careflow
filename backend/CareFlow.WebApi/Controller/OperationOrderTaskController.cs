@@ -79,6 +79,7 @@ public class OperationOrderTaskController : ControllerBase
                 IsRolledBack = t.IsRolledBack,
                 DataPayload = t.DataPayload,
                 ResultPayload = t.ResultPayload,
+                ExecutionRemarks = t.ExecutionRemarks,
                 ExceptionReason = t.ExceptionReason,
                 CreatedAt = t.CreatedAt
             }).ToList();
@@ -258,6 +259,7 @@ public class OperationOrderTaskController : ControllerBase
                 IsRolledBack = t.IsRolledBack,
                 DataPayload = t.DataPayload,
                 ResultPayload = t.ResultPayload,
+                ExecutionRemarks = t.ExecutionRemarks,
                 ExceptionReason = t.ExceptionReason,
                 CreatedAt = t.CreatedAt
             }).OrderBy(t => t.PlannedStartTime).ToList();

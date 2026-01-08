@@ -82,4 +82,16 @@ public class TaskSummaryDto
     /// 任务数据载荷（JSON格式，包含Title、Description等任务详细信息）
     /// </summary>
     public string? DataPayload { get; set; }
+    
+    /// <summary>
+    /// 执行结果（仅ResultPending类任务有效）
+    /// 记录测量数值、检测数据、皮试结果等
+    /// </summary>
+    public string? ResultPayload { get; set; }
+    
+    /// <summary>
+    /// 执行备注（所有任务类型都可填写）
+    /// 记录执行过程中的备注、观察、特殊情况说明
+    /// </summary>
+    public string? ExecutionRemarks { get; set; }
 }

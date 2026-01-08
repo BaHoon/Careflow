@@ -413,6 +413,13 @@ public class OperationOrderTaskService : IOperationOrderTaskService
         // 为所有时间点生成任务（包括过去的），过去的任务会显示为逾期状态
         while (currentExecutionTime <= endTime)
         {
+            // 对于长期医嘱，跳过早于医嘱开始时间的任务
+            if (order.IsLongTerm && order.StartTime.HasValue && currentExecutionTime < order.StartTime.Value)
+            {
+                currentExecutionTime = currentExecutionTime.AddHours(intervalHours);
+                continue;
+            }
+            
             var task = CreateOperationTask(order, currentExecutionTime, GetTaskCategoryFromOpId(order.OpId));
             tasks.Add(task);
 
@@ -466,6 +473,12 @@ public class OperationOrderTaskService : IOperationOrderTaskService
             foreach (var slot in timeSlots)
             {
                 var executionTime = date.Add(slot.DefaultTime);
+                
+                // 对于长期医嘱，跳过早于医嘱开始时间的任务
+                if (order.IsLongTerm && order.StartTime.HasValue && executionTime < order.StartTime.Value)
+                {
+                    continue;
+                }
                 
                 var task = CreateOperationTask(order, executionTime, GetTaskCategoryFromOpId(order.OpId), slot.SlotName);
                 tasks.Add(task);

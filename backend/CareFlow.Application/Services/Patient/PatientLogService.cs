@@ -228,6 +228,7 @@ public class PatientLogService : IPatientLogService
                 IsLongTerm = GetOrderIsLongTerm(order),
                 Summary = GetOrderSummary(order),
                 PlannedEndTime = GetOrderPlannedEndTime(order),
+                DischargeTime = GetOrderDischargeTime(order),
                 Tasks = group.Select(t => new ExecutionTaskSummaryDto
                 {
                     Id = t.Id,
@@ -237,7 +238,9 @@ public class PatientLogService : IPatientLogService
                     AssignedNurseName = t.AssignedNurse?.Name,
                     DataPayload = t.DataPayload,
                     Category = t.Category,
-                    Status = t.Status
+                    Status = t.Status,
+                    ResultPayload = t.ResultPayload, // 执行结果
+                    ExecutionRemarks = t.ExecutionRemarks // 执行备注
                 }).ToList()
             };
 
@@ -451,6 +454,18 @@ public class PatientLogService : IPatientLogService
         if (order.IsLongTerm)
         {
             return order.PlantEndTime;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// 获取出院医嘱的预计出院时间
+    /// </summary>
+    private DateTime? GetOrderDischargeTime(Core.Models.Medical.MedicalOrder order)
+    {
+        if (order is DischargeOrder dischargeOrder)
+        {
+            return dischargeOrder.DischargeTime;
         }
         return null;
     }

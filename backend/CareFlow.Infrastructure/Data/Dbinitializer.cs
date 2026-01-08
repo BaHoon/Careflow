@@ -313,7 +313,7 @@ namespace CareFlow.Infrastructure.Data
                     Title = DoctorTitle.Chief.ToString(),
                     PrescriptionAuthLevel = "High"
                 },
-                // === 其他保留科室 ===
+                // === 儿科科室 ===
                 new Doctor
                 {
                     Id = "D016",
@@ -325,6 +325,35 @@ namespace CareFlow.Infrastructure.Data
                     RoleType = "Doctor",
                     IsActive = true,
                     DeptCode = "PED",
+                    Title = DoctorTitle.Chief.ToString(),
+                    PrescriptionAuthLevel = "High"
+                },
+                // === 测试用-普通外科医生 ===
+                new Doctor
+                {
+                    Id = "D017",
+                    EmployeeNumber = "doc017",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "裴医生",
+                    IdCard = "110100200001010017",
+                    Phone = "13912340017",
+                    RoleType = "Doctor",
+                    IsActive = true,
+                    DeptCode = "GEN_SUR",
+                    Title = DoctorTitle.Chief.ToString(),
+                    PrescriptionAuthLevel = "High"
+                },
+                new Doctor
+                {
+                    Id = "D018",
+                    EmployeeNumber = "doc018",
+                    PasswordHash = defaultHashedPassword,
+                    Name = "欧阳医生",
+                    IdCard = "110100200001010018",
+                    Phone = "13912340018",
+                    RoleType = "Doctor",
+                    IsActive = true,
+                    DeptCode = "GEN_SUR",
                     Title = DoctorTitle.Chief.ToString(),
                     PrescriptionAuthLevel = "High"
                 }
@@ -2842,7 +2871,7 @@ namespace CareFlow.Infrastructure.Data
             // --- 护士排班相关数据 ---
             // 班次类型数据
             // ⚠️ 重要：时间使用 UTC 存储（北京时间 -8小时）
-            // 班次设计：白班08:00-16:00，晚班16:00-21:00，夜班21:00-08:00(次日) [北京时间]
+            // 班次设计：白班08:00-16:00，晚班16:00-22:00，夜班22:00-08:00(次日) [北京时间]
             var shiftTypes = new CareFlow.Core.Models.Nursing.ShiftType[]
             {
                 new CareFlow.Core.Models.Nursing.ShiftType
@@ -2857,14 +2886,14 @@ namespace CareFlow.Infrastructure.Data
                     Id = "EVENING",
                     ShiftName = "晚班",
                     StartTime = new TimeSpan(8, 0, 0),   // UTC 08:00 (北京时间 16:00)
-                    EndTime = new TimeSpan(13, 0, 0)     // UTC 13:00 (北京时间 21:00)
+                    EndTime = new TimeSpan(14, 0, 0)     // UTC 14:00 (北京时间 22:00)
                 },
                 new CareFlow.Core.Models.Nursing.ShiftType
                 {
                     Id = "NIGHT",
                     ShiftName = "夜班",
-                    StartTime = new TimeSpan(13, 0, 0),  // UTC 13:00 (北京时间 21:00)
-                    EndTime = new TimeSpan(0, 0, 0)      // UTC 00:00 (次日，北京时间 08:00)
+                    StartTime = new TimeSpan(14, 0, 0),  // UTC 14:00 (北京时间 22:00)
+                    EndTime = new TimeSpan(0, 0, 0)       // UTC 00:00 (次日，北京时间 08:00)
                 }
             };
             context.ShiftTypes.AddRange(shiftTypes);

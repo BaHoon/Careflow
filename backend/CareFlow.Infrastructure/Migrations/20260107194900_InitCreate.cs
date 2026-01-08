@@ -563,6 +563,7 @@ namespace CareFlow.Infrastructure.Migrations
                     IsRolledBack = table.Column<bool>(type: "boolean", nullable: false),
                     DataPayload = table.Column<string>(type: "text", nullable: false),
                     ResultPayload = table.Column<string>(type: "text", nullable: true),
+                    ExecutionRemarks = table.Column<string>(type: "text", nullable: true),
                     ExceptionReason = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
