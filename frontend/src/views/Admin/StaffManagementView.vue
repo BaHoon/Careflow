@@ -105,11 +105,23 @@
             style="width: 150px;"
             @change="handleSearch"
           >
-            <el-option label="IM" value="IM" />
-            <el-option label="SUR" value="SUR" />
+            <el-option label="CARD" value="CARD" />
+            <el-option label="RESP" value="RESP" />
+            <el-option label="GAST" value="GAST" />
+            <el-option label="NEUR" value="NEUR" />
+            <el-option label="NEPH" value="NEPH" />
+            <el-option label="ENDO" value="ENDO" />
+            <el-option label="HEMA" value="HEMA" />
+            <el-option label="GEN_SUR" value="GEN_SUR" />
+            <el-option label="ORTH" value="ORTH" />
+            <el-option label="NSUR" value="NSUR" />
+            <el-option label="CT_SUR" value="CT_SUR" />
+            <el-option label="UROL" value="UROL" />
+            <el-option label="BURN" value="BURN" />
+            <el-option label="GYN" value="GYN" />
+            <el-option label="OBS" value="OBS" />
             <el-option label="PED" value="PED" />
             <el-option label="ADM" value="ADM" />
-            <el-option label="CHK" value="CHK" />
           </el-select>
 
           <div style="flex: 1;"></div>
@@ -151,13 +163,6 @@
           <el-table-column prop="createdAt" label="创建时间" width="180">
             <template #default="{ row }">
               {{ formatDateTime(row.createdAt) }}
-            </template>
-          </el-table-column>
-          <el-table-column label="状态" width="80">
-            <template #default="{ row }">
-              <el-tag :type="row.isActive ? 'success' : 'info'" size="small">
-                {{ row.isActive ? '启用' : '禁用' }}
-              </el-tag>
             </template>
           </el-table-column>
           <el-table-column label="操作" min-width="150" fixed="right">
