@@ -357,16 +357,50 @@ const handleTaskUpload = async (e) => {
     }
     
     if (currentTask.value.category === 5) {
+      // 药品核对任务：前端状态需要与后端保持一致
       totalCount.value = currentTask.value.drugs?.length || 0;
-      // 重置所有药品的 scanned 状态为 false（每次新任务都从头开始）
+      confirmedCount.value = 0;
+
       if (currentTask.value.drugs) {
+        // 先全部重置为未核对
         currentTask.value.drugs.forEach(drug => {
           drug.scanned = false;
         });
+
+        // 再根据后端 ResultPayload 中的 scannedDrugIds 恢复已核对状态
+        try {
+          const payloadRaw = currentTask.value.resultPayload || currentTask.value.result || null;
+          if (payloadRaw) {
+            const payload = JSON.parse(payloadRaw);
+            const scannedIds =
+              (payload && (payload.scannedDrugIds || payload.ScannedDrugIds)) || [];
+
+            if (Array.isArray(scannedIds) && scannedIds.length > 0) {
+              currentTask.value.drugs.forEach(drug => {
+                if (scannedIds.includes(drug.drugId)) {
+                  drug.scanned = true;
+                  confirmedCount.value++;
+                }
+              });
+            }
+          }
+        } catch (parseErr) {
+          console.warn('解析任务结果中的已核对药品列表失败:', parseErr);
+        }
       }
-      confirmedCount.value = 0; // 重置已核对计数
+
       if (totalCount.value === 0) {
         message.value = { type: 'warning', text: '未能从任务中读取期望药品清单，扫码将仅记录条码' };
+      } else {
+        // 如果后端已有部分核对记录，则给出提示
+        if (confirmedCount.value > 0) {
+          message.value = {
+            type: 'info',
+            text: `该任务已有 ${confirmedCount.value}/${totalCount.value} 个药品完成核对`
+          };
+        } else {
+          message.value = null;
+        }
       }
     }
     
@@ -415,28 +449,55 @@ const handleSecondUpload = async (e) => {
 
     if (result.isMatched) {
       if (currentTask.value.category === 5) {
-        // 如果后端识别出了药品 ID，自动在前端打钩对应的药品
-        if (result.scannedDrugId) {
-          const targetDrug = currentTask.value.drugs?.find(d => d.drugId === result.scannedDrugId);
-          if (targetDrug && !targetDrug.scanned) {
-            targetDrug.scanned = true;
-            confirmedCount.value++;
-          }
-        }
+        // 药品验证逻辑
+        // 首先检查后端返回的消息，判断是否已扫描
+        const backendMessage = result.message || '';
+        const isAlreadyScanned = backendMessage.includes('已扫描') || backendMessage.includes('已核对');
         
-        // 从后端结果更新已确认数和总数（后端返回 scannedCount/expectedCount/progress）
+        let targetDrug = null;
+        if (result.scannedDrugId && currentTask.value.drugs) {
+          targetDrug = currentTask.value.drugs.find(d => d.drugId === result.scannedDrugId) || null;
+        }
+
+        // 无论是否重复扫描，都先根据后端返回的 scannedCount / expectedCount 同步前端统计
+        if (typeof result.expectedCount === 'number') {
+          totalCount.value = result.expectedCount;
+        }
         if (typeof result.scannedCount === 'number') {
           confirmedCount.value = result.scannedCount;
         }
 
-        if (typeof result.expectedCount === 'number') {
-          totalCount.value = result.expectedCount;
+        // 同步当前药品的 scanned 状态（后端已认为该药品在已扫描列表中）
+        if (targetDrug) {
+          targetDrug.scanned = true;
         }
 
-        message.value = { type: 'success', text: `药品已核对 （${confirmedCount.value}/${totalCount.value}）` };
+        if (isAlreadyScanned) {
+          // 后端已经记录为已扫描：提示“已核对过了”
+          const drugName = targetDrug?.drugName || result.scannedDrugId || '';
+          message.value = {
+            type: 'warning',
+            text: `该药品已经核对过了: ${drugName} （${confirmedCount.value}/${totalCount.value}）`
+          };
+          ElMessage.warning(`该药品已经核对过了: ${drugName}`);
+          // 清除预览便于下一次扫描
+          secondPreview.value = '';
+          return;
+        }
+
+        // 正常首次核对成功
+        const drugName = targetDrug?.drugName || result.scannedDrugId || '';
+        message.value = {
+          type: 'success',
+          text: `药品已核对 （${confirmedCount.value}/${totalCount.value}）`
+        };
+        ElMessage.success(`药品已核对: ${drugName}`);
 
         // 如果后端返回 progress 并且完成
-        const progress = typeof result.progress === 'number' ? result.progress : (totalCount.value > 0 ? Math.round((confirmedCount.value / totalCount.value) * 100) : 0);
+        const progress = typeof result.progress === 'number'
+          ? result.progress
+          : (totalCount.value > 0 ? Math.round((confirmedCount.value / totalCount.value) * 100) : 0);
+
         if (progress >= 100 && totalCount.value > 0) {
           ElMessage.success('所有药品已核对');
           setTimeout(() => nextStep(), 1500);
