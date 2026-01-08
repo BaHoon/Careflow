@@ -81,6 +81,12 @@
         <h4>执行结果</h4>
         <pre class="json-display">{{ formatJson(task.resultPayload) }}</pre>
       </div>
+
+      <!-- 异常原因 -->
+      <div v-if="task.exceptionReason && task.exceptionReason.trim()" class="detail-section exception-section">
+        <h4>⚠️ 异常原因</h4>
+        <div class="exception-content">{{ task.exceptionReason }}</div>
+      </div>
     </div>
 
     <template #footer>
@@ -436,5 +442,23 @@ const getStatusText = (status) => {
   overflow-y: auto;
   margin: 0;
   color: #303133;
+}
+
+.exception-section {
+  border-top: 2px dashed #f56c6c;
+  padding-top: 16px;
+  margin-top: 16px;
+}
+
+.exception-content {
+  color: #f56c6c;
+  font-weight: 600;
+  padding: 12px;
+  background: #fef0f0;
+  border-radius: 4px;
+  border-left: 3px solid #f56c6c;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 </style>

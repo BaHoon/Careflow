@@ -67,7 +67,23 @@
             <span class="value">{{ detail.signedByNurseName }}</span>
           </div>
           
-          <div v-if="detail.stopReason" class="info-item full-width stop-info">
+          <!-- ==================== 异常原因记录区域 ==================== -->
+          <!-- 退回原因 -->
+          <div v-if="detail.rejectReason" class="info-item full-width exception-info reject-info">
+            <span class="label">退回原因:</span>
+            <span class="value danger">{{ detail.rejectReason }}</span>
+          </div>
+          <div v-if="detail.rejectedAt" class="info-item">
+            <span class="label">退回时间:</span>
+            <span class="value">{{ formatDateTime(detail.rejectedAt) }}</span>
+          </div>
+          <div v-if="detail.rejectedByNurseName" class="info-item">
+            <span class="label">退回护士:</span>
+            <span class="value">{{ detail.rejectedByNurseName }}</span>
+          </div>
+          
+          <!-- 停嘱原因 -->
+          <div v-if="detail.stopReason" class="info-item full-width exception-info stop-info">
             <span class="label">停嘱原因:</span>
             <span class="value danger">{{ detail.stopReason }}</span>
           </div>
@@ -78,6 +94,34 @@
           <div v-if="detail.stopDoctorName" class="info-item">
             <span class="label">停嘱医生:</span>
             <span class="value">{{ detail.stopDoctorName }}</span>
+          </div>
+          
+          <!-- 拒绝停嘱原因 -->
+          <div v-if="detail.stopRejectReason" class="info-item full-width exception-info stop-reject-info">
+            <span class="label">拒绝停嘱原因:</span>
+            <span class="value warning">{{ detail.stopRejectReason }}</span>
+          </div>
+          <div v-if="detail.stopRejectedAt" class="info-item">
+            <span class="label">拒绝停嘱时间:</span>
+            <span class="value">{{ formatDateTime(detail.stopRejectedAt) }}</span>
+          </div>
+          <div v-if="detail.stopRejectedByNurseName" class="info-item">
+            <span class="label">拒绝停嘱护士:</span>
+            <span class="value">{{ detail.stopRejectedByNurseName }}</span>
+          </div>
+          
+          <!-- 撤销原因 -->
+          <div v-if="detail.cancelReason" class="info-item full-width exception-info cancel-info">
+            <span class="label">撤销原因:</span>
+            <span class="value danger">{{ detail.cancelReason }}</span>
+          </div>
+          <div v-if="detail.cancelledAt" class="info-item">
+            <span class="label">撤销时间:</span>
+            <span class="value">{{ formatDateTime(detail.cancelledAt) }}</span>
+          </div>
+          <div v-if="detail.cancelledByDoctorName" class="info-item">
+            <span class="label">撤销医生:</span>
+            <span class="value">{{ detail.cancelledByDoctorName }}</span>
           </div>
           
           <div v-if="detail.remarks" class="info-item full-width">
@@ -394,6 +438,14 @@
                 <div class="section-title">📝 执行备注</div>
                 <div class="timeline-item">
                   <div class="remarks-content">{{ task.executionRemarks }}</div>
+                </div>
+              </div>
+
+              <!-- 异常原因（有异常原因时显示） -->
+              <div v-if="task.exceptionReason && task.exceptionReason.trim()" class="task-section exception-section">
+                <div class="section-title">⚠️ 异常原因</div>
+                <div class="timeline-item">
+                  <div class="exception-content">{{ task.exceptionReason }}</div>
                 </div>
               </div>
 
@@ -1828,11 +1880,53 @@ const handlePrintTaskBarcode = async (task) => {
   color: #f56c6c;
 }
 
-.stop-info {
-  background: #fef0f0;
+/* 异常原因信息样式 */
+.exception-info {
   padding: 12px;
   border-radius: 6px;
+  margin-top: 8px;
+}
+
+.reject-info {
+  background: #fef0f0;
   border-left: 4px solid #f56c6c;
+}
+
+.stop-info {
+  background: #fef0f0;
+  border-left: 4px solid #f56c6c;
+}
+
+.stop-reject-info {
+  background: #fdf6ec;
+  border-left: 4px solid #e6a23c;
+}
+
+.cancel-info {
+  background: #fef0f0;
+  border-left: 4px solid #f56c6c;
+}
+
+.value.warning {
+  color: #e6a23c;
+}
+
+.exception-section {
+  border-top: 2px dashed #f56c6c;
+  padding-top: 16px;
+  margin-top: 16px;
+}
+
+.exception-content {
+  color: #f56c6c;
+  font-weight: 600;
+  padding: 12px;
+  background: #fef0f0;
+  border-radius: 4px;
+  border-left: 3px solid #f56c6c;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .medication-info {

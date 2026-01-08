@@ -79,11 +79,24 @@
           
           <!-- 异常原因 -->
           <el-descriptions-item
-            v-if="currentTask.exceptionReason"
+            v-if="currentTask.exceptionReason && currentTask.exceptionReason.trim()"
             label="异常原因"
             :span="2"
           >
-            <span style="color: #f56c6c;">{{ currentTask.exceptionReason }}</span>
+            <div class="exception-reason-display">
+              <span style="color: #f56c6c; font-weight: 600;">{{ currentTask.exceptionReason }}</span>
+            </div>
+          </el-descriptions-item>
+          
+          <!-- 取消原因（NursingTask） -->
+          <el-descriptions-item
+            v-if="currentTask.cancelReason && currentTask.cancelReason.trim()"
+            label="取消原因"
+            :span="2"
+          >
+            <div class="exception-reason-display">
+              <span style="color: #f56c6c; font-weight: 600;">{{ currentTask.cancelReason }}</span>
+            </div>
           </el-descriptions-item>
         </el-descriptions>
       </div>
@@ -213,11 +226,13 @@
           
           <!-- 异常原因 -->
           <el-descriptions-item
-            v-if="currentTask.exceptionReason"
+            v-if="currentTask.exceptionReason && currentTask.exceptionReason.trim()"
             label="异常原因"
             :span="2"
           >
-            <span style="color: #f56c6c;">{{ currentTask.exceptionReason }}</span>
+            <div class="exception-reason-display">
+              <span style="color: #f56c6c; font-weight: 600;">{{ currentTask.exceptionReason }}</span>
+            </div>
           </el-descriptions-item>
         </el-descriptions>
       </div>
@@ -607,6 +622,16 @@ const formatAllowedDelayMinutes = (delay) => {
 
 :deep(.el-tag) {
   border-radius: 4px;
+}
+
+.exception-reason-display {
+  padding: 10px 14px;
+  background: #fef0f0;
+  border-radius: 6px;
+  border-left: 3px solid #f56c6c;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 @keyframes slideDown {
