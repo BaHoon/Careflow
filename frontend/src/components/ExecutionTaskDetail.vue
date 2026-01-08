@@ -82,8 +82,8 @@
         <pre class="json-display">{{ formatJson(task.resultPayload) }}</pre>
       </div>
 
-      <!-- 异常原因 -->
-      <div v-if="task.exceptionReason && task.exceptionReason.trim()" class="detail-section exception-section">
+      <!-- 异常原因（仅异常状态显示） -->
+      <div v-if="(task.status === 8 || task.status === 'Incomplete') && task.exceptionReason && task.exceptionReason.trim()" class="detail-section exception-section">
         <h4>⚠️ 异常原因</h4>
         <div class="exception-content">{{ task.exceptionReason }}</div>
       </div>

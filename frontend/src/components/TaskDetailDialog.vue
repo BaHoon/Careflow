@@ -77,9 +77,9 @@
             {{ currentTask.allowedDelayMinutes !== undefined && currentTask.allowedDelayMinutes !== null ? formatAllowedDelayMinutes(currentTask.allowedDelayMinutes) : '-' }}
           </el-descriptions-item>
           
-          <!-- 异常原因 -->
+          <!-- 异常原因（仅异常状态显示） -->
           <el-descriptions-item
-            v-if="currentTask.exceptionReason && currentTask.exceptionReason.trim()"
+            v-if="(currentTask.status === 8 || currentTask.status === 'Incomplete') && currentTask.exceptionReason && currentTask.exceptionReason.trim()"
             label="异常原因"
             :span="2"
           >
@@ -224,9 +224,9 @@
             <pre class="json-display">{{ formatJson(currentTask.resultPayload) }}</pre>
           </el-descriptions-item>
           
-          <!-- 异常原因 -->
+          <!-- 异常原因（仅异常状态显示） -->
           <el-descriptions-item
-            v-if="currentTask.exceptionReason && currentTask.exceptionReason.trim()"
+            v-if="(currentTask.status === 8 || currentTask.status === 'Incomplete') && currentTask.exceptionReason && currentTask.exceptionReason.trim()"
             label="异常原因"
             :span="2"
           >

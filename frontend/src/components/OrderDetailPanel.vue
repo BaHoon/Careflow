@@ -441,8 +441,8 @@
                 </div>
               </div>
 
-              <!-- 异常原因（有异常原因时显示） -->
-              <div v-if="task.exceptionReason && task.exceptionReason.trim()" class="task-section exception-section">
+              <!-- 异常原因（仅异常状态显示） -->
+              <div v-if="(task.status === 8 || task.status === 'Incomplete') && task.exceptionReason && task.exceptionReason.trim()" class="task-section exception-section">
                 <div class="section-title">⚠️ 异常原因</div>
                 <div class="timeline-item">
                   <div class="exception-content">{{ task.exceptionReason }}</div>
