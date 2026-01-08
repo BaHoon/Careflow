@@ -215,9 +215,9 @@
             <p class="task-description">{{ getTaskDescription(currentTask) }}</p>
           </el-descriptions-item>
           
-          <!-- 执行结果 -->
+          <!-- 执行结果（隐藏取药任务的执行结果） -->
           <el-descriptions-item
-            v-if="currentTask.resultPayload"
+            v-if="currentTask.resultPayload && !isRetrieveMedicationTask(currentTask)"
             label="执行结果"
             :span="2"
           >
@@ -546,6 +546,48 @@ const formatAllowedDelayMinutes = (delay) => {
   }
   
   return `${delayNum} 分钟`;
+};
+
+// 判断是否为取药任务
+const isRetrieveMedicationTask = (task) => {
+  if (!task) return false;
+  
+  // 检查 resultPayload 中是否包含 scannedDrugIds 字段（取药任务特有的执行结果格式）
+  if (task.resultPayload) {
+    try {
+      const resultPayload = typeof task.resultPayload === 'string' 
+        ? JSON.parse(task.resultPayload) 
+        : task.resultPayload;
+      if (resultPayload && (resultPayload.scannedDrugIds || resultPayload.ScannedDrugIds)) {
+        return true;
+      }
+    } catch (e) {
+      // 如果解析失败，检查字符串中是否包含 scannedDrugIds
+      if (typeof task.resultPayload === 'string' && 
+          (task.resultPayload.includes('scannedDrugIds') || task.resultPayload.includes('ScannedDrugIds'))) {
+        return true;
+      }
+    }
+  }
+  
+  // 检查 dataPayload 中的 Title 是否包含"取药"
+  if (task.dataPayload) {
+    try {
+      const dataPayload = safeParseJson(task.dataPayload);
+      if (dataPayload && dataPayload.Title && dataPayload.Title.includes('取药')) {
+        return true;
+      }
+    } catch (e) {
+      // 忽略解析错误
+    }
+  }
+  
+  // 检查 taskTitle 是否包含"取药"
+  if (task.taskTitle && task.taskTitle.includes('取药')) {
+    return true;
+  }
+  
+  return false;
 };
 </script>
 
