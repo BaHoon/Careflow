@@ -141,7 +141,7 @@
           </template>
         </el-table-column>
         <el-table-column prop="operationDetails" label="操作详情" min-width="250" show-overflow-tooltip />
-        <el-table-column prop="ipAddress" label="IP地址" width="140" />
+       
         <el-table-column prop="result" label="操作结果" width="90" align="center">
           <template #default="{ row }">
             <el-tag :type="row.result === 'Success' ? 'success' : 'danger'">
@@ -187,9 +187,7 @@
         <el-descriptions-item label="操作时间" :span="2">
           {{ formatDateTime(currentLog.operationTime) }}
         </el-descriptions-item>
-        <el-descriptions-item label="IP地址" :span="2">
-          {{ currentLog.ipAddress || '-' }}
-        </el-descriptions-item>
+       
         <el-descriptions-item label="操作结果">
           <el-tag :type="currentLog.result === 'Success' ? 'success' : 'danger'">
             {{ currentLog.result === 'Success' ? '成功' : '失败' }}
