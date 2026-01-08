@@ -50,6 +50,12 @@ namespace CareFlow.Core.Models
         [Column("operation_details")]
         public string? OperationDetails { get; set; }
 
+        /// <summary>
+        /// IP地址
+        /// </summary>
+        [MaxLength(50)]
+        [Column("ip_address")]
+        public string? IpAddress { get; set; }
 
         /// <summary>
         /// 操作结果 (Success/Failed)
