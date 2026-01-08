@@ -286,8 +286,9 @@ const handleTaskUpload = async (e) => {
   const file = e.target.files?.[0];
   if (!file) return;
 
+  let msg = null;
   try {
-    const msg = ElMessage.info({ message: '识别条形码中...', duration: 3000 });
+    msg = ElMessage.info({ message: '识别条形码中...', duration: 3000 });
     taskFile = file;
 
     // 显示预览
@@ -297,7 +298,10 @@ const handleTaskUpload = async (e) => {
 
     // 调用后端的条形码识别接口
     const result = await api.recognizeTaskBarcode(file);
-    msg.close();
+    if (msg) {
+      msg.close();
+      msg = null;
+    }
     
     // 后端识别失败或没有返回有效的taskId，提示用户手动输入
     if (!result || !result.taskId || result.taskId === 0) {
@@ -369,6 +373,11 @@ const handleTaskUpload = async (e) => {
     // 任务加载成功后自动进入第2步
     setTimeout(() => nextStep(), 1000);
   } catch (err) {
+    // 确保弹窗被关闭
+    if (msg) {
+      msg.close();
+      msg = null;
+    }
     if (err.message !== '已取消') {
       ElMessage.error('处理条形码失败: ' + err.message);
     }
@@ -380,8 +389,9 @@ const handleSecondUpload = async (e) => {
   const file = e.target.files?.[0];
   if (!file) return;
 
+  let msg = null;
   try {
-    const msg = ElMessage.info({ message: '验证中...', duration: 3000 });
+    msg = ElMessage.info({ message: '验证中...', duration: 3000 });
     secondFile = file;
 
     const reader = new FileReader();
@@ -398,7 +408,10 @@ const handleSecondUpload = async (e) => {
       result = await api.validatePatientBarcodeImage(currentTask.value.id, taskFile, file);
     }
     
-    msg.close();
+    if (msg) {
+      msg.close();
+      msg = null;
+    }
 
     if (result.isMatched) {
       if (currentTask.value.category === 5) {
@@ -445,6 +458,11 @@ const handleSecondUpload = async (e) => {
       secondPreview.value = '';
     }
   } catch (err) {
+    // 确保弹窗被关闭
+    if (msg) {
+      msg.close();
+      msg = null;
+    }
     message.value = { type: 'error', text: '✗ 验证失败' };
     ElMessage.error('验证失败: ' + err.message);
   }
@@ -455,18 +473,27 @@ const handleEndUpload = async (e) => {
   const file = e.target.files?.[0];
   if (!file) return;
 
+  let msg = null;
   try {
-    const msg = ElMessage.info({ message: '验证中...', duration: 3000 });
+    msg = ElMessage.info({ message: '验证中...', duration: 3000 });
     endFile = file;
 
     const reader = new FileReader();
     reader.onload = r => endPreview.value = r.target?.result;
     reader.readAsDataURL(file);
 
-    msg.close();
+    if (msg) {
+      msg.close();
+      msg = null;
+    }
     message.value = { type: 'success', text: '✓ 已确认' };
     // 不再自动完成，让用户手动点击"完成任务"按钮
   } catch (err) {
+    // 确保弹窗被关闭
+    if (msg) {
+      msg.close();
+      msg = null;
+    }
     message.value = { type: 'error', text: '✗ 错误' };
     ElMessage.error('处理失败: ' + err.message);
   }
