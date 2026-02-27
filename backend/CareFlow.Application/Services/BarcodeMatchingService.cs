@@ -264,7 +264,7 @@ public class BarcodeMatchingService : IBarcodeMatchingService
             var tasks = await _executionTaskRepository.ListAsync(t => 
                 t.PatientId == patientId &&
                 t.Category == TaskCategory.DataCollection &&
-                t.Status == "Pending");
+                t.Status == ExecutionTaskStatus.Pending);
                 
             if (!tasks.Any())
             {
@@ -362,7 +362,7 @@ public class BarcodeMatchingService : IBarcodeMatchingService
         }
 
         // 验证3: 执行任务状态是否允许执行
-        var allowedStatuses = new[] { "Pending", "Running" };
+        var allowedStatuses = new[] {ExecutionTaskStatus.Pending, ExecutionTaskStatus.InProgress};
         if (allowedStatuses.Contains(executionTask.Status))
         {
             result.ValidationDetails.ExecutionTaskStatusValid = true;

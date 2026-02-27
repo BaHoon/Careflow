@@ -3,8 +3,12 @@ using CareFlow.Infrastructure.Services;
 using CareFlow.Infrastructure; // 引用基础设施层
 using CareFlow.Application; // 引用应用层
 using CareFlow.Application.Services; // 引用应用层服务
+using CareFlow.Application.Services.MedicalOrder.MedicationOrders; // 药品医嘱任务服务
 using CareFlow.Application.Interfaces;
 using CareFlow.Application.Services.Nursing;
+using CareFlow.Application.Services.Scheduling;
+using CareFlow.Application.Options;
+using CareFlow.WebApi.BackgroundServices;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -21,19 +25,17 @@ builder.Services.AddControllers();
 
 // 添加 Swagger/OpenAPI (接口文档生成器)
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    // 使用完整类型名（包含命名空间）作为 schemaId，避免同名类冲突
+    options.CustomSchemaIds(type => type.FullName);
+});
 
 // 注册 AuthService
 builder.Services.AddScoped<AuthService>();
 
-// 注册手术医嘱任务服务及工厂
-builder.Services.AddScoped<IExecutionTaskFactory, SurgicalExecutionTaskFactory>();
-builder.Services.AddScoped<ISurgicalOrderTaskService, SurgicalOrderTaskService>();
-
-// 注册操作医嘱任务服务及工厂
-builder.Services.AddScoped<OperationExecutionTaskFactory>();
-builder.Services.AddScoped<IOperationOrderTaskService, OperationOrderTaskService>();
-builder.Services.AddScoped<IOperationOrderManager, OperationOrderManager>();
+// 注意：操作医嘱相关服务已在 Application.DependencyInjection 中注册
+// 这里不再重复注册，避免冲突
 
 // 注册检查类医嘱服务（合并到任务服务）
 builder.Services.AddScoped<CareFlow.Application.Interfaces.IInspectionService, CareFlow.Application.Services.MedicalOrder.InspectionOrderTaskService>();
@@ -51,10 +53,7 @@ builder.Services.AddScoped<CareFlow.Application.Services.IMedicalOrderManager, C
 builder.Services.AddScoped<ICareFlowDbContext>(provider => 
     provider.GetRequiredService<ApplicationDbContext>());
 
-// 2. 注册任务生成器 (注意：这是个普通类，我们直接注册它自己)
-builder.Services.AddScoped<NursingTaskGenerator>();
-
-// 3. 注册体征服务 (接口 + 实现)
+// 注册体征服务 (接口 + 实现)
 builder.Services.AddScoped<IVitalSignService, VitalSignService>();
 
 // 配置 JWT 认证服务
@@ -79,6 +78,23 @@ builder.Services.AddInfrastructure(builder.Configuration);
 
 // [关键] 注册应用层服务
 builder.Services.AddApplication();
+
+// ============================================
+// 注册护理任务定时调度服务
+// ============================================
+
+// 1. 注册配置选项
+builder.Services.Configure<NursingScheduleOptions>(
+    builder.Configuration.GetSection(NursingScheduleOptions.SectionName));
+
+// 2. 注册业务服务（普通类）
+builder.Services.AddScoped<DailyTaskGeneratorService>();
+builder.Services.AddScoped<ShiftHandoverService>();
+builder.Services.AddScoped<TaskReminderService>();
+builder.Services.AddScoped<TaskDelayCalculator>();  // 新增：延迟计算服务
+
+// 3. 注册后台调度器（BackgroundService）
+builder.Services.AddHostedService<NursingTaskScheduler>();
 
 // [关键] 配置 CORS (跨域资源共享)
 // 允许你的前端 (Vue) 访问这个后端

@@ -26,6 +26,7 @@ public class InspectionReportDetailDto
     public string PatientId { get; set; } = null!;
     public string PatientName { get; set; } = null!;
     public string ItemCode { get; set; } = null!;
+    public string ItemName { get; set; } = null!;
     public string RisLisId { get; set; } = null!;
     public DateTime ReportTime { get; set; }
     public InspectionReportStatus ReportStatus { get; set; }

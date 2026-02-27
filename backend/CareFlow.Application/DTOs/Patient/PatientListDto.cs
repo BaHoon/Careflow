@@ -15,6 +15,7 @@ public class PatientListDto
     public NursingGrade NursingGrade { get; set; }
     public string Department { get; set; } = null!;
     public string? Diagnosis { get; set; }
+    public PatientStatus Status { get; set; }
 }
 
 /// <summary>
@@ -33,7 +34,7 @@ public class PatientDetailDto
     public string PhoneNumber { get; set; } = null!;
     public string IdCard { get; set; } = null!;
     public DateTime DateOfBirth { get; set; }
-    public string Status { get; set; } = null!;
+    public PatientStatus Status { get; set; } = PatientStatus.Hospitalized;
     public string? AttendingDoctorName { get; set; }
     public string? Diagnosis { get; set; }
     public string[]? Allergies { get; set; }

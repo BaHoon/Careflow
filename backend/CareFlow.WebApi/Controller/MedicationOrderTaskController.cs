@@ -1,4 +1,4 @@
-using CareFlow.Application.DTOs.MedicationOrder;
+using CareFlow.Application.DTOs.MedicationOrders;
 using CareFlow.Core.Interfaces;
 using CareFlow.Core.Models;
 using Microsoft.AspNetCore.Mvc;

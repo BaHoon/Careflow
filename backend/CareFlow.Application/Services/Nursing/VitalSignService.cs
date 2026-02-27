@@ -1,8 +1,10 @@
 using CareFlow.Application.Interfaces;
 using CareFlow.Application.DTOs.Nursing; 
 using CareFlow.Core.Models.Nursing;
+using CareFlow.Core.Models.Organization;
 using CareFlow.Core.Enums; 
 using Microsoft.EntityFrameworkCore;
+using System.Linq;
 
 namespace CareFlow.Application.Services.Nursing
 {
@@ -28,16 +30,40 @@ namespace CareFlow.Application.Services.Nursing
 
         public async Task SubmitVitalSignsAsync(NursingTaskSubmissionDto input)
         {
+            Console.WriteLine($"🔍 VitalSignService 收到数据:");
+            Console.WriteLine($"  TaskId: {input.TaskId}");
+            Console.WriteLine($"  CurrentNurseId: {input.CurrentNurseId}");
+            Console.WriteLine($"  ExecutionTime (原始): {input.ExecutionTime} (Kind: {input.ExecutionTime.Kind})");
+            Console.WriteLine($"  Temperature: {input.Temperature}");
+            Console.WriteLine($"  Pulse: {input.Pulse}");
+            
             // 1. 获取原任务
             var task = await _context.Set<NursingTask>().FindAsync(input.TaskId);
             if (task == null) throw new Exception($"未找到ID为 {input.TaskId} 的护理任务");
 
-            // 2. 保存体征记录 (VitalSignsRecord)
+            // 2. 处理时间：前端传来的是浏览器本地时间（中国时间），需要转换为UTC
+            // 如果 Kind 是 Unspecified，假定为中国时间
+            DateTime executionTimeUtc;
+            if (input.ExecutionTime.Kind == DateTimeKind.Utc)
+            {
+                executionTimeUtc = input.ExecutionTime;
+            }
+            else
+            {
+                // 假定为中国时间 (UTC+8)
+                var chinaTimeZone = TimeZoneInfo.FindSystemTimeZoneById("China Standard Time");
+                var executionTimeChinaUnspecified = DateTime.SpecifyKind(input.ExecutionTime, DateTimeKind.Unspecified);
+                executionTimeUtc = TimeZoneInfo.ConvertTimeToUtc(executionTimeChinaUnspecified, chinaTimeZone);
+            }
+            
+            Console.WriteLine($"  转换后UTC时间: {executionTimeUtc} (Kind: {executionTimeUtc.Kind})");
+
+            // 3. 保存体征记录 (VitalSignsRecord - 必填项)
             var vitalRecord = new VitalSignsRecord
             {
                 PatientId = task.PatientId,
                 RecorderNurseId = input.CurrentNurseId, // 记录是谁测的
-                RecordTime = input.ExecutionTime,
+                RecordTime = executionTimeUtc,  // 使用转换后的UTC时间
                 
                 // 【核心】双向关联：记录关联了任务
                 NursingTaskId = task.Id, 
@@ -50,32 +76,57 @@ namespace CareFlow.Application.Services.Nursing
                 DiaBp = input.DiaBp,
                 Spo2 = input.Spo2,
                 PainScore = input.PainScore,
-                // Weight 等其他字段如果DTO里有可以加上
+                Weight = input.Weight ?? 0,
+                Intervention = input.Intervention ?? string.Empty
             };
             
             await _context.Set<VitalSignsRecord>().AddAsync(vitalRecord);
 
-            // 3. 保存护理笔记 (NursingCareNote) - 仅当有内容时
-            if (!string.IsNullOrWhiteSpace(input.NoteContent) || !string.IsNullOrEmpty(input.PipeCareData))
+            // 3. 保存护理笔记 (NursingCareNote - 可选项)
+            // 只要有任何一个字段有值，就创建护理笔记记录
+            bool hasNursingNote = !string.IsNullOrWhiteSpace(input.NoteContent) 
+                || !string.IsNullOrWhiteSpace(input.HealthEducation)
+                || !string.IsNullOrWhiteSpace(input.Consciousness)
+                || !string.IsNullOrWhiteSpace(input.PipeCareData)
+                || input.IntakeVolume.HasValue
+                || input.OutputVolume.HasValue;
+
+            if (hasNursingNote)
             {
                 var note = new NursingCareNote
                 {
                     PatientId = task.PatientId,
                     RecorderNurseId = input.CurrentNurseId,
-                    RecordTime = input.ExecutionTime,
+                    RecordTime = executionTimeUtc,  // 使用转换后的UTC时间
                     
-                    // 【核心】关联同一个任务，这样以后查这个任务就能同时看到体征和笔记
+                    // 【核心】关联同一个任务
                     NursingTaskId = task.Id, 
                     
-                    Content = input.NoteContent ?? "",
-                    PipeCareData = input.PipeCareData ?? "{}"
+                    // 观察数据
+                    Consciousness = input.Consciousness ?? "清醒",
+                    PupilLeft = input.PupilLeft ?? "3.0mm/灵敏",
+                    PupilRight = input.PupilRight ?? "3.0mm/灵敏",
+                    SkinCondition = input.SkinCondition ?? "完好",
+                    
+                    // 管道护理
+                    PipeCareData = input.PipeCareData ?? "{}",
+                    
+                    // 出入量
+                    IntakeVolume = input.IntakeVolume ?? 0,
+                    IntakeType = input.IntakeType ?? string.Empty,
+                    OutputVolume = input.OutputVolume ?? 0,
+                    OutputType = input.OutputType ?? string.Empty,
+                    
+                    // 护理内容
+                    Content = input.NoteContent ?? string.Empty,
+                    HealthEducation = input.HealthEducation ?? string.Empty
                 };
                 await _context.Set<NursingCareNote>().AddAsync(note);
             }
 
             // 4. 更新任务状态
-            task.Status = "Completed";
-            task.ExecuteTime = input.ExecutionTime;
+            task.Status = ExecutionTaskStatus.Completed;
+            task.ExecuteTime = executionTimeUtc;  // 使用转换后的UTC时间
             task.ExecutorNurseId = input.CurrentNurseId; // 记录实际执行人（可能和分配的人不一样）
 
             // 5. 【核心逻辑】智能复测检测
@@ -116,7 +167,7 @@ namespace CareFlow.Application.Services.Nursing
                     // 规则：复测任务通常默认分配给原来的护士
                     AssignedNurseId = originalTask.AssignedNurseId, 
                     
-                    Status = "Pending",
+                    Status = ExecutionTaskStatus.Pending,
                     TaskType = "ReMeasure", // 标记为复测任务
                     Description = $"{reasonDesc} - 请复测",
                     
@@ -136,6 +187,123 @@ namespace CareFlow.Application.Services.Nursing
                     reasons.Add($"{rule.Desc}({value})");
                 }
             }
+        }
+
+        /// <summary>
+        /// 取消护理任务
+        /// </summary>
+        /// <param name="taskId">任务ID</param>
+        /// <param name="nurseId">操作护士ID</param>
+        /// <param name="cancelReason">取消理由</param>
+        public async Task CancelNursingTaskAsync(long taskId, string nurseId, string cancelReason)
+        {
+            Console.WriteLine($"📝 VitalSignService.CancelNursingTaskAsync - TaskId: {taskId}, NurseId: {nurseId}, Reason: {cancelReason}");
+            
+            var task = await _context.Set<NursingTask>().FindAsync(taskId);
+            if (task == null)
+            {
+                Console.WriteLine($"❌ 未找到任务 {taskId}");
+                throw new Exception($"未找到ID为 {taskId} 的护理任务");
+            }
+
+            Console.WriteLine($"📌 任务当前状态: {task.Status}");
+            
+            // 只有待执行的任务才能取消
+            if (task.Status != ExecutionTaskStatus.Pending)
+            {
+                Console.WriteLine($"❌ 任务状态不是Pending，无法取消");
+                throw new Exception($"任务状态为 {task.Status}，无法取消");
+            }
+
+            // 更新任务状态为已取消
+            task.Status = ExecutionTaskStatus.Incomplete;
+            task.ExecuteTime = DateTime.UtcNow; // 记录取消时间
+            task.ExecutorNurseId = nurseId; // 记录取消操作的护士
+            task.CancelReason = cancelReason; // 记录取消理由
+
+            Console.WriteLine($"✅ 准备保存，任务状态更新为 Cancelled");
+            await _context.SaveChangesAsync();
+            Console.WriteLine($"✅ 保存成功");
+        }
+
+        /// <summary>
+        /// 添加护理记录补充说明
+        /// </summary>
+        public async Task<SupplementDto> AddSupplementAsync(AddSupplementDto dto)
+        {
+            Console.WriteLine($"📝 添加补充说明 - TaskId: {dto.NursingTaskId}, NurseId: {dto.SupplementNurseId}");
+            
+            // 验证任务是否存在且已完成
+            var task = await _context.Set<NursingTask>().FindAsync(dto.NursingTaskId);
+            if (task == null)
+            {
+                throw new Exception($"未找到ID为 {dto.NursingTaskId} 的护理任务");
+            }
+            
+            if (task.Status != ExecutionTaskStatus.Completed)
+            {
+                throw new Exception("只能对已完成的护理记录添加补充说明");
+            }
+            
+            // 创建补充记录
+            var supplement = new NursingRecordSupplement
+            {
+                NursingTaskId = dto.NursingTaskId,
+                SupplementNurseId = dto.SupplementNurseId,
+                SupplementTime = DateTime.UtcNow,
+                Content = dto.Content,
+                SupplementType = dto.SupplementType
+            };
+            
+            await _context.Set<NursingRecordSupplement>().AddAsync(supplement);
+            await _context.SaveChangesAsync();
+            
+            // 获取护士姓名
+            var nurse = await _context.Set<Nurse>().FindAsync(dto.SupplementNurseId);
+            
+            Console.WriteLine($"✅ 补充说明保存成功 - ID: {supplement.Id}");
+            
+            return new SupplementDto
+            {
+                Id = supplement.Id,
+                NursingTaskId = supplement.NursingTaskId,
+                SupplementNurseId = supplement.SupplementNurseId,
+                SupplementNurseName = nurse?.Name ?? "未知",
+                SupplementTime = supplement.SupplementTime,
+                Content = supplement.Content,
+                SupplementType = supplement.SupplementType
+            };
+        }
+
+        /// <summary>
+        /// 获取护理记录的补充说明列表
+        /// </summary>
+        public async Task<List<SupplementDto>> GetSupplementsAsync(long nursingTaskId)
+        {
+            var supplements = await _context.Set<NursingRecordSupplement>()
+                .Where(s => s.NursingTaskId == nursingTaskId)
+                .OrderBy(s => s.SupplementTime)
+                .ToListAsync();
+            
+            var result = new List<SupplementDto>();
+            
+            foreach (var supplement in supplements)
+            {
+                var nurse = await _context.Set<Nurse>().FindAsync(supplement.SupplementNurseId);
+                
+                result.Add(new SupplementDto
+                {
+                    Id = supplement.Id,
+                    NursingTaskId = supplement.NursingTaskId,
+                    SupplementNurseId = supplement.SupplementNurseId,
+                    SupplementNurseName = nurse?.Name ?? "未知",
+                    SupplementTime = supplement.SupplementTime,
+                    Content = supplement.Content,
+                    SupplementType = supplement.SupplementType
+                });
+            }
+            
+            return result;
         }
     }
 }

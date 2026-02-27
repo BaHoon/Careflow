@@ -1,0 +1,1638 @@
+<template>
+  <div class="order-application">
+    <!-- 左侧患者列表面板 -->
+    <PatientListPanel 
+      :patient-list="patientList"
+      :selected-patients="selectedPatients"
+      :my-ward-id="currentScheduledWardId"
+      :multi-select="enableMultiSelect"
+      title="患者列表"
+      pending-filter-label="仅显示有待申请"
+      badge-field="pendingApplicationCount"
+      :collapsed="false"
+      @patient-select="handlePatientSelect"
+      @multi-select-toggle="toggleMultiSelectMode"
+    />
+
+
+    <!-- 右侧医嘱申请工作区 -->
+    <div class="work-area">
+      <!-- 患者信息栏 -->
+      <PatientInfoBar 
+        :patients="selectedPatients"
+        :is-multi-select="enableMultiSelect"
+      />
+
+      <!-- Tab导航栏（点击切换） -->
+      <div class="tab-navigation">
+        <div 
+          class="tab-item"
+          :class="{ active: activeTab === 'medication' }"
+          @click="handleTabClick('medication')"
+        >
+          <span class="tab-icon">💊</span>
+          <span class="tab-label">药品申请</span>
+        </div>
+        <div 
+          class="tab-item"
+          :class="{ active: activeTab === 'inspection' }"
+          @click="handleTabClick('inspection')"
+        >
+          <span class="tab-icon">🔬</span>
+          <span class="tab-label">检查申请</span>
+        </div>
+      </div>
+
+      <!-- 提示信息：未选择患者 -->
+      <div v-if="selectedPatients.length === 0" class="no-patient-bar">
+        <el-icon><InfoFilled /></el-icon>
+        <span>请从左侧患者列表中选择患者查看待申请项</span>
+      </div>
+
+      <!-- 筛选工具栏 -->
+      <div v-if="selectedPatients.length > 0" class="filter-toolbar">
+        <!-- 状态筛选 -->
+        <div class="filter-group">
+          <span class="filter-label">状态:</span>
+          <el-checkbox-group v-model="statusFilter" @change="loadApplications">
+            <el-checkbox label="Applying">待申请</el-checkbox>
+            <el-checkbox label="Applied">已申请</el-checkbox>
+            <el-checkbox label="AppliedConfirmed">已确认</el-checkbox>
+            <el-checkbox label="PendingReturn">待退回</el-checkbox>
+          </el-checkbox-group>
+        </div>
+
+        <!-- 时间范围（仅药品申请显示） -->
+        <div v-if="activeTab === 'medication'" class="filter-group">
+          <span class="filter-label">时间:</span>
+          <el-date-picker
+            v-model="timeRange"
+            type="datetimerange"
+            range-separator="至"
+            start-placeholder="开始时间"
+            end-placeholder="结束时间"
+            value-format="YYYY-MM-DDTHH:mm:ss"
+            @change="loadApplications"
+            class="time-picker"
+          />
+        </div>
+
+        <!-- 排序方式 -->
+        <div class="filter-group">
+          <span class="filter-label">排序:</span>
+          <el-select v-model="sortBy" @change="handleSortChange" class="sort-select">
+            <el-option label="计划时间" value="createTime" />
+            <el-option label="患者床号" value="bedId" />
+            <el-option label="申请状态" value="status" />
+          </el-select>
+        </div>
+      </div>
+
+      <!-- 批量操作工具栏 -->
+      <div v-if="selectedPatients.length > 0" class="batch-toolbar">
+        <el-checkbox 
+          v-model="selectAll"
+          @change="handleSelectAllChange"
+          :indeterminate="isIndeterminate"
+        >
+          全选 ({{ selectedCount }}/{{ applicationList.length }})
+        </el-checkbox>
+        
+        <div class="batch-actions">
+          <el-button 
+            type="primary" 
+            :disabled="selectedCount === 0"
+            @click="handleBatchApply"
+            class="action-btn"
+          >
+            批量申请 ({{ selectedCount }})
+          </el-button>
+        </div>
+      </div>
+
+      <!-- 申请项列表 -->
+      <div v-if="!loading && applicationList.length > 0" class="application-list">
+        <div 
+          v-for="item in sortedApplications" 
+          :key="item.relatedId"
+          class="application-item"
+        >
+          <!-- 多选框 -->
+          <el-checkbox 
+            v-model="item.selected" 
+            @change="handleItemSelectChange"
+          />
+          
+          <!-- 申请内容 -->
+          <div class="application-content">
+            <!-- 患者信息（单选时不显示，因为上方已有患者信息栏） -->
+            <div v-if="false" class="application-patient-tag">
+              <span class="patient-bed-tag">{{ item.bedId }}</span>
+              <span class="patient-name-tag">{{ item.patientName }}</span>
+            </div>
+
+            <!-- 申请头部 -->
+            <div class="application-header">
+                            
+              <!-- 状态标签 -->
+              <el-tag 
+                :type="getStatusColor(item.status)" 
+                size="small"
+                class="status-tag"
+              >
+                {{ getStatusText(item.status) }}
+              </el-tag>
+              <!-- 医嘱类型标签（长期/临时） -->
+              <el-tag 
+                :type="item.isLongTerm ? 'primary' : 'warning'" 
+                size="small"
+              >
+                {{ item.isLongTerm ? '长期' : '临时' }}
+              </el-tag>
+              
+              <!-- 医嘱分类标签（药品/检查/手术） -->
+              <el-tag 
+                :type="getOrderTypeColor(item.orderType)" 
+                size="small"
+              >
+                {{ getOrderTypeName(item.orderType) }}
+              </el-tag>
+              
+              <!-- 主要内容：药品申请显示 "计划时间 - 第一个药品" -->
+              <!-- 手术类药品申请显示 "手术日期 - 手术名称" -->
+              <span v-if="activeTab === 'medication' && item.medications && item.medications.length > 0" class="order-main-text">
+                <template v-if="item.orderType === 'Surgical' && item.surgeryName">
+                  {{ formatDateTime(item.surgeryScheduleTime || item.plannedStartTime) }} - {{ item.surgeryName }}
+                </template>
+                <template v-else>
+                  {{ formatDateTime(item.plannedStartTime) }} - {{ item.medications[0].drugName }}{{ item.medications.length > 1 ? '等' : '' }}
+                </template>
+              </span>
+              <span v-else class="order-main-text">{{ item.displayText }}</span>
+              
+              <!-- 检查来源（仅检查类） -->
+              <span v-if="item.inspectionSource" class="inspection-source">
+                · {{ item.inspectionSource }}
+              </span>
+
+              
+              <!-- 加急标识 -->
+              <span v-if="item.isUrgent" class="urgent-badge">🔥 加急</span>
+            </div>
+
+            <!-- 药品申请详情 -->
+            <div v-if="activeTab === 'medication' && item.medications" class="application-details">
+              <div class="detail-section">
+                <span class="detail-label">药品:</span>
+                <div class="drug-list">
+                  <div v-for="(drug, idx) in item.medications" :key="idx" class="drug-item">
+                    <span class="drug-name">{{ drug.drugName }}</span>
+                    <span class="drug-spec">{{ drug.specification }}</span>
+                    <span class="drug-dose">{{ drug.dosage }}</span>
+                    <span v-if="drug.note" class="drug-note">({{ drug.note }})</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="detail-section">
+                <span class="detail-label">时间策略:</span>
+                <span class="detail-value">{{ formatTimingStrategy(item) }}</span>
+              </div>
+
+              <div class="detail-section">
+                <span class="detail-label">用法:</span>
+                <span class="detail-value">{{ formatUsageRoute(item.usageRoute) }}</span>
+              </div>
+
+              <div class="application-meta">
+                <span>创建: {{ formatDateTime(item.createTime) }}</span>
+                <span v-if="item.applyTime">申请: {{ formatDateTime(item.applyTime) }}</span>
+                <span v-if="item.applyNurseName">护士: {{ item.applyNurseName }}</span>
+              </div>
+            </div>
+
+            <!-- 检查申请详情 -->
+            <div v-if="activeTab === 'inspection' && item.inspectionInfo" class="application-details">
+              <div class="detail-section">
+                <span class="detail-label">检查项:</span>
+                <span class="detail-value">{{ item.inspectionInfo.itemName }}</span>
+              </div>
+
+              <div v-if="item.inspectionInfo.itemCode" class="detail-section">
+                <span class="detail-label">项目编码:</span>
+                <span class="detail-value">{{ item.inspectionInfo.itemCode }}</span>
+              </div>
+
+              <div v-if="item.inspectionInfo.location" class="detail-section">
+                <span class="detail-label">检查地点:</span>
+                <span class="detail-value">{{ item.inspectionInfo.location }}</span>
+              </div>
+
+              <div v-if="item.inspectionInfo.precautions" class="detail-section">
+                <span class="detail-label">注意事项:</span>
+                <span class="detail-value">{{ item.inspectionInfo.precautions }}</span>
+              </div>
+
+              <div v-if="item.inspectionInfo.appointmentTime" class="detail-section">
+                <span class="detail-label">预约时间:</span>
+                <span class="detail-value">{{ formatDateTime(item.inspectionInfo.appointmentTime) }}</span>
+              </div>
+
+              <div v-if="item.inspectionInfo.appointmentPlace" class="detail-section">
+                <span class="detail-label">预约地点:</span>
+                <span class="detail-value">{{ item.inspectionInfo.appointmentPlace }}</span>
+              </div>
+
+              <div v-if="item.remarks" class="detail-section">
+                <span class="detail-label">备注:</span>
+                <span class="detail-value">{{ item.remarks }}</span>
+              </div>
+
+              <div class="application-meta">
+                <span>创建: {{ formatDateTime(item.createTime) }}</span>
+                <span v-if="item.applyTime">申请: {{ formatDateTime(item.applyTime) }}</span>
+                <span v-if="item.applyNurseName">护士: {{ item.applyNurseName }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 操作按钮区（仅待申请状态显示） -->
+          <div v-if="item.status === 'Applying'" class="application-actions">
+            <!-- 加急选项 -->
+            <el-checkbox v-model="item.isUrgent" class="urgent-checkbox">
+              加急
+            </el-checkbox>
+
+            <!-- 申请按钮 -->
+            <el-button 
+              type="primary" 
+              @click="handleSingleApply(item)"
+              class="action-btn-small"
+            >
+              申请
+            </el-button>
+          </div>
+
+          <!-- 已申请状态显示撤销申请按钮 -->
+          <div v-else-if="item.status === 'Applied'" class="application-actions">
+            <el-button 
+              type="warning" 
+              @click="handleCancelApplication(item)"
+              class="action-btn-small"
+            >
+              撤销申请
+            </el-button>
+          </div>
+
+          <!-- 已确认状态显示退药/取消安排按钮 -->
+          <div v-else-if="item.status === 'AppliedConfirmed'" class="application-actions">
+            <el-button 
+              type="danger" 
+              @click="handleReturnMedication(item)"
+              class="action-btn-small"
+            >
+              {{ item.orderType === 'Inspection' || item.orderType === 'InspectionOrder' ? '取消安排' : '退药' }}
+            </el-button>
+          </div>
+
+          <!-- 待退药/取消状态显示确认按钮 -->
+          <div v-else-if="item.status === 'PendingReturn'" class="application-actions">
+            <el-tag type="danger" size="small" class="return-notice">
+              {{ item.orderType === 'Inspection' || item.orderType === 'InspectionOrder' ? '需要取消' : '需要退药' }}
+            </el-tag>
+            <el-button 
+              type="primary" 
+              @click="handleConfirmReturn(item)"
+              class="action-btn-small"
+            >
+              {{ item.orderType === 'Inspection' || item.orderType === 'InspectionOrder' ? '确认取消' : '确认退药' }}
+            </el-button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 加载状态 -->
+      <div v-if="loading" class="loading-state">
+        <el-icon class="is-loading"><Loading /></el-icon>
+        <p>加载中...</p>
+      </div>
+
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, watch, onMounted } from 'vue';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import { Loading, InfoFilled } from '@element-plus/icons-vue';
+import PatientListPanel from '@/components/PatientListPanel.vue';
+import PatientInfoBar from '@/components/PatientInfoBar.vue';
+import { usePatientData } from '@/composables/usePatientData';
+import { 
+  getMedicationApplications,
+  getInspectionApplications,
+  submitMedicationApplication,
+  submitInspectionApplication,
+  cancelMedicationApplication,
+  cancelInspectionApplication,
+  requestReturnMedication,
+  confirmReturnMedication
+} from '@/api/orderApplication';
+
+// 使用患者数据组合
+const { 
+  patientList,
+  selectedPatient, 
+  selectedPatients,
+  currentScheduledWardId,
+  enableMultiSelect,
+  selectSinglePatient,
+  togglePatientSelection,
+  toggleMultiSelectMode,
+  initializePatientData,
+  getCurrentNurse
+} = usePatientData();
+
+// Tab状态
+const activeTab = ref('medication'); // 'medication' | 'inspection'
+
+// 筛选条件
+const statusFilter = ref(['Applying']); // 默认显示待申请
+const timeRange = ref(null); // [startTime, endTime]
+const sortBy = ref('createTime');
+
+// 申请列表数据
+const applicationList = ref([]);
+const loading = ref(false);
+
+// 多选相关
+const selectAll = ref(false);
+const isIndeterminate = computed(() => {
+  const count = selectedCount.value;
+  return count > 0 && count < applicationList.value.length;
+});
+
+const selectedCount = computed(() => {
+  return applicationList.value.filter(item => item.selected).length;
+});
+
+// Tab切换处理
+const handleTabClick = (tab) => {
+  if (activeTab.value === tab) return;
+  activeTab.value = tab;
+  // 切换tab时重置筛选条件
+  statusFilter.value = ['Applying'];
+  timeRange.value = null;
+  loadApplications();
+};
+
+// 监听患者选择变化
+watch(selectedPatient, () => {
+  if (selectedPatient.value) {
+    loadApplications();
+  } else {
+    applicationList.value = [];
+  }
+});
+
+// 患者选择处理
+const handlePatientSelect = (eventData) => {
+  console.log('患者选择事件触发:', eventData);
+  
+  // PatientListPanel发射的是对象：{ patient, isMultiSelect, isCheckboxClick? }
+  // 需要从中解构出实际的patient对象
+  const { patient, isMultiSelect } = eventData;
+  
+  if (isMultiSelect) {
+    // 多选模式：切换选中状态
+    togglePatientSelection(patient);
+  } else {
+    // 单选模式：选中单个患者
+    selectSinglePatient(patient);
+  }
+  
+  // 注意：不需要手动调用 loadApplications()
+  // 因为 watch(selectedPatient) 会自动触发加载
+};
+
+// 组件挂载时初始化
+onMounted(async () => {
+  await initializePatientData();
+  // 初始化后更新所有患者的待申请数量
+  await updateAllPatientsPendingCount();
+});
+
+// 更新单个患者的待申请数量
+const updatePatientPendingCount = async (patientId) => {
+  try {
+    // 获取该患者的待申请项数量（状态为Applying）
+    const medicationRequest = {
+      applicationType: 'Medication',
+      patientIds: [patientId],
+      statusFilter: ['Applying']
+    };
+    const inspectionRequest = {
+      applicationType: 'Inspection',
+      patientIds: [patientId],
+      statusFilter: ['Applying']
+    };
+
+    const [medicationRes, inspectionRes] = await Promise.all([
+      getMedicationApplications(medicationRequest).catch(() => []),
+      getInspectionApplications(inspectionRequest).catch(() => [])
+    ]);
+
+    const totalPending = 
+      (Array.isArray(medicationRes) ? medicationRes.length : 0) +
+      (Array.isArray(inspectionRes) ? inspectionRes.length : 0);
+
+    // 更新患者列表中的待申请数量
+    const patient = patientList.value.find(p => p.patientId === patientId);
+    if (patient) {
+      patient.pendingApplicationCount = totalPending;
+    }
+  } catch (error) {
+    console.error('更新患者待申请数量失败:', error);
+  }
+};
+
+// 更新所有患者的待申请数量
+const updateAllPatientsPendingCount = async () => {
+  if (patientList.value.length === 0) return;
+  
+  try {
+    // 批量获取所有患者的待申请数量
+    const patientIds = patientList.value.map(p => p.patientId);
+    
+    const medicationRequest = {
+      applicationType: 'Medication',
+      patientIds: patientIds,
+      statusFilter: ['Applying']
+    };
+    const inspectionRequest = {
+      applicationType: 'Inspection',
+      patientIds: patientIds,
+      statusFilter: ['Applying']
+    };
+
+    const [medicationRes, inspectionRes] = await Promise.all([
+      getMedicationApplications(medicationRequest).catch(() => []),
+      getInspectionApplications(inspectionRequest).catch(() => [])
+    ]);
+
+    // 统计每个患者的待申请数量
+    const countMap = new Map();
+    
+    if (Array.isArray(medicationRes)) {
+      medicationRes.forEach(item => {
+        const count = countMap.get(item.patientId) || 0;
+        countMap.set(item.patientId, count + 1);
+      });
+    }
+    
+    if (Array.isArray(inspectionRes)) {
+      inspectionRes.forEach(item => {
+        const count = countMap.get(item.patientId) || 0;
+        countMap.set(item.patientId, count + 1);
+      });
+    }
+
+    // 更新患者列表
+    patientList.value.forEach(patient => {
+      patient.pendingApplicationCount = countMap.get(patient.patientId) || 0;
+    });
+    
+    console.log('✅ 已更新所有患者的待申请数量');
+  } catch (error) {
+    console.error('批量更新待申请数量失败:', error);
+  }
+};
+
+// 加载申请列表
+const loadApplications = async () => {
+  if (!selectedPatient.value) {
+    applicationList.value = [];
+    return;
+  }
+
+  // 如果没有选中任何状态，直接返回空列表
+  if (!statusFilter.value || statusFilter.value.length === 0) {
+    applicationList.value = [];
+    return;
+  }
+
+  loading.value = true;
+  try {
+    const currentNurse = getCurrentNurse();
+    if (!currentNurse) {
+      ElMessage.error('未找到当前护士信息');
+      return;
+    }
+
+    // 构造请求参数（与后端DTO匹配）
+    const requestData = {
+      applicationType: activeTab.value === 'medication' ? 'Medication' : 'Inspection',
+      patientIds: [selectedPatient.value.patientId]
+    };
+
+    // 添加状态筛选
+    requestData.statusFilter = statusFilter.value;
+
+    // 仅药品申请时添加时间范围参数
+    // 需要将本地时间转换为UTC时间（PostgreSQL要求）
+    if (activeTab.value === 'medication' && timeRange.value && timeRange.value.length === 2) {
+      if (timeRange.value[0]) {
+        // timeRange.value[0] 格式: "2025-12-22T08:00:00" (本地时间)
+        // 需要转换为 "2025-12-22T00:00:00Z" (UTC时间)
+        const localDate = new Date(timeRange.value[0]);
+        requestData.startTime = localDate.toISOString(); // 自动转为UTC并添加Z后缀
+      }
+      if (timeRange.value[1]) {
+        const localDate = new Date(timeRange.value[1]);
+        requestData.endTime = localDate.toISOString();
+      }
+    }
+
+    console.log('📤 发送申请列表请求:', requestData);
+    console.log('📤 请求JSON:', JSON.stringify(requestData));
+
+    let response;
+    if (activeTab.value === 'medication') {
+      response = await getMedicationApplications(requestData);
+    } else {
+      response = await getInspectionApplications(requestData);
+    }
+
+    console.log('📥 收到申请列表响应:', response);
+
+    // 后端直接返回数组，不是 { success, data } 格式
+    if (Array.isArray(response)) {
+      applicationList.value = response.map(item => ({
+        ...item,
+        selected: false,
+        isUrgent: item.isUrgent || false
+      }));
+      console.log('✅ 成功加载', applicationList.value.length, '条申请记录');
+      
+      // 更新当前患者的待申请数量
+      updatePatientPendingCount(selectedPatient.value.patientId);
+    } else if (response && response.success) {
+      // 兼容可能的标准格式响应
+      applicationList.value = (response.data || []).map(item => ({
+        ...item,
+        selected: false,
+        isUrgent: item.isUrgent || false
+      }));
+    } else {
+      ElMessage.error(response?.message || '加载申请列表失败');
+      applicationList.value = [];
+    }
+  } catch (error) {
+    console.error('加载申请列表失败:', error);
+    console.error('错误详情:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    });
+    
+    // 显示详细的验证错误
+    if (error.response?.data?.errors) {
+      console.error('验证错误详情:', error.response.data.errors);
+      const errors = error.response.data.errors;
+      const errorMessages = Object.entries(errors)
+        .map(([field, messages]) => `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`)
+        .join('\n');
+      ElMessage.error(`验证失败:\n${errorMessages}`);
+    } else {
+      const errorMsg = error.response?.data?.title 
+        || error.response?.data?.message 
+        || error.message 
+        || '加载申请列表失败';
+      ElMessage.error(errorMsg);
+    }
+    
+    applicationList.value = [];
+  } finally {
+    loading.value = false;
+  }
+};
+
+// 排序后的申请列表
+const sortedApplications = computed(() => {
+  const list = [...applicationList.value];
+  
+  switch (sortBy.value) {
+    case 'createTime':
+      // 按计划开始时间从早到晚排序（升序）
+      return list.sort((a, b) => new Date(a.plannedStartTime) - new Date(b.plannedStartTime));
+    case 'bedId':
+      return list.sort((a, b) => (a.bedId || '').localeCompare(b.bedId || ''));
+    case 'status':
+      const statusOrder = { Applying: 0, Applied: 1, AppliedConfirmed: 2 };
+      return list.sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
+    default:
+      return list;
+  }
+});
+
+// 排序变化处理
+const handleSortChange = () => {
+  // 触发计算属性重新计算即可
+};
+
+// 全选处理
+const handleSelectAllChange = (value) => {
+  applicationList.value.forEach(item => {
+    if (item.status === 'Applying') { // 仅可申请待申请状态的项
+      item.selected = value;
+    }
+  });
+};
+
+// 单项选择变化
+const handleItemSelectChange = () => {
+  const selectableCount = applicationList.value.filter(item => item.status === 'Applying').length;
+  const selectedApplyingCount = applicationList.value.filter(item => item.status === 'Applying' && item.selected).length;
+  selectAll.value = selectableCount > 0 && selectedApplyingCount === selectableCount;
+};
+
+// 单个申请
+const handleSingleApply = async (item) => {
+  const currentNurse = getCurrentNurse();
+  if (!currentNurse) {
+    ElMessage.error('未找到当前护士信息');
+    return;
+  }
+
+  // 加急确认
+  if (item.isUrgent) {
+    try {
+      await ElMessageBox.confirm(
+        '您选择了加急申请，将优先处理。是否继续？',
+        '加急申请确认',
+        {
+          confirmButtonText: '确认申请',
+          cancelButtonText: '取消',
+          type: 'warning',
+          customClass: 'order-action-confirm'
+        }
+      );
+    } catch {
+      return; // 用户取消
+    }
+  }
+
+  loading.value = true;
+  try {
+    let response;
+    if (activeTab.value === 'medication') {
+      response = await submitMedicationApplication({
+        nurseId: currentNurse.staffId,  // ✅ 使用 staffId 字段
+        taskIds: [item.relatedId],
+        isUrgent: item.isUrgent,
+        remarks: item.remarks || ''
+      });
+    } else {
+      response = await submitInspectionApplication({
+        nurseId: currentNurse.staffId,  // ✅ 使用 staffId 字段
+        taskIds: [item.relatedId],  // ✅ 使用 taskIds 而不是 orderIds
+        isUrgent: item.isUrgent,
+        remarks: item.remarks || ''
+      });
+    }
+
+    if (response.success) {
+      ElMessage.success('申请成功');
+      await loadApplications(); // 刷新列表
+      // 刷新后会自动更新待申请数量
+    } else {
+      ElMessage.error(response.message || '申请失败');
+    }
+  } catch (error) {
+    console.error('申请失败:', error);
+    ElMessage.error('申请失败');
+  } finally {
+    loading.value = false;
+  }
+};
+
+// 批量申请
+const handleBatchApply = async () => {
+  const selectedItems = applicationList.value.filter(item => item.selected && item.status === 'Applying');
+  
+  if (selectedItems.length === 0) {
+    ElMessage.warning('请至少选择一项');
+    return;
+  }
+
+  const currentNurse = getCurrentNurse();
+  if (!currentNurse) {
+    ElMessage.error('未找到当前护士信息');
+    return;
+  }
+
+  const hasUrgent = selectedItems.some(item => item.isUrgent);
+
+  // 加急确认
+  if (hasUrgent) {
+    try {
+      await ElMessageBox.confirm(
+        `您选择了 ${selectedItems.length} 项申请，其中包含加急项。是否继续？`,
+        '批量申请确认',
+        {
+          confirmButtonText: '确认申请',
+          cancelButtonText: '取消',
+          type: 'warning',
+          customClass: 'order-action-confirm'
+        }
+      );
+    } catch {
+      return; // 用户取消
+    }
+  }
+
+  loading.value = true;
+  try {
+    let response;
+    if (activeTab.value === 'medication') {
+      response = await submitMedicationApplication({
+        nurseId: currentNurse.staffId,  // ✅ 使用 staffId 字段
+        taskIds: selectedItems.map(item => item.relatedId),
+        isUrgent: hasUrgent,
+        remarks: '批量申请'
+      });
+    } else {
+      response = await submitInspectionApplication({
+        nurseId: currentNurse.staffId,  // ✅ 使用 staffId 字段
+        taskIds: selectedItems.map(item => item.relatedId),  // ✅ 使用 taskIds 而不是 orderIds
+        isUrgent: hasUrgent,
+        remarks: '批量申请'
+      });
+    }
+
+    if (response.success) {
+      ElMessage.success(`批量申请成功：${response.processedIds?.length || selectedItems.length} 项`);
+      await loadApplications(); // 刷新列表（会自动更新待申请数量）
+      selectAll.value = false;
+    } else {
+      ElMessage.error(response.message || '批量申请失败');
+    }
+  } catch (error) {
+    console.error('批量申请失败:', error);
+    ElMessage.error('批量申请失败');
+  } finally {
+    loading.value = false;
+  }
+};
+
+// 撤销申请（Applied状态）
+const handleCancelApplication = async (item) => {
+  try {
+    await ElMessageBox.confirm(
+      '确定要撤销此申请吗？药房可能正在配药中。',
+      '撤销申请确认',
+      {
+        confirmButtonText: '确认',
+        cancelButtonText: '取消',
+        type: 'warning',
+        customClass: 'order-action-confirm'
+      }
+    );
+  } catch {
+    return; // 用户取消
+  }
+
+  const currentNurse = getCurrentNurse();
+  if (!currentNurse) {
+    ElMessage.error('未找到当前护士信息');
+    return;
+  }
+
+  loading.value = true;
+  try {
+    const response = await cancelMedicationApplication({
+      nurseId: currentNurse.staffId,
+      ids: [item.relatedId],
+      reason: '护士撤销申请'
+    });
+
+    if (response.success) {
+      ElMessage.success('撤销成功');
+      await loadApplications();
+    } else {
+      ElMessage.error(response.message || '撤销失败');
+    }
+  } catch (error) {
+    console.error('撤销申请失败:', error);
+    ElMessage.error('撤销申请失败');
+  } finally {
+    loading.value = false;
+  }
+};
+
+// 申请退药/取消安排（AppliedConfirmed状态）
+const handleReturnMedication = async (item) => {
+  try {
+    const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
+    const { value: reason } = await ElMessageBox.prompt(
+      isInspection ? '检查科室已安排，请输入取消原因：' : '药房已配好药，请输入退药原因：',
+      isInspection ? '申请取消安排' : '申请退药',
+      {
+        confirmButtonText: isInspection ? '确认取消' : '确认退药',
+        cancelButtonText: '取消',
+        inputPattern: /\S+/,
+        inputErrorMessage: isInspection ? '取消原因不能为空' : '退药原因不能为空',
+        inputType: 'textarea'
+      }
+    );
+
+    const currentNurse = getCurrentNurse();
+    if (!currentNurse) {
+      ElMessage.error('未找到当前护士信息');
+      return;
+    }
+
+    loading.value = true;
+    const response = await requestReturnMedication(
+      item.relatedId,
+      currentNurse.staffId,
+      reason
+    );
+
+    if (response.success) {
+      const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
+      ElMessage.success(isInspection ? '取消申请已提交' : '退药申请已提交');
+      await loadApplications();
+    } else {
+      const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
+      ElMessage.error(response.message || (isInspection ? '取消申请失败' : '退药申请失败'));
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
+      console.error(isInspection ? '申请取消失败:' : '申请退药失败:', error);
+      ElMessage.error(isInspection ? '申请取消失败' : '申请退药失败');
+    }
+  } finally {
+    loading.value = false;
+  }
+};
+
+// 确认退药/取消（PendingReturn状态）
+const handleConfirmReturn = async (item) => {
+  try {
+    const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
+    await ElMessageBox.confirm(
+      isInspection ? '确认取消该检查安排？取消后任务将被停止。' : '确认退回该药品？退药后任务将被停止。',
+      isInspection ? '确认取消' : '确认退药',
+      {
+        confirmButtonText: isInspection ? '确认取消' : '确认退药',
+        cancelButtonText: '取消',
+        type: 'warning',
+        customClass: 'order-action-confirm'
+      }
+    );
+
+    const currentNurse = getCurrentNurse();
+    if (!currentNurse) {
+      ElMessage.error('未找到当前护士信息');
+      return;
+    }
+
+    loading.value = true;
+    const response = await confirmReturnMedication(
+      item.relatedId,
+      currentNurse.staffId
+    );
+
+    if (response.success) {
+      const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
+      ElMessage.success(isInspection ? '取消确认成功' : '退药确认成功');
+      await loadApplications();
+    } else {
+      const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
+      ElMessage.error(response.message || (isInspection ? '取消确认失败' : '退药确认失败'));
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      const isInspection = item.orderType === 'Inspection' || item.orderType === 'InspectionOrder';
+      console.error(isInspection ? '确认取消失败:' : '确认退药失败:', error);
+      ElMessage.error(isInspection ? '确认取消失败' : '确认退药失败');
+    }
+  } finally {
+    loading.value = false;
+  }
+};
+
+// 取消申请
+const handleCancelApply = async (item) => {
+  try {
+    await ElMessageBox.confirm(
+      '确定要取消此申请吗？',
+      '取消申请确认',
+      {
+        confirmButtonText: '确认',
+        cancelButtonText: '取消',
+        type: 'warning',
+        customClass: 'order-action-confirm'
+      }
+    );
+  } catch {
+    return; // 用户取消
+  }
+
+  const currentNurse = getCurrentNurse();
+  if (!currentNurse) {
+    ElMessage.error('未找到当前护士信息');
+    return;
+  }
+
+  loading.value = true;
+  try {
+    let response;
+    if (activeTab.value === 'medication') {
+      response = await cancelMedicationApplication({
+        nurseId: currentNurse.staffId,
+        ids: [item.relatedId],
+        reason: '护士取消'
+      });
+    } else {
+      response = await cancelInspectionApplication({
+        nurseId: currentNurse.staffId,
+        ids: [item.relatedId],
+        reason: '护士取消'
+      });
+    }
+
+    if (response.success) {
+      ElMessage.success('取消成功');
+      await loadApplications();
+    } else {
+      ElMessage.error(response.message || '取消失败');
+    }
+  } catch (error) {
+    console.error('取消申请失败:', error);
+    ElMessage.error('取消失败');
+  } finally {
+    loading.value = false;
+  }
+};
+
+// 医嘱类型颜色映射
+const getOrderTypeColor = (orderType) => {
+  const colorMap = {
+    Medication: 'success',
+    Inspection: 'info',
+    Surgical: 'danger',
+    Operation: 'warning'
+  };
+  return colorMap[orderType] || 'info';
+};
+
+// 医嘱类型名称映射
+const getOrderTypeName = (orderType) => {
+  const nameMap = {
+    Medication: '药品',
+    Inspection: '检查',
+    Surgical: '手术',
+    Operation: '操作',
+    MedicationOrder: '药品',
+    InspectionOrder: '检查',
+    SurgicalOrder: '手术',
+    OperationOrder: '操作'
+  };
+  return nameMap[orderType] || orderType;
+};
+
+// 状态颜色映射
+const getStatusColor = (status) => {
+  const colorMap = {
+    Applying: 'warning',
+    Applied: 'primary',
+    AppliedConfirmed: 'success',
+    PendingReturn: 'danger'
+  };
+  return colorMap[status] || 'info';
+};
+
+// 状态文本映射
+const getStatusText = (status) => {
+  const textMap = {
+    Applying: '待申请',
+    Applied: '已申请',
+    AppliedConfirmed: '已确认',
+    PendingReturn: '待退药'
+  };
+  return textMap[status] || status;
+};
+
+// 格式化日期时间（自动将UTC时间转换为北京时间）
+const formatDateTime = (dateString) => {
+  if (!dateString) return '-';
+  try {
+    // 确保UTC时间字符串带有Z标识
+    let utcString = dateString;
+    if (!dateString.endsWith('Z') && !dateString.includes('+')) {
+      utcString = dateString + 'Z';
+    }
+    const date = new Date(utcString);
+    // JavaScript的toLocaleString会自动转换为本地时区（北京时间UTC+8）
+    return date.toLocaleString('zh-CN', { 
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Asia/Shanghai'
+    });
+  } catch {
+    return dateString;
+  }
+};
+
+// 格式化时间策略
+const formatTimingStrategy = (item) => {
+  if (!item.timingStrategy) return '-';
+  
+  switch (item.timingStrategy) {
+    case 'IMMEDIATE':
+      return '立即';
+    
+    case 'SPECIFIC':
+      // 指定时间：显示开始时间
+      return `指定时间: ${formatDateTime(item.startTime || item.plannedStartTime)}`;
+    
+    case 'SLOTS':
+      // Slot 策略：显示开始结束时间 + 选定的slot中文
+      const slotText = formatSlotsMask(item.smartSlotsMask);
+      const intervalDaysText = item.intervalDays && item.intervalDays > 1 
+        ? `每${item.intervalDays}天` 
+        : '每天';
+      return `${formatDateTime(item.startTime || item.plannedStartTime)} 至 ${formatDateTime(item.plantEndTime)} (${intervalDaysText} ${slotText})`;
+    
+    case 'CYCLIC':
+      // Cycle 策略：显示开始结束时间 + 间隔时间
+      const intervalText = formatIntervalHours(item.intervalHours);
+      return `${formatDateTime(item.startTime || item.plannedStartTime)} 至 ${formatDateTime(item.plantEndTime)} (${intervalText})`;
+    
+    default:
+      return item.timingStrategy;
+  }
+};
+
+// 格式化间隔时间
+const formatIntervalHours = (hours) => {
+  if (!hours) return '未指定间隔';
+  
+  if (hours < 1) {
+    const minutes = Math.round(hours * 60);
+    return `每${minutes}分钟`;
+  } else if (hours === 1) {
+    return '每小时';
+  } else if (hours % 24 === 0) {
+    const days = hours / 24;
+    return `每${days}天`;
+  } else {
+    return `每${hours}小时`;
+  }
+};
+
+// 格式化 Slots 掩码
+const formatSlotsMask = (mask) => {
+  if (!mask) return '';
+  
+  // 根据掩码解析选定的时段
+  // 假设 bit 0-7 分别代表：早晨、上午、中午、下午、晚上、深夜、凌晨、其他
+  const slotNames = ['早晨', '上午', '中午', '下午', '晚上', '深夜', '凌晨', '其他'];
+  const selectedSlots = [];
+  
+  for (let i = 0; i < slotNames.length; i++) {
+    if (mask & (1 << i)) {
+      selectedSlots.push(slotNames[i]);
+    }
+  }
+  
+  return selectedSlots.length > 0 ? selectedSlots.join('、') : '未指定时段';
+};
+
+// 格式化用法途径
+const formatUsageRoute = (usageRoute) => {
+  if (!usageRoute) return '-';
+  
+  const usageMap = {
+    'PO': '口服',
+    'Topical': '外用/涂抹',
+    'IM': '肌内注射',
+    'SC': '皮下注射',
+    'IVP': '静脉推注',
+    'IVGTT': '静脉滴注',
+    'Inhalation': '吸氧',
+    'ST': '皮试'
+  };
+  
+  return usageMap[usageRoute] || usageRoute;
+};
+</script>
+
+<style scoped>
+/* ==================== 主布局 ==================== */
+
+/* ==================== 全局变量 ==================== */
+.order-application {
+  --primary-color: #409eff;
+  --success-color: #67c23a;
+  --warning-color: #e6a23c;
+  --danger-color: #f56c6c;
+  --info-color: #909399;
+  
+  --bg-page: #f4f7f9;
+  --bg-card: #ffffff;
+  --bg-secondary: #f9fafc;
+  
+  --border-color: #dcdfe6;
+  --text-primary: #303133;
+  --text-regular: #606266;
+  --text-secondary: #909399;
+  
+  --radius-large: 8px;
+  --radius-medium: 6px;
+  --radius-small: 4px;
+  --radius-round: 20px;
+
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  height: calc(100vh - 60px);
+  background: var(--bg-page);
+  gap: 20px;
+  padding: 20px;
+}
+
+.work-area {
+  background: var(--bg-card);
+  border-radius: var(--radius-large);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ==================== 未选择患者提示栏 ==================== */
+
+.no-patient-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px;
+  background: #f0f9ff;
+  border-bottom: 1px solid #b3e0ff;
+  color: var(--primary-color);
+  font-size: 0.95rem;
+}
+
+.no-patient-bar .el-icon {
+  font-size: 1.2rem;
+}
+
+/* ==================== 空状态工作区 ==================== */
+
+.empty-work-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+
+.empty-work-area .empty-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-work-area p {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+}
+
+/* ==================== Tab导航栏 ==================== */
+
+.tab-navigation {
+  display: flex;
+  gap: 0;
+  background: #f8f9fa;
+  border-bottom: 2px solid var(--border-color);
+  padding: 0 20px;
+}
+
+.tab-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 24px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  position: relative;
+  transition: all 0.3s;
+  user-select: none;
+}
+
+.tab-item:hover {
+  color: var(--primary-color);
+  background: rgba(64, 158, 255, 0.05);
+}
+
+.tab-item.active {
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+.tab-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--primary-color);
+}
+
+.tab-icon {
+  font-size: 1.2rem;
+}
+
+.tab-label {
+  font-size: 1rem;
+}
+
+/* ==================== 筛选工具栏 ==================== */
+
+.filter-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 15px 25px;
+  background: white;
+  border-bottom: 1px solid var(--border-color);
+  flex-wrap: wrap;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.filter-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-regular, #606266);
+  white-space: nowrap;
+}
+
+.time-picker {
+  width: 360px;
+}
+
+.sort-select {
+  width: 140px;
+}
+
+.multi-select-btn {
+  font-weight: 600;
+}
+
+/* ==================== 批量操作工具栏 ==================== */
+
+.batch-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: #f0f9ff;
+  border-bottom: 1px solid #b3e0ff;
+}
+
+.batch-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.action-btn {
+  font-weight: 600;
+  border-radius: var(--radius-small, 4px);
+}
+
+/* ==================== 申请项列表 ==================== */
+
+.application-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 25px 16px 25px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: calc(100vh - 400px);
+}
+
+.application-item {
+  display: flex;
+  gap: 16px;
+  padding: 20px;
+  background: white;
+  border: 1px solid var(--border-color, #e4e7ed);
+  border-radius: var(--radius-medium, 8px);
+  transition: all 0.3s;
+}
+
+.application-item:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: var(--primary-color, #409eff);
+}
+
+.application-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ==================== 患者标签（多选模式） ==================== */
+
+.application-patient-tag {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.patient-bed-tag {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  min-width: 60px;
+  text-align: center;
+}
+
+.patient-name-tag {
+  background: var(--primary-color, #409eff);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* ==================== 申请头部 ==================== */
+
+.application-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.order-main-text {
+  font-size: 0.95rem;
+  color: var(--text-primary, #303133);
+  font-weight: 600;
+  flex: 1;
+  min-width: 150px;
+}
+
+.inspection-source {
+  font-size: 0.85rem;
+  color: var(--text-secondary, #909399);
+  font-weight: 500;
+}
+
+.status-tag {
+  margin-left: auto;
+}
+
+.application-id {
+  font-size: 0.9rem;
+  color: var(--text-secondary, #909399);
+  font-weight: 500;
+}
+
+.urgent-badge {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff4757 100%);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+/* ==================== 申请详情 ==================== */
+
+.application-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.detail-section {
+  display: flex;
+  gap: 8px;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.detail-label {
+  color: var(--text-secondary, #909399);
+  min-width: 70px;
+  font-weight: 500;
+}
+
+.detail-value {
+  color: var(--text-regular, #606266);
+  flex: 1;
+}
+
+/* ==================== 药品列表 ==================== */
+
+.drug-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.drug-item {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.drug-name {
+  font-weight: 600;
+  color: var(--primary-color, #409eff);
+  font-size: 0.9rem;
+}
+
+.drug-spec {
+  color: var(--text-secondary, #909399);
+  font-size: 0.8rem;
+}
+
+.drug-dose {
+  font-weight: 600;
+  color: var(--success-color, #67c23a);
+  font-size: 0.9rem;
+}
+
+.drug-note {
+  color: var(--warning-color, #e6a23c);
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+/* ==================== 元数据 ==================== */
+
+.application-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #909399);
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-color, #e4e7ed);
+}
+
+/* ==================== 操作区 ==================== */
+
+.application-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+  min-width: 90px;
+}
+
+.urgent-checkbox {
+  font-weight: 600;
+}
+
+.action-btn-small {
+  width: 80px !important;
+  height: 36px !important;
+  padding: 0 !important;
+  font-size: 0.9rem !important;
+  font-weight: 600 !important;
+  border-radius: var(--radius-small, 4px) !important;
+  transition: all 0.3s !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.action-btn-small:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+}
+
+.action-btn-small.el-button--primary {
+  background: var(--primary-color, #409eff) !important;
+  border-color: var(--primary-color, #409eff) !important;
+}
+
+.action-btn-small.el-button--primary:not(:disabled):hover {
+  background: #66b1ff !important;
+  border-color: #66b1ff !important;
+}
+
+.action-btn-small.el-button--warning {
+  background: var(--warning-color, #e6a23c) !important;
+  border-color: var(--warning-color, #e6a23c) !important;
+}
+
+.action-btn-small.el-button--warning:not(:disabled):hover {
+  background: #f0c78a !important;
+  border-color: #f0c78a !important;
+}
+
+/* ==================== 状态显示 ==================== */
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: var(--text-secondary, #909399);
+  gap: 16px;
+}
+
+.loading-state .el-icon {
+  font-size: 48px;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: var(--text-secondary, #909399);
+}
+
+.empty-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-state p {
+  font-size: 1rem;
+  color: var(--text-secondary, #909399);
+}
+
+/* ==================== 确认弹窗样式 ==================== */
+
+:deep(.order-action-confirm) {
+  width: 500px;
+  max-width: 90vw;
+}
+
+:deep(.order-action-confirm .el-message-box__message) {
+  line-height: 1.6;
+}
+
+/* ==================== 响应式 ==================== */
+
+@media (max-width: 768px) {
+  .order-application {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .time-picker {
+    width: 100%;
+  }
+}
+</style>

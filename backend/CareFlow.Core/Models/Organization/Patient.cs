@@ -18,7 +18,7 @@ namespace CareFlow.Core.Models.Organization
         public DateTime DateOfBirth { get; set; }
         public int Age { get; set; }
         public float Weight { get; set; }
-        public string Status { get; set; } = string.Empty;
+        public PatientStatus Status { get; set; }
         public string PhoneNumber { get; set; } = string.Empty;
         public NursingGrade NursingGrade { get; set; }
 
